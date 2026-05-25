@@ -592,6 +592,49 @@ html.dark .nk-logo-img {
   color: var(--nk-primary);
 }
 
+/* Mega Menu (Desktop) */
+.nk-mega-trigger:hover .nk-mega-menu {
+  display: block;
+}
+
+.nk-mega-menu {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 750px;
+  background-color: var(--nk-bg-card);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+  border-top: 4px solid var(--nk-primary);
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  padding: 24px;
+  z-index: 50;
+  margin-top: 0;
+}
+
+.nk-mega-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px 24px;
+  list-style: none;
+}
+
+.nk-mega-link {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--nk-text-main);
+  text-decoration: none;
+  display: block;
+  padding: 4px 0;
+  transition: color 0.2s;
+}
+
+.nk-mega-link:hover {
+  color: var(--nk-primary);
+}
+
 .nk-mobile-theme-item {
   display: none;
 }
@@ -716,6 +759,27 @@ html.dark .nk-logo-img {
   }
   .nk-nav-item-dropdown:hover .nk-submenu.active {
     display: flex;
+  }
+  
+  /* Reset Mega Menu on Mobile */
+  .nk-mega-menu {
+    position: static;
+    transform: none;
+    width: 100%;
+    box-shadow: none;
+    border: none;
+    padding: 16px;
+    background: var(--nk-bg-wrapper);
+    display: none;
+  }
+  
+  .nk-mega-menu.active {
+    display: block;
+  }
+  
+  .nk-mega-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 
   .nk-mobile-theme-item {
@@ -1070,6 +1134,183 @@ html.dark .nk-preloader-logo {
 .nk-btn-hero {
   font-size: 1.65rem !important;
   padding: 14px 44px;
+}
+
+/* --- 11b. HERO IMAGE SLIDER --- */
+.nk-hero-slider {
+  position: relative;
+  width: 100%;
+  background: #000;
+  overflow: hidden;
+}
+
+.nk-hero-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  opacity: 0;
+  transition: opacity 1s ease-in-out;
+  pointer-events: none;
+}
+
+.nk-hero-slide:first-child {
+  position: relative;
+  /* The first slide is relative so the container gets its natural height */
+}
+
+.nk-hero-slide--active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.nk-hero-slide img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.nk-hero-scroll-hint {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  pointer-events: none;
+  animation: bounce 2s infinite;
+}
+
+.nk-hero-scroll-hint .material-icons-outlined {
+  font-size: 2.5rem;
+  text-shadow: 0 0 10px rgba(0,0,0,0.8);
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-12px); }
+}
+
+/* --- 11c. HOME SECTIONS --- */
+.nk-home-section {
+  padding: 60px 0;
+}
+
+.nk-home-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 24px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.nk-home-view-all {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 700;
+  color: var(--nk-text-main);
+  text-decoration: none;
+  font-family: 'Teko', sans-serif;
+  font-size: 1.2rem;
+  text-transform: uppercase;
+}
+
+.nk-home-view-all:hover {
+  color: var(--nk-primary);
+}
+
+/* --- 11d. CATEGORIES EXPLORE SLIDER --- */
+.nk-categories-slider {
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  cursor: grab;
+  user-select: none;
+  padding-bottom: 16px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.nk-categories-slider::-webkit-scrollbar {
+  display: none;
+}
+
+.nk-explore-card {
+  flex: 0 0 300px;
+  width: 300px;
+  height: 420px;
+  position: relative;
+  overflow: hidden;
+  border-radius: 8px;
+  text-decoration: none;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+}
+
+.nk-explore-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.7s ease;
+}
+
+.nk-explore-card:hover .nk-explore-card-img {
+  transform: scale(1.1);
+}
+
+.nk-explore-card-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 50%);
+  opacity: 0.8;
+  transition: opacity 0.3s ease;
+}
+
+.nk-explore-card:hover .nk-explore-card-overlay {
+  opacity: 0.95;
+}
+
+.nk-explore-card-info {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  pointer-events: none;
+}
+
+.nk-explore-card-info h3 {
+  font-family: 'Teko', sans-serif;
+  font-size: 2.2rem;
+  font-weight: 700;
+  color: #FFFFFF;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+  line-height: 1;
+}
+
+.nk-explore-card-info span {
+  color: var(--nk-primary);
+  font-weight: 700;
+  font-size: 0.9rem;
+  border-bottom: 2px solid var(--nk-primary);
+  padding-bottom: 2px;
+}
+
+@media (max-width: 768px) {
+  .nk-explore-card {
+    flex: 0 0 240px;
+    width: 240px;
+    height: 340px;
+  }
+
+  .nk-home-section {
+    padding: 40px 0;
+  }
+
+  .nk-hero-scroll-hint .material-icons-outlined {
+    font-size: 2rem;
+  }
 }
 
 /* --- 12. PROMOTIONAL MARQUEE --- */
@@ -2244,6 +2485,60 @@ html.dark .nk-login-card {
 .nk-btn-login:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(255, 51, 51, 0.5) !important;
+}
+
+/* Breakout Wrapper */
+#nakama-content-wrapper {
+    width: 100vw; position: relative; left: 50%; right: 50%;
+    margin-left: -50vw; margin-right: -50vw; max-width: 100vw;
+    overflow-x: hidden; background-color: #FFFFFF;
+    contain: paint;
+}
+html.dark #nakama-content-wrapper { background-color: #0A0A0A; }
+
+.force-white-always { color: #ffffff !important; text-shadow: 2px 2px 4px rgba(0,0,0,0.8); }
+.gradient-text-gold {
+     background: linear-gradient(to right, #FF3333, #eab308);
+     -webkit-background-clip: text; -webkit-text-fill-color: transparent; text-shadow: none !important;
+}
+
+html:not(.dark) .force-light-text { color: #000000 !important; }
+html:not(.dark) .force-light-text-gray { color: #4B5563 !important; }
+html.dark .force-light-text { color: #FFFFFF !important; }
+
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.cursor-grab { cursor: grab; }
+.cursor-grabbing { cursor: grabbing; }
+
+/* --- ESTILOS GENERALES (Animación y Color) --- */
+.pulse-red-text {
+    color: #ff0000;
+    font-weight: bold;
+    display: inline-block;
+    animation: inflate-deflate 2s infinite ease-in-out;
+}
+
+@keyframes inflate-deflate {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.1); text-shadow: 0 0 10px rgba(255, 0, 0, 0.3); }
+}
+
+@media (max-width: 767px) {
+    .pulse-red-text {
+        margin-left: 0;
+        font-size: 1.1rem; 
+        text-align: center;
+        display: block; 
+    }
+}
+
+@media (min-width: 768px) {
+    .pulse-red-text {
+        margin-left: 10px; 
+        font-size: 1.25rem;
+        display: inline-block; 
+    }
 }
 
 /* --- Lost Password Sent --- */

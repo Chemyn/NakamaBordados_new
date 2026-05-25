@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCart } from '../context/CartContext';
+import { fetchCategories } from '../data/products';
+import { WPCategory } from '@/lib/queries';
 
 export default function Navbar() {
   const pathname = usePathname();
@@ -12,6 +14,15 @@ export default function Navbar() {
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [menuOpen, setMenuOpen] = useState(false);
   const [subActive, setSubActive] = useState<string | null>(null);
+  const [categories, setCategories] = useState<WPCategory[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    fetchCategories().then(data => {
+      if (mounted) setCategories(data);
+    });
+    return () => { mounted = false; };
+  }, []);
 
   // Initialize theme
   useEffect(() => {
@@ -47,22 +58,11 @@ export default function Navbar() {
     setSubActive(subActive === category ? null : category);
   };
 
-  // Subcategories for dropdowns matching snippets
-  const getSubcategories = (cat: string) => {
-    if (cat === 'bordados') {
-      return [
-        { name: 'Anime', href: '/store?category=bordados&tag=Anime' },
-        { name: 'Minimalistas', href: '/store?category=bordados&tag=Minimalista' },
-        { name: 'Mangas', href: '/store?category=bordados&tag=Manga' }
-      ];
-    }
-    if (cat === 'estampados') {
-      return [
-        { name: 'Retro', href: '/store?category=estampados&tag=Retro' },
-        { name: 'Neon', href: '/store?category=estampados&tag=Neon' }
-      ];
-    }
-    return [];
+  // Subcategories extracted from WPGraphQL
+  const getSubcategories = (parentSlug: string) => {
+    return categories
+      .filter(c => c.parentSlug === parentSlug)
+      .sort((a, b) => a.name.localeCompare(b.name));
   };
 
   return (
@@ -99,8 +99,11 @@ export default function Navbar() {
               </Link>
             </li>
             
-            {/* Category: Bordados */}
-            <li className="nk-nav-item-dropdown">
+            {/* Category: Bordados (Mega Menu) */}
+            <li className="nk-nav-item-dropdown nk-mega-trigger"
+                onMouseEnter={() => setSubActive('bordados')}
+                onMouseLeave={() => setSubActive(null)}
+            >
               <div className="nk-dropdown-trigger-wrapper">
                 <Link 
                   href="/store?category=bordados" 
@@ -113,15 +116,17 @@ export default function Navbar() {
                   <span className={`material-icons-outlined ${subActive === 'bordados' ? 'rotate-180' : ''}`}>expand_more</span>
                 </button>
               </div>
-              <ul className={`nk-submenu ${subActive === 'bordados' ? 'active' : ''}`}>
-                {getSubcategories('bordados').map((sub, i) => (
-                  <li key={i}>
-                    <Link href={sub.href} className="nk-submenu-link" onClick={() => { setMenuOpen(false); setSubActive(null); }}>
-                      {sub.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <div className={`nk-mega-menu ${subActive === 'bordados' ? 'active' : ''}`}>
+                <ul className="nk-mega-grid">
+                  {getSubcategories('bordados').map((sub) => (
+                    <li key={sub.id}>
+                      <Link href={`/store?category=${sub.slug}`} className="nk-mega-link" onClick={() => { setMenuOpen(false); setSubActive(null); }}>
+                        {sub.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </li>
 
             <li>
@@ -134,8 +139,11 @@ export default function Navbar() {
               </Link>
             </li>
 
-            {/* Category: Estampados */}
-            <li className="nk-nav-item-dropdown">
+            {/* Category: Estampados (Mega Menu) */}
+            <li className="nk-nav-item-dropdown nk-mega-trigger"
+                onMouseEnter={() => setSubActive('estampados')}
+                onMouseLeave={() => setSubActive(null)}
+            >
               <div className="nk-dropdown-trigger-wrapper">
                 <Link 
                   href="/store?category=estampados" 
@@ -148,15 +156,17 @@ export default function Navbar() {
                   <span className={`material-icons-outlined ${subActive === 'estampados' ? 'rotate-180' : ''}`}>expand_more</span>
                 </button>
               </div>
-              <ul className={`nk-submenu ${subActive === 'estampados' ? 'active' : ''}`}>
-                {getSubcategories('estampados').map((sub, i) => (
-                  <li key={i}>
-                    <Link href={sub.href} className="nk-submenu-link" onClick={() => { setMenuOpen(false); setSubActive(null); }}>
-                      {sub.name}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
+              <div className={`nk-mega-menu ${subActive === 'estampados' ? 'active' : ''}`}>
+                <ul className="nk-mega-grid">
+                  {getSubcategories('estampados').map((sub) => (
+                    <li key={sub.id}>
+                      <Link href={`/store?category=${sub.slug}`} className="nk-mega-link" onClick={() => { setMenuOpen(false); setSubActive(null); }}>
+                        {sub.name}
+                      </Link>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </li>
 
             <li>

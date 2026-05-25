@@ -181,3 +181,32 @@ export function getProductsByCategory(categorySlug: string): Product[] {
   }
   return PRODUCTS.filter(p => p.categories.includes(categorySlug));
 }
+
+// WPGraphQL Integration
+import { getProductsFromWP, getProductsByCategoryFromWP, getCategoriesFromWP, WPCategory } from '@/lib/queries';
+
+export async function fetchCategories() {
+  const cats = await getCategoriesFromWP();
+  if (cats && cats.length > 0) {
+    return cats;
+  }
+  // Return static mock structure if fails
+  return CATEGORIES.map((c, i) => ({ id: i, name: c.name, slug: c.slug, parentSlug: null as string | null }));
+}
+
+export async function fetchProducts(): Promise<Product[]> {
+  const wpProducts = await getProductsFromWP(500);
+  if (wpProducts && wpProducts.length > 0) {
+    return wpProducts;
+  }
+  return PRODUCTS;
+}
+
+export async function fetchProductsByCategory(categorySlug: string, limit: number = 12): Promise<Product[]> {
+  return getProductsByCategoryFromWP(categorySlug, limit);
+}
+
+export async function fetchProductById(id: string): Promise<Product | undefined> {
+  const products = await fetchProducts();
+  return products.find(p => p.id === id);
+}

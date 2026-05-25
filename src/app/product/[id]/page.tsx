@@ -3,15 +3,37 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { getProductById, PRODUCTS, Variation } from '../../data/products';
+import { Product, fetchProductById, fetchProducts, Variation } from '../../data/products';
 import { useCart } from '../../context/CartContext';
+import { useCurrency } from '../../context/CurrencyContext';
 
 export default function ProductDetailPage() {
   const params = useParams();
   const { addToCart } = useCart();
+  const { formatPrice } = useCurrency();
   
   const id = params.id as string;
-  const product = getProductById(id);
+  const [product, setProduct] = useState<Product | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
+
+  useEffect(() => {
+    let mounted = true;
+    Promise.all([fetchProductById(id), fetchProducts()]).then(([prodData, allProds]) => {
+      if (mounted) {
+        setProduct(prodData || null);
+        
+        if (prodData) {
+          setRelatedProducts(
+            allProds.filter(p => p.id !== prodData.id && p.categories.some(c => prodData.categories.includes(c))).slice(0, 4)
+          );
+        }
+        
+        setLoading(false);
+      }
+    });
+    return () => { mounted = false; };
+  }, [id]);
 
   // States
   const [activeImage, setActiveImage] = useState('');
@@ -38,6 +60,14 @@ export default function ProductDetailPage() {
       }, 0);
     }
   }, [product]);
+
+  if (loading) {
+    return (
+      <div className="nk-container text-center" style={{ padding: '120px 24px' }}>
+        <h2 style={{ fontSize: '2rem', marginBottom: '20px' }}>Cargando Producto...</h2>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
@@ -79,16 +109,6 @@ export default function ProductDetailPage() {
 
   const currentVariation = getSelectedVariation();
 
-  // Price determination
-  const minPrice = product.type === 'variable' ? Math.min(...product.variations.map(v => v.price)) : product.price;
-  const maxPrice = product.type === 'variable' ? Math.max(...product.variations.map(v => v.price)) : product.price;
-  
-  const displayPrice = currentVariation 
-    ? `$${currentVariation.price} MXN`
-    : minPrice === maxPrice 
-      ? `$${minPrice} MXN`
-      : `$${minPrice} - $${maxPrice} MXN`;
-
   const handleAttributeSelect = (name: string, value: string) => {
     setSelectedAttributes(prev => ({
       ...prev,
@@ -115,11 +135,6 @@ export default function ProductDetailPage() {
     // Show success feedback
     alert(`¡${product.name} agregado al carrito!`);
   };
-
-  // Find related products matching first category
-  const relatedProducts = PRODUCTS
-    .filter(p => p.id !== product.id && p.categories.some(c => product.categories.includes(c)))
-    .slice(0, 4);
 
   const isGorras = product.categories.includes('gorras') || product.name.toLowerCase().includes('gorra');
 
@@ -153,7 +168,18 @@ export default function ProductDetailPage() {
           <div className="nk-detail-info">
             <span className="nk-info-badge">Colección Oficial</span>
             <h1 className="nk-detail-title">{product.name}</h1>
-            <p className="nk-detail-price">{displayPrice}</p>
+            
+            {product.type === 'variable' && product.variations && product.variations.length > 0 ? (
+                <>
+                  <p className="nk-detail-price">
+                    {currentVariation 
+                      ? formatPrice(currentVariation.price)
+                      : `${formatPrice(Math.min(...product.variations.map(v => v.price)))} - ${formatPrice(Math.max(...product.variations.map(v => v.price)))}`}
+                  </p>
+                </>
+              ) : (
+                <p className="nk-detail-price">{formatPrice(product.price)}</p>
+              )}
             
             <div className="nk-detail-divider"></div>
 
@@ -310,9 +336,15 @@ export default function ProductDetailPage() {
         <h2 className="nk-section-title text-center" style={{ marginBottom: '40px' }}>También te puede gustar</h2>
         <div className="nk-store-grid">
           {relatedProducts.map(p => {
-            const minPrice = p.type === 'variable' ? Math.min(...p.variations.map(v => v.price)) : p.price;
-            const maxPrice = p.type === 'variable' ? Math.max(...p.variations.map(v => v.price)) : p.price;
-            const displayPrice = minPrice === maxPrice ? `$${minPrice} MXN` : `$${minPrice} - $${maxPrice} MXN`;
+            const minPrice = p.type === 'variable' && p.variations.length > 0 
+                  ? Math.min(...p.variations.map(v => v.price)) 
+                  : p.price;
+            const maxPrice = p.type === 'variable' && p.variations.length > 0
+                  ? Math.max(...p.variations.map(v => v.price)) 
+                  : p.price;
+            const displayPrice = minPrice === maxPrice 
+                  ? formatPrice(minPrice)
+                  : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
 
             return (
               <div className="nk-store-card group" key={p.id}>

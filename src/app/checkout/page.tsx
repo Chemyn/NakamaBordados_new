@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Link from 'next/link';
 import { useCart } from '../context/CartContext';
+import { useCurrency } from '../context/CurrencyContext';
 
 export default function CheckoutPage() {
   const { 
@@ -17,6 +18,7 @@ export default function CheckoutPage() {
     applyCoupon, 
     removeCoupon 
   } = useCart();
+  const { formatPrice } = useCurrency();
 
   // Coupon input state
   const [couponInput, setCouponInput] = useState('');
@@ -124,7 +126,7 @@ export default function CheckoutPage() {
             <p><strong>Cuenta:</strong> 0123 4567 8901 2345</p>
             <p><strong>CLABE:</strong> 012345678901234567</p>
             <p><strong>Beneficiario:</strong> Nakama Bordados S.A. de C.V.</p>
-            <p style={{ marginTop: '10px', color: 'var(--nk-primary)', fontWeight: 'bold' }}>Monto a pagar: ${total.toFixed(2)} MXN</p>
+            <p style={{ marginTop: '10px', color: 'var(--nk-primary)', fontWeight: 'bold' }}>Monto a pagar: {formatPrice(total)}</p>
           </div>
         )}
 
@@ -326,7 +328,7 @@ export default function CheckoutPage() {
                 )}
 
                 <button type="submit" className="nk-btn nk-btn-checkout-submit">
-                  Confirmar Compra (${total.toFixed(2)} MXN)
+                  Confirmar Compra ({formatPrice(total)})
                 </button>
               </form>
             </div>
@@ -359,8 +361,8 @@ export default function CheckoutPage() {
                             Eliminar
                           </button>
                         </div>
-                        <div className="nk-review-item-price">
-                          ${(price * item.quantity).toFixed(2)}
+                        <div className="nk-checkout-item-price">
+                          {formatPrice(price * item.quantity)}
                         </div>
                       </div>
                     );
@@ -397,21 +399,21 @@ export default function CheckoutPage() {
                 <div className="nk-review-summary">
                   <div className="nk-summary-row">
                     <span>Subtotal:</span>
-                    <span>${subtotal.toFixed(2)} MXN</span>
+                    <span>{formatPrice(subtotal)}</span>
                   </div>
                   {discount > 0 && (
                     <div className="nk-summary-row nk-summary-discount">
                       <span>Descuento ({discount * 100}%):</span>
-                      <span>-${(subtotal * discount).toFixed(2)} MXN</span>
+                      <span>-{formatPrice(subtotal * discount)}</span>
                     </div>
                   )}
                   <div className="nk-summary-row">
                     <span>Envío:</span>
-                    <span>{shipping === 0 ? 'Gratis' : `$${shipping.toFixed(2)} MXN`}</span>
+                    <span>{shipping === 0 ? 'Gratis' : formatPrice(shipping)}</span>
                   </div>
                   <div className="nk-summary-row nk-summary-total">
                     <span>Total:</span>
-                    <span>${total.toFixed(2)} MXN</span>
+                    <span>{formatPrice(total)}</span>
                   </div>
                 </div>
 

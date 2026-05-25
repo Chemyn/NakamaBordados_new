@@ -3,25 +3,51 @@
 import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { PRODUCTS, CATEGORIES } from '../data/products';
+import { CATEGORIES, Product, fetchProducts, PRODUCTS } from '../data/products';
+import { useCurrency } from '../context/CurrencyContext';
 
 function StoreContent() {
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get('category') || 'todas';
   const tagParam = searchParams.get('tag') || '';
   const [searchQuery, setSearchQuery] = useState('');
+  const [allProducts, setAllProducts] = useState<Product[]>(PRODUCTS);
+  const [loading, setLoading] = useState(true);
+  const { formatPrice } = useCurrency();
 
-  // Filter products directly during render (no useEffect/useState needed)
-  let filteredProducts = PRODUCTS;
+  React.useEffect(() => {
+    let mounted = true;
+    fetchProducts().then(data => {
+      if (mounted) {
+        setAllProducts(data);
+        setLoading(false);
+      }
+    });
+    return () => { mounted = false; };
+  }, []);
 
-  // Filter by category
-  if (categoryParam !== 'todas') {
-    filteredProducts = filteredProducts.filter(p => p.categories.includes(categoryParam));
+
+  let filteredProducts = allProducts;
+
+  // Filter by category (fuzzy matching for plurals)
+  if (categoryParam && categoryParam !== 'todas') {
+    const paramLower = categoryParam.toLowerCase();
+    filteredProducts = filteredProducts.filter(p => {
+      return p.categories.some(c => {
+        const cLower = c.toLowerCase();
+        return cLower === paramLower || 
+               cLower === paramLower + 's' || 
+               cLower + 's' === paramLower ||
+               (paramLower === 'variedad' && cLower.includes('variedad')) ||
+               (paramLower === 'edicion-especial' && cLower.includes('edicion')) ||
+               (paramLower === 'estampado' && cLower.includes('estampado'));
+      });
+    });
   }
 
   // Filter by tag
   if (tagParam) {
-    filteredProducts = filteredProducts.filter(p => p.tags.map(t => t.toLowerCase()).includes(tagParam.toLowerCase()));
+    filteredProducts = filteredProducts.filter(p => p.tags && p.tags.map(t => t.toLowerCase()).includes(tagParam.toLowerCase()));
   }
 
   // Filter by search query
@@ -29,8 +55,8 @@ function StoreContent() {
     const q = searchQuery.toLowerCase();
     filteredProducts = filteredProducts.filter(p => 
       p.name.toLowerCase().includes(q) || 
-      p.description.toLowerCase().includes(q) ||
-      p.tags.some(t => t.toLowerCase().includes(q))
+      (p.description && p.description.toLowerCase().includes(q)) ||
+      (p.tags && p.tags.some(t => t.toLowerCase().includes(q)))
     );
   }
 
@@ -86,6 +112,7 @@ function StoreContent() {
         {filteredProducts.length > 0 ? (
           <div className="nk-store-grid">
             {filteredProducts.map(p => {
+              // WPGraphQL mock price logic
               const minPrice = p.type === 'variable' 
                 ? Math.min(...p.variations.map(v => v.price)) 
                 : p.price;
@@ -93,8 +120,8 @@ function StoreContent() {
                 ? Math.max(...p.variations.map(v => v.price)) 
                 : p.price;
               const displayPrice = minPrice === maxPrice 
-                ? `$${minPrice} MXN` 
-                : `$${minPrice} - $${maxPrice} MXN`;
+                ? formatPrice(minPrice) 
+                : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
 
               const isSpecial = p.categories.includes('edicion-especial');
 

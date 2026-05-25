@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { CartProvider } from "./context/CartContext";
+import { CurrencyProvider } from "./context/CurrencyContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 
@@ -17,13 +18,15 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body>
-        <CartProvider>
-          <Navbar />
-          <div style={{ minHeight: "calc(100vh - 80px - 350px)" }}>
-            {children}
-          </div>
-          <Footer />
-        </CartProvider>
+        <CurrencyProvider>
+          <CartProvider>
+            <Navbar />
+            <div style={{ minHeight: "calc(100vh - 80px - 350px)" }}>
+              {children}
+            </div>
+            <Footer />
+          </CartProvider>
+        </CurrencyProvider>
       </body>
     </html>
   );
