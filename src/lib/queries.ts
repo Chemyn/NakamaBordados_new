@@ -36,6 +36,20 @@ const GET_PRODUCTS_QUERY = `
           price
           regularPrice
           salePrice
+          variations {
+            nodes {
+              id
+              databaseId
+              name
+              price
+              attributes {
+                nodes {
+                  name
+                  value
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -52,6 +66,41 @@ function mapNodeToProduct(node: any): Product {
     if (!isNaN(parsed)) numericPrice = parsed;
   }
 
+  const variations = [];
+  let type: 'simple' | 'variable' = 'simple';
+
+  if (node.variations && node.variations.nodes && node.variations.nodes.length > 0) {
+    type = 'variable';
+    for (const vNode of node.variations.nodes) {
+      let vPrice = 0;
+      if (vNode.price) {
+        const parsed = parseFloat(vNode.price.replace(/[^0-9.-]+/g, ''));
+        if (!isNaN(parsed)) vPrice = parsed;
+      }
+      
+      const attrs: Record<string, string> = {};
+      if (vNode.attributes && vNode.attributes.nodes) {
+        for (const attr of vNode.attributes.nodes) {
+          // attr.name might be 'pa_estilo', 'pa_size'. Let's clean it up if needed, or leave it.
+          // The frontend uses these keys. Let's strip 'pa_' if present to make it prettier.
+          let prettyName = attr.name;
+          if (prettyName.startsWith('pa_')) {
+            prettyName = prettyName.substring(3);
+          }
+          attrs[prettyName] = attr.value;
+        }
+      }
+      
+      variations.push({
+        id: vNode.databaseId.toString(),
+        sku: `WP-VAR-${vNode.databaseId}`,
+        attributes: attrs,
+        price: vPrice,
+        stock: 10 // Mock stock
+      });
+    }
+  }
+
   return {
     id: node.slug || node.databaseId.toString(),
     sku: `WP-${node.databaseId}`,
@@ -61,8 +110,8 @@ function mapNodeToProduct(node: any): Product {
     categories: categories,
     tags: [],
     images: [imageUrl],
-    type: 'simple',
-    variations: [],
+    type: type,
+    variations: variations,
     rating: 5.0,
     salesCount: 10
   };
@@ -130,6 +179,20 @@ const GET_PRODUCTS_BY_CATEGORY_QUERY = `
           price
           regularPrice
           salePrice
+          variations {
+            nodes {
+              id
+              databaseId
+              name
+              price
+              attributes {
+                nodes {
+                  name
+                  value
+                }
+              }
+            }
+          }
         }
       }
     }
