@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { Product, fetchProductById, fetchProducts, Variation } from '../../data/products';
+import { Product, fetchProductById, fetchProductsByCategory, Variation } from '../../data/products';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
 
@@ -19,24 +19,30 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([fetchProductById(id), fetchProducts()])
-      .then(([prodData, allProds]) => {
+    
+    const loadProductAndRelated = async () => {
+      try {
+        const prodData = await fetchProductById(id);
         if (mounted) {
           setProduct(prodData || null);
           
-          if (prodData) {
-            setRelatedProducts(
-              allProds.filter(p => p.id !== prodData.id && p.categories.some(c => prodData.categories.includes(c))).slice(0, 4)
-            );
+          if (prodData && prodData.categories && prodData.categories.length > 0) {
+            // Fetch related products from the same category instead of the whole catalog
+            const related = await fetchProductsByCategory(prodData.categories[0], 4);
+            if (mounted) {
+              setRelatedProducts(related.filter(p => p.id !== prodData.id));
+            }
           }
-          
-          setLoading(false);
+          if (mounted) setLoading(false);
         }
-      })
-      .catch(err => {
+      } catch (err) {
         console.error("Error fetching product data:", err);
         if (mounted) setLoading(false);
-      });
+      }
+    };
+    
+    loadProductAndRelated();
+    
     return () => { mounted = false; };
   }, [id]);
 
@@ -153,7 +159,7 @@ export default function ProductDetailPage() {
           {/* Gallery component (Left Column) */}
           <div className="nk-detail-gallery">
             <div className="nk-main-image-wrapper">
-              <img src={activeImage} alt={product.name} className="nk-main-image" />
+              <img src={activeImage || product.images[0]} alt={product.name} className="nk-main-image" />
             </div>
             
             <div className="nk-thumbnails-list">

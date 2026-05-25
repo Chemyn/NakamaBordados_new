@@ -277,3 +277,61 @@ export async function getCategoriesFromWP(): Promise<WPCategory[]> {
   }));
 }
 
+const GET_SINGLE_PRODUCT_QUERY = `
+  query GetSingleProduct($id: ID!) {
+    product(id: $id, idType: ID) {
+      ... on Product {
+        databaseId
+        id
+        name
+        slug
+        description
+        image {
+          sourceUrl
+          altText
+        }
+        productCategories {
+          nodes {
+            name
+            slug
+          }
+        }
+      }
+      ... on SimpleProduct {
+        price
+        regularPrice
+        salePrice
+      }
+      ... on VariableProduct {
+        price
+        regularPrice
+        salePrice
+        variations {
+          nodes {
+            id
+            databaseId
+            name
+            price
+            attributes {
+              nodes {
+                name
+                value
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+export async function getProductByIdFromWP(id: string): Promise<Product | undefined> {
+  try {
+    const { data } = await fetchGraphQL(GET_SINGLE_PRODUCT_QUERY, { id });
+    if (!data || !data.product) return undefined;
+    return mapNodeToProduct(data.product);
+  } catch (err) {
+    console.error("Error fetching single product from WP:", err);
+    return undefined;
+  }
+}

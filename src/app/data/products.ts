@@ -183,7 +183,7 @@ export function getProductsByCategory(categorySlug: string): Product[] {
 }
 
 // WPGraphQL Integration
-import { getProductsFromWP, getProductsByCategoryFromWP, getCategoriesFromWP, WPCategory } from '@/lib/queries';
+import { getProductsFromWP, getProductsByCategoryFromWP, getCategoriesFromWP, WPCategory, getProductByIdFromWP } from '@/lib/queries';
 
 export async function fetchCategories() {
   const cats = await getCategoriesFromWP();
@@ -193,6 +193,8 @@ export async function fetchCategories() {
   // Return static mock structure if fails
   return CATEGORIES.map((c, i) => ({ id: i, name: c.name, slug: c.slug, parentSlug: null as string | null }));
 }
+
+// ... other code ...
 
 export async function fetchProducts(): Promise<Product[]> {
   const wpProducts = await getProductsFromWP(500);
@@ -207,6 +209,8 @@ export async function fetchProductsByCategory(categorySlug: string, limit: numbe
 }
 
 export async function fetchProductById(id: string): Promise<Product | undefined> {
-  const products = await fetchProducts();
-  return products.find(p => p.id === id);
+  const wpProduct = await getProductByIdFromWP(id);
+  if (wpProduct) return wpProduct;
+  // Fallback to mock product
+  return PRODUCTS.find(p => p.id === id);
 }
