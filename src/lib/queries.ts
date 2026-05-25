@@ -279,7 +279,7 @@ export async function getCategoriesFromWP(): Promise<WPCategory[]> {
 
 const GET_SINGLE_PRODUCT_QUERY = `
   query GetSingleProduct($id: ID!) {
-    product(id: $id, idType: ID) {
+    product(id: $id, idType: SLUG) {
       ... on Product {
         databaseId
         id
