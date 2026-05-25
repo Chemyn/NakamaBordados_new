@@ -137,6 +137,7 @@ export default function MiCuentaPage() {
               {[
                 { key: 'dashboard', icon: 'dashboard', label: 'Escritorio' },
                 { key: 'orders', icon: 'receipt_long', label: 'Pedidos' },
+                { key: 'comisiones', icon: 'payments', label: 'Mis Comisiones' },
                 { key: 'account', icon: 'settings', label: 'Editar Cuenta' },
               ].map((item) => (
                 <li key={item.key}>
@@ -243,6 +244,46 @@ export default function MiCuentaPage() {
                       )}
                     </tbody>
                   </table>
+                </div>
+              </div>
+            )}
+
+            {/* Comisiones Section */}
+            {dashboardSection === 'comisiones' && (
+              <div className="nk-dash-section nk-dash-animate">
+                <h2 className="nk-dash-title">Mis Comisiones</h2>
+                <p className="nk-dash-subtitle">Programa de Apoyo a Creadores Nakama (10% por ventas).</p>
+                <div className="nk-orders-table-wrapper" style={{ marginTop: '20px' }}>
+                  {(user as any)?.comisiones && (user as any).comisiones.length > 0 ? (
+                    <table className="nk-orders-table">
+                      <thead>
+                        <tr>
+                          <th>Mes</th>
+                          <th>Comisión Acumulada</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {(user as any).comisiones.map((com: string, i: number) => {
+                          const [mes, monto] = com.split('|');
+                          return (
+                            <tr key={i}>
+                              <td style={{ fontWeight: '600' }}>{mes}</td>
+                              <td className="nk-order-total" style={{ color: 'var(--nk-primary)' }}>{formatPrice(parseFloat(monto))}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  ) : (
+                    <div style={{ padding: '30px', textAlign: 'center', background: 'var(--nk-bg-wrapper)', borderRadius: '8px' }}>
+                      <span className="material-icons-outlined" style={{ fontSize: '48px', color: 'var(--nk-text-sec)', marginBottom: '10px', display: 'block' }}>payments</span>
+                      <h3>No hay comisiones registradas</h3>
+                      <p style={{ color: 'var(--nk-text-sec)', marginTop: '10px' }}>Aún no tienes comisiones registradas en el periodo reciente. ¡Asegúrate de compartir tu cupón de creador!</p>
+                      <p style={{ color: 'var(--nk-text-sec)', marginTop: '10px', fontSize: '0.9rem' }}>
+                        <em>Nota: Las comisiones aparecerán aquí si el fragmento de código de exposición GraphQL está activo en WordPress.</em>
+                      </p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

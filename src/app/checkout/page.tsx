@@ -133,6 +133,8 @@ export default function CheckoutPage() {
     if (!formData.phone) errors.phone = 'Obligatorio';
     if (!formData.email) errors.email = 'Obligatorio';
     if (!formData.postcode) errors.postcode = 'Obligatorio para el envío';
+    if (!formData.colonia) errors.colonia = 'Obligatorio';
+    if (!formData.address) errors.address = 'Obligatorio';
     
     setFormErrors(errors);
     return Object.keys(errors).length === 0;
@@ -194,8 +196,10 @@ export default function CheckoutPage() {
             
             {/* Left Column: Form */}
             <div className="nk-checkout-form-col">
-              <h2 className="nk-checkout-heading">1. Datos Personales</h2>
+              <h2 className="nk-checkout-heading">1. Dirección de Envío</h2>
               <form className="nk-checkout-form">
+                
+                {/* Nombre y Apellidos */}
                 <div className="nk-form-row">
                   <div className="nk-form-group">
                     <label>Nombre *</label>
@@ -207,6 +211,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
+                {/* Teléfono y Email */}
                 <div className="nk-form-row">
                   <div className="nk-form-group">
                     <label>Teléfono *</label>
@@ -218,20 +223,19 @@ export default function CheckoutPage() {
                   </div>
                 </div>
 
-                <h2 className="nk-checkout-heading" style={{ marginTop: '30px' }}>2. Calcular Envío (Envia.com)</h2>
-                
+                {/* CP y País */}
                 <div className="nk-form-row">
                   <div className="nk-form-group">
                     <label>Código Postal *</label>
                     <input type="text" name="postcode" value={formData.postcode} onChange={handleInputChange} placeholder="Ej: 83000" className={`nk-input-base ${formErrors.postcode ? 'error' : ''}`} />
                   </div>
-                  <div className="nk-form-group" style={{ display: 'flex', alignItems: 'flex-end' }}>
-                    <button type="button" onClick={calculateShippingRates} disabled={isCalculatingShipping || !formData.postcode} className="nk-btn" style={{ width: '100%', height: '48px' }}>
-                      {isCalculatingShipping ? 'Calculando...' : 'Obtener Tarifas'}
-                    </button>
+                  <div className="nk-form-group">
+                    <label>País *</label>
+                    <input type="text" name="country" value={formData.country || 'México'} disabled className="nk-input-base nk-input-disabled" />
                   </div>
                 </div>
 
+                {/* Estado y Ciudad */}
                 <div className="nk-form-row">
                   <div className="nk-form-group">
                     <label>Estado</label>
@@ -240,6 +244,26 @@ export default function CheckoutPage() {
                   <div className="nk-form-group">
                     <label>Ciudad</label>
                     <input type="text" name="city" value={formData.city} onChange={handleInputChange} className="nk-input-base" />
+                  </div>
+                </div>
+
+                {/* Colonia y Dirección */}
+                <div className="nk-form-row">
+                  <div className="nk-form-group">
+                    <label>Colonia *</label>
+                    <input type="text" name="colonia" value={formData.colonia} onChange={handleInputChange} placeholder="Ingresa tu colonia" className={`nk-input-base ${formErrors.colonia ? 'error' : ''}`} />
+                  </div>
+                  <div className="nk-form-group">
+                    <label>Dirección *</label>
+                    <input type="text" name="address" value={formData.address} onChange={handleInputChange} placeholder="Calle y número" className={`nk-input-base ${formErrors.address ? 'error' : ''}`} />
+                  </div>
+                </div>
+
+                <div className="nk-form-row" style={{ marginTop: '20px' }}>
+                  <div className="nk-form-group">
+                    <button type="button" onClick={calculateShippingRates} disabled={isCalculatingShipping || !formData.postcode} className="nk-btn" style={{ width: '100%', height: '48px' }}>
+                      {isCalculatingShipping ? 'Calculando...' : 'Obtener Tarifas de Envío'}
+                    </button>
                   </div>
                 </div>
 

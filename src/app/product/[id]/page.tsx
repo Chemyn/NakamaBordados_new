@@ -90,10 +90,30 @@ export default function ProductDetailPage() {
     );
   }
 
-  // Get unique values for attributes in variations
+  // Implement variation exclusion rules
+  const validVariations = product ? product.variations.filter(v => {
+    const attrs = v.attributes || {};
+    // WordPress attributes might not have 'pa_' if we stripped it in queries.js, but let's check both
+    const color = (attrs['pa_color'] || attrs['color'])?.toLowerCase();
+    const estilo = (attrs['pa_estilo'] || attrs['estilo'])?.toLowerCase();
+    const size = (attrs['pa_size'] || attrs['size'])?.toLowerCase();
+
+    // 1. All 'rosa' disabled
+    if (color === 'rosa') return false;
+    
+    // 2. t-shirt carbon M/L/XL
+    if (estilo === 't-shirt' && color === 'carbon' && size && ['m', 'l', 'xl'].includes(size)) return false;
+
+    // 3. oversize-ligera black S/M/L/XL/3xl
+    if (estilo === 'oversize-ligera' && color === 'black' && size && ['s', 'm', 'l', 'xl', '3xl'].includes(size)) return false;
+
+    return true;
+  }) : [];
+
+  // Get unique values for attributes in valid variations
   const getAttributeOptions = (name: string): string[] => {
     const options = new Set<string>();
-    product.variations.forEach(v => {
+    validVariations.forEach(v => {
       const val = v.attributes[name];
       if (val) options.add(val);
     });
@@ -101,7 +121,7 @@ export default function ProductDetailPage() {
   };
 
   const attributeNames = product.type === 'variable' 
-    ? Array.from(new Set(product.variations.flatMap(v => Object.keys(v.attributes)))) 
+    ? Array.from(new Set(validVariations.flatMap(v => Object.keys(v.attributes)))) 
     : [];
 
   // Find currently selected variation
@@ -113,7 +133,7 @@ export default function ProductDetailPage() {
       return null;
     }
 
-    return product.variations.find(v => {
+    return validVariations.find(v => {
       return attributeNames.every(name => v.attributes[name] === selectedAttributes[name]);
     }) || null;
   };
@@ -180,12 +200,12 @@ export default function ProductDetailPage() {
             <span className="nk-info-badge">Colección Oficial</span>
             <h1 className="nk-detail-title">{product.name}</h1>
             
-            {product.type === 'variable' && product.variations && product.variations.length > 0 ? (
+            {product.type === 'variable' && validVariations && validVariations.length > 0 ? (
                 <>
                   <p className="nk-detail-price">
                     {currentVariation 
                       ? formatPrice(currentVariation.price)
-                      : `${formatPrice(Math.min(...product.variations.map(v => v.price)))} - ${formatPrice(Math.max(...product.variations.map(v => v.price)))}`}
+                      : `${formatPrice(Math.min(...validVariations.map(v => v.price)))} - ${formatPrice(Math.max(...validVariations.map(v => v.price)))}`}
                   </p>
                 </>
               ) : (
@@ -392,6 +412,9 @@ export default function ProductDetailPage() {
               <img src="https://nakamabordados.com/wp-content/uploads/2026/01/3.webp" alt="Guía 2" className="nk-guide-img" />
               <img src="https://nakamabordados.com/wp-content/uploads/2026/01/4.webp" alt="Guía 3" className="nk-guide-img" />
               <img src="https://nakamabordados.com/wp-content/uploads/2026/01/5.webp" alt="Guía 4" className="nk-guide-img" />
+              <img src="https://nakamabordados.com/wp-content/uploads/2026/01/6.webp" alt="Guía 5" className="nk-guide-img" />
+              <img src="https://nakamabordados.com/wp-content/uploads/2026/01/7.webp" alt="Guía 6" className="nk-guide-img" />
+              <img src="https://nakamabordados.com/wp-content/uploads/2026/01/8.webp" alt="Guía 7" className="nk-guide-img" />
             </div>
           </div>
         </div>

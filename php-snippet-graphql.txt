@@ -1,0 +1,42 @@
+<?php
+// Expone las comisiones (apoyo_creador_*) al API de WPGraphQL para que Next.js pueda leerlas.
+
+add_action( 'graphql_register_types', function() {
+
+    $resolve_comisiones = function( $source ) {
+        // En WPGraphQL, $source puede ser un objeto de usuario de WP o el objeto Customer de Woo
+        $user_id = isset($source->userId) ? $source->userId : (isset($source->databaseId) ? $source->databaseId : 0);
+        if (!$user_id) return null;
+
+        $comisiones = [];
+        
+        // Buscar los últimos 12 meses
+        for ($i = 0; $i < 12; $i++) {
+            $fecha = strtotime("-$i months");
+            $clave = 'apoyo_creador_' . date('Y_m', $fecha);
+            $total = get_user_meta($user_id, $clave, true);
+            
+            if ($total) {
+                $comisiones[] = date('F Y', $fecha) . '|' . $total;
+            }
+        }
+
+        return $comisiones;
+    };
+
+    // Registrar en 'User'
+    register_graphql_field( 'User', 'comisiones', [
+        'type' => ['list_of' => 'String'],
+        'description' => 'Lista de las comisiones mensuales del creador (apoyo_creador_AÑO_MES)',
+        'resolve' => $resolve_comisiones
+    ] );
+
+    // Registrar en 'Customer' (Para WooCommerce)
+    register_graphql_field( 'Customer', 'comisiones', [
+        'type' => ['list_of' => 'String'],
+        'description' => 'Lista de las comisiones mensuales del creador (apoyo_creador_AÑO_MES)',
+        'resolve' => $resolve_comisiones
+    ] );
+
+});
+?>
