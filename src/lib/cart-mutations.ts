@@ -63,8 +63,8 @@ const GET_CART_QUERY = `
 `;
 
 const ADD_TO_CART_MUTATION = `
-  mutation AddToCart($productId: Int!, $quantity: Int!) {
-    addToCart(input: { productId: $productId, quantity: $quantity }) {
+  mutation AddToCart($productId: Int!, $variationId: Int, $quantity: Int!) {
+    addToCart(input: { productId: $productId, variationId: $variationId, quantity: $quantity }) {
       cartItem {
         key
         product {
@@ -165,8 +165,12 @@ export async function fetchCart() {
   return data?.cart;
 }
 
-export async function addToCart(productId: number, quantity: number = 1) {
-  const { data, responseHeaders } = await fetchGraphQL(ADD_TO_CART_MUTATION, { productId, quantity }, getAuthHeaders());
+export async function addToCart(productId: number, quantity: number = 1, variationId?: number) {
+  const variables: any = { productId, quantity };
+  if (variationId) {
+    variables.variationId = variationId;
+  }
+  const { data, responseHeaders } = await fetchGraphQL(ADD_TO_CART_MUTATION, variables, getAuthHeaders());
   
   const sessionToken = responseHeaders.get('woocommerce-session');
   if (sessionToken) {

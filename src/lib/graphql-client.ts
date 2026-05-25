@@ -1,3 +1,4 @@
+// For Server Components we can still use the direct URL, but for Client Components we use the local proxy to avoid CORS
 export const WP_GRAPHQL_URL = 'https://nakamabordados.com/graphql';
 
 export async function fetchGraphQL(query: string, variables = {}, extraHeaders: Record<string, string> = {}) {
@@ -7,7 +8,10 @@ export async function fetchGraphQL(query: string, variables = {}, extraHeaders: 
       ...extraHeaders,
     };
 
-    const response = await fetch(WP_GRAPHQL_URL, {
+    // Determine the endpoint URL
+    const endpoint = typeof window !== 'undefined' ? '/api/graphql' : WP_GRAPHQL_URL;
+
+    const response = await fetch(endpoint, {
       method: 'POST',
       headers,
       body: JSON.stringify({

@@ -58,7 +58,9 @@ const GET_PRODUCTS_QUERY = `
 
 function mapNodeToProduct(node: any): Product {
   try {
-    const imageUrl = node.image?.sourceUrl || 'https://via.placeholder.com/300x300?text=No+Image';
+    const imageUrl = (node.image?.sourceUrl && node.image.sourceUrl.trim() !== '') 
+      ? node.image.sourceUrl 
+      : 'https://via.placeholder.com/300x300?text=No+Image';
     const categories = node.productCategories?.nodes?.map((c: any) => c.slug) || [];
     
     let numericPrice = 0;

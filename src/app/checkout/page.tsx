@@ -85,10 +85,22 @@ export default function CheckoutPage() {
       // 1. Ensure local cart is synced to Woo
       await emptyCart();
       for (const item of cart) {
-        // We use the databaseId. If it's a variation we'd ideally pass variationId, but for shipping calculation simple ID is enough.
+        // Extract parent product ID
         const productId = parseInt(item.product.id.replace('WP-', '')) || parseInt(item.product.id);
+        
+        // Extract variation ID if it exists
+        let variationId: number | undefined = undefined;
+        if (item.variation && item.variation.id) {
+          // It might be like 'WP-VAR-100194' or just '100194'
+          const rawVarId = item.variation.id.replace('WP-VAR-', '').replace('WP-', '');
+          const parsedVar = parseInt(rawVarId);
+          if (!isNaN(parsedVar)) {
+            variationId = parsedVar;
+          }
+        }
+        
         if (!isNaN(productId)) {
-          await addToCart(productId, item.quantity);
+          await addToCart(productId, item.quantity, variationId);
         }
       }
 
