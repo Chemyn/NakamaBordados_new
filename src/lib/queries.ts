@@ -78,7 +78,7 @@ export async function getProductsFromWP(limit: number = 500): Promise<Product[]>
     const variables: Record<string, any> = { first: Math.min(perPage, limit - allProducts.length) };
     if (afterCursor) variables.after = afterCursor;
 
-    const data = await fetchGraphQL(GET_PRODUCTS_QUERY, variables);
+    const { data } = await fetchGraphQL(GET_PRODUCTS_QUERY, variables);
     
     if (!data || !data.products || !data.products.nodes) {
       if (allProducts.length === 0) {
@@ -137,7 +137,7 @@ const GET_PRODUCTS_BY_CATEGORY_QUERY = `
 `;
 
 export async function getProductsByCategoryFromWP(categorySlug: string, limit: number = 20): Promise<Product[]> {
-  const data = await fetchGraphQL(GET_PRODUCTS_BY_CATEGORY_QUERY, { first: limit, category: categorySlug });
+  const { data } = await fetchGraphQL(GET_PRODUCTS_BY_CATEGORY_QUERY, { first: limit, category: categorySlug });
   
   if (!data || !data.products || !data.products.nodes) {
     return [];
@@ -172,7 +172,7 @@ export interface WPCategory {
 }
 
 export async function getCategoriesFromWP(): Promise<WPCategory[]> {
-  const data = await fetchGraphQL(GET_CATEGORIES_QUERY);
+  const { data } = await fetchGraphQL(GET_CATEGORIES_QUERY);
   
   if (!data || !data.productCategories) {
     return [];
