@@ -113,7 +113,7 @@ const EMPTY_CART_MUTATION = `
 `;
 
 const UPDATE_CUSTOMER_MUTATION = `
-  mutation UpdateCustomerShipping($postcode: String!, $country: String!, $state: String!, $city: String!) {
+  mutation UpdateCustomerShipping($postcode: String!, $country: CountriesEnum!, $state: String!, $city: String!) {
     updateCustomer(input: {
       shipping: {
         postcode: $postcode,
@@ -197,8 +197,48 @@ export async function updateCustomerShipping(postcode: string, country: string =
   return data?.updateCustomer;
 }
 
-export async function getShippingRates() {
-  const { data } = await fetchGraphQL(GET_SHIPPING_RATES_QUERY, {}, getAuthHeaders());
-  return data?.cart?.availableShippingMethods;
+export async function getShippingRates(postcode: string, state: string, city: string, cart: any[]) {
+  try {
+    const formattedCart = cart.map(item => {
+      const productId = parseInt(item.product.id.replace('WP-', '')) || parseInt(item.product.id);
+      let variationId = 0;
+      if (item.variation && item.variation.id) {
+        const rawVarId = item.variation.id.replace('WP-VAR-', '').replace('WP-', '');
+        const parsedVar = parseInt(rawVarId);
+        if (!isNaN(parsedVar)) variationId = parsedVar;
+      }
+      return {
+        product_id: productId,
+        variation_id: variationId,
+        quantity: item.quantity
+      };
+    });
+
+    const response = await fetch('/api/shipping', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ postcode, state, city, cart: formattedCart })
+    });
+    
+    if (!response.ok) return [];
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching shipping rates:", error);
+    return [];
+  }
 }
 
+
+export async function updateShippingMethod(shippingRateId: string) {
+  const mutation = `
+    mutation UpdateShippingMethod($shippingMethods: [String]!) {
+      updateShippingMethod(input: { shippingMethods: $shippingMethods }) {
+        cart {
+          chosenShippingMethods
+        }
+      }
+    }
+  `;
+  const { data } = await fetchGraphQL(mutation, { shippingMethods: [shippingRateId] }, getAuthHeaders());
+  return data?.updateShippingMethod;
+}

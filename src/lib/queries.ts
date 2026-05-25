@@ -171,10 +171,14 @@ export async function getProductsFromWP(limit: number = 500): Promise<Product[]>
   return allProducts;
 }
 
-// Query products by specific category slug
-const GET_PRODUCTS_BY_CATEGORY_QUERY = `
-  query GetProductsByCategory($first: Int!, $category: String!) {
-    products(first: $first, where: { category: $category }) {
+// Unified Query for Procedural Loading
+const GET_PRODUCTS_PAGE_QUERY = `
+  query GetProductsPage($first: Int!, $after: String, $category: String, $search: String, $tag: String) {
+    products(first: $first, after: $after, where: { category: $category, search: $search, tag: $tag }) {
+      pageInfo {
+        hasNextPage
+        endCursor
+      }
       nodes {
         ... on Product {
           databaseId
@@ -222,19 +226,54 @@ const GET_PRODUCTS_BY_CATEGORY_QUERY = `
   }
 `;
 
-export async function getProductsByCategoryFromWP(categorySlug: string, limit: number = 20): Promise<Product[]> {
+export interface ProductsPageResult {
+  products: Product[];
+  pageInfo: {
+    hasNextPage: boolean;
+    endCursor: string | null;
+  };
+}
+
+export async function getProductsPageFromWP(
+  limit: number = 20,
+  after: string | null = null,
+  categorySlug?: string,
+  searchQuery?: string,
+  tagSlug?: string
+): Promise<ProductsPageResult> {
   try {
-    const { data } = await fetchGraphQL(GET_PRODUCTS_BY_CATEGORY_QUERY, { first: limit, category: categorySlug });
+    const variables: Record<string, any> = { first: limit };
+    if (after) variables.after = after;
+    // Map parameter to "todas" logic
+    if (categorySlug && categorySlug !== 'todas') variables.category = categorySlug;
+    if (searchQuery) variables.search = searchQuery;
+    if (tagSlug) variables.tag = tagSlug;
+
+    const { data } = await fetchGraphQL(GET_PRODUCTS_PAGE_QUERY, variables);
     
     if (!data || !data.products || !data.products.nodes) {
-      return [];
+      return { products: [], pageInfo: { hasNextPage: false, endCursor: null } };
     }
 
-    return data.products.nodes.map((node: any) => mapNodeToProduct(node));
+    const products = data.products.nodes.map((node: any) => mapNodeToProduct(node));
+    return {
+      products,
+      pageInfo: {
+        hasNextPage: data.products.pageInfo?.hasNextPage ?? false,
+        endCursor: data.products.pageInfo?.endCursor ?? null
+      }
+    };
   } catch (error) {
-    console.error("Error in getProductsByCategoryFromWP:", error);
-    return [];
+    console.error("Error in getProductsPageFromWP:", error);
+    return { products: [], pageInfo: { hasNextPage: false, endCursor: null } };
   }
+}
+
+// Keep the old category function for backward compatibility temporarily if needed, 
+// but we can just map it to the new one:
+export async function getProductsByCategoryFromWP(categorySlug: string, limit: number = 20): Promise<Product[]> {
+  const result = await getProductsPageFromWP(limit, null, categorySlug);
+  return result.products;
 }
 
 // Categories Query

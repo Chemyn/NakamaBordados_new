@@ -11,54 +11,89 @@ function StoreContent() {
   const categoryParam = searchParams.get('category') || 'todas';
   const tagParam = searchParams.get('tag') || '';
   const [searchQuery, setSearchQuery] = useState('');
-  const [allProducts, setAllProducts] = useState<Product[]>(PRODUCTS);
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasNextPage, setHasNextPage] = useState(false);
+  const [endCursor, setEndCursor] = useState<string | null>(null);
   const { formatPrice } = useCurrency();
+  const observerRef = React.useRef<HTMLDivElement>(null);
 
+  // Debounce search query
+  React.useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+    }, 500);
+    return () => clearTimeout(handler);
+  }, [searchQuery]);
+
+  // Initial fetch when filters change
   React.useEffect(() => {
     let mounted = true;
-    fetchProducts().then(data => {
-      if (mounted) {
-        setAllProducts(data);
-        setLoading(false);
-      }
-    });
-    return () => { mounted = false; };
-  }, []);
+    setLoading(true);
+    setAllProducts([]);
+    
+    let url = `/api/products?limit=20`;
+    if (categoryParam && categoryParam !== 'todas') url += `&category=${categoryParam}`;
+    if (tagParam) url += `&tag=${tagParam}`;
+    if (debouncedSearch) url += `&search=${encodeURIComponent(debouncedSearch)}`;
 
-
-  let filteredProducts = allProducts;
-
-  // Filter by category (fuzzy matching for plurals)
-  if (categoryParam && categoryParam !== 'todas') {
-    const paramLower = categoryParam.toLowerCase();
-    filteredProducts = filteredProducts.filter(p => {
-      return p.categories.some(c => {
-        const cLower = c.toLowerCase();
-        return cLower === paramLower || 
-               cLower === paramLower + 's' || 
-               cLower + 's' === paramLower ||
-               (paramLower === 'variedad' && cLower.includes('variedad')) ||
-               (paramLower === 'edicion-especial' && cLower.includes('edicion')) ||
-               (paramLower === 'estampado' && cLower.includes('estampado'));
+    fetch(url)
+      .then(res => res.json())
+      .then(data => {
+        if (mounted && data) {
+          setAllProducts(data.products || []);
+          setHasNextPage(data.pageInfo?.hasNextPage || false);
+          setEndCursor(data.pageInfo?.endCursor || null);
+          setLoading(false);
+        }
+      })
+      .catch(err => {
+        console.error(err);
+        if (mounted) setLoading(false);
       });
-    });
-  }
 
-  // Filter by tag
-  if (tagParam) {
-    filteredProducts = filteredProducts.filter(p => p.tags && p.tags.map(t => t.toLowerCase()).includes(tagParam.toLowerCase()));
-  }
+    return () => { mounted = false; };
+  }, [categoryParam, tagParam, debouncedSearch]);
 
-  // Filter by search query
-  if (searchQuery) {
-    const q = searchQuery.toLowerCase();
-    filteredProducts = filteredProducts.filter(p => 
-      p.name.toLowerCase().includes(q) || 
-      (p.description && p.description.toLowerCase().includes(q)) ||
-      (p.tags && p.tags.some(t => t.toLowerCase().includes(q)))
-    );
-  }
+  // Infinite Scroll logic
+  React.useEffect(() => {
+    if (loading || !hasNextPage || loadingMore) return;
+
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) {
+        setLoadingMore(true);
+        let url = `/api/products?limit=20&after=${endCursor}`;
+        if (categoryParam && categoryParam !== 'todas') url += `&category=${categoryParam}`;
+        if (tagParam) url += `&tag=${tagParam}`;
+        if (debouncedSearch) url += `&search=${encodeURIComponent(debouncedSearch)}`;
+
+        fetch(url)
+          .then(res => res.json())
+          .then(data => {
+            if (data && data.products) {
+              setAllProducts(prev => [...prev, ...data.products]);
+              setHasNextPage(data.pageInfo?.hasNextPage || false);
+              setEndCursor(data.pageInfo?.endCursor || null);
+            }
+            setLoadingMore(false);
+          })
+          .catch(err => {
+            console.error(err);
+            setLoadingMore(false);
+          });
+      }
+    }, { rootMargin: '200px' });
+
+    if (observerRef.current) {
+      observer.observe(observerRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [loading, hasNextPage, loadingMore, endCursor, categoryParam, tagParam, debouncedSearch]);
+
+  const filteredProducts = allProducts;
 
   const activeCategory = CATEGORIES.find(c => c.slug === categoryParam) || CATEGORIES[0];
 
@@ -109,44 +144,61 @@ function StoreContent() {
         </div>
 
         {/* Product Grid */}
-        {filteredProducts.length > 0 ? (
-          <div className="nk-store-grid">
-            {filteredProducts.map(p => {
-              // WPGraphQL mock price logic
-              const minPrice = p.type === 'variable' 
-                ? Math.min(...p.variations.map(v => v.price)) 
-                : p.price;
-              const maxPrice = p.type === 'variable' 
-                ? Math.max(...p.variations.map(v => v.price)) 
-                : p.price;
-              const displayPrice = minPrice === maxPrice 
-                ? formatPrice(minPrice) 
-                : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
+        {loading && filteredProducts.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '50px 0', color: 'var(--nk-text-sec)' }}>Cargando catálogo...</div>
+        ) : filteredProducts.length > 0 ? (
+          <>
+            <div className="nk-store-grid">
+              {filteredProducts.map(p => {
+                // WPGraphQL mock price logic
+                const minPrice = p.type === 'variable' && p.variations && p.variations.length > 0
+                  ? Math.min(...p.variations.map(v => v.price)) 
+                  : p.price;
+                const maxPrice = p.type === 'variable' && p.variations && p.variations.length > 0
+                  ? Math.max(...p.variations.map(v => v.price)) 
+                  : p.price;
+                const displayPrice = minPrice === maxPrice 
+                  ? formatPrice(minPrice) 
+                  : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
 
-              const isSpecial = p.categories.includes('edicion-especial');
+                const isSpecial = p.categories.includes('edicion-especial');
 
-              return (
-                <div className="nk-store-card group" key={p.id}>
-                  <div className="nk-store-card-img-wrapper">
-                    {isSpecial && <span className="nk-sale-badge">Especial</span>}
-                    <Link href={`/product/${p.id}`} className="nk-card-img-link">
-                      <img src={p.images[0]} alt={p.name} className="nk-card-img" />
-                    </Link>
-                    <div className="nk-card-overlay">
-                      <Link href={`/product/${p.id}`} className="nk-overlay-btn">Ver Producto</Link>
+                return (
+                  <div className="nk-store-card group" key={p.id}>
+                    <div className="nk-store-card-img-wrapper">
+                      {isSpecial && <span className="nk-sale-badge">Especial</span>}
+                      <Link href={`/product/${p.id}`} className="nk-card-img-link">
+                        <img src={p.images && p.images[0] ? p.images[0] : 'https://via.placeholder.com/300x300'} alt={p.name} className="nk-card-img" />
+                      </Link>
+                      <div className="nk-card-overlay">
+                        <Link href={`/product/${p.id}`} className="nk-overlay-btn">Ver Producto</Link>
+                      </div>
+                    </div>
+                    
+                    <div className="nk-card-info">
+                      <h3 className="nk-card-title">
+                        <Link href={`/product/${p.id}`}>{p.name}</Link>
+                      </h3>
+                      <p className="nk-card-price">{displayPrice}</p>
                     </div>
                   </div>
-                  
-                  <div className="nk-card-info">
-                    <h3 className="nk-card-title">
-                      <Link href={`/product/${p.id}`}>{p.name}</Link>
-                    </h3>
-                    <p className="nk-card-price">{displayPrice}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+            
+            {/* Infinite Scroll Sentinel */}
+            {hasNextPage && (
+              <div ref={observerRef} style={{ textAlign: 'center', padding: '30px 0', color: 'var(--nk-text-sec)' }}>
+                {loadingMore ? 'Cargando más...' : 'Haz scroll para ver más'}
+              </div>
+            )}
+            
+            {!hasNextPage && filteredProducts.length > 0 && (
+              <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--nk-text-sec)' }}>
+                Has llegado al final de los resultados.
+              </div>
+            )}
+          </>
         ) : (
           <div className="nk-no-results">
             <span className="material-icons-outlined nk-no-results-icon">sentiment_dissatisfied</span>

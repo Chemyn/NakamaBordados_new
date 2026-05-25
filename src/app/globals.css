@@ -3830,3 +3830,137 @@ html.dark .nk-tpl-emerald:hover { background: rgba(6, 78, 59, 0.5); }
     font-size: 1.5rem !important;
   }
 }
+
+/* ==========================================================================
+   CHECKOUT PAGE RESPONSIVE LAYOUT
+   ========================================================================== */
+.nk-checkout-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 40px;
+  align-items: flex-start;
+  margin-top: 20px;
+}
+
+@media (max-width: 991px) {
+  .nk-checkout-grid {
+    grid-template-columns: 1fr;
+    gap: 30px;
+  }
+}
+
+.nk-checkout-form-col {
+  background: var(--nk-bg-wrapper);
+  padding: 30px;
+  border-radius: 12px;
+  border: 1px solid var(--nk-border);
+}
+
+.nk-checkout-sidebar-col {
+  background: var(--nk-bg-wrapper);
+  padding: 30px;
+  border-radius: 12px;
+  border: 1px solid var(--nk-border);
+  position: sticky;
+  top: 100px;
+}
+
+.nk-review-item {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 20px;
+  border-bottom: 1px solid var(--nk-border);
+  padding-bottom: 15px;
+}
+
+.nk-review-item-img {
+  width: 65px;
+  height: 65px;
+  object-fit: contain;
+  border-radius: 8px;
+  border: 1px solid var(--nk-border);
+  background: var(--nk-bg-body);
+}
+
+.nk-review-item-details {
+  flex: 1;
+}
+
+.nk-review-item-title {
+  font-size: 1rem;
+  margin-bottom: 4px;
+}
+
+.nk-review-item-meta, .nk-review-item-qty {
+  font-size: 0.85rem;
+  color: var(--nk-text-sec);
+  margin: 0 0 2px;
+}
+
+.nk-review-remove-btn {
+  background: none;
+  border: none;
+  color: var(--nk-primary);
+  font-size: 0.75rem;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  margin-top: 5px;
+}
+
+.nk-checkout-item-price {
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.nk-review-divider {
+  height: 1px;
+  background: var(--nk-border);
+  margin: 20px 0;
+}
+
+.nk-coupon-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.nk-coupon-label {
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.nk-coupon-input-group {
+  display: flex;
+  gap: 10px;
+}
+
+.nk-coupon-input {
+  flex: 1;
+  padding: 10px 15px;
+  border: 1px solid var(--nk-border);
+  border-radius: 6px;
+  background: var(--nk-bg-body);
+  color: var(--nk-text-main);
+}
+
+.nk-btn-coupon {
+  padding: 0 20px;
+  height: 44px;
+}
+
+.nk-summary-row {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 1rem;
+}
+
+.nk-summary-total {
+  font-size: 1.3rem;
+  font-weight: bold;
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--nk-border);
+}

@@ -10,15 +10,8 @@ export default function HomePage() {
   const [preloaderVisible, setPreloaderVisible] = useState(true);
   const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
 
-  // Category-specific product states
+  // Best sellers fetch initially
   const [bestSellers, setBestSellers] = useState<Product[]>([]);
-  const [bordados, setBordados] = useState<Product[]>([]);
-  const [bordadoConEstampado, setBordadoConEstampado] = useState<Product[]>([]);
-  const [estampados, setEstampados] = useState<Product[]>([]);
-  const [gorras, setGorras] = useState<Product[]>([]);
-  const [lisas, setLisas] = useState<Product[]>([]);
-  const [edicionEspecial, setEdicionEspecial] = useState<Product[]>([]);
-  const [variedad, setVariedad] = useState<Product[]>([]);
   
   const heroSlides = [
     "https://nakamabordados.com/wp-content/uploads/2026/05/hsale1.avif",
@@ -26,32 +19,11 @@ export default function HomePage() {
     "https://nakamabordados.com/wp-content/uploads/2026/05/hsale3.avif"
   ];
 
-  // Fetch products by category directly from WPGraphQL
   useEffect(() => {
     let mounted = true;
-    const load = async () => {
-      const [bs, bo, bce, es, go, li, ee, va] = await Promise.all([
-        fetchProductsByCategory('lo-mas-vendido', 12),
-        fetchProductsByCategory('bordados', 12),
-        fetchProductsByCategory('bordado-con-estampado', 12),
-        fetchProductsByCategory('estampados', 12),
-        fetchProductsByCategory('gorras', 12),
-        fetchProductsByCategory('lisas', 12),
-        fetchProductsByCategory('edicion-especial', 12),
-        fetchProductsByCategory('variedad', 12),
-      ]);
-      if (mounted) {
-        setBestSellers(bs);
-        setBordados(bo);
-        setBordadoConEstampado(bce);
-        setEstampados(es);
-        setGorras(go);
-        setLisas(li);
-        setEdicionEspecial(ee);
-        setVariedad(va);
-      }
-    };
-    load();
+    fetchProductsByCategory('lo-mas-vendido', 12).then(res => {
+      if (mounted) setBestSellers(res);
+    });
     return () => { mounted = false; };
   }, []);
 
@@ -135,14 +107,14 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 5. Dynamic Product Sections */}
-      <ProductSection title="BORDADOS" href="/store?category=bordados" products={bordados} />
-      <ProductSection title="BORDADO CON ESTAMPADO" href="/store?category=bordado-con-estampado" products={bordadoConEstampado} />
-      <ProductSection title="ESTAMPADOS" href="/store?category=estampados" products={estampados} />
-      <ProductSection title="GORRAS" href="/store?category=gorras" products={gorras} />
-      <ProductSection title="LISAS" href="/store?category=lisas" products={lisas} />
-      <ProductSection title="EDICIÓN ESPECIAL" href="/store?category=edicion-especial" products={edicionEspecial} isSpecial />
-      <ProductSection title="VARIEDAD" href="/store?category=variedad" products={variedad} />
+      {/* 5. Dynamic Product Sections (Lazy Loaded) */}
+      <LazyCategorySection title="BORDADOS" categorySlug="bordados" href="/store?category=bordados" />
+      <LazyCategorySection title="BORDADO CON ESTAMPADO" categorySlug="bordado-con-estampado" href="/store?category=bordado-con-estampado" />
+      <LazyCategorySection title="ESTAMPADOS" categorySlug="estampados" href="/store?category=estampados" />
+      <LazyCategorySection title="GORRAS" categorySlug="gorras" href="/store?category=gorras" />
+      <LazyCategorySection title="LISAS" categorySlug="lisas" href="/store?category=lisas" />
+      <LazyCategorySection title="EDICIÓN ESPECIAL" categorySlug="edicion-especial" href="/store?category=edicion-especial" isSpecial />
+      <LazyCategorySection title="VARIEDAD" categorySlug="variedad" href="/store?category=variedad" />
 
       {/* 6. Explore By Category Slider */}
       <CategoriesExplore />
@@ -154,10 +126,40 @@ export default function HomePage() {
 // Helper Components
 // ---------------------------------------------------------
 
-const ProductSection = ({ title, href, products, isSpecial }: { title: string, href: string, products: Product[], isSpecial?: boolean }) => {
-  if (products.length === 0) return null; // Don't render empty sections while loading
+const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { title: string, categorySlug: string, href: string, isSpecial?: boolean }) => {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [hasFetched, setHasFetched] = useState(false);
+  const sectionRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !hasFetched) {
+          setHasFetched(true);
+          fetch(`/api/products?category=${categorySlug}&limit=12`)
+            .then(res => res.json())
+            .then(data => {
+              if (data && data.products) {
+                setProducts(data.products);
+              }
+            })
+            .catch(err => console.error(err));
+        }
+      },
+      { rootMargin: '200px' } // Fetch when it's 200px from entering viewport
+    );
+
+    if (sectionRef.current) {
+      observer.observe(sectionRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [categorySlug, hasFetched]);
+
+  if (hasFetched && products.length === 0) return null; // Hide if empty after fetch
+
   return (
-    <section className="nk-home-section" style={{ borderTop: '1px solid var(--nk-border)' }}>
+    <section ref={sectionRef} className="nk-home-section" style={{ borderTop: '1px solid var(--nk-border)', minHeight: '300px' }}>
       <div className="nk-container">
         <div className="nk-home-section-header">
           <h2 className="nk-section-title" style={isSpecial ? { color: 'var(--nk-primary)' } : undefined}>{title}</h2>
@@ -165,7 +167,11 @@ const ProductSection = ({ title, href, products, isSpecial }: { title: string, h
             VER TODO <span className="material-icons-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
           </Link>
         </div>
-        <ScrollContainer products={products} />
+        {!hasFetched || products.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--nk-text-sec)' }}>Cargando {title.toLowerCase()}...</div>
+        ) : (
+          <ScrollContainer products={products} />
+        )}
       </div>
     </section>
   );

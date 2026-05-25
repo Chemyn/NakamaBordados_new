@@ -31,7 +31,13 @@ export async function fetchGraphQL(query: string, variables = {}, extraHeaders: 
     const body = await response.json();
 
     if (body.errors) {
-      console.error('GraphQL Errors:', body.errors);
+      // WPGraphQL WooCommerce throws an error if we try to empty an already empty cart.
+      // We can safely ignore this specific error to prevent console spam and Next.js error overlays.
+      const isHarmlessEmptyCart = body.errors.length === 1 && body.errors[0].message === 'Cart is empty';
+      
+      if (!isHarmlessEmptyCart) {
+        console.error('GraphQL Errors:', body.errors);
+      }
       return { data: null, responseHeaders: response.headers };
     }
 

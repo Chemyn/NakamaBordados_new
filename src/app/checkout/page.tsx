@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
-import { emptyCart, addToCart, updateCustomerShipping, getShippingRates, getSessionToken } from '@/lib/cart-mutations';
+import { emptyCart, addToCart, updateCustomerShipping, getShippingRates, getSessionToken, updateShippingMethod } from '@/lib/cart-mutations';
 
 export default function CheckoutPage() {
   const { 
@@ -104,11 +104,15 @@ export default function CheckoutPage() {
         }
       }
 
-      // 2. Update customer postcode
+      // 2. Update customer postcode (CACHE BUST FOR ENVIA.COM)
+      // Envia.com caches the rates. We force a recalculation by changing zip to 00000 first.
+      await updateCustomerShipping('00000', 'MX', formData.state, formData.city);
+      
+      // Real postcode
       await updateCustomerShipping(formData.postcode, 'MX', formData.state, formData.city);
 
-      // 3. Get Envia.com rates
-      const ratesData = await getShippingRates();
+      // 3. Get Envia.com rates using our proxy
+      const ratesData = await getShippingRates(formData.postcode, formData.state, formData.city, cart);
       if (ratesData && ratesData.length > 0 && ratesData[0].rates) {
         setShippingRates(ratesData[0].rates);
         if (ratesData[0].rates.length > 0) {
@@ -157,13 +161,15 @@ export default function CheckoutPage() {
 
       // Get the session token to pass to the native checkout
       const sessionToken = getSessionToken();
+
+      if (selectedRate) {
+        await updateShippingMethod(selectedRate.id);
+      }
       
       // Clear local cart because they are going to WP Checkout
       clearCart();
 
       // Redirect to native WordPress checkout passing the session via URL
-      // If using WPGraphQL CORS, cookies might be passed automatically. 
-      // Passing session_id in URL is a fallback that might require a small PHP snippet on WP to catch.
       window.location.href = `https://nakamabordados.com/checkout/?session_id=${sessionToken || ''}`;
     } catch (err) {
       console.error(err);
