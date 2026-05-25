@@ -57,64 +57,81 @@ const GET_PRODUCTS_QUERY = `
 `;
 
 function mapNodeToProduct(node: any): Product {
-  const imageUrl = node.image?.sourceUrl || 'https://via.placeholder.com/300x300?text=No+Image';
-  const categories = node.productCategories?.nodes?.map((c: any) => c.slug) || [];
-  
-  let numericPrice = 0;
-  if (node.price) {
-    const parsed = parseFloat(node.price.replace(/[^0-9.-]+/g, ''));
-    if (!isNaN(parsed)) numericPrice = parsed;
-  }
-
-  const variations = [];
-  let type: 'simple' | 'variable' = 'simple';
-
-  if (node.variations && node.variations.nodes && node.variations.nodes.length > 0) {
-    type = 'variable';
-    for (const vNode of node.variations.nodes) {
-      let vPrice = 0;
-      if (vNode.price) {
-        const parsed = parseFloat(vNode.price.replace(/[^0-9.-]+/g, ''));
-        if (!isNaN(parsed)) vPrice = parsed;
-      }
-      
-      const attrs: Record<string, string> = {};
-      if (vNode.attributes && vNode.attributes.nodes) {
-        for (const attr of vNode.attributes.nodes) {
-          // attr.name might be 'pa_estilo', 'pa_size'. Let's clean it up if needed, or leave it.
-          // The frontend uses these keys. Let's strip 'pa_' if present to make it prettier.
-          let prettyName = attr.name;
-          if (prettyName.startsWith('pa_')) {
-            prettyName = prettyName.substring(3);
-          }
-          attrs[prettyName] = attr.value;
-        }
-      }
-      
-      variations.push({
-        id: vNode.databaseId.toString(),
-        sku: `WP-VAR-${vNode.databaseId}`,
-        attributes: attrs,
-        price: vPrice,
-        stock: 10 // Mock stock
-      });
+  try {
+    const imageUrl = node.image?.sourceUrl || 'https://via.placeholder.com/300x300?text=No+Image';
+    const categories = node.productCategories?.nodes?.map((c: any) => c.slug) || [];
+    
+    let numericPrice = 0;
+    if (node.price) {
+      const parsed = parseFloat(node.price.replace(/[^0-9.-]+/g, ''));
+      if (!isNaN(parsed)) numericPrice = parsed;
     }
-  }
 
-  return {
-    id: node.slug || node.databaseId.toString(),
-    sku: `WP-${node.databaseId}`,
-    name: node.name,
-    price: numericPrice,
-    description: node.description || '',
-    categories: categories,
-    tags: [],
-    images: [imageUrl],
-    type: type,
-    variations: variations,
-    rating: 5.0,
-    salesCount: 10
-  };
+    const variations = [];
+    let type: 'simple' | 'variable' = 'simple';
+
+    if (node.variations && node.variations.nodes && node.variations.nodes.length > 0) {
+      type = 'variable';
+      for (const vNode of node.variations.nodes) {
+        let vPrice = 0;
+        if (vNode.price) {
+          const parsed = parseFloat(vNode.price.replace(/[^0-9.-]+/g, ''));
+          if (!isNaN(parsed)) vPrice = parsed;
+        }
+        
+        const attrs: Record<string, string> = {};
+        if (vNode.attributes && vNode.attributes.nodes) {
+          for (const attr of vNode.attributes.nodes) {
+            let prettyName = attr.name;
+            if (prettyName.startsWith('pa_')) {
+              prettyName = prettyName.substring(3);
+            }
+            attrs[prettyName] = attr.value;
+          }
+        }
+        
+        variations.push({
+          id: vNode.databaseId.toString(),
+          sku: `WP-VAR-${vNode.databaseId}`,
+          attributes: attrs,
+          price: vPrice,
+          stock: 10 // Mock stock
+        });
+      }
+    }
+
+    return {
+      id: node.slug || node.databaseId.toString(),
+      sku: `WP-${node.databaseId}`,
+      name: node.name,
+      price: numericPrice,
+      description: node.description || '',
+      categories: categories,
+      tags: [],
+      images: [imageUrl],
+      type: type,
+      variations: variations,
+      rating: 5.0,
+      salesCount: 10
+    };
+  } catch (err) {
+    console.error("Error mapping product node:", err, node);
+    // Return a safe fallback mock product so we don't crash the whole array
+    return {
+      id: 'error-' + Math.random(),
+      sku: 'ERROR',
+      name: 'Error Loading Product',
+      price: 0,
+      description: '',
+      categories: [],
+      tags: [],
+      images: ['https://via.placeholder.com/300'],
+      type: 'simple',
+      variations: [],
+      rating: 0,
+      salesCount: 0
+    };
+  }
 }
 
 export async function getProductsFromWP(limit: number = 500): Promise<Product[]> {
@@ -123,26 +140,30 @@ export async function getProductsFromWP(limit: number = 500): Promise<Product[]>
   let afterCursor: string | null = null;
   const perPage = 100; // WPGraphQL max per request
 
-  while (hasNextPage && allProducts.length < limit) {
-    const variables: Record<string, any> = { first: Math.min(perPage, limit - allProducts.length) };
-    if (afterCursor) variables.after = afterCursor;
+  try {
+    while (hasNextPage && allProducts.length < limit) {
+      const variables: Record<string, any> = { first: Math.min(perPage, limit - allProducts.length) };
+      if (afterCursor) variables.after = afterCursor;
 
-    const { data } = await fetchGraphQL(GET_PRODUCTS_QUERY, variables);
-    
-    if (!data || !data.products || !data.products.nodes) {
-      if (allProducts.length === 0) {
-        console.warn("No products returned from WPGraphQL. Check if WPGraphQL WooCommerce is installed.");
+      const { data } = await fetchGraphQL(GET_PRODUCTS_QUERY, variables);
+      
+      if (!data || !data.products || !data.products.nodes) {
+        if (allProducts.length === 0) {
+          console.warn("No products returned from WPGraphQL. Check if WPGraphQL WooCommerce is installed.");
+        }
+        break;
       }
-      break;
-    }
 
-    const nodes = data.products.nodes;
-    for (const node of nodes) {
-      allProducts.push(mapNodeToProduct(node));
-    }
+      const nodes = data.products.nodes;
+      for (const node of nodes) {
+        allProducts.push(mapNodeToProduct(node));
+      }
 
-    hasNextPage = data.products.pageInfo?.hasNextPage ?? false;
-    afterCursor = data.products.pageInfo?.endCursor ?? null;
+      hasNextPage = data.products.pageInfo?.hasNextPage ?? false;
+      afterCursor = data.products.pageInfo?.endCursor ?? null;
+    }
+  } catch (error) {
+    console.error("Error in getProductsFromWP:", error);
   }
 
   return allProducts;
@@ -200,13 +221,18 @@ const GET_PRODUCTS_BY_CATEGORY_QUERY = `
 `;
 
 export async function getProductsByCategoryFromWP(categorySlug: string, limit: number = 20): Promise<Product[]> {
-  const { data } = await fetchGraphQL(GET_PRODUCTS_BY_CATEGORY_QUERY, { first: limit, category: categorySlug });
-  
-  if (!data || !data.products || !data.products.nodes) {
+  try {
+    const { data } = await fetchGraphQL(GET_PRODUCTS_BY_CATEGORY_QUERY, { first: limit, category: categorySlug });
+    
+    if (!data || !data.products || !data.products.nodes) {
+      return [];
+    }
+
+    return data.products.nodes.map((node: any) => mapNodeToProduct(node));
+  } catch (error) {
+    console.error("Error in getProductsByCategoryFromWP:", error);
     return [];
   }
-
-  return data.products.nodes.map((node: any) => mapNodeToProduct(node));
 }
 
 // Categories Query

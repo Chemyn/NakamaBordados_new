@@ -19,19 +19,24 @@ export default function ProductDetailPage() {
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([fetchProductById(id), fetchProducts()]).then(([prodData, allProds]) => {
-      if (mounted) {
-        setProduct(prodData || null);
-        
-        if (prodData) {
-          setRelatedProducts(
-            allProds.filter(p => p.id !== prodData.id && p.categories.some(c => prodData.categories.includes(c))).slice(0, 4)
-          );
+    Promise.all([fetchProductById(id), fetchProducts()])
+      .then(([prodData, allProds]) => {
+        if (mounted) {
+          setProduct(prodData || null);
+          
+          if (prodData) {
+            setRelatedProducts(
+              allProds.filter(p => p.id !== prodData.id && p.categories.some(c => prodData.categories.includes(c))).slice(0, 4)
+            );
+          }
+          
+          setLoading(false);
         }
-        
-        setLoading(false);
-      }
-    });
+      })
+      .catch(err => {
+        console.error("Error fetching product data:", err);
+        if (mounted) setLoading(false);
+      });
     return () => { mounted = false; };
   }, [id]);
 
