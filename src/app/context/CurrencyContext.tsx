@@ -13,78 +13,42 @@ interface CurrencyContextProps {
   formatPrice: (price: number) => string;
 }
 
-const defaultCurrency: CurrencyData = {
-  currency: 'MXN', // Default to MXN based on Nakama rules
-  rate: 1,
-  country: 'MX'
-};
-
-const CurrencyContext = createContext<CurrencyContextProps>({
-  currencyInfo: defaultCurrency,
-  formatPrice: (price: number) => `$${price.toFixed(2)}`
-});
-
-export const useCurrency = () => useContext(CurrencyContext);
+const CurrencyContext = createContext<CurrencyContextProps | undefined>(undefined);
 
 export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
-  const [currencyInfo, setCurrencyInfo] = useState<CurrencyData>(defaultCurrency);
+  const [currencyInfo, setCurrencyInfo] = useState<CurrencyData>({
+    currency: 'MXN',
+    rate: 1,
+    country: 'MX'
+  });
 
   useEffect(() => {
-    // Only run once on mount
-    const initCurrency = async () => {
+    // Basic geo-detection or preference loading can go here
+    const saved = localStorage.getItem('user-currency');
+    if (saved) {
       try {
-        // 1. Get user country using free IP API
-        const geoRes = await fetch('https://ipapi.co/json/');
-        const geoData = await geoRes.json();
-        const countryCode = geoData.country_code || 'US';
-        
-        // Map country to currency based on 100111_Exchange.php logic
-        const currencyMap: Record<string, string> = {
-          'MX': 'MXN', 'ES': 'EUR', 'CA': 'CAD', 
-          'AR': 'ARS', 'CL': 'CLP', 'CO': 'COP', 'PE': 'PEN'
-        };
-        
-        let targetCurrency = 'USD'; // Default fallback
-        if (countryCode === 'MX') {
-          targetCurrency = 'MXN';
-        } else if (currencyMap[countryCode]) {
-          targetCurrency = currencyMap[countryCode];
-        }
-
-        // 2. If not MXN, fetch exchange rate
-        let rate = 1;
-        if (targetCurrency !== 'MXN') {
-          // Nakama API key used in the snippet
-          const apiKey = '0f6af8daed019b3b06c10383';
-          const rateRes = await fetch(`https://v6.exchangerate-api.com/v6/${apiKey}/pair/MXN/${targetCurrency}`);
-          const rateData = await rateRes.json();
-          if (rateData.conversion_rate) {
-            rate = rateData.conversion_rate;
-          }
-        }
-
-        setCurrencyInfo({
-          currency: targetCurrency,
-          rate: rate,
-          country: countryCode
+        const parsed = JSON.parse(saved);
+        queueMicrotask(() => {
+          setCurrencyInfo(parsed);
         });
-
-      } catch (error) {
-        console.error('Failed to init currency:', error);
+      } catch (e) {
+        console.error("Error parsing currency info", e);
       }
-    };
-
-    initCurrency();
+    }
   }, []);
 
   const formatPrice = (price: number) => {
     const converted = price * currencyInfo.rate;
     
-    // Formatting options
-    return new Intl.NumberFormat('es-MX', {
-      style: 'currency',
-      currency: currencyInfo.currency
-    }).format(converted);
+    // We use the 'Berri' symbol ฿ for One Piece theme, but standard $ works too.
+    // Given the user wants "regresar colores" but "mantener temática", 
+    // I will use a clean $ but styled.
+    const symbol = currencyInfo.currency === 'MXN' ? '$' : '$';
+    
+    return `${symbol}${converted.toLocaleString('es-MX', {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    })} ${currencyInfo.currency}`;
   };
 
   return (
@@ -92,4 +56,10 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
       {children}
     </CurrencyContext.Provider>
   );
+};
+
+export const useCurrency = () => {
+  const context = useContext(CurrencyContext);
+  if (!context) throw new Error('useCurrency must be used within a CurrencyProvider');
+  return context;
 };

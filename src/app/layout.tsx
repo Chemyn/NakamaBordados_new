@@ -5,6 +5,7 @@ import { CartProvider } from "./context/CartContext";
 import { CurrencyProvider } from "./context/CurrencyContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
+import WhatsAppButton from "./components/WhatsAppButton";
 
 export const metadata: Metadata = {
   title: "Nakama Bordados - Streetwear Anime Premium",
@@ -27,6 +28,7 @@ export default function RootLayout({
                 {children}
               </div>
               <Footer />
+              <WhatsAppButton />
             </CartProvider>
           </CurrencyProvider>
         </AuthProvider>

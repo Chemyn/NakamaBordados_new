@@ -4,13 +4,16 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useCart } from '../context/CartContext';
+import { useAuth } from '../context/AuthContext';
 import { fetchCategories } from '../data/products';
 import { WPCategory } from '@/lib/queries';
+import SearchBar from './SearchBar';
 
 export default function Navbar() {
   const pathname = usePathname();
   const { cartCount } = useCart();
-  
+  const { isAdmin } = useAuth();
+
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [menuOpen, setMenuOpen] = useState(false);
   const [subActive, setSubActive] = useState<string | null>(null);
@@ -29,7 +32,7 @@ export default function Navbar() {
     const savedTheme = localStorage.getItem('color-theme');
     const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
     const initialTheme = (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) ? 'dark' : 'light';
-    
+
     if (initialTheme === 'dark') {
       document.documentElement.classList.add('dark');
     } else {
@@ -58,7 +61,6 @@ export default function Navbar() {
     setSubActive(subActive === category ? null : category);
   };
 
-  // Subcategories extracted from WPGraphQL
   const getSubcategories = (parentSlug: string) => {
     return categories
       .filter(c => c.parentSlug === parentSlug)
@@ -66,22 +68,22 @@ export default function Navbar() {
   };
 
   return (
-    <nav className="nk-navbar">
+    <nav className="nk-navbar nk-manga-border" style={{ borderLeft: 'none', borderRight: 'none', borderTop: 'none' }}>
       <div className="nk-nav-container">
         {/* Mobile menu trigger */}
-        <button 
-          className="nk-nav-toggle" 
+        <button
+          className="nk-nav-toggle nk-mobile-only"
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle navigation menu"
         >
-          <span className="material-icons-outlined">menu</span>
+          <span className="material-icons-outlined">{menuOpen ? 'close' : 'menu'}</span>
         </button>
 
-        {/* Brand Logo */}
-        <Link href="/" className="nk-nav-brand">
-          <img 
-            src="https://nakamabordados.com/wp-content/uploads/2025/11/LOGO-NAKAMA-scaled-2048x926.png" 
-            alt="NAKAMA Logo" 
+        {/* Brand Logo - ONLY HOME BUTTON */}
+        <Link href="/" className="nk-nav-brand" onClick={() => setMenuOpen(false)}>
+          <img
+            src="https://nakamabordados.com/wp-content/uploads/2025/11/LOGO-NAKAMA-scaled-2048x926.png"
+            alt="NAKAMA Logo"
             className="nk-logo-img"
           />
         </Link>
@@ -90,23 +92,23 @@ export default function Navbar() {
         <div className={`nk-nav-menu ${menuOpen ? 'active' : ''}`}>
           <ul className="nk-nav-list">
             <li>
-              <Link 
-                href="/store" 
+              <Link
+                href="/store"
                 className={`nk-nav-link ${pathname === '/store' ? 'active-menu-item' : ''}`}
                 onClick={() => setMenuOpen(false)}
               >
-                Todas
+                Tienda
               </Link>
             </li>
-            
+
             {/* Category: Bordados (Mega Menu) */}
             <li className="nk-nav-item-dropdown nk-mega-trigger"
                 onMouseEnter={() => setSubActive('bordados')}
                 onMouseLeave={() => setSubActive(null)}
             >
               <div className="nk-dropdown-trigger-wrapper">
-                <Link 
-                  href="/store?category=bordados" 
+                <Link
+                  href="/store?category=bordados"
                   className={`nk-nav-link ${pathname.includes('category=bordados') ? 'active-menu-item' : ''}`}
                   onClick={() => setMenuOpen(false)}
                 >
@@ -116,7 +118,7 @@ export default function Navbar() {
                   <span className={`material-icons-outlined ${subActive === 'bordados' ? 'rotate-180' : ''}`}>expand_more</span>
                 </button>
               </div>
-              <div className={`nk-mega-menu ${subActive === 'bordados' ? 'active' : ''}`}>
+              <div className={`nk-mega-menu nk-manga-border ${subActive === 'bordados' ? 'active' : ''}`}>
                 <ul className="nk-mega-grid">
                   {getSubcategories('bordados').map((sub) => (
                     <li key={sub.id}>
@@ -130,8 +132,8 @@ export default function Navbar() {
             </li>
 
             <li>
-              <Link 
-                href="/store?category=bordado-con-estampado" 
+              <Link
+                href="/store?category=bordado-con-estampado"
                 className={`nk-nav-link ${pathname.includes('category=bordado-con-estampado') ? 'active-menu-item' : ''}`}
                 onClick={() => setMenuOpen(false)}
               >
@@ -145,8 +147,8 @@ export default function Navbar() {
                 onMouseLeave={() => setSubActive(null)}
             >
               <div className="nk-dropdown-trigger-wrapper">
-                <Link 
-                  href="/store?category=estampados" 
+                <Link
+                  href="/store?category=estampados"
                   className={`nk-nav-link ${pathname.includes('category=estampados') ? 'active-menu-item' : ''}`}
                   onClick={() => setMenuOpen(false)}
                 >
@@ -156,7 +158,7 @@ export default function Navbar() {
                   <span className={`material-icons-outlined ${subActive === 'estampados' ? 'rotate-180' : ''}`}>expand_more</span>
                 </button>
               </div>
-              <div className={`nk-mega-menu ${subActive === 'estampados' ? 'active' : ''}`}>
+              <div className={`nk-mega-menu nk-manga-border ${subActive === 'estampados' ? 'active' : ''}`}>
                 <ul className="nk-mega-grid">
                   {getSubcategories('estampados').map((sub) => (
                     <li key={sub.id}>
@@ -170,42 +172,22 @@ export default function Navbar() {
             </li>
 
             <li>
-              <Link 
-                href="/store?category=edicion-especial" 
+              <Link
+                href="/store?category=edicion-especial"
                 className="nk-nav-link nk-link-highlight"
                 onClick={() => setMenuOpen(false)}
               >
-                Edición Especial
+                Especial
               </Link>
             </li>
 
             <li>
-              <Link 
-                href="/store?category=gorras" 
+              <Link
+                href="/store?category=gorras"
                 className={`nk-nav-link ${pathname.includes('category=gorras') ? 'active-menu-item' : ''}`}
                 onClick={() => setMenuOpen(false)}
               >
                 Gorras
-              </Link>
-            </li>
-
-            <li>
-              <Link 
-                href="/store?category=lisas" 
-                className={`nk-nav-link ${pathname.includes('category=lisas') ? 'active-menu-item' : ''}`}
-                onClick={() => setMenuOpen(false)}
-              >
-                Lisas
-              </Link>
-            </li>
-
-            <li>
-              <Link 
-                href="/store?category=variedad" 
-                className={`nk-nav-link ${pathname.includes('category=variedad') ? 'active-menu-item' : ''}`}
-                onClick={() => setMenuOpen(false)}
-              >
-                Variedad
               </Link>
             </li>
 
@@ -223,30 +205,30 @@ export default function Navbar() {
 
         {/* Action icons (Search, Account, Cart, Theme Toggle) */}
         <div className="nk-nav-actions">
-          {/* Account Profile Link */}
+          <SearchBar />
+
           <Link href="/mi-cuenta" className="nk-action-btn" title="Mi Cuenta">
             <span className="material-icons-outlined">person</span>
           </Link>
 
-          {/* Desktop Theme Switcher */}
-          <button className="nk-action-btn nk-theme-toggle-desktop" onClick={toggleTheme} title="Cambiar Tema">
+          <Link href="/checkout" className="nk-action-btn nk-cart-btn nk-manga-border" style={{ background: 'var(--nk-primary)', color: '#fff', boxShadow: '2px 2px 0px #000' }} title="Carrito">        
+            <span className="material-icons-outlined">shopping_bag</span>
+            {cartCount > 0 && (
+              <span className="nk-cart-badge" style={{ border: '2px solid #000' }}>{cartCount}</span>
+            )}
+          </Link>
+
+          <button className="nk-action-btn" onClick={toggleTheme} title="Cambiar Tema">
             <span className="material-icons-outlined">
               {theme === 'light' ? 'dark_mode' : 'light_mode'}
             </span>
           </button>
 
-          {/* Shopping Cart Badge Link */}
-          <Link href="/checkout" className="nk-action-btn nk-cart-btn" title="Carrito">
-            <span className="material-icons-outlined">shopping_bag</span>
-            {cartCount > 0 && (
-              <span className="nk-cart-badge">{cartCount}</span>
-            )}
-          </Link>
-          
-          {/* Admin Suite launcher */}
-          <Link href="/admin/suite" className="nk-action-btn nk-suite-btn" title="Nakama Suite (Admin)">
-            <span className="material-icons-outlined text-primary">rocket_launch</span>
-          </Link>
+          {isAdmin && (
+            <Link href="/admin/suite" className="nk-action-btn nk-suite-btn nk-manga-border" style={{ background: '#000', color: '#fff', boxShadow: '2px 2px 0px var(--nk-primary)' }} title="Nakama Suite (Admin)">
+              <span className="material-icons-outlined">rocket_launch</span>
+            </Link>
+          )}
         </div>
       </div>
     </nav>

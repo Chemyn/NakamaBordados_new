@@ -5,6 +5,30 @@ import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 
+interface OrderMeta {
+  key: string;
+  value: string;
+}
+
+interface Order {
+  id: string;
+  orderNumber: string;
+  status: string;
+  total: string;
+  date: string;
+  metaData: OrderMeta[];
+  lineItems: {
+    nodes: {
+      product: {
+        node: {
+          name: string;
+        };
+      };
+      quantity: number;
+    }[];
+  };
+}
+
 // Pre-calculated static values for floating symbols to keep rendering pure and idempotent
 const FLOATING_SYMBOLS_DASHBOARD = [
   { sym: 'ゴ', speed: 1.1, left: '12%', top: '15%', fontSize: '50px', opacity: 0.06 },
@@ -44,9 +68,9 @@ export default function MiCuentaPage() {
   ];
 
   // Helper to find tracking number in order metadata
-  const getTrackingInfo = (order: any) => {
+  const getTrackingInfo = (order: Order) => {
     // Standard meta keys for tracking (depending on plugin)
-    const trackingKey = order.metaData?.find((m: any) => 
+    const trackingKey = order.metaData?.find((m) => 
       m.key === '_wc_shipment_tracking_items' || 
       m.key === 'tracking_number' || 
       m.key === 'rastreo'
@@ -243,7 +267,7 @@ export default function MiCuentaPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {user?.orders?.nodes?.slice(0, 5).map((order: any) => (
+                      {user?.orders?.nodes?.slice(0, 5).map((order) => (
                         <tr key={order.id}>
                           <td className="nk-order-id">#{order.orderNumber}</td>
                           <td>{new Date(order.date).toLocaleDateString()}</td>
@@ -281,7 +305,7 @@ export default function MiCuentaPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {user?.orders?.nodes?.map((order: any) => (
+                      {user?.orders?.nodes?.map((order) => (
                         <tr key={order.id}>
                           <td className="nk-order-id">#{order.orderNumber}</td>
                           <td>{new Date(order.date).toLocaleDateString()}</td>
@@ -290,7 +314,7 @@ export default function MiCuentaPage() {
                               {order.status}
                             </span>
                           </td>
-                          <td>{order.lineItems?.nodes?.reduce((sum: number, item: any) => sum + item.quantity, 0)} pz</td>
+                          <td>{order.lineItems?.nodes?.reduce((sum, item) => sum + item.quantity, 0)} pz</td>
                           <td className="nk-order-total">{order.total}</td>
                         </tr>
                       ))}
@@ -310,7 +334,7 @@ export default function MiCuentaPage() {
                 <p className="nk-dash-subtitle">Rastrea tus paquetes activos en tiempo real.</p>
                 
                 <div className="nk-tracking-list">
-                  {user?.orders?.nodes?.filter(o => o.status !== 'CANCELLED' && o.status !== 'REFUNDED').map((order: any) => {
+                  {user?.orders?.nodes?.filter(o => o.status !== 'CANCELLED' && o.status !== 'REFUNDED').map((order) => {
                     const trackingNum = getTrackingInfo(order);
                     return (
                       <div className="nk-tracking-card" key={order.id}>
@@ -387,7 +411,7 @@ export default function MiCuentaPage() {
                 <h2 className="nk-dash-title">Mis Comisiones</h2>
                 <p className="nk-dash-subtitle">Programa de Apoyo a Creadores Nakama (10% por ventas).</p>
                 <div className="nk-orders-table-wrapper" style={{ marginTop: '20px' }}>
-                  {(user as any)?.comisiones && (user as any).comisiones.length > 0 ? (
+                  {user?.comisiones && Array.isArray(user.comisiones) && user.comisiones.length > 0 ? (
                     <table className="nk-orders-table">
                       <thead>
                         <tr>
@@ -396,7 +420,7 @@ export default function MiCuentaPage() {
                         </tr>
                       </thead>
                       <tbody>
-                        {(user as any).comisiones.map((com: string, i: number) => {
+                        {user.comisiones.map((com, i) => {
                           const [mes, monto] = com.split('|');
                           return (
                             <tr key={i}>

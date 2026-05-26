@@ -3,29 +3,79 @@
 @import url('https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css');
 
 /* --- 1. CSS CUSTOM PROPERTIES --- */
+/* --- Responsive Utilities (Custom) --- */
+.nk-hidden { display: none !important; }
+
+@media (min-width: 1024px) {
+  .nk-desktop-only { display: flex !important; }
+  .nk-mobile-only { display: none !important; }
+}
+
+@media (max-width: 1023px) {
+  .nk-desktop-only { display: none !important; }
+  .nk-mobile-only { display: flex !important; }
+}
+
 :root {
   --nk-bg-body: #FFFFFF;
-  --nk-bg-wrapper: #F9FAFB;
+  --nk-bg-wrapper: #FFFFFF;
   --nk-bg-card: #FFFFFF;
-  --nk-text-main: #111827;
-  --nk-text-sec: #4B5563;
-  --nk-border: #E5E7EB;
+  --nk-text-main: #000000;
+  --nk-text-sec: #444444;
+  --nk-border: #000000;
   --nk-input-bg: #FFFFFF;
-  --nk-input-border: #E5E7EB;
-  --nk-primary: #FF3333;
-  --nk-primary-dark: #cc0000;
+  --nk-input-border: #000000;
+  --nk-primary: #FF0000; /* Red */
+  --nk-primary-dark: #CC0000;
+  --nk-accent: #000000; /* Black */
+  --nk-accent-dark: #111111;
+  --nk-navy: #000000;
   --header-padding: 80px;
+  
+  /* Manga / Minimalist Styles */
+  --nk-manga-shadow: 4px 4px 0px #000000;
+  --nk-manga-shadow-lg: 8px 8px 0px #000000;
+  --nk-manga-border: 2px solid #000000;
+
+  /* Z-Index Scale */
+  --z-base: 1;
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-max: 999;
 }
 
 html.dark {
-  --nk-bg-body: #050505;
-  --nk-bg-wrapper: #0A0A0A;
+  --nk-bg-body: #000000;
+  --nk-bg-wrapper: #111111;
   --nk-bg-card: #111111;
   --nk-text-main: #FFFFFF;
-  --nk-text-sec: #D1D5DB;
-  --nk-border: #222222;
-  --nk-input-bg: #141414;
-  --nk-input-border: #333333;
+  --nk-text-sec: #CCCCCC;
+  --nk-border: #FFFFFF;
+  --nk-input-bg: #111111;
+  --nk-input-border: #FFFFFF;
+  --nk-primary: #FF3333;
+  --nk-accent: #FFFFFF;
+  --nk-navy: #000000;
+}
+
+/* --- Card Overlay Polish --- */
+.nk-card-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(227, 0, 15, 0.4) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.nk-store-card:hover .nk-card-overlay {
+  opacity: 1;
+  pointer-events: auto;
 }
 
 /* --- 2. GLOBAL RESET & BASE STYLES --- */
@@ -493,14 +543,14 @@ html.dark .op-floating-text {
   left: 0;
   width: 100%;
   z-index: 50;
-  background: rgba(255, 255, 255, 0.92);
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--nk-border);
   transition: background-color 0.3s ease, border-color 0.3s ease;
 }
 
 html.dark .nk-navbar {
-  background: rgba(5, 5, 5, 0.92);
+  background: rgba(0, 0, 0, 0.95);
 }
 
 .nk-nav-container {
@@ -702,7 +752,7 @@ html.dark .nk-logo-img {
   background: transparent;
   border: none;
   cursor: pointer;
-  color: var(--nk-text-main);
+  color: #000;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1831,21 +1881,9 @@ html.dark .nk-preloader-logo {
   transform: scale(1.08);
 }
 
-.nk-card-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  opacity: 0;
-  transition: opacity 0.3s ease;
-  pointer-events: none;
-}
+.nk-card-overlay { background: rgba(227, 0, 15, 0.4) !important; opacity: 0; }
 
-.nk-store-card:hover .nk-card-overlay {
-  opacity: 1;
-}
+.nk-store-card:hover .nk-card-overlay { background: rgba(227, 0, 15, 0.4) !important; opacity: 0; }
 
 .nk-card-info {
   margin-top: 14px;
@@ -4383,3 +4421,459 @@ html.dark .nk-tpl-emerald:hover { background: rgba(6, 78, 59, 0.5); }
   padding-top: 15px;
   border-top: 1px solid var(--nk-border);
 }
+
+/* --- Search Bar Styles --- */
+.nk-search-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+.nk-search-form {
+  position: absolute;
+  top: 50%;
+  right: 24px;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  background: var(--nk-bg-body);
+  border: 1px solid var(--nk-border);
+  border-radius: 25px;
+  padding: 4px 8px 4px 16px;
+  width: 300px;
+  z-index: 100;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+.nk-search-input {
+  border: none;
+  background: transparent;
+  color: var(--nk-text-main);
+  flex: 1;
+  font-size: 0.9rem;
+  padding: 6px 0;
+  outline: none;
+}
+
+.nk-search-submit, .nk-search-close {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--nk-text-sec);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.nk-search-submit:hover, .nk-search-close:hover {
+  color: var(--nk-primary);
+}
+
+@media (max-width: 768px) {
+  .nk-search-form {
+    width: calc(100% - 48px);
+    right: 24px;
+  }
+}
+
+/* --- WhatsApp Sticky Button --- */
+.nk-whatsapp-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 60px;
+  height: 60px;
+  background-color: #25D366;
+  color: #FFFFFF;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  z-index: 1000;
+  transition: transform 0.3s ease, background-color 0.3s ease;
+  text-decoration: none;
+}
+
+.nk-whatsapp-btn:hover {
+  transform: scale(1.1);
+  background-color: #128C7E;
+  color: #FFFFFF;
+}
+
+@media (max-width: 480px) {
+  .nk-whatsapp-btn {
+    bottom: 20px;
+    right: 20px;
+    width: 55px;
+    height: 55px;
+    font-size: 28px;
+  }
+}
+
+
+/* --- Advanced Search System (Adapted from Snippet) --- */
+.nk-search-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    height: 40px;
+    width: 40px;
+    transition: all 0.3s ease-out;
+    background: transparent;
+    border-radius: 9999px;
+    overflow: hidden;
+    border: 1px solid transparent;
+}
+
+/* Ensure desktop search container is truly hidden on mobile if not using hidden class elsewhere */
+@media (max-width: 1023px) {
+  .nk-search-container.hidden.lg\:flex {
+    display: none !important;
+  }
+}
+
+.nk-search-container.expanded {
+    width: 300px;
+    background-color: rgba(0, 0, 0, 0.05);
+    border-color: rgba(0, 0, 0, 0.1);
+}
+
+html.dark .nk-search-container.expanded {
+    background-color: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.2);
+}
+
+.nk-search-input-desktop {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    color: var(--nk-text-main);
+    font-size: 0.875rem;
+    border: none;
+    padding-left: 48px;
+    padding-right: 40px;
+    outline: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    cursor: pointer;
+}
+
+.nk-search-container.expanded .nk-search-input-desktop {
+    opacity: 1;
+    cursor: text;
+}
+
+.nk-search-trigger {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--nk-text-sec);
+    transition: color 0.2s;
+    z-index: var(--z-base);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+}
+
+.nk-search-trigger:hover {
+    color: var(--nk-primary);
+}
+
+.nk-search-loading-icon {
+    position: absolute;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--nk-primary);
+    z-index: calc(var(--z-base) + 1);
+}
+
+/* Results Dropdown */
+.nk-search-results-dropdown {
+    position: absolute;
+    top: calc(100% + 12px);
+    right: 0;
+    width: 340px;
+    background: var(--nk-bg-card);
+    border: 1px solid var(--nk-border);
+    border-radius: 12px;
+    box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    z-index: var(--z-dropdown);
+    animation: nkFadeIn 0.2s ease-out;
+}
+
+@keyframes nkFadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.nk-search-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    border-bottom: 1px solid var(--nk-border);
+    transition: background 0.2s;
+    text-decoration: none;
+    color: inherit;
+}
+
+.nk-search-item:hover {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+html.dark .nk-search-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.nk-search-item-img {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.05);
+}
+
+.nk-search-item-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.nk-search-item-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.nk-search-item-price {
+    font-size: 0.75rem;
+    color: var(--nk-primary);
+    font-weight: 700;
+    margin-top: 2px;
+}
+
+.nk-search-view-all {
+    display: block;
+    text-align: center;
+    padding: 12px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--nk-text-sec);
+    text-transform: uppercase;
+    background: rgba(0, 0, 0, 0.02);
+    transition: background 0.2s;
+}
+
+.nk-search-view-all:hover {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--nk-text-main);
+}
+
+/* Mobile Overlay */
+.nk-mobile-search-overlay {
+    position: fixed;
+    inset: 0;
+    background: var(--nk-bg-card);
+    z-index: var(--z-max);
+    display: flex;
+    flex-direction: column;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nk-mobile-search-overlay.open {
+    transform: translateY(0);
+}
+
+.nk-mobile-search-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--nk-border);
+}
+
+.nk-mobile-search-title {
+    font-family: \"Teko\", sans-serif;
+    font-size: 1.5rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.nk-mobile-search-body {
+    padding: 24px;
+}
+
+.nk-mobile-search-input-wrapper {
+    position: relative;
+}
+
+.nk-mobile-search-input {
+    width: 100%;
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid var(--nk-border);
+    border-radius: 12px;
+    padding: 16px 16px 16px 56px;
+    font-size: 1.125rem;
+    color: var(--nk-text-main);
+    outline: none;
+}
+
+html.dark .nk-mobile-search-input {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.nk-mobile-search-input:focus {
+    border-color: var(--nk-primary);
+    box-shadow: 0 0 0 1px var(--nk-primary);
+}
+
+.nk-mobile-search-icon-btn {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--nk-text-sec);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+}
+
+/* --- One Piece / Anime Aesthetics --- */
+.op-floating-text {
+  position: absolute;
+  font-family: 'Teko', sans-serif;
+  color: #000;
+  opacity: 0.05;
+  pointer-events: none;
+  white-space: nowrap;
+  font-weight: 900;
+  line-height: 1;
+  z-index: 0;
+}
+
+.nk-manga-border {
+  border: var(--nk-manga-border) !important;
+}
+
+.nk-btn-hero {
+  background: var(--nk-primary);
+  color: #fff;
+  padding: 16px 40px;
+  font-size: 1.5rem;
+  border-radius: 0;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.nk-btn-hero:hover {
+  transform: translate(-4px, -4px);
+  box-shadow: 12px 12px 0px #000 !important;
+}
+
+.nk-btn-hero:active {
+  transform: translate(2px, 2px);
+  box-shadow: 2px 2px 0px #000 !important;
+}
+
+.nk-store-hero-badge {
+  display: inline-block;
+  padding: 6px 16px;
+  background: #000;
+  color: var(--nk-accent);
+  font-weight: 800;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  margin-bottom: 20px;
+}
+
+.nk-card-overlay { background: rgba(227, 0, 15, 0.4) !important; opacity: 0; }
+
+.nk-overlay-btn {
+  background: #fff !important;
+  color: #000 !important;
+  font-weight: 800 !important;
+  border: 2px solid #000 !important;
+}
+
+/* --- Improved Typography --- */
+.nk-section-title {
+  font-family: 'Teko', sans-serif;
+  letter-spacing: -1px;
+}
+
+/* --- Custom Scrollbar for a more "Anime" feel --- */
+::-webkit-scrollbar {
+  width: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--nk-bg-wrapper);
+}
+
+::-webkit-scrollbar-thumb {
+  background: #000;
+  border: 2px solid var(--nk-bg-wrapper);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--nk-primary);
+}
+
+/* --- Header Polish --- */
+.nk-logo-img {
+  filter: drop-shadow(2px 2px 0px rgba(0,0,0,0.1));
+}
+
+.nk-nav-link.nk-link-highlight {
+  color: var(--nk-primary) !important;
+  font-weight: 800;
+}
+
+/* --- Checkout Polish --- */
+.nk-checkout-review-card {
+  border-radius: 0 !important;
+}
+
+.nk-checkout-notice-box {
+  border-radius: 0 !important;
+}
+
+/* --- Status Colors --- */
+.nk-status-processing { background: #ffd700; color: #000; }
+.nk-status-completed { background: #2ecc71; color: #fff; }
+.nk-status-cancelled { background: #e74c3c; color: #fff; }
+.nk-status-on-hold { background: #3498db; color: #fff; }
+
+/* --- Skeleton One Piece Style --- */
+.nk-skeleton {
+  background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%) !important;
+  background-size: 200% 100% !important;
+  animation: nk-loading 1.5s infinite !important;
+}
+
+@keyframes nk-loading {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+
+.nk-store-page { background: var(--nk-bg-wrapper); min-height: 100vh; position: relative; z-index: 1; }
+
+html.dark .nk-action-btn { color: #fff !important; }

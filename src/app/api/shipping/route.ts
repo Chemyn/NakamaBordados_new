@@ -103,11 +103,11 @@ export async function POST(request: Request) {
     const results = await Promise.all(ratePromises);
     
     // Flatten and format results to match WooCommerce GraphQL expected structure
-    const formattedRates: any[] = [];
+    const formattedRates: { id: string; method_id: string; label: string; cost: string }[] = [];
     
-    results.forEach((carrierRates) => {
+    results.forEach((carrierRates: { carrierDescription: string; serviceDescription: string; deliveryEstimate: string; totalPrice: number; carrier: string; serviceId: number }[] | null) => {
       if (carrierRates && Array.isArray(carrierRates)) {
-        carrierRates.forEach((rate: any) => {
+        carrierRates.forEach((rate) => {
           formattedRates.push({
             id: `envia_${rate.carrier}_${rate.serviceId}`,
             method_id: `envia_shipping`, // Keep consistent with plugin if possible

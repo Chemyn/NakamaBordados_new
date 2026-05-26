@@ -3,6 +3,30 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { fetchGraphQL } from '@/lib/graphql-client';
 
+interface OrderMeta {
+  key: string;
+  value: string;
+}
+
+interface Order {
+  id: string;
+  orderNumber: string;
+  status: string;
+  total: string;
+  date: string;
+  metaData: OrderMeta[];
+  lineItems: {
+    nodes: {
+      product: {
+        node: {
+          name: string;
+        };
+      };
+      quantity: number;
+    }[];
+  };
+}
+
 interface Customer {
   id: string;
   databaseId: number;
@@ -11,7 +35,7 @@ interface Customer {
   email: string;
   roles: string[];
   orders: {
-    nodes: any[];
+    nodes: Order[];
   };
   shipping: {
     address1: string;
@@ -21,6 +45,7 @@ interface Customer {
     postcode: string;
     country: string;
   };
+  comisiones?: string[];
 }
 
 interface AuthContextType {
@@ -41,18 +66,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAdmin = user?.roles?.includes('administrator') || false;
 
-  useEffect(() => {
-    // Check local storage for token on mount
-    const token = localStorage.getItem('wp-jwt');
-    if (token) {
-      setAuthToken(token);
-      fetchCustomerData(token);
-    } else {
-      setIsLoading(false);
-    }
+  const logout = React.useCallback(() => {
+    setAuthToken(null);
+    setUser(null);
+    localStorage.removeItem('wp-jwt');
   }, []);
 
-  const fetchCustomerData = async (token: string) => {
+  const fetchCustomerData = React.useCallback(async (token: string) => {
     const query = `
       query GetCustomer {
         customer {
@@ -112,7 +132,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [logout]);
+
+  useEffect(() => {
+    // Check local storage for token on mount
+    const token = localStorage.getItem('wp-jwt');
+    if (token) {
+      queueMicrotask(() => {
+        setAuthToken(token);
+        fetchCustomerData(token);
+      });
+    } else {
+      queueMicrotask(() => {
+        setIsLoading(false);
+      });
+    }
+  }, [fetchCustomerData]);
 
   const login = async (username: string, password: string) => {
     const mutation = `
@@ -147,12 +182,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('Login error', err);
       return { success: false, error: 'Error al iniciar sesión' };
     }
-  };
-
-  const logout = () => {
-    setAuthToken(null);
-    setUser(null);
-    localStorage.removeItem('wp-jwt');
   };
 
   return (

@@ -5,7 +5,7 @@ import Link from 'next/link';
 
 export default function Footer() {
   return (
-    <footer className="nk-footer">
+    <footer className="nk-footer nk-manga-border" style={{ borderLeft: 'none', borderRight: 'none', borderBottom: 'none' }}>
       <div className="nk-footer-container">
         <div className="nk-footer-grid">
           {/* Column 1: Brand details */}
@@ -14,20 +14,21 @@ export default function Footer() {
               <img 
                 src="https://nakamabordados.com/wp-content/uploads/2025/11/LOGO-NAKAMA-scaled-2048x926.png" 
                 alt="Nakama Logo" 
-                className="nk-footer-logo-img"
+                className="nk-logo-img"
+                style={{ height: '50px' }}
               />
             </Link>
-            <p className="nk-footer-description">
-              El puente entre la cultura anime y el streetwear de alta gama.
+            <p className="nk-footer-description" style={{ fontFamily: 'Inter', fontWeight: 600 }}>
+              Forjando el equipo de los próximos Reyes de los Piratas. Streetwear anime de alta densidad.
             </p>
             <div className="nk-footer-socials">
-              <a href="https://www.instagram.com/nakama_bordados/" target="_blank" rel="noopener noreferrer" className="nk-social-link">
+              <a href="https://www.instagram.com/nakama_bordados/" target="_blank" rel="noopener noreferrer" className="nk-social-link nk-manga-border" style={{ boxShadow: '2px 2px 0px #000' }}>
                 <i className="fa-brands fa-instagram"></i>
               </a>
-              <a href="https://www.tiktok.com/@nakamabordados" target="_blank" rel="noopener noreferrer" className="nk-social-link">
+              <a href="https://www.tiktok.com/@nakamabordados" target="_blank" rel="noopener noreferrer" className="nk-social-link nk-manga-border" style={{ boxShadow: '2px 2px 0px #000' }}>
                 <i className="fa-brands fa-tiktok"></i>
               </a>
-              <a href="https://www.facebook.com/Nakamabordados" target="_blank" rel="noopener noreferrer" className="nk-social-link">
+              <a href="https://www.facebook.com/Nakamabordados" target="_blank" rel="noopener noreferrer" className="nk-social-link nk-manga-border" style={{ boxShadow: '2px 2px 0px #000' }}>
                 <i className="fa-brands fa-facebook-f"></i>
               </a>
             </div>

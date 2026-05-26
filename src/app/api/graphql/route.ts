@@ -5,6 +5,10 @@ export async function POST(request: Request) {
     const body = await request.json();
     const headers = new Headers();
     headers.set('Content-Type', 'application/json');
+    headers.set('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36');
+    headers.set('Accept', 'application/json');
+    headers.set('Origin', 'https://nakamabordados.com');
+    headers.set('Referer', 'https://nakamabordados.com/');
     
     // Forward WooCommerce Session
     const wooSession = request.headers.get('woocommerce-session');
@@ -23,7 +27,7 @@ export async function POST(request: Request) {
     const isMutation = body.query?.trim().startsWith('mutation');
     const hasSession = !!wooSession || !!auth;
 
-    const fetchOptions: any = {
+    const fetchOptions: RequestInit & { next?: { revalidate: number } } = {
       method: 'POST',
       headers: headers,
       body: JSON.stringify(body),

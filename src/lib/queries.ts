@@ -33,6 +33,12 @@ const GET_PRODUCTS_QUERY = `
               slug
             }
           }
+          productTags {
+            nodes {
+              name
+              slug
+            }
+          }
         }
         ... on SimpleProduct {
           price
@@ -66,16 +72,37 @@ const GET_PRODUCTS_QUERY = `
   }
 `;
 
-function mapNodeToProduct(node: any): Product {
+function mapNodeToProduct(node: unknown): Product {
+  const n = node as {
+    databaseId: number;
+    id: string;
+    name: string;
+    slug: string;
+    shortDescription?: string;
+    description?: string;
+    price?: string;
+    type?: 'simple' | 'variable';
+    image?: { sourceUrl: string };
+    galleryImages?: { nodes: { sourceUrl: string }[] };
+    productCategories?: { nodes: { slug: string }[] };
+    variations?: { 
+      nodes: { 
+        databaseId: number; 
+        price?: string; 
+        image?: { sourceUrl: string };
+        attributes?: { nodes: { name: string; value: string }[] };
+      }[] 
+    };
+  };
   try {
-    const imageUrl = (node.image?.sourceUrl && node.image.sourceUrl.trim() !== '') 
-      ? node.image.sourceUrl 
+    const imageUrl = (n.image?.sourceUrl && n.image.sourceUrl.trim() !== '') 
+      ? n.image.sourceUrl 
       : 'https://via.placeholder.com/300x300?text=No+Image';
-    const categories = node.productCategories?.nodes?.map((c: any) => c.slug) || [];
+    const categories = n.productCategories?.nodes?.map((c) => c.slug) || [];
     
     let numericPrice = 0;
-    if (node.price) {
-      const parsed = parseFloat(node.price.replace(/[^0-9.-]+/g, ''));
+    if (n.price) {
+      const parsed = parseFloat(n.price.replace(/[^0-9.-]+/g, ''));
       if (!isNaN(parsed)) numericPrice = parsed;
     }
 
@@ -83,9 +110,9 @@ function mapNodeToProduct(node: any): Product {
     let type: 'simple' | 'variable' = 'simple';
     const variationImages: string[] = [];
 
-    if (node.variations && node.variations.nodes && node.variations.nodes.length > 0) {
+    if (n.variations && n.variations.nodes && n.variations.nodes.length > 0) {
       type = 'variable';
-      for (const vNode of node.variations.nodes) {
+      for (const vNode of n.variations.nodes) {
         let vPrice = 0;
         if (vNode.price) {
           const parsed = parseFloat(vNode.price.replace(/[^0-9.-]+/g, ''));
@@ -109,6 +136,7 @@ function mapNodeToProduct(node: any): Product {
         
         variations.push({
           id: vNode.databaseId.toString(),
+          databaseId: vNode.databaseId,
           sku: `WP-VAR-${vNode.databaseId}`,
           attributes: attrs,
           price: vPrice,
@@ -118,7 +146,7 @@ function mapNodeToProduct(node: any): Product {
       }
     }
 
-    const galleryImages = node.galleryImages?.nodes?.map((img: any) => img.sourceUrl) || [];
+    const galleryImages = n.galleryImages?.nodes?.map((img) => img.sourceUrl) || [];
     const allImages = [imageUrl, ...galleryImages, ...variationImages].filter((url, index, self) => url && self.indexOf(url) === index);
 
     // Clean up description (strip HTML and fix whitespace)
@@ -133,12 +161,13 @@ function mapNodeToProduct(node: any): Product {
         .trim();
     };
 
-    const description = cleanDescription(node.description || node.shortDescription || '');
+    const description = cleanDescription(n.description || n.shortDescription || '');
 
     return {
-      id: node.slug || node.databaseId.toString(),
-      sku: `WP-${node.databaseId}`,
-      name: node.name,
+      id: n.slug || n.databaseId.toString(),
+      databaseId: n.databaseId,
+      sku: `WP-${n.databaseId}`,
+      name: n.name,
       price: numericPrice,
       description: description,
       categories: categories,
@@ -150,7 +179,7 @@ function mapNodeToProduct(node: any): Product {
       salesCount: 10
     };
   } catch (err) {
-    console.error("Error mapping product node:", err, node);
+    console.error("Error mapping product node:", err, n);
     // Return a safe fallback mock product so we don't crash the whole array
     return {
       id: 'error-' + Math.random(),
@@ -177,7 +206,7 @@ export async function getProductsFromWP(limit: number = 500): Promise<Product[]>
 
   try {
     while (hasNextPage && allProducts.length < limit) {
-      const variables: Record<string, any> = { first: Math.min(perPage, limit - allProducts.length) };
+      const variables: Record<string, unknown> = { first: Math.min(perPage, limit - allProducts.length) };
       if (afterCursor) variables.after = afterCursor;
 
       const { data } = await fetchGraphQL(GET_PRODUCTS_QUERY, variables);
@@ -236,6 +265,12 @@ const GET_PRODUCTS_PAGE_QUERY = `
               slug
             }
           }
+          productTags {
+            nodes {
+              name
+              slug
+            }
+          }
         }
         ... on SimpleProduct {
           price
@@ -285,7 +320,7 @@ export async function getProductsPageFromWP(
   tagSlug?: string
 ): Promise<ProductsPageResult> {
   try {
-    const variables: Record<string, any> = { first: limit };
+    const variables: Record<string, unknown> = { first: limit };
     if (after) variables.after = after;
     // Map parameter to "todas" logic
     if (categorySlug && categorySlug !== 'todas') variables.category = categorySlug;
@@ -298,7 +333,7 @@ export async function getProductsPageFromWP(
       return { products: [], pageInfo: { hasNextPage: false, endCursor: null } };
     }
 
-    const products = data.products.nodes.map((node: any) => mapNodeToProduct(node));
+    const products = data.products.nodes.map((node: unknown) => mapNodeToProduct(node));
     return {
       products,
       pageInfo: {
@@ -351,7 +386,7 @@ export async function getCategoriesFromWP(): Promise<WPCategory[]> {
     return [];
   }
 
-  return data.productCategories.nodes.map((node: any) => ({
+  return data.productCategories.nodes.map((node: { databaseId: number; name: string; slug: string; parent?: { node: { slug: string } } }) => ({
     id: node.databaseId,
     name: node.name,
     slug: node.slug,

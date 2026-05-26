@@ -1,7 +1,9 @@
 export interface Variation {
   id: string;
+  databaseId?: number;
   sku: string;
   price: number;
+  images?: string[];
   attributes: {
     Color?: string;
     Estilo?: string;
@@ -13,6 +15,7 @@ export interface Variation {
 
 export interface Product {
   id: string;
+  databaseId?: number;
   name: string;
   sku: string;
   price: number;

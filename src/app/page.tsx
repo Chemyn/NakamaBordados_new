@@ -1,89 +1,128 @@
-'use client';
-
-import React, { useState, useEffect, useRef } from 'react';
+import React from 'react';
+import { Metadata } from 'next';
 import Link from 'next/link';
-import { Product, fetchProducts, fetchProductsByCategory, PRODUCTS } from './data/products';
-import { useCurrency } from './context/CurrencyContext';
+import { fetchProductsByCategory } from './data/products';
+import HomeHero from './components/home/HomeHero';
+import { 
+  LazyCategorySection, 
+  CategoriesExplore, 
+  ScrollContainer 
+} from './components/home/HomeClientComponents';
 
-export default function HomePage() {
-  // Best sellers fetch initially
-  const [bestSellers, setBestSellers] = useState<Product[]>([]);
-  const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
-  
-  const heroSlides = [
-    "https://nakamabordados.com/wp-content/uploads/2026/05/hsale1.avif",
-    "https://nakamabordados.com/wp-content/uploads/2026/05/hsale2.avif",
-    "https://nakamabordados.com/wp-content/uploads/2026/05/hsale3.avif"
-  ];
+export const metadata: Metadata = {
+  title: 'Nakama Bordados | Streetwear Anime Premium & Bordados de Colección',
+  description: 'La tienda #1 de streetwear anime premium. Bordados de alta densidad, piezas limitadas y diseños exclusivos de tus series favoritas como One Piece, Naruto y Jujutsu Kaisen. ¡Envíos globales!',
+  openGraph: {
+    title: 'Nakama Bordados - Streetwear Anime Premium',
+    description: 'Bordados de alta densidad y diseños exclusivos de anime. ¡Únete a la tripulación!',
+    url: 'https://nakamabordados.com',
+    siteName: 'Nakama Bordados',
+    images: [
+      {
+        url: 'https://nakamabordados.com/wp-content/uploads/2026/05/hsale1.avif',
+        width: 1200,
+        height: 630,
+        alt: 'Nakama Bordados - Streetwear Anime',
+      },
+    ],
+    locale: 'es_MX',
+    type: 'website',
+  },
+  alternates: {
+    canonical: 'https://nakamabordados.com',
+  },
+};
 
-  useEffect(() => {
-    let mounted = true;
-    fetchProductsByCategory('lo-mas-vendido', 12).then(res => {
-      if (mounted) setBestSellers(res);
-    });
-    return () => { mounted = false; };
-  }, []);
+export default async function HomePage() {
+  // Fetch best sellers on the server for better SEO indexation
+  const bestSellers = await fetchProductsByCategory('lo-mas-vendido', 12);
 
-  // Hero Slider logic
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentHeroSlide((prev) => (prev + 1) % heroSlides.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [heroSlides.length]);
+  // Organization JSON-LD
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'OnlineStore',
+    name: 'Nakama Bordados',
+    url: 'https://nakamabordados.com',
+    logo: 'https://nakamabordados.com/wp-content/uploads/2026/01/logo.png',
+    description: 'Streetwear Anime Premium con bordados de alta densidad.',
+    sameAs: [
+      'https://www.instagram.com/nakamabordados',
+      'https://www.facebook.com/nakamabordados',
+    ],
+    address: {
+      '@type': 'PostalAddress',
+      addressCountry: 'MX',
+    },
+    potentialAction: {
+      '@type': 'SearchAction',
+      target: 'https://nakamabordados.com/store?search={search_term_string}',
+      'query-input': 'required name=search_term_string',
+    },
+  };
 
   return (
     <div className="nk-home-page">
-      {/* 1. Hero Slider */}
-      <section className="nk-hero-slider" id="hero-slider">
-        {heroSlides.map((slide, index) => (
-          <div key={index} className={`nk-hero-slide ${index === currentHeroSlide ? 'nk-hero-slide--active' : ''}`}>
-            <img src={slide} alt={`Promoción ${index + 1}`} />
-          </div>
-        ))}
-        <div className="nk-hero-scroll-hint force-white-always">
-          <span className="material-icons-outlined">keyboard_arrow_down</span>
-        </div>
-      </section>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      
+      {/* 1. Hero Slider (Client Component) */}
+      <HomeHero />
 
       {/* 2. Promotional Marquee Bar */}
-      <div className="nk-marquee-bar">
+      <div className="nk-marquee-bar nk-manga-border" style={{ borderLeft: 'none', borderRight: 'none' }}>
         <div className="nk-marquee-wrapper">
           <div className="nk-marquee-content animate-marquee">
-            <span>• 3 MSI A PARTIR DE $500 MXN</span>
-            <span>• ENVIO GRATIS EN 4PZ AL PAGAR POR TRANSFERENCIA</span>
-            <span>• PIEZAS LIMITADAS</span>
-            <span>• ENVÍOS A TODO MÉXICO</span>
-            <span>• BORDADO PREMIUM</span>
-            <span>• PERSONALIZADOS</span>
-            <span>• 3 MSI A PARTIR DE $500 MXN</span>
-            <span>• ENVIO GRATIS EN 4PZ AL PAGAR POR TRANSFERENCIA</span>
-            <span>• PIEZAS LIMITADAS</span>
-            <span>• ENVÍOS A TODO MÉXICO</span>
-            <span>• BORDADO PREMIUM</span>
-            <span>• PERSONALIZADOS</span>
+            <span>• ÚNETE A LA TRIPULACIÓN •</span>
+            <span>• ENVÍO GRATIS DESDE $1,200 MXN •</span>
+            <span>• 3 MSI CON TARJETAS PARTICIPANTES •</span>
+            <span>• CALIDAD PREMIUM GRAND LINE •</span>
+            <span>• PIEZAS LIMITADAS DE COLECCIÓN •</span>
+            <span>• BORDADOS DE ALTA DENSIDAD •</span>
+            <span>• ÚNETE A LA TRIPULACIÓN •</span>
+            <span>• ENVÍO GRATIS DESDE $1,200 MXN •</span>
+            <span>• 3 MSI CON TARJETAS PARTICIPANTES •</span>
+            <span>• CALIDAD PREMIUM GRAND LINE •</span>
           </div>
         </div>
       </div>
 
-      {/* 4. Best Sellers */}
+      {/* 3. Welcome / Intro Section */}
+      <section className="nk-home-section" style={{ background: 'var(--nk-bg-wrapper)', position: 'relative', overflow: 'hidden' }}>
+        <div className="op-floating-text" style={{ top: '10%', left: '-5%', fontSize: '15rem', transform: 'rotate(-15deg)', pointerEvents: 'none' }}>海賊</div>
+        <div className="op-floating-text" style={{ bottom: '5%', right: '-5%', fontSize: '12rem', transform: 'rotate(10deg)', pointerEvents: 'none' }}>仲間</div>
+        
+        <div className="nk-container" style={{ position: 'relative', zIndex: 1 }}>
+          <div style={{ textAlign: 'center', maxWidth: '800px', margin: '0 auto' }}>
+            <span className="nk-store-hero-badge">Estilo Streetwear Anime</span>
+            <h1 className="nk-section-title" style={{ fontSize: '4rem', marginBottom: '20px' }}>Tu Próximo Tesoro</h1>
+            <p style={{ fontSize: '1.2rem', color: 'var(--nk-text-sec)', lineHeight: '1.6', marginBottom: '30px' }}>
+              En <strong>Nakama Bordados</strong> no solo hacemos ropa, forjamos el equipo para tu próxima aventura. 
+              Bordados de alta densidad y diseños exclusivos con la calidad que un futuro Rey de los Piratas merece. 
+              Moda anime hecha por fans para fans.
+            </p>
+            <Link href="/store" className="nk-btn nk-btn-hero nk-manga-border" style={{ boxShadow: '8px 8px 0px #000' }}>
+              Explorar Catálogo
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* 4. Best Sellers (Rendered initially from server) */}
       <section className="nk-home-section">
         <div className="nk-container">
           <div className="nk-home-section-header">
             <div>
-              <h2 className="nk-section-title">LO MÁS VENDIDO</h2>
-              <p className="pulse-red-text">Lo que todos están amando</p>
+              <h2 className="nk-section-title">LOS MÁS BUSCADOS</h2>
+              <p className="pulse-red-text" style={{ letterSpacing: '2px', fontWeight: '800' }}>RECOMPENSA: CALIDAD MÁXIMA</p>
             </div>
           </div>
-          {bestSellers.length === 0 ? (
-            <SkeletonScrollContainer />
-          ) : (
-            <ScrollContainer products={bestSellers} />
-          )}
+          <ScrollContainer products={bestSellers} />
         </div>
       </section>
 
-      {/* 5. Dynamic Product Sections (Lazy Loaded) */}
+      {/* 5. Dynamic Product Sections (Lazy Loaded Client Components) */}
       <LazyCategorySection title="BORDADOS" categorySlug="bordados" href="/store?category=bordados" />
       <LazyCategorySection title="BORDADO CON ESTAMPADO" categorySlug="bordado-con-estampado" href="/store?category=bordado-con-estampado" />
       <LazyCategorySection title="ESTAMPADOS" categorySlug="estampados" href="/store?category=estampados" />
@@ -97,175 +136,3 @@ export default function HomePage() {
     </div>
   );
 }
-
-// ---------------------------------------------------------
-// Helper Components
-// ---------------------------------------------------------
-
-const SkeletonProductCard = () => (
-  <div className="nk-carousel-card">
-    <div className="nk-carousel-img-wrapper nk-skeleton" style={{ aspectRatio: '3/4' }}></div>
-    <div className="nk-carousel-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-      <div className="nk-skeleton" style={{ width: '80%', height: '20px' }}></div>
-      <div className="nk-skeleton" style={{ width: '40%', height: '16px' }}></div>
-    </div>
-  </div>
-);
-
-const SkeletonScrollContainer = () => (
-  <div className="nk-product-carousel" style={{ overflow: 'hidden' }}>
-    {[1, 2, 3, 4, 5].map(i => <SkeletonProductCard key={i} />)}
-  </div>
-);
-
-const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { title: string, categorySlug: string, href: string, isSpecial?: boolean }) => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [hasFetched, setHasFetched] = useState(false);
-  const sectionRef = useRef<HTMLElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !hasFetched) {
-          setHasFetched(true);
-          fetch(`/api/products?category=${categorySlug}&limit=12`)
-            .then(res => res.json())
-            .then(data => {
-              if (data && data.products) {
-                setProducts(data.products);
-              }
-            })
-            .catch(err => console.error(err));
-        }
-      },
-      { rootMargin: '200px' } // Fetch when it's 200px from entering viewport
-    );
-
-    if (sectionRef.current) {
-      observer.observe(sectionRef.current);
-    }
-
-    return () => observer.disconnect();
-  }, [categorySlug, hasFetched]);
-
-  if (hasFetched && products.length === 0) return null; // Hide if empty after fetch
-
-  return (
-    <section ref={sectionRef} className="nk-home-section" style={{ borderTop: '1px solid var(--nk-border)', minHeight: '300px' }}>
-      <div className="nk-container">
-        <div className="nk-home-section-header">
-          <h2 className="nk-section-title" style={isSpecial ? { color: 'var(--nk-primary)' } : undefined}>{title}</h2>
-          <Link className="nk-home-view-all" href={href}>
-            VER TODO <span className="material-icons-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
-          </Link>
-        </div>
-        {!hasFetched ? (
-          <SkeletonScrollContainer />
-        ) : (
-          <ScrollContainer products={products} />
-        )}
-      </div>
-    </section>
-  );
-};
-
-const ScrollContainer = ({ products }: { products: Product[] }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const { formatPrice } = useCurrency();
-
-  const scroll = (direction: 'left' | 'right') => {
-    if (containerRef.current) {
-      const scrollAmount = 300;
-      containerRef.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth'
-      });
-    }
-  };
-
-  if (products.length === 0) {
-    return <SkeletonScrollContainer />;
-  }
-
-  return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '12px' }}>
-        <button className="nk-arrow-btn" onClick={() => scroll('left')} aria-label="Scroll left">
-          <span className="material-icons-outlined">arrow_back</span>
-        </button>
-        <button className="nk-arrow-btn" onClick={() => scroll('right')} aria-label="Scroll right">
-          <span className="material-icons-outlined">arrow_forward</span>
-        </button>
-      </div>
-      <div className="nk-product-carousel" ref={containerRef}>
-        {products.map(p => {
-          const minPrice = p.type === 'variable' && p.variations.length > 0
-            ? Math.min(...p.variations.map(v => v.price)) 
-            : p.price;
-          const maxPrice = p.type === 'variable' && p.variations.length > 0
-            ? Math.max(...p.variations.map(v => v.price)) 
-            : p.price;
-          const displayPrice = minPrice === maxPrice 
-            ? formatPrice(minPrice)
-            : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
-
-          return (
-            <div className="nk-carousel-card" key={p.id}>
-              <Link href={`/product/${p.id}`} className="nk-carousel-link">
-                <div className="nk-carousel-img-wrapper">
-                  <img src={p.images[0]} alt={p.name} className="nk-carousel-img" />
-                  <div className="nk-carousel-overlay">
-                    <span className="nk-overlay-btn">Ver Producto</span>
-                  </div>
-                </div>
-                <div className="nk-carousel-info">
-                  <h3 className="nk-carousel-name">{p.name}</h3>
-                  <p className="nk-carousel-price">{displayPrice}</p>
-                </div>
-              </Link>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-};
-
-const CategoriesExplore = () => {
-  const categories = [
-    { name: 'Todas', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/todas.avif', href: '/store' },
-    { name: 'Bordados', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/bordadocat.avif', href: '/store?category=bordados' },
-    { name: 'Con Estampado', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/bordado%20con%20estampado.avif', href: '/store?category=bordado-con-estampado' },
-    { name: 'Estampado', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/estampado.avif', href: '/store?category=estampados' },
-    { name: 'Gorras', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/gorras.avif', href: '/store?category=gorras' },
-    { name: 'Lisas', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/lisas.avif', href: '/store?category=lisas' },
-    { name: 'Edición Especial', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/edicionespecial.avif', href: '/store?category=edicion-especial' },
-    { name: 'Variedad', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/varias.avif', href: '/store?category=variedad' }
-  ];
-
-  // Double categories for seamless loop
-  const doubleCategories = [...categories, ...categories];
-
-  return (
-    <section className="nk-home-section" style={{ borderTop: '1px solid var(--nk-border)', overflow: 'hidden' }}>
-      <div className="nk-container" style={{ maxWidth: '100%', padding: 0 }}>
-        <h2 className="nk-section-title" style={{ textAlign: 'center', marginBottom: '40px' }}>EXPLORA POR CATEGORÍA</h2>
-        
-        <div className="nk-categories-marquee-wrapper">
-          <div className="nk-categories-marquee-content">
-            {doubleCategories.map((cat, idx) => (
-              <Link href={cat.href} key={idx} className="nk-explore-card">
-                <img loading="lazy" decoding="async" alt={cat.name} className="nk-explore-card-img" src={cat.img} />
-                <div className="nk-explore-card-overlay"></div>
-                <div className="nk-explore-card-info">
-                  <h3>{cat.name}</h3>
-                  <span>Ver Colección</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-};

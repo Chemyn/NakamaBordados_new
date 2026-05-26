@@ -166,7 +166,7 @@ export async function fetchCart() {
 }
 
 export async function addToCart(productId: number, quantity: number = 1, variationId?: number) {
-  const variables: any = { productId, quantity };
+  const variables: Record<string, unknown> = { productId, quantity };
   if (variationId) {
     variables.variationId = variationId;
   }
@@ -197,9 +197,9 @@ export async function updateCustomerShipping(postcode: string, country: string =
   return data?.updateCustomer;
 }
 
-export async function getShippingRates(postcode: string, state: string, city: string, cart: any[]) {
+export async function getShippingRates(postcode: string, state: string, city: string, cart: unknown[]) {
   try {
-    const formattedCart = cart.map(item => {
+    const formattedCart = (cart as { product: { id: string }; variation?: { id: string }; quantity: number }[]).map(item => {
       const productId = parseInt(item.product.id.replace('WP-', '')) || parseInt(item.product.id);
       let variationId = 0;
       if (item.variation && item.variation.id) {
@@ -228,6 +228,32 @@ export async function getShippingRates(postcode: string, state: string, city: st
   }
 }
 
+
+export async function syncCartWithServer(cart: unknown[]) {
+  try {
+    // 1. Clear server cart
+    await emptyCart();
+    
+    // 2. Add each item from local cart to server
+    for (const itemObj of cart) {
+      const item = itemObj as { 
+        product: { id: string; databaseId?: number }; 
+        variation?: { id: string; databaseId?: number }; 
+        quantity: number 
+      };
+      const productId = item.product.databaseId || parseInt(item.product.id.replace('WP-', '')) || parseInt(item.product.id);
+      let variationId = undefined;
+      if (item.variation) {
+        variationId = item.variation.databaseId || parseInt(item.variation.id.replace('WP-VAR-', '').replace('WP-', ''));
+      }
+      await addToCart(productId, item.quantity, variationId);
+    }
+    return true;
+  } catch (error) {
+    console.error("Error syncing cart with server:", error);
+    return false;
+  }
+}
 
 export async function updateShippingMethod(shippingRateId: string) {
   const mutation = `
