@@ -5,23 +5,39 @@ export async function fetchGraphQL(query: string, variables = {}, extraHeaders: 
   try {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36',
+      'Accept': 'application/json',
+      'Origin': 'https://nakamabordados.com',
+      'Referer': 'https://nakamabordados.com/',
       ...extraHeaders,
     };
 
     // Determine the endpoint URL
     const endpoint = typeof window !== 'undefined' ? '/api/graphql' : WP_GRAPHQL_URL;
 
-    const response = await fetch(endpoint, {
+    const isMutation = query.trim().startsWith('mutation');
+    const fetchOptions: any = {
       method: 'POST',
       headers,
       body: JSON.stringify({
         query,
         variables,
       }),
-      // Caching disabled for mutations or cart queries, but typically we manage this per-request in Next 13+
-      // For general compatibility we keep it simple here, cart context will override caching if needed
-      cache: 'no-store', 
-    });
+    };
+
+    // If it's a server-side request (not from window), we can use Next.js data cache
+    if (typeof window === 'undefined') {
+      if (isMutation) {
+        fetchOptions.cache = 'no-store';
+      } else {
+        fetchOptions.next = { revalidate: 3600 }; // Cache for 1 hour by default
+      }
+    } else {
+      // Browser fetch doesn't support 'next' key
+      fetchOptions.cache = isMutation ? 'no-store' : 'default';
+    }
+
+    const response = await fetch(endpoint, fetchOptions);
 
     if (!response.ok) {
       console.error('Network error fetching GraphQL', response.status, response.statusText);

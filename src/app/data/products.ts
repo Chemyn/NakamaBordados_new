@@ -205,7 +205,18 @@ export async function fetchProducts(): Promise<Product[]> {
 }
 
 export async function fetchProductsByCategory(categorySlug: string, limit: number = 12): Promise<Product[]> {
-  return getProductsByCategoryFromWP(categorySlug, limit);
+  try {
+    const wpProducts = await getProductsByCategoryFromWP(categorySlug, limit);
+    if (wpProducts && wpProducts.length > 0) {
+      return wpProducts;
+    }
+  } catch (err) {
+    console.error(`Error fetching products for category ${categorySlug}:`, err);
+  }
+  
+  // Fallback to local products
+  console.log(`Using fallback local products for category: ${categorySlug}`);
+  return getProductsByCategory(categorySlug).slice(0, limit);
 }
 
 export async function fetchProductById(id: string): Promise<Product | undefined> {

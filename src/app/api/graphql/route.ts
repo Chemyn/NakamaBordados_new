@@ -20,12 +20,24 @@ export async function POST(request: Request) {
 
     const wpGraphQLUrl = process.env.NEXT_PUBLIC_WP_GRAPHQL_URL || 'https://nakamabordados.com/graphql';
 
-    const res = await fetch(wpGraphQLUrl, {
+    const isMutation = body.query?.trim().startsWith('mutation');
+    const hasSession = !!wooSession || !!auth;
+
+    const fetchOptions: any = {
       method: 'POST',
       headers: headers,
       body: JSON.stringify(body),
-      cache: 'no-store' // Critical: always get fresh data for proxy
-    });
+    };
+
+    // If it's a mutation or has session headers, don't cache.
+    // Otherwise, cache for a short period to speed up product loads.
+    if (isMutation || hasSession) {
+      fetchOptions.cache = 'no-store';
+    } else {
+      fetchOptions.next = { revalidate: 600 }; // 10 minutes cache for general products
+    }
+
+    const res = await fetch(wpGraphQLUrl, fetchOptions);
 
     const data = await res.json();
     

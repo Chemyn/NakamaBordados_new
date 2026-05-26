@@ -6,12 +6,9 @@ import { Product, fetchProducts, fetchProductsByCategory, PRODUCTS } from './dat
 import { useCurrency } from './context/CurrencyContext';
 
 export default function HomePage() {
-  const [loaded, setLoaded] = useState(false);
-  const [preloaderVisible, setPreloaderVisible] = useState(true);
-  const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
-
   // Best sellers fetch initially
   const [bestSellers, setBestSellers] = useState<Product[]>([]);
+  const [currentHeroSlide, setCurrentHeroSlide] = useState(0);
   
   const heroSlides = [
     "https://nakamabordados.com/wp-content/uploads/2026/05/hsale1.avif",
@@ -27,21 +24,6 @@ export default function HomePage() {
     return () => { mounted = false; };
   }, []);
 
-  // Initialize preloader state
-  useEffect(() => {
-    const isVisited = sessionStorage.getItem('nakama_visited');
-    const delay = isVisited ? 1200 : 2200;
-    sessionStorage.setItem('nakama_visited', 'true');
-
-    const timer = setTimeout(() => {
-      setLoaded(true);
-      const hideTimer = setTimeout(() => setPreloaderVisible(false), 400);
-      return () => clearTimeout(hideTimer);
-    }, delay);
-
-    return () => clearTimeout(timer);
-  }, []);
-
   // Hero Slider logic
   useEffect(() => {
     const interval = setInterval(() => {
@@ -52,17 +34,7 @@ export default function HomePage() {
 
   return (
     <div className="nk-home-page">
-      {/* 1. Preloader Screen */}
-      {preloaderVisible && (
-        <div className="nk-preloader" style={{ opacity: loaded ? 0 : 1, visibility: loaded ? 'hidden' : 'visible' }}>
-          <div className="nk-preloader-content">
-            <div className="nk-loader-ring"></div>
-            <img src="https://nakamabordados.com/wp-content/uploads/2026/01/logon.avif" className="nk-preloader-logo" alt="NAKAMA" />
-          </div>
-        </div>
-      )}
-
-      {/* 2. Hero Slider */}
+      {/* 1. Hero Slider */}
       <section className="nk-hero-slider" id="hero-slider">
         {heroSlides.map((slide, index) => (
           <div key={index} className={`nk-hero-slide ${index === currentHeroSlide ? 'nk-hero-slide--active' : ''}`}>
@@ -74,7 +46,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* 3. Promotional Marquee Bar */}
+      {/* 2. Promotional Marquee Bar */}
       <div className="nk-marquee-bar">
         <div className="nk-marquee-wrapper">
           <div className="nk-marquee-content animate-marquee">
@@ -103,7 +75,11 @@ export default function HomePage() {
               <p className="pulse-red-text">Lo que todos están amando</p>
             </div>
           </div>
-          <ScrollContainer products={bestSellers} />
+          {bestSellers.length === 0 ? (
+            <SkeletonScrollContainer />
+          ) : (
+            <ScrollContainer products={bestSellers} />
+          )}
         </div>
       </section>
 
@@ -125,6 +101,22 @@ export default function HomePage() {
 // ---------------------------------------------------------
 // Helper Components
 // ---------------------------------------------------------
+
+const SkeletonProductCard = () => (
+  <div className="nk-carousel-card">
+    <div className="nk-carousel-img-wrapper nk-skeleton" style={{ aspectRatio: '3/4' }}></div>
+    <div className="nk-carousel-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+      <div className="nk-skeleton" style={{ width: '80%', height: '20px' }}></div>
+      <div className="nk-skeleton" style={{ width: '40%', height: '16px' }}></div>
+    </div>
+  </div>
+);
+
+const SkeletonScrollContainer = () => (
+  <div className="nk-product-carousel" style={{ overflow: 'hidden' }}>
+    {[1, 2, 3, 4, 5].map(i => <SkeletonProductCard key={i} />)}
+  </div>
+);
 
 const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { title: string, categorySlug: string, href: string, isSpecial?: boolean }) => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -167,8 +159,8 @@ const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { title: 
             VER TODO <span className="material-icons-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
           </Link>
         </div>
-        {!hasFetched || products.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--nk-text-sec)' }}>Cargando {title.toLowerCase()}...</div>
+        {!hasFetched ? (
+          <SkeletonScrollContainer />
         ) : (
           <ScrollContainer products={products} />
         )}
@@ -192,7 +184,7 @@ const ScrollContainer = ({ products }: { products: Product[] }) => {
   };
 
   if (products.length === 0) {
-    return <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--nk-text-sec)' }}>Cargando productos...</div>;
+    return <SkeletonScrollContainer />;
   }
 
   return (
@@ -240,11 +232,6 @@ const ScrollContainer = ({ products }: { products: Product[] }) => {
 };
 
 const CategoriesExplore = () => {
-  const sliderRef = useRef<HTMLDivElement>(null);
-  const isDragging = useRef(false);
-  const startX = useRef(0);
-  const scrollLeftRef = useRef(0);
-
   const categories = [
     { name: 'Todas', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/todas.avif', href: '/store' },
     { name: 'Bordados', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/bordadocat.avif', href: '/store?category=bordados' },
@@ -256,48 +243,27 @@ const CategoriesExplore = () => {
     { name: 'Variedad', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/varias.avif', href: '/store?category=variedad' }
   ];
 
-  const handleMouseDown = (e: React.MouseEvent) => {
-    isDragging.current = true;
-    if (sliderRef.current) {
-      startX.current = e.pageX - sliderRef.current.offsetLeft;
-      scrollLeftRef.current = sliderRef.current.scrollLeft;
-    }
-  };
-
-  const handleMouseUp = () => { isDragging.current = false; };
-
-  const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isDragging.current) return;
-    e.preventDefault();
-    if (sliderRef.current) {
-      const x = e.pageX - sliderRef.current.offsetLeft;
-      const walk = (x - startX.current) * 2;
-      sliderRef.current.scrollLeft = scrollLeftRef.current - walk;
-    }
-  };
+  // Double categories for seamless loop
+  const doubleCategories = [...categories, ...categories];
 
   return (
-    <section className="nk-home-section" style={{ borderTop: '1px solid var(--nk-border)' }}>
-      <div className="nk-container">
+    <section className="nk-home-section" style={{ borderTop: '1px solid var(--nk-border)', overflow: 'hidden' }}>
+      <div className="nk-container" style={{ maxWidth: '100%', padding: 0 }}>
         <h2 className="nk-section-title" style={{ textAlign: 'center', marginBottom: '40px' }}>EXPLORA POR CATEGORÍA</h2>
-        <div
-          ref={sliderRef}
-          onMouseDown={handleMouseDown}
-          onMouseLeave={handleMouseUp}
-          onMouseUp={handleMouseUp}
-          onMouseMove={handleMouseMove}
-          className="nk-categories-slider scrollbar-hide"
-        >
-          {categories.map((cat, idx) => (
-            <Link href={cat.href} key={idx} className="nk-explore-card">
-              <img loading="lazy" decoding="async" alt={cat.name} className="nk-explore-card-img" src={cat.img} />
-              <div className="nk-explore-card-overlay"></div>
-              <div className="nk-explore-card-info">
-                <h3>{cat.name}</h3>
-                <span>Ver Colección</span>
-              </div>
-            </Link>
-          ))}
+        
+        <div className="nk-categories-marquee-wrapper">
+          <div className="nk-categories-marquee-content">
+            {doubleCategories.map((cat, idx) => (
+              <Link href={cat.href} key={idx} className="nk-explore-card">
+                <img loading="lazy" decoding="async" alt={cat.name} className="nk-explore-card-img" src={cat.img} />
+                <div className="nk-explore-card-overlay"></div>
+                <div className="nk-explore-card-info">
+                  <h3>{cat.name}</h3>
+                  <span>Ver Colección</span>
+                </div>
+              </Link>
+            ))}
+          </div>
         </div>
       </div>
     </section>

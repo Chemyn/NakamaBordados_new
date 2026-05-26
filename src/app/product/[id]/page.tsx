@@ -27,7 +27,6 @@ export default function ProductDetailPage() {
           setProduct(prodData || null);
           
           if (prodData && prodData.categories && prodData.categories.length > 0) {
-            // Fetch related products from the same category instead of the whole catalog
             const related = await fetchProductsByCategory(prodData.categories[0], 4);
             if (mounted) {
               setRelatedProducts(related.filter(p => p.id !== prodData.id));
@@ -56,6 +55,31 @@ export default function ProductDetailPage() {
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [luffyModalOpen, setLuffyModalOpen] = useState(false);
   
+  const WARNINGS = [
+    { 
+      title: '¡OI, NAKAMA!', 
+      phrase: '¡Elige tu estilo antes de zarpar al Grand Line!', 
+      crewClass: 'crew-luffy' 
+    },
+    { 
+      title: '¡ZORO SE PERDIÓ!', 
+      phrase: 'Y tú también si no eliges una talla primero...', 
+      crewClass: 'crew-zoro' 
+    },
+    { 
+      title: '¡SANJI ESTÁ FURIOSO!', 
+      phrase: '¡No puedes ordenar sin elegir los ingredientes (variaciones)!', 
+      crewClass: 'crew-sanji' 
+    },
+    { 
+      title: '¡CHOPPER ESTÁ ASUSTADO!', 
+      phrase: '¡Doctor! ¡Doctor! ¡Falta seleccionar el color!', 
+      crewClass: 'crew-chopper' 
+    }
+  ];
+
+  const [currentWarning, setCurrentWarning] = useState(WARNINGS[0]);
+
   // Vibration
   const [vibrateBtn, setVibrateBtn] = useState(false);
 
@@ -65,7 +89,6 @@ export default function ProductDetailPage() {
       const firstImage = product.images[0];
       setTimeout(() => {
         setActiveImage(firstImage);
-        // Reset selected attributes
         setSelectedAttributes({});
         setQuantity(1);
       }, 0);
@@ -73,11 +96,7 @@ export default function ProductDetailPage() {
   }, [product]);
 
   if (loading) {
-    return (
-      <div className="nk-container text-center" style={{ padding: '120px 24px' }}>
-        <h2 style={{ fontSize: '2rem', marginBottom: '20px' }}>Cargando Producto...</h2>
-      </div>
-    );
+    return <SkeletonProductDetail />;
   }
 
   if (!product) {
@@ -90,49 +109,51 @@ export default function ProductDetailPage() {
     );
   }
 
-  // Implement variation exclusion rules
-  const validVariations = product ? product.variations.filter(v => {
-    const attrs = v.attributes || {};
-    // WordPress attributes might not have 'pa_' if we stripped it in queries.js, but let's check both
-    const color = (attrs['pa_color'] || attrs['color'])?.toLowerCase();
-    const estilo = (attrs['pa_estilo'] || attrs['estilo'])?.toLowerCase();
-    const size = (attrs['pa_size'] || attrs['size'])?.toLowerCase();
+  // Variations from API
+  const validVariations = product ? product.variations : [];
 
-    // 1. All 'rosa' disabled
-    if (color === 'rosa') return false;
-    
-    // 2. t-shirt carbon M/L/XL
-    if (estilo === 't-shirt' && color === 'carbon' && size && ['m', 'l', 'xl'].includes(size)) return false;
+  // Size sorting map
+  const SIZE_ORDER: Record<string, number> = {
+    '2xs': 1, 'xs': 2, 's': 3, 'm': 4, 'l': 5, 'xl': 6, '2xl': 7, '3xl': 8, '4xl': 9, '5xl': 10,
+    'ch': 3, 'med': 4, 'g': 5, 'eg': 6, '2eg': 7
+  };
 
-    // 3. oversize-ligera black S/M/L/XL/3xl
-    if (estilo === 'oversize-ligera' && color === 'black' && size && ['s', 'm', 'l', 'xl', '3xl'].includes(size)) return false;
-
-    return true;
-  }) : [];
-
-  // Get unique values for attributes in valid variations
   const getAttributeOptions = (name: string): string[] => {
+    const relevantVariations = validVariations.filter(v => {
+      return Object.entries(selectedAttributes).every(([attrName, attrValue]) => {
+        if (attrName === name || !attrValue) return true;
+        return v.attributes[attrName] === attrValue;
+      });
+    });
+
     const options = new Set<string>();
-    validVariations.forEach(v => {
+    relevantVariations.forEach(v => {
       const val = v.attributes[name];
       if (val) options.add(val);
     });
-    return Array.from(options);
+
+    const optionsArray = Array.from(options);
+    
+    if (name.toLowerCase().includes('talla') || name.toLowerCase().includes('size')) {
+      return optionsArray.sort((a, b) => {
+        const orderA = SIZE_ORDER[a.toLowerCase()] || 99;
+        const orderB = SIZE_ORDER[b.toLowerCase()] || 99;
+        return orderA - orderB;
+      });
+    }
+
+    return optionsArray.sort();
   };
 
   const attributeNames = product.type === 'variable' 
     ? Array.from(new Set(validVariations.flatMap(v => Object.keys(v.attributes)))) 
     : [];
 
-  // Find currently selected variation
   const getSelectedVariation = (): Variation | null => {
     if (product.type === 'simple') return null;
-    
-    // Check if all attribute types are selected
     if (Object.keys(selectedAttributes).length < attributeNames.length) {
       return null;
     }
-
     return validVariations.find(v => {
       return attributeNames.every(name => v.attributes[name] === selectedAttributes[name]);
     }) || null;
@@ -141,104 +162,138 @@ export default function ProductDetailPage() {
   const currentVariation = getSelectedVariation();
 
   const handleAttributeSelect = (name: string, value: string) => {
-    setSelectedAttributes(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    setSelectedAttributes(prev => {
+      if (prev[name] === value) {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      }
+
+      const nextAttrs = { ...prev, [name]: value };
+      const cleanedAttrs: Record<string, string> = { [name]: value };
+      
+      attributeNames.forEach(attrName => {
+        if (attrName === name) return;
+        const currentVal = prev[attrName];
+        if (!currentVal) return;
+        const isStillValid = validVariations.some(v => 
+          v.attributes[name] === value && v.attributes[attrName] === currentVal
+        );
+        if (isStillValid) cleanedAttrs[attrName] = currentVal;
+      });
+      
+      const match = validVariations.find(v => 
+        attributeNames.every(attr => v.attributes[attr] === cleanedAttrs[attr])
+      );
+      
+      if (match && match.images && match.images.length > 0) {
+        setActiveImage(match.images[0]);
+      } else {
+        const colorAttr = attributeNames.find(n => n.toLowerCase().includes('color'));
+        if (colorAttr && cleanedAttrs[colorAttr]) {
+            const colorMatch = validVariations.find(v => v.attributes[colorAttr] === cleanedAttrs[colorAttr] && v.images && v.images.length > 0);
+            if (colorMatch && colorMatch.images) {
+                setActiveImage(colorMatch.images[0]);
+            }
+        }
+      }
+      return cleanedAttrs;
+    });
   };
 
   const handleAddToCart = () => {
-    // If variable, check if all selections are made
-    if (product.type === 'variable') {
+    if (product?.type === 'variable') {
       if (Object.keys(selectedAttributes).length < attributeNames.length) {
-        // Trigger shake vibration
         setVibrateBtn(true);
         setTimeout(() => setVibrateBtn(false), 500);
-        // Show Luffy Modal
+        const randomWarning = WARNINGS[Math.floor(Math.random() * WARNINGS.length)];
+        setCurrentWarning(randomWarning);
         setLuffyModalOpen(true);
         return;
       }
     }
-
-    // Add to cart
-    addToCart(product, currentVariation, quantity);
-    
-    // Show success feedback
-    alert(`¡${product.name} agregado al carrito!`);
+    addToCart(product!, currentVariation, quantity);
+    alert(`¡${product!.name} agregado al carrito!`);
   };
 
   const isGorras = product.categories.includes('gorras') || product.name.toLowerCase().includes('gorra');
 
+  let displayPrice = formatPrice(product?.price || 0);
+  if (product && product.type === 'variable' && validVariations.length > 0) {
+    const matchingVariations = validVariations.filter(v => {
+      return Object.entries(selectedAttributes).every(([name, value]) => {
+        return !value || v.attributes[name] === value;
+      });
+    });
+    const varsToConsider = matchingVariations.length > 0 ? matchingVariations : validVariations;
+    const minPrice = Math.min(...varsToConsider.map(v => v.price));
+    const maxPrice = Math.max(...varsToConsider.map(v => v.price));
+    displayPrice = minPrice === maxPrice ? formatPrice(minPrice) : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
+  }
+
   return (
     <div className="nk-product-detail-page" style={{ paddingTop: '50px' }}>
-      
-      {/* 1. Main Product grid container */}
       <div className="nk-container">
         <div className="nk-detail-grid">
-          
-          {/* Gallery component (Left Column) */}
           <div className="nk-detail-gallery">
             <div className="nk-main-image-wrapper">
               <img src={activeImage || product.images[0]} alt={product.name} className="nk-main-image" />
             </div>
-            
             <div className="nk-thumbnails-list">
               {product.images.map((img, idx) => (
-                <button 
-                  key={idx}
-                  className={`nk-thumb-btn ${activeImage === img ? 'active' : ''}`}
-                  onClick={() => setActiveImage(img)}
-                >
+                <button key={idx} className={`nk-thumb-btn ${activeImage === img ? 'active' : ''}`} onClick={() => setActiveImage(img)}>
                   <img src={img} alt={`${product.name} Vista ${idx + 1}`} className="nk-thumb-img" />
                 </button>
               ))}
             </div>
           </div>
 
-          {/* Details & options (Right Column) */}
           <div className="nk-detail-info">
             <span className="nk-info-badge">Colección Oficial</span>
             <h1 className="nk-detail-title">{product.name}</h1>
-            
-            {product.type === 'variable' && validVariations && validVariations.length > 0 ? (
-                <>
-                  <p className="nk-detail-price">
-                    {currentVariation 
-                      ? formatPrice(currentVariation.price)
-                      : `${formatPrice(Math.min(...validVariations.map(v => v.price)))} - ${formatPrice(Math.max(...validVariations.map(v => v.price)))}`}
-                  </p>
-                </>
-              ) : (
-                <p className="nk-detail-price">{formatPrice(product.price)}</p>
-              )}
-            
+            <p className="nk-detail-price">{displayPrice}</p>
             <div className="nk-detail-divider"></div>
 
-            {/* Product short description */}
-            <div className="nk-detail-desc">
-              <p>{product.description.split('\n\n')[0]}</p>
-            </div>
-
-            {/* Selection Options (Swatches) */}
             {product.type === 'variable' && (
               <div className="nk-detail-swatches-section">
                 {attributeNames.map(name => {
                   const options = getAttributeOptions(name);
                   const selectedVal = selectedAttributes[name];
-                  
+                  const isColor = name.toLowerCase().includes('color');
                   return (
                     <div className="nk-swatch-group" key={name}>
                       <span className="nk-swatch-label">{name}: {selectedVal || 'Seleccionar'}</span>
-                      <div className="nk-swatches-container">
-                        {options.map(opt => (
-                          <button
-                            key={opt}
-                            className={`nk-swatch-option ${selectedVal === opt ? 'active' : ''}`}
-                            onClick={() => handleAttributeSelect(name, opt)}
-                          >
-                            {opt}
-                          </button>
-                        ))}
+                      <div className={isColor ? "nk-color-swatches-container" : "nk-swatches-container"}>
+                        {options.map(opt => {
+                          const isActive = selectedVal === opt;
+                          if (isColor) {
+                            const colorMap: Record<string, string> = {
+                              'negro': '#000000', 'black': '#000000', 'blanco': '#ffffff', 'white': '#ffffff',
+                              'rojo': '#ff0000', 'red': '#ff0000', 'azul': '#0000ff', 'blue': '#0000ff',
+                              'gris': '#808080', 'gray': '#808080', 'marino': '#000080', 'navy': '#000080',
+                              'carbon': '#333333', 'hueso': '#f5f5dc', 'arena': '#d2b48c', 'militar': '#4b5320',
+                              'acid-wash': 'url(https://nakamabordados.com/wp-content/uploads/2024/01/acid-wash-pattern.jpg)',
+                              'rosa': '#ffc0cb', 'pink': '#ffc0cb'
+                            };
+                            const colorValue = colorMap[opt.toLowerCase()] || '#cccccc';
+                            const isPattern = colorValue.startsWith('url');
+                            return (
+                              <button
+                                key={opt}
+                                className={`nk-color-swatch ${isActive ? 'active' : ''}`}
+                                style={{ backgroundColor: isPattern ? 'transparent' : colorValue, backgroundImage: isPattern ? colorValue : 'none' }}
+                                data-color-name={opt}
+                                onClick={() => handleAttributeSelect(name, opt)}
+                                title={opt}
+                              ></button>
+                            );
+                          }
+                          return (
+                            <button key={opt} className={`nk-swatch-option ${isActive ? 'active' : ''}`} onClick={() => handleAttributeSelect(name, opt)}>
+                              {opt}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -246,83 +301,36 @@ export default function ProductDetailPage() {
               </div>
             )}
 
-            {/* Form actions (Qty, Size Guide, Buy Button) */}
             <div className="nk-detail-actions-section">
-              {/* Size guide button (Standard clothing only, not for caps) */}
               {!isGorras && (
                 <div style={{ marginBottom: '15px' }}>
-                  <button 
-                    type="button" 
-                    className="nk-size-guide-trigger"
-                    onClick={() => setSizeGuideOpen(true)}
-                  >
+                  <button type="button" className="nk-size-guide-trigger" onClick={() => setSizeGuideOpen(true)}>
                     <span className="material-icons-outlined">straighten</span>
                     Guía de tallas
                   </button>
                 </div>
               )}
-
               <div className="nk-action-row">
-                {/* Quantity select counter */}
                 <div className="nk-qty-selector">
-                  <button 
-                    className="nk-qty-btn" 
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
-                    aria-label="Decrease quantity"
-                  >
-                    -
-                  </button>
-                  <input 
-                    type="number" 
-                    value={quantity}
-                    onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="nk-qty-input"
-                  />
-                  <button 
-                    className="nk-qty-btn" 
-                    onClick={() => setQuantity(quantity + 1)}
-                    aria-label="Increase quantity"
-                  >
-                    +
-                  </button>
+                  <button className="nk-qty-btn" onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
+                  <input type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="nk-qty-input" />
+                  <button className="nk-qty-btn" onClick={() => setQuantity(quantity + 1)}>+</button>
                 </div>
-
-                {/* Add to Cart button */}
-                <button
-                  type="button"
-                  className={`nk-btn nk-btn-add-cart ${vibrateBtn ? 'nk-vibrate' : ''}`}
-                  onClick={handleAddToCart}
-                >
+                <button type="button" className={`nk-btn nk-btn-add-cart ${vibrateBtn ? 'nk-vibrate' : ''}`} onClick={handleAddToCart}>
                   Agregar al Carrito
                 </button>
               </div>
             </div>
 
-            {/* Tabs info section (Description / Care) */}
             <div className="nk-detail-tabs-section">
               <ul className="tab-list">
-                <li>
-                  <button 
-                    className={`tab-btn ${activeTab === 'desc' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('desc')}
-                  >
-                    Descripción
-                  </button>
-                </li>
-                <li>
-                  <button 
-                    className={`tab-btn ${activeTab === 'care' ? 'active' : ''}`}
-                    onClick={() => setActiveTab('care')}
-                  >
-                    Cuidado de Prenda
-                  </button>
-                </li>
+                <li><button className={`tab-btn ${activeTab === 'desc' ? 'active' : ''}`} onClick={() => setActiveTab('desc')}>Descripción</button></li>
+                <li><button className={`tab-btn ${activeTab === 'care' ? 'active' : ''}`} onClick={() => setActiveTab('care')}>Cuidado de Prenda</button></li>
               </ul>
-              
               <div className="tab-content" style={{ fontSize: '0.95rem', lineHeight: '1.6', color: 'var(--nk-text-sec)' }}>
                 {activeTab === 'desc' ? (
                   <div>
-                    <p style={{ whiteSpace: 'pre-line' }}>{product.description}</p>
+                    <div className="nk-product-html-desc" dangerouslySetInnerHTML={{ __html: product.description }} />
                     <p style={{ marginTop: '15px', fontWeight: 'bold' }}>SKU Base: {product.sku}</p>
                   </div>
                 ) : (
@@ -339,13 +347,10 @@ export default function ProductDetailPage() {
                 )}
               </div>
             </div>
-
           </div>
-
         </div>
       </div>
 
-      {/* 2. Middle Marquee Bar */}
       <div className="nk-marquee-bar" style={{ margin: '60px 0' }}>
         <div className="nk-marquee-wrapper">
           <div className="nk-marquee-content animate-marquee">
@@ -353,7 +358,6 @@ export default function ProductDetailPage() {
             <span>• 3 MSI A PARTIR DE $500 MXN</span>
             <span>• ENVIOS SEGUROS A TODO MÉXICO</span>
             <span>• CALIDAD PREMIUM EXCLUSIVA</span>
-            
             <span>• ENVIO GRATIS EN 4PZ O DESDE $1200 MXN</span>
             <span>• 3 MSI A PARTIR DE $500 MXN</span>
             <span>• ENVIOS SEGUROS A TODO MÉXICO</span>
@@ -362,35 +366,23 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {/* 3. Related Products section */}
       <div className="nk-container pb-20">
         <h2 className="nk-section-title text-center" style={{ marginBottom: '40px' }}>También te puede gustar</h2>
         <div className="nk-store-grid">
           {relatedProducts.map(p => {
-            const minPrice = p.type === 'variable' && p.variations.length > 0 
-                  ? Math.min(...p.variations.map(v => v.price)) 
-                  : p.price;
-            const maxPrice = p.type === 'variable' && p.variations.length > 0
-                  ? Math.max(...p.variations.map(v => v.price)) 
-                  : p.price;
-            const displayPrice = minPrice === maxPrice 
-                  ? formatPrice(minPrice)
-                  : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
-
+            const minPrice = p.type === 'variable' && p.variations.length > 0 ? Math.min(...p.variations.map(v => v.price)) : p.price;
+            const maxPrice = p.type === 'variable' && p.variations.length > 0 ? Math.max(...p.variations.map(v => v.price)) : p.price;
+            const displayPrice = minPrice === maxPrice ? formatPrice(minPrice) : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
             return (
               <div className="nk-store-card group" key={p.id}>
                 <div className="nk-store-card-img-wrapper">
                   <Link href={`/product/${p.id}`} className="nk-card-img-link">
                     <img src={p.images[0]} alt={p.name} className="nk-card-img" />
                   </Link>
-                  <div className="nk-card-overlay">
-                    <Link href={`/product/${p.id}`} className="nk-overlay-btn">Ver Producto</Link>
-                  </div>
+                  <div className="nk-card-overlay"><Link href={`/product/${p.id}`} className="nk-overlay-btn">Ver Producto</Link></div>
                 </div>
                 <div className="nk-card-info">
-                  <h3 className="nk-card-title">
-                    <Link href={`/product/${p.id}`}>{p.name}</Link>
-                  </h3>
+                  <h3 className="nk-card-title"><Link href={`/product/${p.id}`}>{p.name}</Link></h3>
                   <p className="nk-card-price">{displayPrice}</p>
                 </div>
               </div>
@@ -399,13 +391,10 @@ export default function ProductDetailPage() {
         </div>
       </div>
 
-      {/* 4. Size Guide Modal */}
       {sizeGuideOpen && (
         <div className="nk-modal-backdrop" onClick={() => setSizeGuideOpen(false)}>
           <div className="nk-modal-card" onClick={(e) => e.stopPropagation()}>
-            <button className="nk-modal-close" onClick={() => setSizeGuideOpen(false)} aria-label="Close size guide">
-              <span className="material-icons-outlined">close</span>
-            </button>
+            <button className="nk-modal-close" onClick={() => setSizeGuideOpen(false)}><span className="material-icons-outlined">close</span></button>
             <h2 className="nk-modal-title">Guía de tallas</h2>
             <div className="nk-size-guide-images">
               <img src="https://nakamabordados.com/wp-content/uploads/2026/01/2.webp" alt="Guía 1" className="nk-guide-img" />
@@ -420,72 +409,66 @@ export default function ProductDetailPage() {
         </div>
       )}
 
-      {/* 5. One Piece Luffy Warning Modal */}
       {luffyModalOpen && (
         <div id="luffy-warning-modal">
-          <div className="luffy-dialog">
-            ¡OI, NAKAMA!
-            <span className="luffy-subtext">¡Elige tu estilo (variación) antes de zarpar!</span>
-          </div>
-          
-          <div className="op-container">
-            <div className="op-skull">
-              <div className="op-bones">
-                <div className="op-bones__body--left">
-                  <div className="op-bones__circles--top">
-                    <div className="op-bones__circles op-bones__circles--left"></div>
-                    <div className="op-bones__circles op-bones__circles--right"></div>
-                  </div>
-                  <div className="op-bones__circles--bottom">
-                    <div className="op-bones__circles op-bones__circles--left"></div>
-                    <div className="op-bones__circles op-bones__circles--right"></div>
-                  </div>
-                </div>
-                <div className="op-bones__body--right">
-                  <div className="op-bones__circles--top">
-                    <div className="op-bones__circles op-bones__circles--left"></div>
-                    <div className="op-bones__circles op-bones__circles--right"></div>
-                  </div>
-                  <div className="op-bones__circles--bottom">
-                    <div className="op-bones__circles op-bones__circles--left"></div>
-                    <div className="op-bones__circles op-bones__circles--right"></div>
-                  </div>
-                </div>
+          <div className="nk-warning-card nk-dash-animate">
+            <div className={`nk-skull-art ${currentWarning.crewClass}`}>
+              <div className="skull-hat">
+                {currentWarning.crewClass === 'crew-luffy' && (
+                  <div className="straw-crown"><div className="straw-band"></div></div>
+                )}
+                {currentWarning.crewClass === 'crew-luffy' && <div className="straw-brim"></div>}
               </div>
-              <div className="op-mouth">
-                <div className="op-mouth__teeth">
-                  <div className="op-teeth__vertical-lines">
-                    <div className="op-teeth__vertical-line op-teeth__vertical-line--1"></div>
-                    <div className="op-teeth__vertical-line op-teeth__vertical-line--2"></div>
-                    <div className="op-teeth__vertical-line op-teeth__vertical-line--3"></div>
-                  </div>
-                  <div className="op-teeth__diagonal-lines">
-                    <div className="op-teeth__diagonal-line op-teeth__diagonal-line--1"></div>
-                    <div className="op-teeth__diagonal-line op-teeth__diagonal-line--2"></div>
-                    <div className="op-teeth__diagonal-line op-teeth__diagonal-line--3"></div>
-                  </div>
-                </div>
+              <div className="skull-bones">
+                <div className="bone bone-1"></div>
+                <div className="bone bone-2"></div>
               </div>
-              <div className="op-head">
-                <div className="op-hat">
-                  <div className="op-hat__crown">
-                    <div className="op-hat__band"></div>
-                  </div>
-                  <div className="op-hat__brim"></div>
+              <div className="skull-base">
+                <div className="skull-eyes">
+                  <div className="skull-eye left"></div>
+                  <div className="skull-eye right"></div>
                 </div>
-                <div className="op-eyes">
-                  <div className="op-eyes__circle op-eyes_circle--left"></div>
-                  <div className="op-eyes__circle op-eyes_circle--right"></div>
-                </div>
-                <div className="op-nose"></div>
+                <div className="skull-nose"></div>
               </div>
+              <div className="skull-jaw"></div>
             </div>
+            <h2 className="nk-warning-title">{currentWarning.title}</h2>
+            <p className="nk-warning-phrase">{currentWarning.phrase}</p>
+            <button className="nk-warning-close-btn" onClick={() => setLuffyModalOpen(false)}>¡Entendido!</button>
           </div>
-
-          <button className="luffy-close-btn" onClick={() => setLuffyModalOpen(false)}>ENTENDIDO</button>
         </div>
       )}
-
     </div>
   );
 }
+
+const SkeletonProductDetail = () => (
+  <div className="nk-product-detail-page nk-container" style={{ paddingTop: '100px' }}>
+    <div className="nk-detail-grid">
+      <div className="nk-detail-gallery">
+        <div className="nk-main-image-wrapper nk-skeleton" style={{ aspectRatio: '1/1' }}></div>
+        <div className="nk-thumbnails-list">
+          {[1, 2, 3].map(i => <div key={i} className="nk-thumb-btn nk-skeleton" style={{ width: '80px', height: '80px' }}></div>)}
+        </div>
+      </div>
+      <div className="nk-detail-info">
+        <div className="nk-skeleton" style={{ width: '120px', height: '24px', marginBottom: '12px' }}></div>
+        <div className="nk-skeleton" style={{ width: '90%', height: '60px', marginBottom: '10px' }}></div>
+        <div className="nk-skeleton" style={{ width: '150px', height: '40px', marginBottom: '24px' }}></div>
+        <div className="nk-detail-divider"></div>
+        <div className="nk-skeleton" style={{ width: '100%', height: '100px', marginBottom: '30px' }}></div>
+        <div className="nk-skeleton" style={{ width: '100%', height: '200px' }}></div>
+      </div>
+    </div>
+  </div>
+);
+
+const SkeletonProductCard = () => (
+  <div className="nk-store-card">
+    <div className="nk-store-card-img-wrapper nk-skeleton" style={{ aspectRatio: '3/4' }}></div>
+    <div className="nk-card-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginTop: '14px' }}>
+      <div className="nk-skeleton" style={{ width: '80%', height: '20px' }}></div>
+      <div className="nk-skeleton" style={{ width: '40%', height: '16px' }}></div>
+    </div>
+  </div>
+);

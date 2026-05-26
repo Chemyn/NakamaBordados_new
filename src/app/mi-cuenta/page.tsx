@@ -25,13 +25,44 @@ const FLOATING_SYMBOLS_LOGIN = [
 ];
 
 export default function MiCuentaPage() {
-  const { user, login, logout, authToken, isLoading } = useAuth();
+  const { user, login, logout, authToken, isLoading, isAdmin } = useAuth();
   const { formatPrice } = useCurrency();
   
   const isLoggedIn = !!authToken && !!user;
 
   const [activeTab, setActiveTab] = useState<'login' | 'register' | 'lostpw'>('login');
   const [dashboardSection, setDashboardSection] = useState('dashboard');
+
+  // New tab options for Client Panel
+  const navItems = [
+    { key: 'dashboard', icon: 'dashboard', label: 'Escritorio' },
+    { key: 'orders', icon: 'receipt_long', label: 'Mis Pedidos' },
+    { key: 'tracking', icon: 'local_shipping', label: 'Rastreo' },
+    { key: 'shipping', icon: 'home', label: 'Dirección de Envío' },
+    { key: 'comisiones', icon: 'payments', label: 'Mis Comisiones' },
+    { key: 'account', icon: 'settings', label: 'Detalles de Cuenta' },
+  ];
+
+  // Helper to find tracking number in order metadata
+  const getTrackingInfo = (order: any) => {
+    // Standard meta keys for tracking (depending on plugin)
+    const trackingKey = order.metaData?.find((m: any) => 
+      m.key === '_wc_shipment_tracking_items' || 
+      m.key === 'tracking_number' || 
+      m.key === 'rastreo'
+    );
+    
+    if (trackingKey) {
+      try {
+        // Some plugins store it as serialized PHP or JSON
+        if (trackingKey.value.startsWith('a:') || trackingKey.value.startsWith('{')) return "Ver en WordPress";
+        return trackingKey.value;
+      } catch (e) {
+        return trackingKey.value;
+      }
+    }
+    return null;
+  };
 
   // Login form
   const [loginEmail, setLoginEmail] = useState('');
@@ -95,7 +126,7 @@ export default function MiCuentaPage() {
   if (isLoading) {
     return (
       <div className="nk-container text-center" style={{ padding: '120px 24px' }}>
-        <h2>Cargando...</h2>
+        <h2 className="animate-pulse">Sincronizando con el servidor...</h2>
       </div>
     );
   }
@@ -106,6 +137,23 @@ export default function MiCuentaPage() {
   if (isLoggedIn) {
     return (
       <div className="nk-dashboard-page">
+        {/* Admin Bar (WordPress Style) */}
+        {isAdmin && (
+          <div className="nk-admin-bar">
+            <div className="nk-admin-bar-container">
+              <div className="nk-admin-bar-left">
+                <span className="material-icons-outlined">settings_suggest</span>
+                <span className="nk-admin-label">Panel Administrador Nakama</span>
+                <Link href="https://nakamabordados.com/wp-admin" target="_blank" className="nk-admin-link">Ir a WordPress</Link>
+                <Link href="/admin/suite" className="nk-admin-link">Admin Suite</Link>
+              </div>
+              <div className="nk-admin-bar-right">
+                <span>Hola, {user?.firstName} (Admin)</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Floating Background Symbols (subtle) */}
         <div className="nk-dashboard-fx-container">
           {FLOATING_SYMBOLS_DASHBOARD.map((item, i) => (
@@ -120,7 +168,7 @@ export default function MiCuentaPage() {
           ))}
         </div>
 
-        <div className="nk-dashboard-layout">
+        <div className="nk-dashboard-layout" style={isAdmin ? { marginTop: '32px' } : undefined}>
           {/* Sidebar Navigation */}
           <nav className="nk-dashboard-nav">
             <div className="nk-dashboard-nav-header">
@@ -134,12 +182,7 @@ export default function MiCuentaPage() {
             </div>
 
             <ul className="nk-dashboard-nav-list">
-              {[
-                { key: 'dashboard', icon: 'dashboard', label: 'Escritorio' },
-                { key: 'orders', icon: 'receipt_long', label: 'Pedidos' },
-                { key: 'comisiones', icon: 'payments', label: 'Mis Comisiones' },
-                { key: 'account', icon: 'settings', label: 'Editar Cuenta' },
-              ].map((item) => (
+              {navItems.map((item) => (
                 <li key={item.key}>
                   <button
                     className={`nk-dashboard-nav-link ${dashboardSection === item.key ? 'active' : ''}`}
@@ -176,6 +219,15 @@ export default function MiCuentaPage() {
                       <p className="nk-dash-stat-label">Pedidos Totales</p>
                     </div>
                   </div>
+                  <div className="nk-dash-stat-card" onClick={() => setDashboardSection('tracking')}>
+                    <span className="material-icons-outlined nk-dash-stat-icon">gps_fixed</span>
+                    <div>
+                      <p className="nk-dash-stat-number">
+                        {user?.orders?.nodes?.filter(o => o.status === 'SHIPPED' || o.status === 'PROCESSING').length || 0}
+                      </p>
+                      <p className="nk-dash-stat-label">En Camino / Proceso</p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Quick orders */}
@@ -203,6 +255,9 @@ export default function MiCuentaPage() {
                           <td className="nk-order-total">{order.total}</td>
                         </tr>
                       ))}
+                      {(!user?.orders?.nodes || user.orders.nodes.length === 0) && (
+                        <tr><td colSpan={4} style={{textAlign: 'center', padding: '20px'}}>No hay actividad reciente.</td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -239,12 +294,90 @@ export default function MiCuentaPage() {
                           <td className="nk-order-total">{order.total}</td>
                         </tr>
                       ))}
-                      {user?.orders?.nodes?.length === 0 && (
+                      {(!user?.orders?.nodes || user.orders.nodes.length === 0) && (
                         <tr><td colSpan={5} style={{textAlign: 'center', padding: '20px'}}>No tienes pedidos recientes.</td></tr>
                       )}
                     </tbody>
                   </table>
                 </div>
+              </div>
+            )}
+
+            {/* Tracking Section */}
+            {dashboardSection === 'tracking' && (
+              <div className="nk-dash-section nk-dash-animate">
+                <h2 className="nk-dash-title">Seguimiento de Pedidos</h2>
+                <p className="nk-dash-subtitle">Rastrea tus paquetes activos en tiempo real.</p>
+                
+                <div className="nk-tracking-list">
+                  {user?.orders?.nodes?.filter(o => o.status !== 'CANCELLED' && o.status !== 'REFUNDED').map((order: any) => {
+                    const trackingNum = getTrackingInfo(order);
+                    return (
+                      <div className="nk-tracking-card" key={order.id}>
+                        <div className="nk-tracking-card-header">
+                          <span className="nk-tracking-order-num">Pedido #{order.orderNumber}</span>
+                          <span className={`nk-order-status nk-status-${order.status.toLowerCase()}`}>{order.status}</span>
+                        </div>
+                        <div className="nk-tracking-card-body">
+                          {trackingNum ? (
+                            <>
+                              <div className="nk-tracking-id-box">
+                                <span className="nk-tracking-label">Número de Guía:</span>
+                                <span className="nk-tracking-value">{trackingNum}</span>
+                              </div>
+                              <Link 
+                                href={`https://www.fedex.com/apps/fedextrack/?tracknumbers=${trackingNum}`} 
+                                target="_blank" 
+                                className="nk-btn nk-btn-tracking"
+                              >
+                                Rastrear en Paquetería
+                              </Link>
+                            </>
+                          ) : (
+                            <div className="nk-tracking-pending">
+                              <span className="material-icons-outlined">pending_actions</span>
+                              <p>Tu guía se generará automáticamente una vez que el pedido sea despachado.</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {(!user?.orders?.nodes || user.orders.nodes.length === 0) && (
+                    <p style={{ textAlign: 'center', padding: '40px', color: 'var(--nk-text-sec)' }}>No hay pedidos activos para rastrear.</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Shipping Info Section */}
+            {dashboardSection === 'shipping' && (
+              <div className="nk-dash-section nk-dash-animate">
+                <h2 className="nk-dash-title">Información de Envío</h2>
+                <p className="nk-dash-subtitle">Tus datos de entrega predeterminados.</p>
+                
+                <div className="nk-addresses-grid">
+                  <div className="nk-address-card">
+                    <div className="nk-address-card-header">
+                      <h4>Dirección Principal</h4>
+                    </div>
+                    <div className="nk-address-card-body">
+                      {user?.shipping?.address1 ? (
+                        <>
+                          <p><strong>{user.firstName} {user.lastName}</strong></p>
+                          <p>{user.shipping.address1} {user.shipping.address2}</p>
+                          <p>{user.shipping.city}, {user.shipping.state} {user.shipping.postcode}</p>
+                          <p>{user.shipping.country}</p>
+                        </>
+                      ) : (
+                        <p style={{ fontStyle: 'italic' }}>No has configurado una dirección de envío aún.</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <p style={{ marginTop: '20px', fontSize: '0.85rem', color: 'var(--nk-text-sec)' }}>
+                  * Para actualizar tu dirección, por favor realiza una nueva compra o edítala desde el sitio principal.
+                </p>
               </div>
             )}
 
@@ -279,9 +412,6 @@ export default function MiCuentaPage() {
                       <span className="material-icons-outlined" style={{ fontSize: '48px', color: 'var(--nk-text-sec)', marginBottom: '10px', display: 'block' }}>payments</span>
                       <h3>No hay comisiones registradas</h3>
                       <p style={{ color: 'var(--nk-text-sec)', marginTop: '10px' }}>Aún no tienes comisiones registradas en el periodo reciente. ¡Asegúrate de compartir tu cupón de creador!</p>
-                      <p style={{ color: 'var(--nk-text-sec)', marginTop: '10px', fontSize: '0.9rem' }}>
-                        <em>Nota: Las comisiones aparecerán aquí si el fragmento de código de exposición GraphQL está activo en WordPress.</em>
-                      </p>
                     </div>
                   )}
                 </div>
@@ -292,22 +422,22 @@ export default function MiCuentaPage() {
             {dashboardSection === 'account' && (
               <div className="nk-dash-section nk-dash-animate">
                 <h2 className="nk-dash-title">Detalles de Cuenta</h2>
-                <p className="nk-dash-subtitle">Para cambiar datos complejos o contraseñas, usa el checkout de WordPress nativo.</p>
+                <p className="nk-dash-subtitle">Información de perfil del tripulante.</p>
 
                 <form className="nk-account-form" onSubmit={(e) => { e.preventDefault(); alert('Modificación no disponible por API, ve al checkout.'); }}>
                   <div className="nk-form-row">
                     <div className="nk-form-group">
                       <label>Nombre</label>
-                      <input type="text" readOnly defaultValue={user?.firstName} className="nk-input-base" style={{ opacity: 0.7 }} />
+                      <input type="text" readOnly defaultValue={user?.firstName} className="nk-input-base nk-input-disabled" />
                     </div>
                     <div className="nk-form-group">
                       <label>Apellidos</label>
-                      <input type="text" readOnly defaultValue={user?.lastName} className="nk-input-base" style={{ opacity: 0.7 }} />
+                      <input type="text" readOnly defaultValue={user?.lastName} className="nk-input-base nk-input-disabled" />
                     </div>
                   </div>
                   <div className="nk-form-group">
                     <label>Email</label>
-                    <input type="email" readOnly defaultValue={user?.email} className="nk-input-base" style={{ opacity: 0.7 }} />
+                    <input type="email" readOnly defaultValue={user?.email} className="nk-input-base nk-input-disabled" />
                   </div>
                 </form>
               </div>

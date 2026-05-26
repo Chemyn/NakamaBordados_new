@@ -15,10 +15,17 @@ const GET_PRODUCTS_QUERY = `
           id
           name
           slug
+          shortDescription
           description
           image {
             sourceUrl
             altText
+          }
+          galleryImages {
+            nodes {
+              sourceUrl
+              altText
+            }
           }
           productCategories {
             nodes {
@@ -36,12 +43,15 @@ const GET_PRODUCTS_QUERY = `
           price
           regularPrice
           salePrice
-          variations {
+          variations(first: 100) {
             nodes {
               id
               databaseId
               name
               price
+              image {
+                sourceUrl
+              }
               attributes {
                 nodes {
                   name
@@ -71,6 +81,7 @@ function mapNodeToProduct(node: any): Product {
 
     const variations = [];
     let type: 'simple' | 'variable' = 'simple';
+    const variationImages: string[] = [];
 
     if (node.variations && node.variations.nodes && node.variations.nodes.length > 0) {
       type = 'variable';
@@ -79,6 +90,10 @@ function mapNodeToProduct(node: any): Product {
         if (vNode.price) {
           const parsed = parseFloat(vNode.price.replace(/[^0-9.-]+/g, ''));
           if (!isNaN(parsed)) vPrice = parsed;
+        }
+
+        if (vNode.image?.sourceUrl) {
+          variationImages.push(vNode.image.sourceUrl);
         }
         
         const attrs: Record<string, string> = {};
@@ -97,20 +112,38 @@ function mapNodeToProduct(node: any): Product {
           sku: `WP-VAR-${vNode.databaseId}`,
           attributes: attrs,
           price: vPrice,
-          stock: 10 // Mock stock
+          stock: 10, // Mock stock
+          images: vNode.image?.sourceUrl ? [vNode.image.sourceUrl] : []
         });
       }
     }
+
+    const galleryImages = node.galleryImages?.nodes?.map((img: any) => img.sourceUrl) || [];
+    const allImages = [imageUrl, ...galleryImages, ...variationImages].filter((url, index, self) => url && self.indexOf(url) === index);
+
+    // Clean up description (strip HTML and fix whitespace)
+    const cleanDescription = (html: string) => {
+      if (!html) return '';
+      return html
+        .replace(/<[^>]*>?/gm, '') // Strip HTML tags
+        .replace(/&nbsp;/g, ' ')
+        .replace(/&amp;/g, '&')
+        .replace(/&quot;/g, '"')
+        .replace(/&#039;/g, "'")
+        .trim();
+    };
+
+    const description = cleanDescription(node.description || node.shortDescription || '');
 
     return {
       id: node.slug || node.databaseId.toString(),
       sku: `WP-${node.databaseId}`,
       name: node.name,
       price: numericPrice,
-      description: node.description || '',
+      description: description,
       categories: categories,
       tags: [],
-      images: [imageUrl],
+      images: allImages,
       type: type,
       variations: variations,
       rating: 5.0,
@@ -185,10 +218,17 @@ const GET_PRODUCTS_PAGE_QUERY = `
           id
           name
           slug
+          shortDescription
           description
           image {
             sourceUrl
             altText
+          }
+          galleryImages {
+            nodes {
+              sourceUrl
+              altText
+            }
           }
           productCategories {
             nodes {
@@ -206,12 +246,15 @@ const GET_PRODUCTS_PAGE_QUERY = `
           price
           regularPrice
           salePrice
-          variations {
+          variations(first: 100) {
             nodes {
               id
               databaseId
               name
               price
+              image {
+                sourceUrl
+              }
               attributes {
                 nodes {
                   name
@@ -324,10 +367,17 @@ const GET_SINGLE_PRODUCT_QUERY = `
         id
         name
         slug
+        shortDescription
         description
         image {
           sourceUrl
           altText
+        }
+        galleryImages {
+          nodes {
+            sourceUrl
+            altText
+          }
         }
         productCategories {
           nodes {
@@ -345,12 +395,15 @@ const GET_SINGLE_PRODUCT_QUERY = `
         price
         regularPrice
         salePrice
-        variations {
+        variations(first: 100) {
           nodes {
             id
             databaseId
             name
             price
+            image {
+              sourceUrl
+            }
             attributes {
               nodes {
                 name

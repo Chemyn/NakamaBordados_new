@@ -9,8 +9,17 @@ interface Customer {
   firstName: string;
   lastName: string;
   email: string;
+  roles: string[];
   orders: {
     nodes: any[];
+  };
+  shipping: {
+    address1: string;
+    address2: string;
+    city: string;
+    state: string;
+    postcode: string;
+    country: string;
   };
 }
 
@@ -20,6 +29,7 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   isLoading: boolean;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,6 +38,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Customer | null>(null);
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const isAdmin = user?.roles?.includes('administrator') || false;
 
   useEffect(() => {
     // Check local storage for token on mount
@@ -49,6 +61,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           firstName
           lastName
           email
+          roles
+          shipping {
+            address1
+            address2
+            city
+            state
+            postcode
+            country
+          }
           orders(first: 20) {
             nodes {
               id
@@ -57,6 +78,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               status
               total
               date
+              metaData {
+                key
+                value
+              }
               lineItems {
                 nodes {
                   product {
@@ -131,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, authToken, login, logout, isLoading }}>
+    <AuthContext.Provider value={{ user, authToken, login, logout, isLoading, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

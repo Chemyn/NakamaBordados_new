@@ -131,250 +131,302 @@ html.dark .glass-panel {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
-/* --- 5. ONE PIECE LUFFY WARNING MODAL & SKULL (CSS ART) --- */
+.nk-skeleton {
+  background-color: var(--nk-border);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+}
+
+html.dark .nk-skeleton {
+  background-color: #1a1a1a;
+}
+
+.nk-skeleton::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  transform: translateX(-100%);
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.1) 20%,
+    rgba(255, 255, 255, 0.2) 60%,
+    rgba(255, 255, 255, 0)
+  );
+  animation: shimmer 2s infinite;
+}
+
+html.dark .nk-skeleton::after {
+  background-image: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0,
+    rgba(255, 255, 255, 0.05) 20%,
+    rgba(255, 255, 255, 0.1) 60%,
+    rgba(255, 255, 255, 0)
+  );
+}
+
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+/* --- 5. ONE PIECE DYNAMIC WARNING MODAL --- */
 #luffy-warning-modal {
   position: fixed;
   top: 0; left: 0; width: 100vw; height: 100vh;
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(10px);
   z-index: 99999;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-direction: column;
+  padding: 24px;
 }
 
-.luffy-dialog {
-  background: #FFFFFF;
-  color: #000000;
-  padding: 15px 30px;
+.nk-warning-card {
+  background: var(--nk-bg-card);
+  border: 4px solid #000;
   border-radius: 20px;
-  font-family: 'Teko', sans-serif;
-  font-size: 2rem;
-  text-transform: uppercase;
-  font-weight: 700;
-  position: relative;
-  margin-bottom: 10px;
+  padding: 40px;
+  max-width: 480px;
+  width: 100%;
   text-align: center;
-  border: 4px solid #000000;
-  box-shadow: 6px 6px 0px #facc48;
-  max-width: 90%;
+  position: relative;
+  box-shadow: 12px 12px 0px var(--nk-primary);
   animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
-.luffy-dialog::after {
-  content: '';
-  position: absolute;
-  bottom: -15px;
-  left: 50%;
-  transform: translateX(-50%);
-  border-width: 15px 15px 0;
-  border-style: solid;
-  border-color: #000000 transparent transparent transparent;
-}
-
-.luffy-subtext {
-  display: block;
-  font-family: 'Inter', sans-serif;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #666666;
-  margin-top: 5px;
-  text-transform: none;
-}
-
-@keyframes popIn {
-  0% { transform: scale(0); }
-  100% { transform: scale(1); }
-}
-
-/* --- Straw Hat Skull CSS --- */
-.op-container {
-  transform: scale(0.55);
+/* --- THE CSS PIRATE SKULL (DRAWN) --- */
+.nk-skull-art {
+  width: 200px;
+  height: 200px;
+  margin: 0 auto 30px;
   position: relative;
-  width: 300px;
-  height: 300px;
-  display: flex;
-  justify-content: center;
-  margin-top: 10px;
+  transform: scale(0.8);
 }
 
-.op-skull {
-  position: relative;
-  width: 250px;
-  height: 250px;
-}
-
-.op-head {
-  background-color: #FFFFFF;
-  width: 180px;
-  height: 180px;
-  border-radius: 50%;
-  position: absolute;
-  top: 40px;
-  left: 35px;
-  border: 6px solid #000000;
-}
-
-/* Bones Behind Skull */
-.op-bones {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  z-index: -1;
-}
-
-.op-bones__body--left, .op-bones__body--right {
-  background-color: #dcdcdc;
-  width: 35px;
-  height: 310px;
-  position: absolute;
-  top: -30px;
-  border: 6px solid #000000;
-}
-
-.op-bones__body--left {
-  left: 108px;
-  transform: rotate(45deg);
-}
-
-.op-bones__body--right {
-  left: 108px;
-  transform: rotate(-45deg);
-}
-
-.op-bones__circles--top, .op-bones__circles--bottom {
-  position: absolute;
-  display: flex;
-  justify-content: space-between;
-  width: 75px;
-  left: -20px;
-}
-
-.op-bones__circles--top { top: -20px; }
-.op-bones__circles--bottom { bottom: -20px; }
-
-.op-bones__circles {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background-color: #dcdcdc;
-  border: 6px solid #000000;
-}
-
-/* Straw Hat */
-.op-hat {
-  position: absolute;
-  z-index: 10;
-  top: -38px;
-  left: -25px;
-}
-
-.op-hat__crown {
-  background-color: #facc48;
-  width: 218px;
+/* Base Skull Shape */
+.skull-base {
+  width: 120px;
   height: 110px;
-  border-top-left-radius: 110px;
-  border-top-right-radius: 110px;
-  border: 6px solid #000000;
-  position: relative;
-  overflow: hidden;
-}
-
-.op-hat__band {
+  background: #fff;
+  border: 5px solid #000;
+  border-radius: 50% 50% 40% 40%;
   position: absolute;
-  bottom: 0;
-  background-color: #db332e;
-  width: 100%;
-  height: 28px;
-  border-top: 6px solid #000000;
-}
-
-.op-hat__brim {
-  position: absolute;
-  bottom: -6px;
-  left: -20px;
-  background-color: #facc48;
-  width: 258px;
-  height: 25px;
-  border-radius: 15px;
-  border: 6px solid #000000;
-}
-
-/* Eyes, Nose, Mouth */
-.op-eyes__circle {
-  position: absolute;
-  background-color: #000000;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  top: 65px;
-}
-
-.op-eyes_circle--left { left: 30px; }
-.op-eyes_circle--right { right: 30px; }
-
-.op-nose {
-  position: absolute;
-  background-color: #000000;
-  width: 18px;
-  height: 24px;
-  border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%;
-  top: 95px;
-  left: 75px;
-}
-
-.op-mouth {
-  background-color: #FFFFFF;
-  position: absolute;
-  bottom: -22px;
-  left: 36px;
-  width: 96px;
-  height: 60px;
-  border: 6px solid #000000;
-  border-radius: 0 0 50px 50px;
-  overflow: hidden;
+  top: 45px;
+  left: 40px;
   z-index: 2;
 }
 
-.op-teeth__vertical-line {
-  width: 6px;
-  height: 100%;
-  background-color: #000000;
+.skull-jaw {
+  width: 70px;
+  height: 40px;
+  background: #fff;
+  border: 5px solid #000;
+  border-radius: 0 0 15px 15px;
   position: absolute;
-  top: 0;
+  top: 140px;
+  left: 65px;
+  z-index: 1;
 }
 
-.op-teeth__vertical-line--1 { left: 24px; transform: rotate(10deg); }
-.op-teeth__vertical-line--2 { left: 45px; }
-.op-teeth__vertical-line--3 { right: 24px; transform: rotate(-10deg); }
-
-.op-teeth__diagonal-line {
+.skull-eyes {
+  position: absolute;
+  top: 30px;
   width: 100%;
-  height: 6px;
-  background-color: #000000;
-  position: absolute;
-  top: 22px;
+  display: flex;
+  justify-content: space-around;
+  padding: 0 15px;
 }
 
-.luffy-close-btn {
-  margin-top: 15px;
-  background: #FFFFFF;
-  color: #000000;
+.skull-eye {
+  width: 24px;
+  height: 24px;
+  background: #000;
+  border-radius: 50%;
+}
+
+.skull-nose {
+  width: 12px;
+  height: 16px;
+  background: #000;
+  border-radius: 50% 50% 20% 20%;
+  position: absolute;
+  top: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Crossbones */
+.skull-bones {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+}
+
+.bone {
+  width: 180px;
+  height: 20px;
+  background: #eee;
+  border: 4px solid #000;
+  border-radius: 10px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+}
+
+.bone-1 { transform: translate(-50%, -50%) rotate(45deg); }
+.bone-2 { transform: translate(-50%, -50%) rotate(-45deg); }
+
+/* LUFFY: Straw Hat */
+.crew-luffy .skull-hat {
+  position: absolute;
+  top: 0px;
+  left: -10px;
+  width: 220px;
+  height: 80px;
+  z-index: 5;
+}
+
+.straw-crown {
+  width: 140px;
+  height: 70px;
+  background: #f1c40f;
+  border: 5px solid #000;
+  border-radius: 70px 70px 0 0;
+  margin: 0 auto;
+  position: relative;
+  overflow: hidden;
+}
+
+.straw-band {
+  width: 100%;
+  height: 20px;
+  background: #e74c3c;
+  border-top: 5px solid #000;
+  position: absolute;
+  bottom: 0;
+}
+
+.straw-brim {
+  width: 200px;
+  height: 20px;
+  background: #f1c40f;
+  border: 5px solid #000;
+  border-radius: 10px;
+  margin: -5px auto 0;
+}
+
+/* ZORO: Bandana and Swords */
+.crew-zoro .skull-hat {
+  width: 130px;
+  height: 50px;
+  background: #27ae60;
+  border: 5px solid #000;
+  border-radius: 40px 40px 10px 10px;
+  position: absolute;
+  top: 35px;
+  left: 35px;
+  z-index: 5;
+}
+
+.crew-zoro .skull-eye.left {
+  position: relative;
+}
+.crew-zoro .skull-eye.left::after {
+  content: "";
+  position: absolute;
+  top: -10px; left: 10px;
+  width: 4px; height: 40px;
+  background: #000;
+  transform: rotate(15deg);
+}
+
+/* CHOPPER: Pink Hat */
+.crew-chopper .skull-hat {
+  width: 150px;
+  height: 100px;
+  background: #ff85a2;
+  border: 5px solid #000;
+  border-radius: 40px 40px 10px 10px;
+  position: absolute;
+  top: 0px;
+  left: 25px;
+  z-index: 5;
+}
+
+.crew-chopper .skull-hat::before {
+  content: "+";
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  color: #fff;
+  font-size: 50px;
+  font-weight: 800;
+}
+
+/* --- End Skull Art --- */
+
+.nk-warning-title {
+  font-family: 'Teko', sans-serif !important;
+  font-size: 2.8rem !important;
+  color: var(--nk-primary);
+  line-height: 1;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  font-weight: 800 !important;
+}
+
+.nk-warning-phrase {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.1rem;
+  color: var(--nk-text-main);
+  font-weight: 600;
+  margin-bottom: 30px;
+  line-height: 1.4;
+}
+
+.nk-warning-close-btn {
+  background: #000;
+  color: #fff;
   font-family: 'Teko', sans-serif;
-  font-size: 1.5rem;
-  padding: 8px 30px;
+  font-size: 1.6rem;
+  padding: 10px 50px;
   border: none;
   cursor: pointer;
   text-transform: uppercase;
   font-weight: bold;
-  border-radius: 5px;
-  box-shadow: 4px 4px 0px #FF3333;
-  border: 2px solid #000000;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+  box-shadow: 4px 4px 0px var(--nk-primary);
 }
 
-.luffy-close-btn:hover {
-  background: #facc48;
+.nk-warning-close-btn:hover {
+  background: var(--nk-primary);
   transform: translateY(-2px);
+  box-shadow: 6px 6px 0px #000;
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.8); opacity: 0; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@media (max-width: 480px) {
+  .nk-warning-card {
+    padding: 30px 20px;
+  }
+  .nk-warning-title {
+    font-size: 2.2rem !important;
+  }
 }
 
 /* Vibration Animation for add-to-cart warnings */
@@ -1221,21 +1273,27 @@ html.dark .nk-preloader-logo {
   color: var(--nk-primary);
 }
 
-/* --- 11d. CATEGORIES EXPLORE SLIDER --- */
-.nk-categories-slider {
-  display: flex;
-  gap: 24px;
-  overflow-x: auto;
-  scroll-behavior: smooth;
-  cursor: grab;
-  user-select: none;
-  padding-bottom: 16px;
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+/* --- 11d. CATEGORIES MARQUEE (Infinite Carousel) --- */
+.nk-categories-marquee-wrapper {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+  padding: 10px 0;
 }
 
-.nk-categories-slider::-webkit-scrollbar {
-  display: none;
+.nk-categories-marquee-content {
+  display: flex;
+  width: max-content;
+  animation: categories-marquee 50s linear infinite;
+}
+
+.nk-categories-marquee-wrapper:hover .nk-categories-marquee-content {
+  animation-play-state: paused;
+}
+
+@keyframes categories-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
 }
 
 .nk-explore-card {
@@ -1247,6 +1305,7 @@ html.dark .nk-preloader-logo {
   border-radius: 8px;
   text-decoration: none;
   box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  margin-right: 24px; /* Constant gap */
 }
 
 .nk-explore-card-img {
@@ -2059,6 +2118,92 @@ html.dark .nk-preloader-logo {
   border-color: var(--nk-text-main);
 }
 
+/* --- Color Swatches & Tooltips --- */
+.nk-color-swatches-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 5px 0;
+}
+
+.nk-color-swatch {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  border: 2px solid var(--nk-border);
+  padding: 0;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background-size: cover;
+  background-position: center;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,0.1);
+}
+
+.nk-color-swatch:hover {
+  transform: scale(1.15);
+  border-color: var(--nk-primary);
+  z-index: 5;
+}
+
+.nk-color-swatch.active {
+  border-color: var(--nk-primary);
+  box-shadow: 0 0 0 2px var(--nk-bg-body), 0 0 0 4px var(--nk-primary);
+  transform: scale(1.1);
+}
+
+/* Tooltip */
+.nk-color-swatch::before {
+  content: attr(data-color-name);
+  position: absolute;
+  bottom: 135%;
+  left: 50%;
+  transform: translateX(-50%) translateY(5px);
+  padding: 6px 12px;
+  background: #000;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  border-radius: 4px;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  pointer-events: none;
+  z-index: 100;
+  letter-spacing: 1px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.nk-color-swatch:hover::before {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* Small arrow for tooltip */
+.nk-color-swatch::after {
+  content: "";
+  position: absolute;
+  bottom: 120%;
+  left: 50%;
+  transform: translateX(-50%);
+  border-width: 6px;
+  border-style: solid;
+  border-color: #000 transparent transparent transparent;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  pointer-events: none;
+  z-index: 99;
+}
+
+.nk-color-swatch:hover::after {
+  opacity: 1;
+  visibility: visible;
+}
+
 /* Actions Section */
 .nk-detail-actions-section {
   background: var(--nk-bg-wrapper);
@@ -2474,6 +2619,63 @@ html.dark .nk-login-card {
   text-decoration: underline;
 }
 
+/* --- Form Elements --- */
+.nk-form-group {
+  margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.nk-form-group label {
+  font-family: 'Teko', sans-serif !important;
+  font-size: 1.15rem !important;
+  text-transform: uppercase;
+  font-weight: 600;
+  color: var(--nk-text-main);
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+.nk-input-base {
+  width: 100%;
+  height: 50px;
+  background-color: var(--nk-input-bg);
+  border: 2px solid var(--nk-input-border);
+  color: var(--nk-text-main);
+  padding: 0 16px;
+  font-size: 1rem;
+  border-radius: 8px;
+  outline: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.nk-input-base:focus {
+  border-color: var(--nk-primary);
+  box-shadow: 0 0 0 4px rgba(255, 51, 51, 0.1);
+  transform: translateY(-1px);
+}
+
+.nk-input-base::placeholder {
+  color: var(--nk-text-sec);
+  opacity: 0.5;
+}
+
+html.dark .nk-input-base {
+  background-color: #111111;
+}
+
+.nk-input-base.error {
+  border-color: #ef4444;
+  background-color: rgba(239, 68, 68, 0.05);
+}
+
+.nk-input-disabled {
+  background-color: var(--nk-bg-wrapper) !important;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 /* --- Login Submit Button --- */
 .nk-btn-login {
   width: 100%;
@@ -2556,6 +2758,223 @@ html.dark .force-light-text { color: #FFFFFF !important; }
   color: var(--nk-text-sec);
   font-size: 0.9rem;
   margin-bottom: 8px;
+}
+
+/* --- Admin Bar (WP Style) --- */
+.nk-admin-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 32px;
+  background: #1d2327;
+  color: #c3c4c7;
+  z-index: 10000;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif;
+  font-size: 13px;
+}
+
+.nk-admin-bar-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 100%;
+  padding: 0 15px;
+}
+
+.nk-admin-bar-left, .nk-admin-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+}
+
+.nk-admin-label {
+  font-weight: 600;
+  color: #fff;
+}
+
+.nk-admin-link {
+  color: inherit;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.nk-admin-link:hover {
+  color: var(--nk-primary);
+}
+
+.nk-admin-bar .material-icons-outlined {
+  font-size: 16px;
+}
+
+/* --- Tracking Styles --- */
+.nk-tracking-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.nk-tracking-card {
+  background: var(--nk-bg-wrapper);
+  border: 1px solid var(--nk-border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.nk-tracking-card-header {
+  padding: 15px 20px;
+  background: var(--nk-bg-card);
+  border-bottom: 1px solid var(--nk-border);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nk-tracking-order-num {
+  font-family: 'Teko', sans-serif;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.nk-tracking-card-body {
+  padding: 20px;
+}
+
+.nk-tracking-id-box {
+  background: var(--nk-bg-card);
+  border: 1px solid var(--nk-border);
+  padding: 15px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nk-tracking-label {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--nk-text-sec);
+}
+
+.nk-tracking-value {
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  color: var(--nk-primary);
+  font-size: 1.1rem;
+}
+
+.nk-btn-tracking {
+  width: 100%;
+  text-align: center;
+}
+
+.nk-tracking-pending {
+  text-align: center;
+  padding: 20px;
+  color: var(--nk-text-sec);
+}
+
+.nk-tracking-pending .material-icons-outlined {
+  font-size: 40px;
+  margin-bottom: 10px;
+  opacity: 0.5;
+}
+
+/* --- Checkout Redirect Page (Option B) --- */
+.nk-checkout-redirect-layout {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
+.nk-checkout-review-card {
+  background: var(--nk-bg-card);
+  border: 1px solid var(--nk-border);
+  border-radius: 12px;
+  padding: 40px;
+  max-width: 600px;
+  width: 100%;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+}
+
+.nk-checkout-heading {
+  font-family: 'Teko', sans-serif;
+  font-size: 2.2rem !important;
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.nk-checkout-notice-box {
+  background: rgba(255, 51, 51, 0.05);
+  border: 1px solid rgba(255, 51, 51, 0.1);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  gap: 15px;
+  margin: 30px 0;
+  align-items: flex-start;
+}
+
+.nk-checkout-notice-box .material-icons-outlined {
+  color: var(--nk-primary);
+  font-size: 32px;
+}
+
+.nk-checkout-notice-box h4 {
+  font-size: 1.1rem !important;
+  margin-bottom: 5px;
+  color: var(--nk-text-main);
+}
+
+.nk-checkout-notice-box p {
+  font-size: 0.85rem;
+  color: var(--nk-text-sec);
+  line-height: 1.4;
+}
+
+.nk-btn-checkout-finalize {
+  width: 100%;
+  height: 60px;
+  font-size: 1.8rem !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nk-checkout-footer-links {
+  text-align: center;
+  margin-top: 20px;
+}
+
+.nk-checkout-footer-links a {
+  color: var(--nk-text-sec);
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.nk-checkout-footer-links a:hover {
+  color: var(--nk-primary);
+}
+
+.nk-flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.nk-loader-mini {
+  width: 20px;
+  height: 20px;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
 }
 
 /* --- Protocol Footer --- */

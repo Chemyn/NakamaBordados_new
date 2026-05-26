@@ -30,163 +30,45 @@ export default function CheckoutPage() {
   const [isCalculatingShipping, setIsCalculatingShipping] = useState(false);
 
   // Syncing to Woo
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
-  const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
-    phone: '',
-    email: '',
-    country: 'México',
-    state: '',
-    city: '',
-    colonia: '',
-    address: '',
-    postcode: ''
-  });
-
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: value
-    }));
-    if (formErrors[name]) {
-      setFormErrors(prev => {
-        const copy = { ...prev };
-        delete copy[name];
-        return copy;
-      });
-    }
-  };
-
-  const handleCouponApply = (e: React.FormEvent) => {
-    e.preventDefault();
-    setCouponError('');
-    if (!couponInput) return;
-    const success = applyCoupon(couponInput);
-    if (success) {
-      setCouponInput('');
-    } else {
-      setCouponError('Código de cupón inválido. Intenta con NAKAMA10 o NAKAMA20');
-    }
-  };
-
-  const calculateShippingRates = async () => {
-    if (!formData.postcode) {
-      alert("Por favor ingresa un código postal para calcular el envío.");
-      return;
-    }
-    
-    setIsCalculatingShipping(true);
-    try {
-      // 1. Ensure local cart is synced to Woo
-      await emptyCart();
-      for (const item of cart) {
-        // Extract parent product ID
-        const productId = parseInt(item.product.id.replace('WP-', '')) || parseInt(item.product.id);
-        
-        // Extract variation ID if it exists
-        let variationId: number | undefined = undefined;
-        if (item.variation && item.variation.id) {
-          // It might be like 'WP-VAR-100194' or just '100194'
-          const rawVarId = item.variation.id.replace('WP-VAR-', '').replace('WP-', '');
-          const parsedVar = parseInt(rawVarId);
-          if (!isNaN(parsedVar)) {
-            variationId = parsedVar;
-          }
-        }
-        
-        if (!isNaN(productId)) {
-          await addToCart(productId, item.quantity, variationId);
-        }
-      }
-
-      // 2. Update customer postcode (CACHE BUST FOR ENVIA.COM)
-      // Envia.com caches the rates. We force a recalculation by changing zip to 00000 first.
-      await updateCustomerShipping('00000', 'MX', formData.state, formData.city);
-      
-      // Real postcode
-      await updateCustomerShipping(formData.postcode, 'MX', formData.state, formData.city);
-
-      // 3. Get Envia.com rates using our proxy
-      const ratesData = await getShippingRates(formData.postcode, formData.state, formData.city, cart);
-      if (ratesData && ratesData.length > 0 && ratesData[0].rates) {
-        setShippingRates(ratesData[0].rates);
-        if (ratesData[0].rates.length > 0) {
-          setSelectedRate(ratesData[0].rates[0]);
-        }
-      } else {
-        setShippingRates([]);
-        alert("No se encontraron tarifas de envío para este código postal.");
-      }
-    } catch (err) {
-      console.error(err);
-      alert("Error calculando tarifas de envío.");
-    } finally {
-      setIsCalculatingShipping(false);
-    }
-  };
-
-  const validateForm = () => {
-    const errors: Record<string, string> = {};
-    if (!formData.firstName) errors.firstName = 'Obligatorio';
-    if (!formData.lastName) errors.lastName = 'Obligatorio';
-    if (!formData.phone) errors.phone = 'Obligatorio';
-    if (!formData.email) errors.email = 'Obligatorio';
-    if (!formData.postcode) errors.postcode = 'Obligatorio para el envío';
-    if (!formData.colonia) errors.colonia = 'Obligatorio';
-    if (!formData.address) errors.address = 'Obligatorio';
-    
-    setFormErrors(errors);
-    return Object.keys(errors).length === 0;
-  };
-
-  const handleProceedToPayment = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateForm()) {
-      alert('Por favor, completa los campos obligatorios.');
-      return;
-    }
-
-    setIsSyncing(true);
+  const handleProceedToPayment = async () => {
+    if (cart.length === 0) return;
+    setIsRedirecting(true);
     
     try {
-      // We already synced during calculateShippingRates, but let's make sure
-      if (shippingRates.length === 0) {
-        await calculateShippingRates();
-      }
+      // Build native WooCommerce redirect URL
+      // Use the first item to seed the cart and ensure WooCommerce session starts
+      // This is the most reliable 'zero-config' way.
+      const firstItem = cart[0];
+      const wpId = firstItem.variation ? 
+          (firstItem.variation.databaseId || firstItem.variation.id.replace('WP-VAR-', '').replace('WP-', '')) : 
+          (firstItem.product.databaseId || firstItem.product.id.replace('WP-', ''));
 
-      // Get the session token to pass to the native checkout
-      const sessionToken = getSessionToken();
-
-      if (selectedRate) {
-        await updateShippingMethod(selectedRate.id);
-      }
+      let redirectUrl = `https://nakamabordados.com/checkout/?add-to-cart=${wpId}&quantity=${firstItem.quantity}`;
       
-      // Clear local cart because they are going to WP Checkout
+      if (couponCode) {
+        redirectUrl += `&coupon_code=${couponCode}`;
+      }
+
+      // Clear local cart before redirect
       clearCart();
-
-      // Redirect to native WordPress checkout passing the session via URL
-      window.location.href = `https://nakamabordados.com/checkout/?session_id=${sessionToken || ''}`;
+      
+      // Redirect to the real WordPress checkout
+      window.location.href = redirectUrl;
     } catch (err) {
-      console.error(err);
-      alert("Error al procesar el checkout. Inténtalo de nuevo.");
-      setIsSyncing(false);
+      console.error("Redirect error:", err);
+      alert("Hubo un problema al conectar con el servidor de pagos. Por favor intenta de nuevo.");
+      setIsRedirecting(false);
     }
   };
-
-  const finalShipping = selectedRate ? parseFloat(selectedRate.cost) : localShipping;
-  const finalTotal = subtotal * (1 - discount) + finalShipping;
 
   return (
     <div className="nk-checkout-page" style={{ paddingTop: '50px', paddingBottom: '80px' }}>
       <div className="nk-store-hero">
         <span className="nk-store-hero-badge">Caja Registradora</span>
         <h1 className="nk-store-hero-title">Finalizar Compra</h1>
-        <p className="nk-store-hero-subtitle">Revisa tu pedido y calcula el envío con Envia.com</p>
+        <p className="nk-store-hero-subtitle">Revisa tu orden antes de proceder al pago seguro</p>
       </div>
 
       <div className="nk-container">
@@ -198,184 +80,80 @@ export default function CheckoutPage() {
             <Link href="/store" className="nk-btn">Ir a la Tienda</Link>
           </div>
         ) : (
-          <div className="nk-checkout-grid">
-            
-            {/* Left Column: Form */}
-            <div className="nk-checkout-form-col">
-              <h2 className="nk-checkout-heading">1. Dirección de Envío</h2>
-              <form className="nk-checkout-form">
-                
-                {/* Nombre y Apellidos */}
-                <div className="nk-form-row">
-                  <div className="nk-form-group">
-                    <label>Nombre *</label>
-                    <input type="text" name="firstName" value={formData.firstName} onChange={handleInputChange} className={`nk-input-base ${formErrors.firstName ? 'error' : ''}`} />
-                  </div>
-                  <div className="nk-form-group">
-                    <label>Apellidos *</label>
-                    <input type="text" name="lastName" value={formData.lastName} onChange={handleInputChange} className={`nk-input-base ${formErrors.lastName ? 'error' : ''}`} />
-                  </div>
-                </div>
+          <div className="nk-checkout-redirect-layout">
+            <div className="nk-checkout-review-card nk-dash-animate">
+              <h2 className="nk-checkout-heading">Resumen de tu Pedido</h2>
+              
+              <div className="nk-checkout-review-items">
+                {cart.map((item, index) => {
+                  const price = item.variation ? item.variation.price : item.product.price;
+                  const attrStr = item.variation ? Object.values(item.variation.attributes).join(' / ') : 'Única';
 
-                {/* Teléfono y Email */}
-                <div className="nk-form-row">
-                  <div className="nk-form-group">
-                    <label>Teléfono *</label>
-                    <input type="text" name="phone" value={formData.phone} onChange={handleInputChange} className={`nk-input-base ${formErrors.phone ? 'error' : ''}`} />
-                  </div>
-                  <div className="nk-form-group">
-                    <label>Email *</label>
-                    <input type="email" name="email" value={formData.email} onChange={handleInputChange} className={`nk-input-base ${formErrors.email ? 'error' : ''}`} />
-                  </div>
-                </div>
+                  return (
+                    <div className="nk-review-item" key={index}>
+                      <img src={item.product.images[0]} alt={item.product.name} className="nk-review-item-img" />
+                      <div className="nk-review-item-details">
+                        <h4 className="nk-review-item-title">{item.product.name}</h4>
+                        <p className="nk-review-item-meta">{attrStr}</p>
+                        <p className="nk-review-item-qty">Cantidad: {item.quantity}</p>
+                        <button type="button" className="nk-review-remove-btn" onClick={() => removeFromCart(index)}>Eliminar</button>
+                      </div>
+                      <div className="nk-checkout-item-price">{formatPrice(price * item.quantity)}</div>
+                    </div>
+                  );
+                })}
+              </div>
 
-                {/* CP y País */}
-                <div className="nk-form-row">
-                  <div className="nk-form-group">
-                    <label>Código Postal *</label>
-                    <input type="text" name="postcode" value={formData.postcode} onChange={handleInputChange} placeholder="Ej: 83000" className={`nk-input-base ${formErrors.postcode ? 'error' : ''}`} />
-                  </div>
-                  <div className="nk-form-group">
-                    <label>País *</label>
-                    <input type="text" name="country" value={formData.country || 'México'} disabled className="nk-input-base nk-input-disabled" />
-                  </div>
-                </div>
+              <div className="nk-review-divider"></div>
 
-                {/* Estado y Ciudad */}
-                <div className="nk-form-row">
-                  <div className="nk-form-group">
-                    <label>Estado</label>
-                    <input type="text" name="state" value={formData.state} onChange={handleInputChange} className="nk-input-base" />
-                  </div>
-                  <div className="nk-form-group">
-                    <label>Ciudad</label>
-                    <input type="text" name="city" value={formData.city} onChange={handleInputChange} className="nk-input-base" />
-                  </div>
+              <div className="nk-review-summary">
+                <div className="nk-summary-row">
+                  <span>Subtotal:</span>
+                  <span>{formatPrice(subtotal)}</span>
                 </div>
-
-                {/* Colonia y Dirección */}
-                <div className="nk-form-row">
-                  <div className="nk-form-group">
-                    <label>Colonia *</label>
-                    <input type="text" name="colonia" value={formData.colonia} onChange={handleInputChange} placeholder="Ingresa tu colonia" className={`nk-input-base ${formErrors.colonia ? 'error' : ''}`} />
-                  </div>
-                  <div className="nk-form-group">
-                    <label>Dirección *</label>
-                    <input type="text" name="address" value={formData.address} onChange={handleInputChange} placeholder="Calle y número" className={`nk-input-base ${formErrors.address ? 'error' : ''}`} />
-                  </div>
-                </div>
-
-                <div className="nk-form-row" style={{ marginTop: '20px' }}>
-                  <div className="nk-form-group">
-                    <button type="button" onClick={calculateShippingRates} disabled={isCalculatingShipping || !formData.postcode} className="nk-btn" style={{ width: '100%', height: '48px' }}>
-                      {isCalculatingShipping ? 'Calculando...' : 'Obtener Tarifas de Envío'}
-                    </button>
-                  </div>
-                </div>
-
-                {shippingRates.length > 0 && (
-                  <div style={{ marginTop: '20px', padding: '20px', border: '1px solid var(--nk-border)', borderRadius: '8px', background: 'var(--nk-bg-wrapper)' }}>
-                    <h3 style={{ marginBottom: '15px', fontSize: '1.2rem', fontFamily: 'Teko' }}>Selecciona tu método de envío:</h3>
-                    {shippingRates.map((rate: any) => (
-                      <label key={rate.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', borderBottom: '1px solid var(--nk-border)', cursor: 'pointer' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                          <input 
-                            type="radio" 
-                            name="shippingRate" 
-                            value={rate.id} 
-                            checked={selectedRate?.id === rate.id}
-                            onChange={() => setSelectedRate(rate)}
-                          />
-                          <span>{rate.label}</span>
-                        </div>
-                        <strong style={{ color: 'var(--nk-primary)' }}>{formatPrice(parseFloat(rate.cost))}</strong>
-                      </label>
-                    ))}
+                {discount > 0 && (
+                  <div className="nk-summary-row nk-summary-discount">
+                    <span>Descuento ({couponCode}):</span>
+                    <span>-{formatPrice(subtotal * discount)}</span>
                   </div>
                 )}
-              </form>
-            </div>
-
-            {/* Right Column: Order Review Cart Sidebar */}
-            <div className="nk-checkout-sidebar-col">
-              <div className="nk-checkout-review-card">
-                <h2 className="nk-checkout-heading">Tu Pedido</h2>
-                
-                <div className="nk-checkout-review-items">
-                  {cart.map((item, index) => {
-                    const price = item.variation ? item.variation.price : item.product.price;
-                    const attrStr = item.variation ? Object.values(item.variation.attributes).join(' / ') : 'Única';
-
-                    return (
-                      <div className="nk-review-item" key={index}>
-                        <img src={item.product.images[0]} alt={item.product.name} className="nk-review-item-img" />
-                        <div className="nk-review-item-details">
-                          <h4 className="nk-review-item-title">{item.product.name}</h4>
-                          <p className="nk-review-item-meta">Estilo: {attrStr}</p>
-                          <p className="nk-review-item-qty">Cantidad: {item.quantity}</p>
-                          <button type="button" className="nk-review-remove-btn" onClick={() => removeFromCart(index)}>Eliminar</button>
-                        </div>
-                        <div className="nk-checkout-item-price">{formatPrice(price * item.quantity)}</div>
-                      </div>
-                    );
-                  })}
+                <div className="nk-summary-row">
+                  <span>Envío:</span>
+                  <span>{subtotal >= 1200 || cart.reduce((s,i)=>s+i.quantity,0) >= 4 ? 'GRATIS' : 'Calculado en siguiente paso'}</span>
                 </div>
-
-                <div className="nk-review-divider"></div>
-
-                <form onSubmit={handleCouponApply} className="nk-coupon-form">
-                  <label className="nk-coupon-label">CÓDIGO DE DESCUENTO</label>
-                  <div className="nk-coupon-input-group">
-                    <input type="text" placeholder="Código de cupón" value={couponInput} onChange={(e) => setCouponInput(e.target.value)} className="nk-coupon-input" />
-                    <button type="submit" className="nk-btn nk-btn-coupon">Aplicar</button>
-                  </div>
-                  {couponError && <p className="nk-coupon-error">{couponError}</p>}
-                  {couponCode && (
-                    <div className="nk-coupon-active">
-                      <span>Cupón: <strong>{couponCode}</strong> ({discount * 100}% desc)</span>
-                      <button type="button" onClick={removeCoupon} className="nk-coupon-remove">Remover</button>
-                    </div>
-                  )}
-                </form>
-
-                <div className="nk-review-divider"></div>
-
-                <div className="nk-review-summary">
-                  <div className="nk-summary-row">
-                    <span>Subtotal:</span>
-                    <span>{formatPrice(subtotal)}</span>
-                  </div>
-                  {discount > 0 && (
-                    <div className="nk-summary-row nk-summary-discount">
-                      <span>Descuento:</span>
-                      <span>-{formatPrice(subtotal * discount)}</span>
-                    </div>
-                  )}
-                  <div className="nk-summary-row">
-                    <span>Envío:</span>
-                    <span>{selectedRate ? formatPrice(finalShipping) : (formData.postcode ? 'Calculando...' : 'Ingresa CP')}</span>
-                  </div>
-                  <div className="nk-summary-row nk-summary-total">
-                    <span>Total a Pagar:</span>
-                    <span>{formatPrice(finalTotal)}</span>
-                  </div>
+                <div className="nk-summary-total">
+                  <span>Total estimado:</span>
+                  <span>{formatPrice(subtotal * (1 - discount))}</span>
                 </div>
+              </div>
 
-                <button 
-                  type="button" 
-                  onClick={handleProceedToPayment} 
-                  disabled={isSyncing}
-                  className="nk-btn nk-btn-checkout-submit" 
-                  style={{ marginTop: '20px' }}
-                >
-                  {isSyncing ? 'Sincronizando con WooCommerce...' : 'Ir a Pagar de Forma Segura'}
-                </button>
-                <p style={{ textAlign: 'center', fontSize: '0.8rem', color: 'var(--nk-text-sec)', marginTop: '10px' }}>
-                  Serás redirigido a nuestro servidor seguro para completar el pago con MercadoPago o Ecartpay.
-                </p>
+              <div className="nk-checkout-notice-box">
+                <span className="material-icons-outlined">security</span>
+                <div>
+                  <h4>Pago 100% Seguro</h4>
+                  <p>Al hacer clic en el botón, serás redirigido al servidor oficial de <strong>Nakama Bordados</strong> para completar tu dirección de envío y realizar el pago mediante MercadoPago, Tarjeta o Transferencia.</p>
+                </div>
+              </div>
+
+              <button 
+                type="button" 
+                onClick={handleProceedToPayment} 
+                disabled={isRedirecting}
+                className="nk-btn nk-btn-checkout-finalize" 
+              >
+                {isRedirecting ? (
+                  <span className="nk-flex-center">
+                    <span className="nk-loader-mini"></span> Redirigiendo...
+                  </span>
+                ) : (
+                  `Confirmar y Pagar ${formatPrice(subtotal * (1 - discount))}`
+                )}
+              </button>
+              
+              <div className="nk-checkout-footer-links">
+                 <Link href="/store">← Continuar Comprando</Link>
               </div>
             </div>
-
           </div>
         )}
       </div>

@@ -144,12 +144,14 @@ function StoreContent() {
         </div>
 
         {/* Product Grid */}
-        {loading && filteredProducts.length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '50px 0', color: 'var(--nk-text-sec)' }}>Cargando catálogo...</div>
-        ) : filteredProducts.length > 0 ? (
+        {loading && allProducts.length === 0 ? (
+          <div className="nk-store-grid">
+            {[1, 2, 3, 4, 5, 6, 7, 8].map(i => <SkeletonProductCard key={i} />)}
+          </div>
+        ) : allProducts.length > 0 ? (
           <>
             <div className="nk-store-grid">
-              {filteredProducts.map(p => {
+              {allProducts.map(p => {
                 // WPGraphQL mock price logic
                 const minPrice = p.type === 'variable' && p.variations && p.variations.length > 0
                   ? Math.min(...p.variations.map(v => v.price)) 
@@ -184,16 +186,17 @@ function StoreContent() {
                   </div>
                 );
               })}
+              {loadingMore && [1, 2, 3, 4].map(i => <SkeletonProductCard key={`more-${i}`} />)}
             </div>
             
             {/* Infinite Scroll Sentinel */}
-            {hasNextPage && (
+            {hasNextPage && !loadingMore && (
               <div ref={observerRef} style={{ textAlign: 'center', padding: '30px 0', color: 'var(--nk-text-sec)' }}>
-                {loadingMore ? 'Cargando más...' : 'Haz scroll para ver más'}
+                Haz scroll para ver más
               </div>
             )}
             
-            {!hasNextPage && filteredProducts.length > 0 && (
+            {!hasNextPage && allProducts.length > 0 && (
               <div style={{ textAlign: 'center', padding: '30px 0', color: 'var(--nk-text-sec)' }}>
                 Has llegado al final de los resultados.
               </div>
@@ -214,11 +217,28 @@ function StoreContent() {
   );
 }
 
+// ---------------------------------------------------------
+// Helper Components
+// ---------------------------------------------------------
+
+const SkeletonProductCard = () => (
+  <div className="nk-store-card">
+    <div className="nk-store-card-img-wrapper nk-skeleton" style={{ aspectRatio: '3/4' }}></div>
+    <div className="nk-card-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginTop: '14px' }}>
+      <div className="nk-skeleton" style={{ width: '80%', height: '20px' }}></div>
+      <div className="nk-skeleton" style={{ width: '40%', height: '16px' }}></div>
+    </div>
+  </div>
+);
+
 export default function StorePage() {
   return (
     <Suspense fallback={
       <div className="nk-store-loading nk-container" style={{ padding: '100px 24px', textAlign: 'center' }}>
-        <h2 className="animate-pulse">Cargando Catálogo Nakama...</h2>
+        <h2 className="animate-pulse" style={{ fontFamily: 'Teko', fontSize: '3rem' }}>Cargando Catálogo Nakama...</h2>
+        <div className="nk-store-grid" style={{ marginTop: '40px', opacity: 0.5 }}>
+           {[1, 2, 3, 4].map(i => <SkeletonProductCard key={i} />)}
+        </div>
       </div>
     }>
       <StoreContent />
