@@ -1,5 +1,5 @@
 import { fetchGraphQL } from './graphql-client';
-import { Product } from '@/app/data/products'; // We will update this interface later
+import { Product, Variation } from '@/types/product';
 
 // Standard WPGraphQL WooCommerce query with pagination
 const GET_PRODUCTS_QUERY = `
@@ -80,44 +80,43 @@ function mapNodeToProduct(node: unknown): Product {
     slug: string;
     shortDescription?: string;
     description?: string;
-    price?: string;
-    type?: 'simple' | 'variable';
+    price?: string | number;
+    type?: string;
+    __typename?: string;
     image?: { sourceUrl: string };
     galleryImages?: { nodes: { sourceUrl: string }[] };
     productCategories?: { nodes: { slug: string }[] };
     variations?: { 
       nodes: { 
         databaseId: number; 
-        price?: string; 
+        price?: string | number; 
         image?: { sourceUrl: string };
         attributes?: { nodes: { name: string; value: string }[] };
       }[] 
     };
   };
+
+  const parsePrice = (val?: string | number): number => {
+    if (val === undefined || val === null) return 0;
+    if (typeof val === 'number') return val;
+    const num = parseFloat(val.replace(/[^0-9.-]+/g, ''));
+    return isNaN(num) ? 0 : num;
+  };
+
   try {
     const imageUrl = (n.image?.sourceUrl && n.image.sourceUrl.trim() !== '') 
       ? n.image.sourceUrl 
       : 'https://via.placeholder.com/300x300?text=No+Image';
     const categories = n.productCategories?.nodes?.map((c) => c.slug) || [];
-    
-    let numericPrice = 0;
-    if (n.price) {
-      const parsed = parseFloat(n.price.replace(/[^0-9.-]+/g, ''));
-      if (!isNaN(parsed)) numericPrice = parsed;
-    }
+    const numericPrice = parsePrice(n.price);
 
-    const variations = [];
-    let type: 'simple' | 'variable' = 'simple';
+    const variations: Variation[] = [];
+    let type: 'simple' | 'variable' = (n.type === 'variable' || n.__typename === 'VariableProduct' || (n.variations?.nodes?.length || 0) > 0) ? 'variable' : 'simple';
     const variationImages: string[] = [];
 
     if (n.variations && n.variations.nodes && n.variations.nodes.length > 0) {
-      type = 'variable';
       for (const vNode of n.variations.nodes) {
-        let vPrice = 0;
-        if (vNode.price) {
-          const parsed = parseFloat(vNode.price.replace(/[^0-9.-]+/g, ''));
-          if (!isNaN(parsed)) vPrice = parsed;
-        }
+        const vPrice = parsePrice(vNode.price);
 
         if (vNode.image?.sourceUrl) {
           variationImages.push(vNode.image.sourceUrl);
@@ -130,6 +129,8 @@ function mapNodeToProduct(node: unknown): Product {
             if (prettyName.startsWith('pa_')) {
               prettyName = prettyName.substring(3);
             }
+            // Capitalize first letter
+            prettyName = prettyName.charAt(0).toUpperCase() + prettyName.slice(1);
             attrs[prettyName] = attr.value;
           }
         }
@@ -140,7 +141,7 @@ function mapNodeToProduct(node: unknown): Product {
           sku: `WP-VAR-${vNode.databaseId}`,
           attributes: attrs,
           price: vPrice,
-          stock: 10, // Mock stock
+          stock: 10,
           images: vNode.image?.sourceUrl ? [vNode.image.sourceUrl] : []
         });
       }
@@ -149,11 +150,10 @@ function mapNodeToProduct(node: unknown): Product {
     const galleryImages = n.galleryImages?.nodes?.map((img) => img.sourceUrl) || [];
     const allImages = [imageUrl, ...galleryImages, ...variationImages].filter((url, index, self) => url && self.indexOf(url) === index);
 
-    // Clean up description (strip HTML and fix whitespace)
     const cleanDescription = (html: string) => {
       if (!html) return '';
       return html
-        .replace(/<[^>]*>?/gm, '') // Strip HTML tags
+        .replace(/<[^>]*>?/gm, '') 
         .replace(/&nbsp;/g, ' ')
         .replace(/&amp;/g, '&')
         .replace(/&quot;/g, '"')
@@ -202,7 +202,7 @@ export async function getProductsFromWP(limit: number = 500): Promise<Product[]>
   const allProducts: Product[] = [];
   let hasNextPage = true;
   let afterCursor: string | null = null;
-  const perPage = 100; // WPGraphQL max per request
+  const perPage = 20; // Decreased from 100 to prevent 500 Internal Server Error from WPGraphQL
 
   try {
     while (hasNextPage && allProducts.length < limit) {
@@ -357,7 +357,7 @@ export async function getProductsByCategoryFromWP(categorySlug: string, limit: n
 // Categories Query
 const GET_CATEGORIES_QUERY = `
   query GetCategories {
-    productCategories(first: 100, where: { hideEmpty: true }) {
+    productCategories(first: 100) {
       nodes {
         databaseId
         name
@@ -379,6 +379,12 @@ export interface WPCategory {
   parentSlug: string | null;
 }
 
+export interface WPTag {
+  databaseId: number;
+  name: string;
+  slug: string;
+}
+
 export async function getCategoriesFromWP(): Promise<WPCategory[]> {
   const { data } = await fetchGraphQL(GET_CATEGORIES_QUERY);
   
@@ -392,6 +398,57 @@ export async function getCategoriesFromWP(): Promise<WPCategory[]> {
     slug: node.slug,
     parentSlug: node.parent?.node?.slug || null
   }));
+}
+
+export async function getCategoriesBySearch(searchQuery: string): Promise<WPCategory[]> {
+  const SEARCH_CATEGORIES_QUERY = `
+    query SearchCategories($search: String) {
+      productCategories(where: { search: $search }, first: 50) {
+        nodes {
+          databaseId
+          name
+          slug
+        }
+      }
+    }
+  `;
+
+  try {
+    const { data } = await fetchGraphQL(SEARCH_CATEGORIES_QUERY, { search: searchQuery });
+    if (!data || !data.productCategories) return [];
+    return data.productCategories.nodes.map((node: { databaseId: number; name: string; slug: string }) => ({
+      id: node.databaseId,
+      name: node.name,
+      slug: node.slug,
+      parentSlug: null
+    }));
+  } catch (error) {
+    console.error("Error searching categories:", error);
+    return [];
+  }
+}
+
+export async function getTagsBySearch(searchQuery: string) {
+  const SEARCH_TAGS_QUERY = `
+    query SearchTags($search: String) {
+      productTags(where: { search: $search }, first: 50) {
+        nodes {
+          databaseId
+          name
+          slug
+        }
+      }
+    }
+  `;
+
+  try {
+    const { data } = await fetchGraphQL(SEARCH_TAGS_QUERY, { search: searchQuery });
+    if (!data || !data.productTags) return [];
+    return data.productTags.nodes;
+  } catch (error) {
+    console.error("Error searching tags:", error);
+    return [];
+  }
 }
 
 const GET_SINGLE_PRODUCT_QUERY = `
@@ -452,13 +509,177 @@ const GET_SINGLE_PRODUCT_QUERY = `
   }
 `;
 
+export async function getComprehensiveSearchResults(
+  query: string,
+  limit: number = 20,
+  after: string | null = null
+): Promise<ProductsPageResult> {
+  try {
+    const normalizedQuery = query.trim().toLowerCase();
+    console.log(`Deep Search for: "${normalizedQuery}"`);
+
+    // 1. Encontrar categorías y etiquetas que coincidan con la búsqueda
+    // Usamos tanto la búsqueda literal como variaciones comunes (ej. "one piece" -> "one-piece")
+    const searchTerms = [normalizedQuery];
+    if (normalizedQuery.includes(' ')) {
+      searchTerms.push(normalizedQuery.replace(/\s+/g, '-'));
+    }
+
+    const [matchingCats, matchingTags] = await Promise.all([
+      getCategoriesBySearch(normalizedQuery),
+      getTagsBySearch(normalizedQuery)
+    ]);
+
+    const catSlugs = new Set(matchingCats.map((c: WPCategory) => c.slug));
+    const tagSlugs = new Set(matchingTags.map((t: WPTag) => t.slug));
+    
+    // Añadimos variaciones manuales de slug si no fueron detectadas
+    searchTerms.forEach(term => {
+      catSlugs.add(term);
+      tagSlugs.add(term);
+    });
+
+    console.log(`Matching categories: ${Array.from(catSlugs).join(', ')}`);
+    console.log(`Matching tags: ${Array.from(tagSlugs).join(', ')}`);
+
+    // 2. Ejecutar búsquedas en paralelo: por texto, por categorías y por etiquetas
+    const searchVars = { first: limit, search: query, after };
+    
+    // Filtros de taxonomía (OR entre categorías y etiquetas encontradas)
+    const taxFilters = [];
+    if (catSlugs.size > 0) {
+      taxFilters.push({ taxonomy: 'PRODUCT_CAT', terms: Array.from(catSlugs), operator: 'IN' });
+    }
+    if (tagSlugs.size > 0) {
+      taxFilters.push({ taxonomy: 'PRODUCT_TAG', terms: Array.from(tagSlugs), operator: 'IN' });
+    }
+
+    const promises = [
+      fetchGraphQL(GET_PRODUCTS_PAGE_QUERY, searchVars)
+    ];
+
+    if (taxFilters.length > 0) {
+      const taxQuery = `
+        query GetProductsByTax($first: Int!, $after: String, $taxFilter: ProductTaxonomyInput) {
+          products(first: $first, after: $after, where: { taxonomyFilter: $taxFilter }) {
+            pageInfo { hasNextPage endCursor }
+            nodes {
+              ... on Product {
+                databaseId id name slug shortDescription description
+                image { sourceUrl altText }
+                galleryImages { nodes { sourceUrl altText } }
+                productCategories { nodes { name slug } }
+                productTags { nodes { name slug } }
+              }
+              ... on SimpleProduct { price regularPrice salePrice }
+              ... on VariableProduct {
+                price regularPrice salePrice
+                variations(first: 100) {
+                  nodes {
+                    id databaseId name price
+                    image { sourceUrl }
+                    attributes { nodes { name value } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      `;
+      promises.push(fetchGraphQL(taxQuery, { 
+        first: limit, 
+        after, 
+        taxFilter: {
+          relation: 'OR',
+          filters: taxFilters
+        }
+      }));
+    }
+
+    const results = await Promise.all(promises);
+    
+    const allProductsMap = new Map();
+    let hasNextPage = false;
+    let endCursor = null;
+
+    results.forEach(res => {
+      const data = res.data?.products;
+      if (data && data.nodes) {
+        data.nodes.forEach((node: unknown) => {
+          const product = mapNodeToProduct(node);
+          allProductsMap.set(product.databaseId, product);
+        });
+        if (data.pageInfo?.hasNextPage) hasNextPage = true;
+        if (data.pageInfo?.endCursor) endCursor = data.pageInfo.endCursor;
+      }
+    });
+
+    const combinedProducts = Array.from(allProductsMap.values());
+
+    return {
+      products: combinedProducts.slice(0, limit),
+      pageInfo: {
+        hasNextPage,
+        endCursor
+      }
+    };
+  } catch (error) {
+    console.error("Error in getComprehensiveSearchResults:", error);
+    return { products: [], pageInfo: { hasNextPage: false, endCursor: null } };
+  }
+}
+
 export async function getProductByIdFromWP(id: string): Promise<Product | undefined> {
   try {
+    console.log(`Fetching single product from WP: ${id}`);
     const { data } = await fetchGraphQL(GET_SINGLE_PRODUCT_QUERY, { id });
-    if (!data || !data.product) return undefined;
+    if (!data || !data.product) {
+      console.warn(`Product not found in WP: ${id}`);
+      return undefined;
+    }
     return mapNodeToProduct(data.product);
   } catch (err) {
     console.error("Error fetching single product from WP:", err);
     return undefined;
+  }
+}
+
+export async function getProductsByIds(ids: number[]): Promise<Product[]> {
+  if (ids.length === 0) return [];
+
+  const GET_PRODUCTS_BY_IDS_QUERY = `
+    query GetProductsByIds($ids: [Int]!) {
+      products(where: { include: $ids }, first: 100) {
+        nodes {
+          ... on Product {
+            databaseId id name slug shortDescription description
+            image { sourceUrl altText }
+            galleryImages { nodes { sourceUrl altText } }
+            productCategories { nodes { name slug } }
+            productTags { nodes { name slug } }
+          }
+          ... on SimpleProduct { price regularPrice salePrice }
+          ... on VariableProduct {
+            price regularPrice salePrice
+            variations(first: 100) {
+              nodes {
+                id databaseId name price
+                image { sourceUrl }
+                attributes { nodes { name value } }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+
+  try {
+    const { data } = await fetchGraphQL(GET_PRODUCTS_BY_IDS_QUERY, { ids });
+    if (!data || !data.products || !data.products.nodes) return [];
+    return data.products.nodes.map((node: unknown) => mapNodeToProduct(node));
+  } catch (error) {
+    console.error("Error fetching products by IDs:", error);
+    return [];
   }
 }

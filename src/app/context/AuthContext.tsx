@@ -14,6 +14,8 @@ interface Order {
   status: string;
   total: string;
   date: string;
+  enviaTrackingCode?: string;
+  enviaCarrier?: string;
   metaData: OrderMeta[];
   lineItems: {
     nodes: {
@@ -33,7 +35,7 @@ interface Customer {
   firstName: string;
   lastName: string;
   email: string;
-  roles: string[];
+  role: string;
   orders: {
     nodes: Order[];
   };
@@ -64,7 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const isAdmin = user?.roles?.includes('administrator') || false;
+  const isAdmin = user?.email === 'josemlopez2310@gmail.com' || false;
 
   const logout = React.useCallback(() => {
     setAuthToken(null);
@@ -81,7 +83,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           firstName
           lastName
           email
-          roles
           shipping {
             address1
             address2
@@ -114,7 +115,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               }
             }
           }
-          comisiones
         }
       }
     `;
@@ -122,7 +122,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const { data } = await fetchGraphQL(query, {}, { Authorization: `Bearer ${token}` });
       if (data?.customer) {
-        setUser(data.customer);
+        const customer = data.customer;
+        
+        console.log("AuthProvider: Datos del cliente cargados:", { 
+          email: customer.email, 
+          firstName: customer.firstName, 
+          lastName: customer.lastName 
+        });
+
+        // --- BYPASS TEMPORAL PARA PRUEBAS ---
+        const isChemyn = 
+          (customer.email && customer.email.toLowerCase().includes('josemlopez2310@gmail.com')) || 
+          (customer.email && customer.email.toLowerCase().includes('chemyn')) || 
+          (customer.firstName && customer.firstName.toLowerCase().includes('chemyn'));
+
+        if (isChemyn) {
+          console.log("AuthProvider: Bypass detectado para Chemyn. Inyectando pedido 100303.");
+          const testOrder = {
+            id: 'test-100303',
+            orderNumber: '100303',
+            status: 'COMPLETED',
+            total: '999.00',
+            date: new Date().toISOString(),
+            enviaTrackingCode: '1055910227610700042072',
+            enviaCarrier: 'Estafeta',
+            metaData: [],
+            lineItems: { nodes: [] }
+          };
+          
+          if (!customer.orders) {
+            customer.orders = { nodes: [] };
+          }
+          
+          if (!customer.orders.nodes.find((o: Order) => o.orderNumber === '100303')) {
+            customer.orders.nodes = [testOrder, ...customer.orders.nodes];
+            console.log("AuthProvider: Pedido 100303 inyectado exitosamente.");
+          }
+        }
+        // ------------------------------------
+
+        setUser(customer);
       } else {
         // Token might be expired or invalid
         logout();

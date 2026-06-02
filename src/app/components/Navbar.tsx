@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
@@ -81,10 +82,13 @@ export default function Navbar() {
 
         {/* Brand Logo - ONLY HOME BUTTON */}
         <Link href="/" className="nk-nav-brand" onClick={() => setMenuOpen(false)}>
-          <img
+          <Image
             src="https://nakamabordados.com/wp-content/uploads/2025/11/LOGO-NAKAMA-scaled-2048x926.png"
             alt="NAKAMA Logo"
+            width={200}
+            height={90}
             className="nk-logo-img"
+            priority
           />
         </Link>
 
@@ -183,6 +187,26 @@ export default function Navbar() {
 
             <li>
               <Link
+                href="/store?category=lisas"
+                className={`nk-nav-link ${pathname.includes('category=lisas') ? 'active-menu-item' : ''}`}
+                onClick={() => setMenuOpen(false)}
+              >
+                Lisas
+              </Link>
+            </li>
+
+            <li>
+              <Link
+                href="/store?category=variedad"
+                className={`nk-nav-link ${pathname.includes('category=variedad') ? 'active-menu-item' : ''}`}
+                onClick={() => setMenuOpen(false)}
+              >
+                Variedad
+              </Link>
+            </li>
+
+            <li>
+              <Link
                 href="/store?category=gorras"
                 className={`nk-nav-link ${pathname.includes('category=gorras') ? 'active-menu-item' : ''}`}
                 onClick={() => setMenuOpen(false)}
@@ -207,25 +231,25 @@ export default function Navbar() {
         <div className="nk-nav-actions">
           <SearchBar />
 
-          <Link href="/mi-cuenta" className="nk-action-btn" title="Mi Cuenta">
+          <Link href="/mi-cuenta" className="nk-action-btn" title="Mi Cuenta" style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
             <span className="material-icons-outlined">person</span>
           </Link>
 
-          <Link href="/checkout" className="nk-action-btn nk-cart-btn nk-manga-border" style={{ background: 'var(--nk-primary)', color: '#fff', boxShadow: '2px 2px 0px #000' }} title="Carrito">        
+          <Link href="/checkout" className="nk-action-btn nk-cart-btn" style={{ background: 'transparent', boxShadow: 'none', border: 'none', color: 'inherit' }} title="Carrito">        
             <span className="material-icons-outlined">shopping_bag</span>
             {cartCount > 0 && (
-              <span className="nk-cart-badge" style={{ border: '2px solid #000' }}>{cartCount}</span>
+              <span className="nk-cart-badge">{cartCount}</span>
             )}
           </Link>
 
-          <button className="nk-action-btn" onClick={toggleTheme} title="Cambiar Tema">
+          <button className="nk-action-btn" onClick={toggleTheme} title="Cambiar Tema" style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
             <span className="material-icons-outlined">
               {theme === 'light' ? 'dark_mode' : 'light_mode'}
             </span>
           </button>
 
           {isAdmin && (
-            <Link href="/admin/suite" className="nk-action-btn nk-suite-btn nk-manga-border" style={{ background: '#000', color: '#fff', boxShadow: '2px 2px 0px var(--nk-primary)' }} title="Nakama Suite (Admin)">
+            <Link href="/admin/suite" className="nk-action-btn nk-suite-btn" style={{ background: 'transparent', boxShadow: 'none', border: 'none', color: 'inherit' }} title="Nakama Suite (Admin)">
               <span className="material-icons-outlined">rocket_launch</span>
             </Link>
           )}

@@ -1,13 +1,14 @@
 import { MetadataRoute } from 'next'
 import { getProductsFromWP } from '@/lib/queries'
+import { Product } from '@/types/product'
  
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const baseUrl = 'https://nakamabordados.com'
   
   // Fetch products from WordPress
-  let products = []
+  let products: Product[] = []
   try {
-    products = await getProductsFromWP(1000) // Fetch up to 1000 products for sitemap
+    products = await getProductsFromWP(200) // Fetch up to 200 products for sitemap to avoid timeout
   } catch (error) {
     console.error('Error fetching products for sitemap:', error)
   }

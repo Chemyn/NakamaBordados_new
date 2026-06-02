@@ -131,11 +131,37 @@ const UPDATE_CUSTOMER_MUTATION = `
   }
 `;
 
-const GET_SHIPPING_RATES_QUERY = `
-  query GetShippingRates {
+const CHECKOUT_MUTATION = `
+  mutation Checkout($input: CheckoutInput!) {
+    checkout(input: $input) {
+      clientMutationId
+      order {
+        id
+        databaseId
+        orderNumber
+        status
+        total
+      }
+      result
+      redirect
+    }
+  }
+`;
+
+const GET_CHECKOUT_DATA_QUERY = `
+  query GetCheckoutData {
+    paymentGateways {
+      nodes {
+        id
+        title
+        description
+      }
+    }
     cart {
+      total
+      subtotal
+      shippingTotal
       availableShippingMethods {
-        packageDetails
         rates {
           id
           label
@@ -147,6 +173,16 @@ const GET_SHIPPING_RATES_QUERY = `
 `;
 
 // Functions
+
+export async function fetchCheckoutData() {
+  const { data } = await fetchGraphQL(GET_CHECKOUT_DATA_QUERY, {}, getAuthHeaders());
+  return data;
+}
+
+export async function checkout(input: any) {
+  const { data } = await fetchGraphQL(CHECKOUT_MUTATION, { input }, getAuthHeaders());
+  return data?.checkout;
+}
 
 export async function emptyCart() {
   const { data } = await fetchGraphQL(EMPTY_CART_MUTATION, {}, getAuthHeaders());

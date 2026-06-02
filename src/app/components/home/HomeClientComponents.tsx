@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Product } from '../../data/products';
+import Image from 'next/image';
+import { Product } from '@/types/product';
 import { useCurrency } from '../../context/CurrencyContext';
 
 // ---------------------------------------------------------
@@ -119,8 +120,16 @@ export const ScrollContainer = ({ products }: { products: Product[] }) => {
           return (
             <div className="nk-carousel-card" key={p.id}>
               <Link href={`/product/${p.id}`} className="nk-carousel-link">
-                <div className="nk-carousel-img-wrapper">
-                  <img src={p.images[0]} alt={p.name} className="nk-carousel-img" />
+                <div className="nk-carousel-img-wrapper" style={{ boxShadow: 'var(--nk-manga-shadow)', border: 'var(--nk-manga-border)' }}>
+                  <Image 
+                    src={p.images[0]} 
+                    alt={p.name} 
+                    width={300} 
+                    height={400} 
+                    className="nk-carousel-img" 
+                    style={{ objectFit: 'cover' }}
+                    sizes="(max-width: 768px) 240px, 300px"
+                  />
                   <div className="nk-carousel-overlay">
                     <span className="nk-overlay-btn">Ver Producto</span>
                   </div>
@@ -160,12 +169,20 @@ export const CategoriesExplore = () => {
         <div className="nk-categories-marquee-wrapper">
           <div className="nk-categories-marquee-content">
             {doubleCategories.map((cat, idx) => (
-              <Link href={cat.href} key={idx} className="nk-explore-card">
-                <img loading="lazy" decoding="async" alt={cat.name} className="nk-explore-card-img" src={cat.img} />
-                <div className="nk-explore-card-overlay"></div>
-                <div className="nk-explore-card-info">
-                  <h3>{cat.name}</h3>
-                  <span>Ver Colección</span>
+              <Link href={cat.href} key={idx} className="nk-explore-card nk-manga-border" style={{ boxShadow: 'var(--nk-manga-shadow)' }}>
+                <Image 
+                  src={cat.img} 
+                  alt={cat.name} 
+                  width={300} 
+                  height={300} 
+                  className="nk-explore-card-img" 
+                  loading="lazy"
+                  style={{ objectFit: 'cover' }}
+                />
+                <div className="nk-explore-card-overlay" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)', opacity: 1 }}></div>
+                <div className="nk-explore-card-info" style={{ bottom: '20px', left: '20px' }}>
+                  <h3 style={{ fontSize: '1.8rem', textShadow: '2px 2px 0px #000' }}>{cat.name}</h3>
+                  <span style={{ color: '#fff', borderBottomColor: 'var(--nk-primary)', fontSize: '0.8rem' }}>Ver Colección</span>
                 </div>
               </Link>
             ))}

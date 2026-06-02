@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 
 export default function Footer() {
   return (
@@ -11,11 +12,13 @@ export default function Footer() {
           {/* Column 1: Brand details */}
           <div className="nk-footer-col nk-footer-brand-col">
             <Link href="/" className="nk-footer-logo-link">
-              <img 
+              <Image 
                 src="https://nakamabordados.com/wp-content/uploads/2025/11/LOGO-NAKAMA-scaled-2048x926.png" 
                 alt="Nakama Logo" 
+                width={110}
+                height={50}
                 className="nk-logo-img"
-                style={{ height: '50px' }}
+                style={{ height: '50px', width: 'auto' }}
               />
             </Link>
             <p className="nk-footer-description" style={{ fontFamily: 'Inter', fontWeight: 600 }}>
@@ -52,17 +55,8 @@ export default function Footer() {
           <div className="nk-footer-col">
             <h4 className="nk-footer-heading">Soporte</h4>
             <ul className="nk-footer-links">
-              <li><a href="#preguntas-frecuentes">Preguntas Frecuentes</a></li>
-              <li><a href="#guia-tallas">Guía de Tallas</a></li>
-              <li>
-                <a 
-                  href="https://wa.me/526622455087?text=%C2%A1Oi%20Nakama!%20Necesito%20tu%20ayuda%20con%20algo...%20%C2%BFtienes%20un%20momento?" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                >
-                  Contáctanos (WhatsApp)
-                </a>
-              </li>
+              <li><Link href="/faq">Preguntas Frecuentes</Link></li>
+              <li><Link href="/guia-de-tallas">Guía de Tallas</Link></li>
             </ul>
           </div>
 
@@ -70,17 +64,17 @@ export default function Footer() {
           <div className="nk-footer-col">
             <h4 className="nk-footer-heading">Legal</h4>
             <ul className="nk-footer-links">
-              <li><a href="#terminos">Términos y Condiciones</a></li>
-              <li><a href="#aviso-privacidad">Aviso de Privacidad</a></li>
+              <li><Link href="/terminos-y-condiciones">Términos y Condiciones</Link></li>
+              <li><Link href="/aviso-de-privacidad">Aviso de Privacidad</Link></li>
             </ul>
             <div className="nk-footer-payment-wrapper">
               <p className="nk-payment-title">Pago Seguro</p>
               <div className="nk-payment-icons">
-                <img src="https://nakamabordados.com/wp-content/uploads/2026/01/visa.avif" alt="Visa" className="nk-payment-img" />
-                <img src="https://nakamabordados.com/wp-content/uploads/2026/01/mastercard.avif" alt="Mastercard" className="nk-payment-img" />
-                <img src="https://nakamabordados.com/wp-content/uploads/2026/01/amex.avif" alt="Amex" className="nk-payment-img" />
-                <img src="https://nakamabordados.com/wp-content/uploads/2026/01/paypal.avif" alt="Paypal" className="nk-payment-img" />
-                <img src="https://nakamabordados.com/wp-content/uploads/2026/01/oxxo.avif" alt="Oxxo" className="nk-payment-img" />
+                <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/visa.avif" alt="Visa" width={40} height={25} className="nk-payment-img" />
+                <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/mastercard.avif" alt="Mastercard" width={40} height={25} className="nk-payment-img" />
+                <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/amex.avif" alt="Amex" width={40} height={25} className="nk-payment-img" />
+                <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/paypal.avif" alt="Paypal" width={40} height={25} className="nk-payment-img" />
+                <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/oxxo.avif" alt="Oxxo" width={40} height={25} className="nk-payment-img" />
               </div>
             </div>
           </div>

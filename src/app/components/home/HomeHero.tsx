@@ -1,6 +1,5 @@
-'use client';
-
 import React, { useState, useEffect } from 'react';
+import Image from 'next/image';
 
 const heroSlides = [
   "https://nakamabordados.com/wp-content/uploads/2026/05/hsale1.avif",
@@ -19,10 +18,17 @@ export default function HomeHero() {
   }, []);
 
   return (
-    <section className="nk-hero-slider" id="hero-slider">
+    <section className="nk-hero-slider" id="hero-slider" style={{ aspectRatio: '16/9', minHeight: '300px' }}>
       {heroSlides.map((slide, index) => (
-        <div key={index} className={`nk-hero-slide ${index === currentHeroSlide ? 'nk-hero-slide--active' : ''}`}>
-          <img src={slide} alt={`Promoción ${index + 1}`} />
+        <div key={index} className={`nk-hero-slide ${index === currentHeroSlide ? 'nk-hero-slide--active' : ''}`} style={{ height: '100%' }}>
+          <Image 
+            src={slide} 
+            alt={`Promoción ${index + 1}`} 
+            fill
+            priority={index === 0}
+            style={{ objectFit: 'cover' }}
+            sizes="100vw"
+          />
         </div>
       ))}
       <div className="nk-hero-scroll-hint force-white-always">

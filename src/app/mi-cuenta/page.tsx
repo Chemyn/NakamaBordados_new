@@ -1,9 +1,17 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
+
+interface TrackingEvent {
+  date: string;
+  status: string;
+  description?: string;
+  location?: string;
+}
 
 interface OrderMeta {
   key: string;
@@ -16,6 +24,8 @@ interface Order {
   status: string;
   total: string;
   date: string;
+  enviaTrackingCode?: string;
+  enviaCarrier?: string;
   metaData: OrderMeta[];
   lineItems: {
     nodes: {
@@ -56,6 +66,24 @@ export default function MiCuentaPage() {
 
   const [activeTab, setActiveTab] = useState<'login' | 'register' | 'lostpw'>('login');
   const [dashboardSection, setDashboardSection] = useState('dashboard');
+  const [trackingData, setTrackingData] = useState<Record<string, { success: boolean, data: unknown[] }>>({});
+  const [loadingTracking, setLoadingTracking] = useState<Record<string, boolean>>({});
+
+  const fetchTracking = async (trackingNum: string, carrier: string, orderId: string) => {
+    setLoadingTracking(prev => ({ ...prev, [orderId]: true }));
+    try {
+      // Usar la ruta pública de WordPress (CORS y API REST deben estar habilitados en WP)
+      const res = await fetch(`https://nakamabordados.com/wp-json/nakama/v1/track-shipment?tracking=${trackingNum}&carrier=${carrier}`);
+      const data = await res.json();
+      if (data.success) {
+        setTrackingData(prev => ({ ...prev, [orderId]: data }));
+      }
+    } catch (err: unknown) {
+      console.error('Failed to fetch tracking', err);
+    } finally {
+      setLoadingTracking(prev => ({ ...prev, [orderId]: false }));
+    }
+  };
 
   // New tab options for Client Panel
   const navItems = [
@@ -69,23 +97,30 @@ export default function MiCuentaPage() {
 
   // Helper to find tracking number in order metadata
   const getTrackingInfo = (order: Order) => {
+    if (order.enviaTrackingCode) return order.enviaTrackingCode;
+
     // Standard meta keys for tracking (depending on plugin)
-    const trackingKey = order.metaData?.find((m) => 
-      m.key === '_wc_shipment_tracking_items' || 
-      m.key === 'tracking_number' || 
+    const trackingKey = order.metaData?.find((m: OrderMeta) =>
+      m.key === '_wc_shipment_tracking_items' ||
+      m.key === 'tracking_number' ||
       m.key === 'rastreo'
     );
-    
+
     if (trackingKey) {
       try {
         // Some plugins store it as serialized PHP or JSON
         if (trackingKey.value.startsWith('a:') || trackingKey.value.startsWith('{')) return "Ver en WordPress";
         return trackingKey.value;
-      } catch (e) {
+      } catch {
         return trackingKey.value;
       }
     }
     return null;
+  };
+
+  const getCarrier = (order: Order) => {
+    if (order.enviaCarrier) return order.enviaCarrier;
+    return 'fedex'; // Default fallback
   };
 
   // Login form
@@ -104,8 +139,6 @@ export default function MiCuentaPage() {
   // Lost password
   const [lostPwEmail, setLostPwEmail] = useState('');
   const [lostPwSent, setLostPwSent] = useState(false);
-
-  const bgRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
@@ -161,23 +194,6 @@ export default function MiCuentaPage() {
   if (isLoggedIn) {
     return (
       <div className="nk-dashboard-page">
-        {/* Admin Bar (WordPress Style) */}
-        {isAdmin && (
-          <div className="nk-admin-bar">
-            <div className="nk-admin-bar-container">
-              <div className="nk-admin-bar-left">
-                <span className="material-icons-outlined">settings_suggest</span>
-                <span className="nk-admin-label">Panel Administrador Nakama</span>
-                <Link href="https://nakamabordados.com/wp-admin" target="_blank" className="nk-admin-link">Ir a WordPress</Link>
-                <Link href="/admin/suite" className="nk-admin-link">Admin Suite</Link>
-              </div>
-              <div className="nk-admin-bar-right">
-                <span>Hola, {user?.firstName} (Admin)</span>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Floating Background Symbols (subtle) */}
         <div className="nk-dashboard-fx-container">
           {FLOATING_SYMBOLS_DASHBOARD.map((item, i) => (
@@ -192,7 +208,7 @@ export default function MiCuentaPage() {
           ))}
         </div>
 
-        <div className="nk-dashboard-layout" style={isAdmin ? { marginTop: '32px' } : undefined}>
+        <div className="nk-dashboard-layout">
           {/* Sidebar Navigation */}
           <nav className="nk-dashboard-nav">
             <div className="nk-dashboard-nav-header">
@@ -234,6 +250,43 @@ export default function MiCuentaPage() {
               <div className="nk-dash-section nk-dash-animate">
                 <h2 className="nk-dash-title">¡Bienvenido a Bordo, {user?.firstName}!</h2>
                 <p className="nk-dash-subtitle">Desde aquí puedes ver tus pedidos recientes y administrar tu cuenta.</p>
+
+                {/* Admin Actions (Replacement for Admin Bar) */}
+                {isAdmin && (
+                  <div className="nk-admin-quick-actions" style={{ 
+                    display: 'flex', 
+                    gap: '15px', 
+                    marginBottom: '30px', 
+                    padding: '20px', 
+                    background: 'rgba(var(--nk-primary-rgb), 0.1)', 
+                    borderRadius: '12px',
+                    border: '1px dashed var(--nk-primary)'
+                  }}>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ margin: '0 0 5px 0', color: 'var(--nk-primary)' }}>Acciones de Administrador</h4>
+                      <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--nk-text-sec)' }}>Accesos directos para la gestión del barco.</p>
+                    </div>
+                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                      <Link 
+                        href="https://nakamabordados.com/wp-admin" 
+                        target="_blank" 
+                        className="nk-btn" 
+                        style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}
+                      >
+                        <span className="material-icons-outlined" style={{ fontSize: '18px' }}>dashboard</span>
+                        Escritorio WP
+                      </Link>
+                      <Link 
+                        href="/admin/suite" 
+                        className="nk-btn nk-btn-primary" 
+                        style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}
+                      >
+                        <span className="material-icons-outlined" style={{ fontSize: '18px' }}>settings_suggest</span>
+                        Admin Suite
+                      </Link>
+                    </div>
+                  </div>
+                )}
 
                 <div className="nk-dash-cards-grid">
                   <div className="nk-dash-stat-card" onClick={() => setDashboardSection('orders')}>
@@ -334,7 +387,7 @@ export default function MiCuentaPage() {
                 <p className="nk-dash-subtitle">Rastrea tus paquetes activos en tiempo real.</p>
                 
                 <div className="nk-tracking-list">
-                  {user?.orders?.nodes?.filter(o => o.status !== 'CANCELLED' && o.status !== 'REFUNDED').map((order) => {
+                  {user?.orders?.nodes?.filter(order => order.status !== 'CANCELLED' && order.status !== 'REFUNDED').map((order) => {
                     const trackingNum = getTrackingInfo(order);
                     return (
                       <div className="nk-tracking-card" key={order.id}>
@@ -347,15 +400,66 @@ export default function MiCuentaPage() {
                             <>
                               <div className="nk-tracking-id-box">
                                 <span className="nk-tracking-label">Número de Guía:</span>
-                                <span className="nk-tracking-value">{trackingNum}</span>
+                                <span className="nk-tracking-value">{trackingNum} ({getCarrier(order)})</span>
                               </div>
-                              <Link 
-                                href={`https://www.fedex.com/apps/fedextrack/?tracknumbers=${trackingNum}`} 
-                                target="_blank" 
-                                className="nk-btn nk-btn-tracking"
-                              >
-                                Rastrear en Paquetería
-                              </Link>
+                              
+                              {!trackingData[order.id] ? (
+                                <button 
+                                  className="nk-btn nk-btn-tracking"
+                                  onClick={() => fetchTracking(trackingNum, getCarrier(order), order.id)}
+                                  disabled={loadingTracking[order.id]}
+                                >
+                                  {loadingTracking[order.id] ? 'Consultando...' : 'Rastrear Paquete en Tiempo Real'}
+                                </button>
+                              ) : (
+                                <div className="nk-tracking-timeline" style={{ marginTop: '20px', padding: '15px', background: 'var(--nk-bg-wrapper)', borderRadius: '8px' }}>
+                                  <h4 style={{ marginBottom: '15px', color: 'var(--nk-primary)' }}>Línea de Tiempo del Envío</h4>
+                                  {(trackingData[order.id].data as TrackingEvent[])?.map((event, idx) => (
+                                    <div key={idx} style={{ display: 'flex', gap: '15px', marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid var(--nk-border-color)' }}>
+                                      <div style={{ minWidth: '120px', fontSize: '0.85rem', color: 'var(--nk-text-sec)' }}>
+                                        {new Date(event.date).toLocaleString()}
+                                      </div>
+                                      <div>
+                                        <strong>{event.status}</strong>
+                                        {event.description && <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--nk-text-sec)' }}>{event.description}</p>}
+                                        {event.location && <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--nk-text-ter)' }}>{event.location}</p>}
+                                      </div>
+                                    </div>
+                                  ))}
+                                  {(!trackingData[order.id].data || trackingData[order.id].data.length === 0) && (
+                                    <p>No se encontraron eventos recientes para este envío.</p>
+                                  )}
+                                  
+                                  {/* Portal de Paquetería Dinámico */}
+                                  {(() => {
+                                    const carrier = getCarrier(order).toLowerCase();
+                                    let portalUrl = "";
+                                    
+                                    if (carrier.includes("estafeta")) {
+                                      // Usamos GuiaCodigo que es el name/id del textarea en su portal
+                                      portalUrl = `https://www.estafeta.com/rastrear-envio?rastreo=true&GuiaCodigo=${trackingNum}`;
+                                    } else if (carrier.includes("dhl")) {
+                                      portalUrl = `https://www.dhl.com/mx-es/home/rastreo.html?tracking-id=${trackingNum}`;
+                                    } else if (carrier.includes("paquetexpress") || carrier.includes("paquete express")) {
+                                      portalUrl = `https://www.paquetexpress.com.mx/rastreo/${trackingNum}`;
+                                    } else {
+                                      // Fallback a FedEx
+                                      portalUrl = `https://www.fedex.com/apps/fedextrack/?tracknumbers=${trackingNum}`;
+                                    }
+
+                                    return (
+                                      <Link 
+                                        href={portalUrl} 
+                                        target="_blank" 
+                                        className="nk-btn nk-btn-tracking"
+                                        style={{ marginTop: '15px', display: 'inline-block' }}
+                                      >
+                                        Ver en portal oficial de ({getCarrier(order)})
+                                      </Link>
+                                    );
+                                  })()}
+                                </div>
+                              )}
                             </>
                           ) : (
                             <div className="nk-tracking-pending">
@@ -477,7 +581,7 @@ export default function MiCuentaPage() {
   // ============================================
   return (
     <div className="nk-login-page">
-      <div className="nk-login-bg" ref={bgRef}>
+      <div className="nk-login-bg">
         <div className="nk-login-bg-pattern"></div>
         <div className="nk-login-bg-gradient"></div>
         {FLOATING_SYMBOLS_LOGIN.map((item, i) => (
@@ -494,7 +598,14 @@ export default function MiCuentaPage() {
 
       <div className="nk-login-wrapper">
         <div className="nk-login-header">
-          <img src="https://nakamabordados.com/wp-content/uploads/2025/11/LOGO-NAKAMA-scaled-2048x926.png" alt="Nakama Bordados" className="nk-login-logo" />
+          <Image 
+            src="https://nakamabordados.com/wp-content/uploads/2025/11/LOGO-NAKAMA-scaled-2048x926.png" 
+            alt="Nakama Bordados" 
+            width={240} 
+            height={110} 
+            className="nk-login-logo" 
+            priority
+          />
           <h2 className="nk-login-title">Portal de la Tripulación</h2>
         </div>
 

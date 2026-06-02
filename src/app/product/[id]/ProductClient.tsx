@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
-import { Product, Variation } from '../../data/products';
+import Image from 'next/image';
+import { Product, Variation } from '@/types/product';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
 
@@ -180,12 +181,27 @@ export default function ProductClient({ initialProduct: product, relatedProducts
         <div className="nk-detail-grid">
           <div className="nk-detail-gallery">
             <div className="nk-main-image-wrapper nk-manga-border" style={{ boxShadow: '8px 8px 0px #000' }}>
-              <img src={activeImage || product.images[0]} alt={product.name} className="nk-main-image" />
+              <Image 
+                src={activeImage || product.images[0]} 
+                alt={product.name} 
+                width={600} 
+                height={800} 
+                className="nk-main-image" 
+                priority
+                style={{ objectFit: 'cover' }}
+              />
             </div>
             <div className="nk-thumbnails-list">
               {product.images.map((img, idx) => (
                 <button key={idx} className={`nk-thumb-btn nk-manga-border ${activeImage === img ? 'active' : ''}`} style={activeImage === img ? { borderColor: 'var(--nk-primary)', boxShadow: '2px 2px 0px #000' } : {}} onClick={() => setActiveImage(img)}>
-                  <img src={img} alt={`${product.name} Vista ${idx + 1}`} className="nk-thumb-img" />
+                  <Image 
+                    src={img} 
+                    alt={`${product.name} Vista ${idx + 1}`} 
+                    width={80} 
+                    height={100} 
+                    className="nk-thumb-img" 
+                    style={{ objectFit: 'cover' }}
+                  />
                 </button>
               ))}
             </div>
@@ -252,10 +268,10 @@ export default function ProductClient({ initialProduct: product, relatedProducts
               </div>
             )}
 
-            <div className="nk-detail-actions-section nk-manga-border" style={{ background: '#fff', boxShadow: '6px 6px 0px #000' }}>
+            <div className="nk-detail-actions-section nk-manga-border" style={{ boxShadow: '6px 6px 0px #000' }}>
               {!isGorras && (
                 <div style={{ marginBottom: '15px' }}>
-                  <button type="button" className="nk-size-guide-trigger" style={{ color: '#000' }} onClick={() => setSizeGuideOpen(true)}>
+                  <button type="button" className="nk-size-guide-trigger" onClick={() => setSizeGuideOpen(true)}>
                     <span className="material-icons-outlined">straighten</span>
                     Ver Guía de Tallas
                   </button>
@@ -286,11 +302,11 @@ export default function ProductClient({ initialProduct: product, relatedProducts
             </div>
 
             <div className="nk-detail-tabs-section">
-              <ul className="tab-list" style={{ borderColor: '#000' }}>
-                <li><button className={`tab-btn ${activeTab === 'desc' ? 'active' : ''}`} style={activeTab === 'desc' ? { color: 'var(--nk-primary)', borderBottomColor: 'var(--nk-primary)' } : {}} onClick={() => setActiveTab('desc')}>Descripción</button></li>
-                <li><button className={`tab-btn ${activeTab === 'care' ? 'active' : ''}`} style={activeTab === 'care' ? { color: 'var(--nk-primary)', borderBottomColor: 'var(--nk-primary)' } : {}} onClick={() => setActiveTab('care')}>Cuidado</button></li>
+              <ul className="tab-list">
+                <li><button className={`tab-btn ${activeTab === 'desc' ? 'active' : ''}`} onClick={() => setActiveTab('desc')}>Descripción</button></li>
+                <li><button className={`tab-btn ${activeTab === 'care' ? 'active' : ''}`} onClick={() => setActiveTab('care')}>Cuidado</button></li>
               </ul>
-              <div className="tab-content" style={{ fontSize: '0.95rem', lineHeight: '1.6', color: 'var(--nk-text-main)', background: '#fff', padding: '20px', borderRadius: '8px', border: '1px solid #000' }}>
+              <div className="tab-content" style={{ fontSize: '0.95rem', lineHeight: '1.6' }}>
                 {activeTab === 'desc' ? (
                   <div>
                     <div className="nk-product-html-desc" dangerouslySetInnerHTML={{ __html: product.description }} />
@@ -340,7 +356,14 @@ export default function ProductClient({ initialProduct: product, relatedProducts
               <div className="nk-store-card group" key={p.id}>
                 <div className="nk-store-card-img-wrapper">
                   <Link href={`/product/${p.id}`} className="nk-card-img-link">
-                    <img src={p.images[0]} alt={p.name} className="nk-card-img" />
+                    <Image 
+                      src={p.images[0]} 
+                      alt={p.name} 
+                      width={300} 
+                      height={400} 
+                      className="nk-card-img" 
+                      style={{ objectFit: 'cover' }}
+                    />
                   </Link>
                   <div className="nk-card-overlay"><Link href={`/product/${p.id}`} className="nk-overlay-btn">Ver Producto</Link></div>
                 </div>
@@ -362,13 +385,13 @@ export default function ProductClient({ initialProduct: product, relatedProducts
             <button className="nk-modal-close" onClick={() => setSizeGuideOpen(false)}><span className="material-icons-outlined">close</span></button>
             <h2 className="nk-modal-title">Guía de tallas</h2>
             <div className="nk-size-guide-images">
-              <img src="https://nakamabordados.com/wp-content/uploads/2026/01/2.webp" alt="Guía 1" className="nk-guide-img" />
-              <img src="https://nakamabordados.com/wp-content/uploads/2026/01/3.webp" alt="Guía 2" className="nk-guide-img" />
-              <img src="https://nakamabordados.com/wp-content/uploads/2026/01/4.webp" alt="Guía 3" className="nk-guide-img" />
-              <img src="https://nakamabordados.com/wp-content/uploads/2026/01/5.webp" alt="Guía 4" className="nk-guide-img" />
-              <img src="https://nakamabordados.com/wp-content/uploads/2026/01/6.webp" alt="Guía 5" className="nk-guide-img" />
-              <img src="https://nakamabordados.com/wp-content/uploads/2026/01/7.webp" alt="Guía 6" className="nk-guide-img" />
-              <img src="https://nakamabordados.com/wp-content/uploads/2026/01/8.webp" alt="Guía 7" className="nk-guide-img" />
+              <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/2.webp" alt="Guía 1" width={600} height={800} className="nk-guide-img" />
+              <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/3.webp" alt="Guía 2" width={600} height={800} className="nk-guide-img" />
+              <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/4.webp" alt="Guía 3" width={600} height={800} className="nk-guide-img" />
+              <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/5.webp" alt="Guía 4" width={600} height={800} className="nk-guide-img" />
+              <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/6.webp" alt="Guía 5" width={600} height={800} className="nk-guide-img" />
+              <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/7.webp" alt="Guía 6" width={600} height={800} className="nk-guide-img" />
+              <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/8.webp" alt="Guía 7" width={600} height={800} className="nk-guide-img" />
             </div>
           </div>
         </div>

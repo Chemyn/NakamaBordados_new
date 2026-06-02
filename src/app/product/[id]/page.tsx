@@ -1,6 +1,7 @@
 import React from 'react';
 import { Metadata } from 'next';
 import { fetchProductById, fetchProductsByCategory } from '../../data/products';
+import { Product } from '@/types/product';
 import ProductClient from './ProductClient';
 import { notFound } from 'next/navigation';
 
@@ -38,13 +39,16 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function ProductPage({ params }: Props) {
   const { id } = await params;
+  console.log(`Rendering Product Page for ID/Slug: "${id}"`);
+  
   const product = await fetchProductById(id);
 
   if (!product) {
+    console.error(`Product with ID/Slug "${id}" not found. Triggering 404.`);
     notFound();
   }
 
-  let relatedProducts = [];
+  let relatedProducts: Product[] = [];
   if (product.categories && product.categories.length > 0) {
     const related = await fetchProductsByCategory(product.categories[0], 5);
     relatedProducts = related.filter(p => p.id !== product.id).slice(0, 4);

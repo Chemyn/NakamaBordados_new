@@ -2,7 +2,7 @@ import React from 'react';
 import { Metadata } from 'next';
 import Link from 'next/link';
 import { fetchProductsByCategory } from './data/products';
-import HomeHero from './components/home/HomeHero';
+import ScrollytellingHero from './components/home/ScrollytellingHero';
 import { 
   LazyCategorySection, 
   CategoriesExplore, 
@@ -67,8 +67,8 @@ export default async function HomePage() {
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       
-      {/* 1. Hero Slider (Client Component) */}
-      <HomeHero />
+      {/* 1. Scrollytelling Hero (Client Component) */}
+      <ScrollytellingHero />
 
       {/* 2. Promotional Marquee Bar */}
       <div className="nk-marquee-bar nk-manga-border" style={{ borderLeft: 'none', borderRight: 'none' }}>

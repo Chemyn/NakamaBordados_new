@@ -1,16 +1,20 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Product } from '../data/products';
+import Image from 'next/image';
+import { Product } from '@/types/product';
 import { useCurrency } from '../context/CurrencyContext';
+import { WPCategory, WPTag } from '@/lib/queries';
 
 export default function SearchBar() {
   const [query, setQuery] = useState('');
   const [isExpanded, setIsExpanded] = useState(false);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
   const [results, setResults] = useState<Product[]>([]);
+  const [catResults, setCatResults] = useState<WPCategory[]>([]);
+  const [tagResults, setTagResults] = useState<WPTag[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
 
@@ -19,6 +23,14 @@ export default function SearchBar() {
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const mobileInputRef = useRef<HTMLInputElement>(null);
+
+  const closeAll = useCallback(() => {
+    setIsMobileOpen(false);
+    setShowDropdown(false);
+    setIsExpanded(false);
+    setQuery('');
+    document.body.style.overflow = '';
+  }, []);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -35,11 +47,12 @@ export default function SearchBar() {
   // Live search logic
   useEffect(() => {
     if (query.length < 3) {
-      const resetResults = () => {
-        if (results.length > 0) setResults([]);
-        if (showDropdown) setShowDropdown(false);
-      };
-      queueMicrotask(resetResults);
+      if (results.length > 0 || showDropdown) {
+        queueMicrotask(() => {
+          setResults([]);
+          setShowDropdown(false);
+        });
+      }
       return;
     }
 
@@ -48,8 +61,10 @@ export default function SearchBar() {
       try {
         const res = await fetch(`/api/products?search=${encodeURIComponent(query)}&limit=6`);
         const data = await res.json();
-        if (data && data.products) {
-          setResults(data.products);
+        if (data) {
+          setResults(data.products || []);
+          setCatResults(data.categories || []);
+          setTagResults(data.tags || []);
           setShowDropdown(true);
         }
       } catch (error) {
@@ -60,7 +75,7 @@ export default function SearchBar() {
     }, 400);
 
     return () => clearTimeout(delayDebounce);
-  }, [query]);
+  }, [query, results.length, showDropdown]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,18 +85,17 @@ export default function SearchBar() {
     }
   };
 
-  const closeAll = () => {
-    setIsMobileOpen(false);
-    setShowDropdown(false);
-    setIsExpanded(false);
-    setQuery('');
-    document.body.style.overflow = '';
-  };
-
   const openMobile = () => {
     setIsMobileOpen(true);
     document.body.style.overflow = 'hidden';
-    setTimeout(() => mobileInputRef.current?.focus(), 300);
+    // Small delay to ensure the overlay is mounting before focus
+    setTimeout(() => {
+      if (mobileInputRef.current) {
+        mobileInputRef.current.focus();
+        // Force font size to 16px on focus to prevent iOS zoom
+        mobileInputRef.current.style.fontSize = '16px';
+      }
+    }, 300);
   };
 
   const toggleDesktop = () => {
@@ -112,10 +126,10 @@ export default function SearchBar() {
           onFocus={() => setIsExpanded(true)}
         />
         <button 
-          className="nk-search-trigger nk-manga-border" 
+          className="nk-search-trigger" 
           onClick={toggleDesktop}
           aria-label="Buscar"
-          style={{ borderLeft: 'none' }}
+          style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}
         >
           <span className="material-icons-outlined">search</span>
         </button>
@@ -128,25 +142,66 @@ export default function SearchBar() {
 
         {/* Desktop Results Dropdown */}
         {showDropdown && isExpanded && (
-          <div className="nk-search-results-dropdown nk-manga-border" style={{ boxShadow: '8px 8px 0px #000' }}>
-            {results.length > 0 ? (
+          <div className="nk-search-results-dropdown nk-manga-border">
+            {(results.length > 0 || catResults.length > 0 || tagResults.length > 0) ? (
               <>
-                <div className="nk-search-results-header">Resultados</div>
-                {results.map((product) => (
-                  <Link 
-                    key={product.id} 
-                    href={`/product/${product.id}`} 
-                    className="nk-search-item"
-                    onClick={closeAll}
-                  >
-                    <img src={product.images[0]} alt={product.name} className="nk-search-item-img" />
-                    <div className="nk-search-item-info">
-                      <h4 className="nk-search-item-title">{product.name}</h4>
-                      <p className="nk-search-item-price">{formatPrice(product.price)}</p>
+                {/* Categorías y Etiquetas combinadas como "Sugerencias" */}
+                {(catResults.length > 0 || tagResults.length > 0) && (
+                  <div className="p-4 border-b border-gray-100">
+                    <div className="nk-search-results-header">Sugerencias</div>
+                    <div className="flex flex-wrap gap-2">
+                      {catResults.map(cat => (
+                        <Link 
+                          key={`cat-${cat.slug}`} 
+                          href={`/store?category=${cat.slug}`}
+                          className="nk-search-pill"
+                          onClick={closeAll}
+                        >
+                          Categoría: {cat.name}
+                        </Link>
+                      ))}
+                      {tagResults.map(tag => (
+                        <Link 
+                          key={`tag-${tag.slug}`} 
+                          href={`/store?tag=${tag.slug}`}
+                          className="nk-search-pill nk-pill-red"
+                          onClick={closeAll}
+                        >
+                          #{tag.name}
+                        </Link>
+                      ))}
                     </div>
-                    <span className="material-icons-outlined text-gray-400">chevron_right</span>
-                  </Link>
-                ))}
+                  </div>
+                )}
+
+                {/* Productos */}
+                {results.length > 0 && (
+                  <>
+                    <div className="nk-search-results-header">Productos</div>
+                    {results.map((product) => (
+                      <Link 
+                        key={product.id} 
+                        href={`/product/${product.id}`} 
+                        className="nk-search-item"
+                        onClick={closeAll}
+                      >
+                        <Image 
+                          src={product.images[0]} 
+                          alt={product.name} 
+                          width={40} 
+                          height={40} 
+                          className="nk-search-item-img" 
+                          style={{ objectFit: 'cover' }}
+                        />
+                        <div className="nk-search-item-info">
+                          <h4 className="nk-search-item-title">{product.name}</h4>
+                          <p className="nk-search-item-price">{formatPrice(product.price)}</p>
+                        </div>
+                        <span className="material-icons-outlined text-gray-400">chevron_right</span>
+                      </Link>
+                    ))}
+                  </>
+                )}
               </>
             ) : query.length >= 3 && !isLoading ? (
               <div className="p-8 text-center text-gray-500 text-sm">
@@ -168,10 +223,10 @@ export default function SearchBar() {
 
       {/* Mobile Search Overlay */}
       {isMobileOpen && (
-        <div className="nk-mobile-search-overlay open">
-          <div className="nk-mobile-search-header" style={{ background: '#000', borderBottom: '3px solid #f00' }}>
-            <span className="nk-mobile-search-title" style={{ color: '#fff' }}>BUSCAR</span>
-            <button className="nk-action-btn" onClick={closeAll} style={{ color: '#fff' }}>
+        <div className={`nk-mobile-search-overlay ${isMobileOpen ? 'open' : ''}`}>
+          <div className="nk-mobile-search-header">
+            <span className="nk-mobile-search-title">BUSCAR</span>
+            <button className="nk-action-btn" onClick={closeAll}>
               <span className="material-icons-outlined">close</span>
             </button>
           </div>
@@ -191,16 +246,48 @@ export default function SearchBar() {
               </button>
             </form>
 
-            <div className="mt-6 space-y-4">
+            <div className="nk-mobile-search-suggestions">
+              {/* Mobile Suggestions */}
+              {(catResults.length > 0 || tagResults.length > 0) && (
+                <div className="nk-search-pills-container">
+                  {catResults.map(cat => (
+                    <Link 
+                      key={`m-cat-${cat.slug}`} 
+                      href={`/store?category=${cat.slug}`}
+                      className="nk-search-pill"
+                      onClick={closeAll}
+                    >
+                      📁 {cat.name}
+                    </Link>
+                  ))}
+                  {tagResults.map(tag => (
+                    <Link 
+                      key={`m-tag-${tag.slug}`} 
+                      href={`/store?tag=${tag.slug}`}
+                      className="nk-search-pill nk-pill-red"
+                      onClick={closeAll}
+                    >
+                      # {tag.name}
+                    </Link>
+                  ))}
+                </div>
+              )}
+
               {results.length > 0 && query.length >= 3 && results.map((product) => (
                 <Link 
                   key={product.id} 
                   href={`/product/${product.id}`} 
                   className="nk-search-item nk-manga-border"
-                  style={{ background: '#fff', boxShadow: '4px 4px 0px #000', marginBottom: '12px' }}
                   onClick={closeAll}
                 >
-                  <img src={product.images[0]} alt={product.name} className="nk-search-item-img" />
+                  <Image 
+                    src={product.images[0]} 
+                    alt={product.name} 
+                    width={50} 
+                    height={50} 
+                    className="nk-search-item-img" 
+                    style={{ objectFit: 'cover' }}
+                  />
                   <div className="nk-search-item-info">
                     <h4 className="nk-search-item-title">{product.name}</h4>
                     <p className="nk-search-item-price">{formatPrice(product.price)}</p>
