@@ -75,6 +75,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchCustomerData = React.useCallback(async (token: string) => {
+    // Check if token is obviously expired before fetching
+    try {
+      const payloadBase64 = token.split('.')[1];
+      if (payloadBase64) {
+        const payload = JSON.parse(atob(payloadBase64));
+        if (payload.exp && payload.exp * 1000 < Date.now()) {
+          console.warn("AuthProvider: Token expirado detectado localmente.");
+          logout();
+          setIsLoading(false);
+          return;
+        }
+      }
+    } catch (e) {
+      console.error("AuthProvider: Error validando formato de token:", e);
+    }
+
     // Consulta combinada: Viewer para datos WP y Customer para datos WC
     const query = `
       query GetUserData {
@@ -175,7 +191,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setUser(customer);
       } else {
-        console.warn("AuthProvider: No se pudo obtener el usuario.");
+        // Si no hay viewer pero el fetch terminó, es probable que el token sea inválido
+        console.warn("AuthProvider: No se pudo obtener el usuario, el token podría ser inválido.");
         logout();
       }
     } catch (err) {

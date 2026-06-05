@@ -47,7 +47,7 @@ export default function HomeClientPage({ bestSellers }: { bestSellers: Product[]
             <p style={{ fontSize: '1.2rem', color: 'var(--nk-text-sec)', lineHeight: '1.6', marginBottom: '30px' }}>
               {t('home.intro.text')}
             </p>
-            <Link href="/store" className="nk-btn nk-btn-hero nk-manga-border" style={{ boxShadow: '8px 8px 0px #000' }}>
+            <Link href="/store" className="nk-btn nk-btn-hero nk-manga-border" style={{ boxShadow: 'var(--nk-manga-shadow-lg)' }}>
               {t('home.intro.btn')}
             </Link>
           </div>
@@ -73,7 +73,6 @@ export default function HomeClientPage({ bestSellers }: { bestSellers: Product[]
       <LazyCategorySection title={t('nav.prints')} categorySlug="estampados" href="/store?category=estampados" />
       <LazyCategorySection title={t('nav.caps')} categorySlug="gorras" href="/store?category=gorras" />
       <LazyCategorySection title={t('nav.plain')} categorySlug="lisas" href="/store?category=lisas" />
-      <LazyCategorySection title={t('nav.special')} categorySlug="edicion-especial" href="/store?category=edicion-especial" isSpecial />
       <LazyCategorySection title={t('nav.variety')} categorySlug="variedad" href="/store?category=variedad" />
 
       {/* 6. Explore By Category Slider */}

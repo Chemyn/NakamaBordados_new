@@ -65,16 +65,28 @@ export async function fetchGraphQL(query: string, variables = {}, extraHeaders: 
     console.log(`[GraphQL-Remote] Received response status: ${response.status}. Data present: ${!!body.data}`);
 
     if (body.errors) {
-      const isHarmlessEmptyCart = body.errors.length === 1 && body.errors[0].message === 'Cart is empty';
-      if (!isHarmlessEmptyCart) {
-        console.error('GraphQL Errors Details:', JSON.stringify(body.errors, null, 2));
+      const errors = body.errors as Array<{message: string, path?: string[]}>;
+      const isHarmlessEmptyCart = errors.length === 1 && errors[0].message === 'Cart is empty';
+      
+      // Check if this looks like a JWT authentication failure (often returns "Internal server error" on viewer/customer/cart)
+      const isAuthError = errors.some(e => 
+        (e.message === 'Internal server error' || e.message.toLowerCase().includes('jwt')) && 
+        (e.path?.includes('viewer') || e.path?.includes('customer') || e.path?.includes('cart'))
+      );
+
+      if (!isHarmlessEmptyCart && !isAuthError) {
+        console.error('GraphQL Errors Details:', JSON.stringify(errors, null, 2));
         console.error('on Query:', query.substring(0, 200));
         console.error('with Variables:', JSON.stringify(variables));
+      } else if (isAuthError) {
+        // Silently log for developers but don't spam console error if it's a routine auth expiry
+        console.log('[GraphQL] Authentication failure or expired session detected.');
       }
-      return { data: null, responseHeaders: response.headers };
+
+      return { data: body.data || null, errors: body.errors, responseHeaders: response.headers };
     }
 
-    return { data: body.data, responseHeaders: response.headers };
+    return { data: body.data, errors: null, responseHeaders: response.headers };
   } catch (error: unknown) {
     clearTimeout(timeoutId);
     if (error instanceof Error && error.name === 'AbortError') {
@@ -82,6 +94,6 @@ export async function fetchGraphQL(query: string, variables = {}, extraHeaders: 
     } else {
       console.error('Error in fetchGraphQL:', error);
     }
-    return { data: null, responseHeaders: new Headers() };
+    return { data: null, errors: [error], responseHeaders: new Headers() };
   }
 }

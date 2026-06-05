@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Product, Variation } from '@/types/product';
@@ -23,7 +23,21 @@ export default function ProductClient({ initialProduct: product, relatedProducts
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'desc' | 'care'>('desc');
+  const [showAllThumbs, setShowAllThumbs] = useState(false);
+  const [zoomImage, setZoomImage] = useState<string | null>(null);
   
+  // Zoom logic
+  const [zoomPos, setZoomPos] = useState({ x: 0, y: 0, show: false });
+  const imgRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent) => {
+    if (!imgRef.current) return;
+    const { left, top, width, height } = imgRef.current.getBoundingClientRect();
+    const x = ((e.pageX - left - window.scrollX) / width) * 100;
+    const y = ((e.pageY - top - window.scrollY) / height) * 100;
+    setZoomPos({ x, y, show: true });
+  };
+
   // Modals
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [luffyModalOpen, setLuffyModalOpen] = useState(false);
@@ -177,12 +191,21 @@ export default function ProductClient({ initialProduct: product, relatedProducts
     displayPrice = minPrice === maxPrice ? formatPrice(minPrice) : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
   }
 
+  const visibleThumbs = showAllThumbs ? product.images : product.images.slice(0, 5);
+
   return (
     <div className="nk-product-detail-page" style={{ paddingTop: '50px', background: 'var(--nk-bg-wrapper)' }}>
       <div className="nk-container">
         <div className="nk-detail-grid">
           <div className="nk-detail-gallery">
-            <div className="nk-main-image-wrapper nk-manga-border" style={{ boxShadow: '8px 8px 0px #000' }}>
+            <div 
+              ref={imgRef}
+              className="nk-main-image-wrapper nk-manga-border" 
+              style={{ boxShadow: 'var(--nk-manga-shadow-lg)', cursor: 'zoom-in', position: 'relative', overflow: 'hidden' }}
+              onMouseMove={handleMouseMove}
+              onMouseLeave={() => setZoomPos(prev => ({ ...prev, show: false }))}
+              onClick={() => setZoomImage(activeImage || product.images[0])}
+            >
               <Image 
                 src={activeImage || product.images[0]} 
                 alt={product.name} 
@@ -190,12 +213,27 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                 height={800} 
                 className="nk-main-image" 
                 priority
-                style={{ objectFit: 'cover' }}
+                style={{ 
+                  objectFit: 'cover',
+                  transform: zoomPos.show ? 'scale(2)' : 'scale(1)',
+                  transformOrigin: `${zoomPos.x}% ${zoomPos.y}%`,
+                  transition: zoomPos.show ? 'none' : 'transform 0.3s ease'
+                }}
               />
+              {!zoomPos.show && (
+                <div className="nk-zoom-hint nk-desktop-only" style={{ position: 'absolute', bottom: '15px', right: '15px', background: 'rgba(0,0,0,0.5)', color: '#fff', padding: '5px', borderRadius: '50%', display: 'flex' }}>
+                  <span className="material-icons-outlined">zoom_in</span>
+                </div>
+              )}
             </div>
             <div className="nk-thumbnails-list">
-              {product.images.map((img, idx) => (
-                <button key={idx} className={`nk-thumb-btn nk-manga-border ${activeImage === img ? 'active' : ''}`} style={activeImage === img ? { borderColor: 'var(--nk-primary)', boxShadow: '2px 2px 0px #000' } : {}} onClick={() => setActiveImage(img)}>
+              {visibleThumbs.map((img, idx) => (
+                <button 
+                  key={idx} 
+                  className={`nk-thumb-btn nk-manga-border ${activeImage === img ? 'active' : ''}`} 
+                  style={activeImage === img ? { borderColor: 'var(--nk-primary)', boxShadow: 'var(--nk-manga-shadow)' } : {}} 
+                  onClick={() => setActiveImage(img)}
+                >
                   <Image 
                     src={img} 
                     alt={`${product.name} Vista ${idx + 1}`} 
@@ -206,22 +244,26 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                   />
                 </button>
               ))}
+              {product.images.length > 5 && !showAllThumbs && (
+                <button className="nk-thumb-btn nk-manga-border nk-show-more-thumbs" onClick={() => setShowAllThumbs(true)} style={{ background: 'var(--nk-primary)', color: '#fff', fontWeight: 800, fontSize: '0.8rem' }}>
+                  +{product.images.length - 5}
+                </button>
+              )}
             </div>
           </div>
 
           <div className="nk-detail-info">
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <span className="nk-info-badge nk-manga-border" style={{ background: 'var(--nk-accent)', color: '#fff' }}>{t('product.official')}</span>
-                <span className="nk-info-badge nk-manga-border" style={{ background: '#000', color: '#fff' }}>{t('product.premium')}</span>
+                <span className="nk-info-badge nk-manga-border" style={{ background: 'var(--nk-accent)', color: 'var(--nk-bg-body)' }}>{t('product.official')}</span>
+                <span className="nk-info-badge nk-manga-border" style={{ background: 'var(--nk-text-main)', color: 'var(--nk-bg-body)' }}>{t('product.premium')}</span>
             </div>
             <h1 className="nk-detail-title" style={{ textShadow: '2px 2px 0px var(--nk-accent)' }}>{product.name}</h1>
             
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '15px' }}>
                 <p className="nk-detail-price" style={{ fontSize: '2.5rem' }}>{displayPrice}</p>
-                {product.price > 0 && <span style={{ color: 'var(--nk-primary)', fontWeight: 800 }}>{t('product.free_shipping_badge')}</span>}
             </div>
 
-            <div className="nk-detail-divider" style={{ background: '#000', height: '2px' }}></div>
+            <div className="nk-detail-divider" style={{ background: 'var(--nk-border)', height: '2px' }}></div>
 
             {product.type === 'variable' && (
               <div className="nk-detail-swatches-section">
@@ -231,7 +273,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                   const isColor = name.toLowerCase().includes('color');
                   return (
                     <div className="nk-swatch-group" key={name}>
-                      <span className="nk-swatch-label" style={{ fontWeight: 800 }}>{name}: {selectedVal || t('product.select')}</span>
+                      <span className="nk-swatch-label" style={{ fontWeight: 800 }}>{name.toUpperCase()}: {(selectedVal || t('product.select')).toUpperCase()}</span>
                       <div className={isColor ? "nk-color-swatches-container" : "nk-swatches-container"}>
                         {options.map(opt => {
                           const isActive = selectedVal === opt;
@@ -258,8 +300,8 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                             );
                           }
                           return (
-                            <button key={opt} className={`nk-swatch-option nk-manga-border ${isActive ? 'active' : ''}`} style={isActive ? { background: '#000', color: '#fff', boxShadow: '2px 2px 0px var(--nk-primary)' } : {}} onClick={() => handleAttributeSelect(name, opt)}>
-                              {opt}
+                            <button key={opt} className={`nk-swatch-option nk-manga-border ${isActive ? 'active' : ''}`} style={isActive ? { background: 'var(--nk-text-main)', color: 'var(--nk-bg-body)', boxShadow: 'var(--nk-manga-shadow)' } : {}} onClick={() => handleAttributeSelect(name, opt)}>
+                              {opt.toUpperCase()}
                             </button>
                           );
                         })}
@@ -270,7 +312,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
               </div>
             )}
 
-            <div className="nk-detail-actions-section nk-manga-border" style={{ boxShadow: '6px 6px 0px #000' }}>
+            <div className="nk-detail-actions-section nk-manga-border" style={{ boxShadow: 'var(--nk-manga-shadow-lg)' }}>
               {!isGorras && (
                 <div style={{ marginBottom: '15px' }}>
                   <button type="button" className="nk-size-guide-trigger" onClick={() => setSizeGuideOpen(true)}>
@@ -285,7 +327,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                   <input type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="nk-qty-input" />
                   <button className="nk-qty-btn" onClick={() => setQuantity(quantity + 1)}>+</button>
                 </div>
-                <button type="button" className={`nk-btn nk-btn-add-cart nk-manga-border ${vibrateBtn ? 'nk-vibrate' : ''}`} style={{ boxShadow: '4px 4px 0px #000' }} onClick={handleAddToCart}>
+                <button type="button" className={`nk-btn nk-btn-add-cart nk-manga-border ${vibrateBtn ? 'nk-vibrate' : ''}`} style={{ boxShadow: 'var(--nk-manga-shadow)' }} onClick={handleAddToCart}>
                   {t('product.add_to_cart')}
                 </button>
               </div>
@@ -308,7 +350,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                 <li><button className={`tab-btn ${activeTab === 'desc' ? 'active' : ''}`} onClick={() => setActiveTab('desc')}>{t('product.desc_tab')}</button></li>
                 <li><button className={`tab-btn ${activeTab === 'care' ? 'active' : ''}`} onClick={() => setActiveTab('care')}>{t('product.care_tab')}</button></li>
               </ul>
-              <div className="tab-content" style={{ fontSize: '0.95rem', lineHeight: '1.6' }}>
+              <div className="tab-content nk-manga-border" style={{ fontSize: '0.95rem', lineHeight: '1.6', background: 'var(--nk-bg-card)', padding: '20px' }}>
                 {activeTab === 'desc' ? (
                   <div>
                     <div className="nk-product-html-desc" dangerouslySetInnerHTML={{ __html: product.description }} />
@@ -354,7 +396,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
             const displayPrice = minPrice === maxPrice ? formatPrice(minPrice) : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
             return (
               <div className="nk-store-card group" key={p.id}>
-                <div className="nk-store-card-img-wrapper">
+                <div className="nk-store-card-img-wrapper nk-manga-border" style={{ boxShadow: 'var(--nk-manga-shadow)' }}>
                   <Link href={`/product/${p.id}`} className="nk-card-img-link">
                     <Image 
                       src={p.images[0]} 
@@ -365,11 +407,13 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                       style={{ objectFit: 'cover' }}
                     />
                   </Link>
-                  <div className="nk-card-overlay"><Link href={`/product/${p.id}`} className="nk-overlay-btn">{t('product.view')}</Link></div>
+                  <div className="nk-card-overlay">
+                    <Link href={`/product/${p.id}`} className="nk-overlay-btn">{t('product.view')}</Link>
+                  </div>
                 </div>
-                <div className="nk-card-info">
-                  <h3 className="nk-card-title"><Link href={`/product/${p.id}`}>{p.name}</Link></h3>
-                  <p className="nk-card-price">{displayPrice}</p>
+                <div className="nk-card-info" style={{ marginTop: '15px' }}>
+                  <h3 className="nk-card-title" style={{ fontSize: '1.4rem' }}><Link href={`/product/${p.id}`}>{p.name}</Link></h3>
+                  <p className="nk-card-price" style={{ fontWeight: 800, color: 'var(--nk-primary)' }}>{displayPrice}</p>
                 </div>
               </div>
             );
@@ -379,19 +423,54 @@ export default function ProductClient({ initialProduct: product, relatedProducts
         </div>
       </div>
 
+      {/* ZOOM MODAL (Enhanced for mobile/full-view) */}
+      {zoomImage && (
+        <div className="nk-modal-backdrop" onClick={() => setZoomImage(null)} style={{ background: 'rgba(0,0,0,0.95)', zIndex: 10000 }}>
+          <div 
+            className="nk-zoom-container" 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ position: 'relative', width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}
+          >
+            <button 
+              className="nk-modal-close" 
+              onClick={() => setZoomImage(null)} 
+              style={{ position: 'fixed', top: '20px', right: '20px', background: '#fff', border: 'none', borderRadius: '50%', width: '44px', height: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10001, color: '#000' }}
+            >
+              <span className="material-icons-outlined">close</span>
+            </button>
+            <div style={{ width: '100%', height: '100%', overflow: 'auto', display: 'flex', justifyContent: 'center', padding: '20px' }}>
+                <Image 
+                    src={zoomImage} 
+                    alt="Zoom" 
+                    width={1200} 
+                    height={1600} 
+                    unoptimized
+                    style={{ maxWidth: '100%', height: 'auto', objectFit: 'contain', margin: 'auto' }} 
+                />
+            </div>
+          </div>
+        </div>
+      )}
+
       {sizeGuideOpen && (
         <div className="nk-modal-backdrop" onClick={() => setSizeGuideOpen(false)}>
-          <div className="nk-modal-card" onClick={(e) => e.stopPropagation()}>
-            <button className="nk-modal-close" onClick={() => setSizeGuideOpen(false)}><span className="material-icons-outlined">close</span></button>
-            <h2 className="nk-modal-title">{t('product.size_guide')}</h2>
-            <div className="nk-size-guide-images">
-              <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/2.webp" alt="Guía 1" width={600} height={800} className="nk-guide-img" />
-              <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/3.webp" alt="Guía 2" width={600} height={800} className="nk-guide-img" />
-              <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/4.webp" alt="Guía 3" width={600} height={800} className="nk-guide-img" />
-              <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/5.webp" alt="Guía 4" width={600} height={800} className="nk-guide-img" />
-              <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/6.webp" alt="Guía 5" width={600} height={800} className="nk-guide-img" />
-              <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/7.webp" alt="Guía 6" width={600} height={800} className="nk-guide-img" />
-              <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/8.webp" alt="Guía 7" width={600} height={800} className="nk-guide-img" />
+          <div className="nk-modal-card nk-manga-border" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '800px', maxHeight: '90vh', overflow: 'auto', background: 'var(--nk-bg-card)' }}>
+            <button className="nk-modal-close" onClick={() => setSizeGuideOpen(false)} style={{ background: 'var(--nk-primary)', color: '#fff' }}><span className="material-icons-outlined">close</span></button>
+            <h2 className="nk-modal-title" style={{ textAlign: 'center', fontSize: '2.5rem' }}>{t('product.size_guide')}</h2>
+            <p style={{ textAlign: 'center', marginBottom: '20px', fontSize: '0.9rem', fontWeight: 600, color: 'var(--nk-text-sec)' }}>Haz clic en las imágenes para ampliar los detalles técnicos.</p>
+            <div className="nk-size-guide-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
+              {[2,3,4,5,6,7,8].map(num => (
+                <div key={num} onClick={() => setZoomImage(`https://nakamabordados.com/wp-content/uploads/2026/01/${num}.webp`)} style={{ cursor: 'zoom-in' }} className="nk-manga-border">
+                  <Image 
+                    src={`https://nakamabordados.com/wp-content/uploads/2026/01/${num}.webp`} 
+                    alt={`Guía ${num}`} 
+                    width={600} 
+                    height={800} 
+                    className="nk-guide-img" 
+                    style={{ width: '100%', height: 'auto', display: 'block' }}
+                  />
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -399,7 +478,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
 
       {luffyModalOpen && (
         <div id="luffy-warning-modal">
-          <div className="nk-warning-card nk-dash-animate">
+          <div className="nk-warning-card nk-dash-animate nk-manga-border" style={{ boxShadow: 'var(--nk-manga-shadow-lg)', background: 'var(--nk-bg-card)' }}>
             <div className={`nk-skull-art ${currentWarning.crewClass}`}>
               <div className="skull-hat">
                 {currentWarning.crewClass === 'crew-luffy' && (
@@ -420,9 +499,9 @@ export default function ProductClient({ initialProduct: product, relatedProducts
               </div>
               <div className="skull-jaw"></div>
             </div>
-            <h2 className="nk-warning-title">{currentWarning.title}</h2>
-            <p className="nk-warning-phrase">{currentWarning.phrase}</p>
-            <button className="nk-warning-close-btn" onClick={() => setLuffyModalOpen(false)}>{t('product.warning.close')}</button>
+            <h2 className="nk-warning-title" style={{ color: 'var(--nk-primary)' }}>{currentWarning.title}</h2>
+            <p className="nk-warning-phrase" style={{ color: 'var(--nk-text-main)' }}>{currentWarning.phrase}</p>
+            <button className="nk-warning-close-btn" style={{ background: 'var(--nk-primary)', color: '#fff', border: 'none', padding: '10px 20px', fontWeight: 800, marginTop: '20px' }} onClick={() => setLuffyModalOpen(false)}>{t('product.warning.close')}</button>
           </div>
         </div>
       )}

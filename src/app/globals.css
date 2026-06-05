@@ -166,6 +166,108 @@ html.dark .glass-panel {
   border-bottom: 2px solid var(--nk-primary) !important;
 }
 
+.nk-mega-link.active-link {
+  color: var(--nk-primary) !important;
+  font-weight: 800 !important;
+  border-left: 3px solid var(--nk-primary);
+  padding-left: 8px !important;
+}
+
+/* --- Hamburger Animation --- */
+.nk-nav-toggle {
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  z-index: 100;
+}
+
+.hamburger-box {
+  width: 24px;
+  height: 18px;
+  display: inline-block;
+  position: relative;
+}
+
+.hamburger-inner {
+  display: block;
+  top: 50%;
+  margin-top: -1px;
+}
+
+.hamburger-inner, .hamburger-inner::before, .hamburger-inner::after {
+  width: 24px;
+  height: 2px;
+  background-color: var(--nk-text-main);
+  position: absolute;
+  transition-property: transform;
+  transition-duration: 0.15s;
+  transition-timing-function: ease;
+  border-radius: 4px;
+}
+
+.hamburger-inner::before, .hamburger-inner::after {
+  content: "";
+  display: block;
+}
+
+.hamburger-inner::before {
+  top: -8px;
+}
+
+.hamburger-inner::after {
+  bottom: -8px;
+}
+
+.nk-nav-toggle.active .hamburger-inner {
+  transform: rotate(45deg);
+}
+
+.nk-nav-toggle.active .hamburger-inner::before {
+  top: 0;
+  opacity: 0;
+}
+
+.nk-nav-toggle.active .hamburger-inner::after {
+  bottom: 0;
+  transform: rotate(-90deg);
+}
+
+/* --- Mobile Theme Toggle Polish --- */
+.nk-mobile-theme-btn {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--nk-bg-wrapper);
+  border: 2px solid var(--nk-border);
+  color: var(--nk-text-main);
+  width: 100%;
+  padding: 14px 20px;
+  border-radius: 8px;
+  margin-top: 15px;
+  font-family: 'Teko', sans-serif;
+  font-size: 1.4rem;
+  text-transform: uppercase;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.nk-mobile-theme-btn:hover {
+  border-color: var(--nk-primary);
+  color: var(--nk-primary);
+  transform: translateY(-2px);
+}
+
+.nk-mobile-theme-btn .material-icons-outlined {
+  font-size: 24px;
+}
+
 /* --- Marquee Animation --- */
 @keyframes marquee {
   0% { transform: translateX(0); }
@@ -629,8 +731,11 @@ html.dark .nk-store-hero-badge {
 }
 
 /* --- LOGO INVERSION FOR DARK MODE --- */
-html.dark .nk-logo-img {
-  filter: invert(1) brightness(2);
+html.dark .nk-logo-img,
+html.dark .nk-footer-logo-img,
+html.dark .nk-preloader-logo,
+html.dark .nk-login-logo {
+  filter: invert(1) hue-rotate(180deg);
 }
 
 /* --- MI CUENTA RESPONSIVE --- */

@@ -141,7 +141,7 @@ export default function MiCuentaPage() {
                                 width: '100%', textAlign: 'left', padding: '12px 15px', border: '2px solid #000', 
                                 background: '#FFD700', color: '#000', fontFamily: 'Teko', fontSize: '1.3rem', 
                                 textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', 
-                                gap: '10px', fontWeight: 900, boxShadow: '4px 4px 0px #000', transition: 'all 0.2s'
+                                gap: '10px', fontWeight: 900, boxShadow: 'var(--nk-manga-shadow)', transition: 'all 0.2s'
                               }}>
                                 <span className="material-icons-outlined">rocket_launch</span>
                                 Nakama Suite

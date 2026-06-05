@@ -27,17 +27,18 @@ export default function Footer() {
             <p className="nk-footer-description" style={{ fontFamily: 'Inter', fontWeight: 600 }}>
               {t('footer.description')}
             </p>
-            <div className="nk-footer-socials">
-              <a href="https://www.instagram.com/nakama_bordados/" target="_blank" rel="noopener noreferrer" className="nk-social-link nk-manga-border" style={{ boxShadow: '2px 2px 0px #000' }}>
-                <i className="fa-brands fa-instagram"></i>
+            <div className="nk-footer-social">
+              <a href="https://www.instagram.com/nakama_bordados/" target="_blank" rel="noopener noreferrer" className="nk-social-link nk-manga-border" style={{ boxShadow: 'var(--nk-manga-shadow)' }}>
+                <i className="fab fa-instagram"></i>
               </a>
-              <a href="https://www.tiktok.com/@nakamabordados" target="_blank" rel="noopener noreferrer" className="nk-social-link nk-manga-border" style={{ boxShadow: '2px 2px 0px #000' }}>
-                <i className="fa-brands fa-tiktok"></i>
+              <a href="https://www.tiktok.com/@nakamabordados" target="_blank" rel="noopener noreferrer" className="nk-social-link nk-manga-border" style={{ boxShadow: 'var(--nk-manga-shadow)' }}>
+                <i className="fab fa-tiktok"></i>
               </a>
-              <a href="https://www.facebook.com/Nakamabordados" target="_blank" rel="noopener noreferrer" className="nk-social-link nk-manga-border" style={{ boxShadow: '2px 2px 0px #000' }}>
-                <i className="fa-brands fa-facebook-f"></i>
+              <a href="https://www.facebook.com/Nakamabordados" target="_blank" rel="noopener noreferrer" className="nk-social-link nk-manga-border" style={{ boxShadow: 'var(--nk-manga-shadow)' }}>
+                <i className="fab fa-facebook-f"></i>
               </a>
             </div>
+
           </div>
 
           {/* Column 2: Store categories */}

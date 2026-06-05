@@ -50,8 +50,21 @@ export default async function ProductPage({ params }: Props) {
 
   let relatedProducts: Product[] = [];
   if (product.categories && product.categories.length > 0) {
-    const related = await fetchProductsByCategory(product.categories[0], 5);
-    relatedProducts = related.filter(p => p.id !== product.id).slice(0, 4);
+    // Pick a random category from the product's categories (excluding generic 'bordados' or 'estampados' if there are others)
+    let catToFetch = product.categories[product.categories.length - 1]; // usually more specific
+    if (product.categories.length > 1 && (catToFetch === 'bordados' || catToFetch === 'estampados')) {
+        catToFetch = product.categories[product.categories.length - 2];
+    }
+
+    const related = await fetchProductsByCategory(catToFetch, 12);
+    
+    // Create a shuffled copy
+    // eslint-disable-next-line @next/next/no-assign-module-variable, react-hooks/purity
+    const shuffled = [...related]
+      .filter(p => p.id !== product.id)
+      .sort(() => 0.5 - Math.random());
+      
+    relatedProducts = shuffled.slice(0, 4);
   }
 
   // Schema.org JSON-LD

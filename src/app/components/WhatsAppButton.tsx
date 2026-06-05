@@ -14,28 +14,42 @@ export default function WhatsAppButton() {
   const router = useRouter();
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
+  const [flow, setFlow] = useState<'main' | 'custom'>('main');
   
-  // We initialize messages in a useEffect to handle language changes or initial load
   const [messages, setMessages] = useState<Message[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Reset or initialize welcome message when language changes
-    setMessages([
-      { role: 'bot', text: t('bot.welcome') }
-    ]);
+    setTimeout(() => {
+      setMessages([{ role: 'bot', text: t('bot.welcome') }]);
+      setFlow('main'); 
+    }, 0);
   }, [t]);
 
-  const quickButtons = [
+  interface ActionButton {
+    label: string;
+    action?: string;
+    text?: string;
+  }
+
+  const mainButtons: ActionButton[] = [
+    { label: '🎨 DISEÑO PERSONALIZADO', action: 'go_custom' },
     { label: t('bot.btn.all'), action: 'all' },
     { label: t('bot.btn.embroidery'), action: 'bordados' },
     { label: t('bot.btn.prints'), action: 'estampados' },
     { label: t('bot.btn.special'), action: 'special' },
     { label: t('bot.btn.sizes'), action: 'sizes' },
     { label: t('bot.btn.tracking'), action: 'tracking' },
-    { label: t('bot.btn.faq'), action: 'faq' },
-    { label: t('bot.btn.privacy'), action: 'privacy' },
     { label: t('bot.btn.crew'), action: 'crew' }
+  ];
+
+  const customButtons: ActionButton[] = [
+    { label: '👕 SUDADERA/HOODIE', text: 'Hola! Me gustaría crear una sudadera con diseño personalizado.' },
+    { label: '👕 PLAYERA/T-SHIRT', text: 'Hola! Me gustaría crear una playera con diseño personalizado.' },
+    { label: 'Cap GORRA', text: 'Hola! Me gustaría crear una gorra con diseño personalizado.' },
+    { label: '❓ OTRO/ASESORÍA', text: 'Hola! Tengo una idea para un diseño personalizado y me gustaría asesoría.' },
+    { label: '⬅️ VOLVER AL MENÚ', action: 'go_main' }
   ];
 
   useEffect(() => {
@@ -44,30 +58,45 @@ export default function WhatsAppButton() {
     }
   }, [messages]);
 
-  const handleQuickAction = (label: string, action: string) => {
-    // Add user message for visual feedback
+  const handleQuickAction = (label: string, action: string, waText?: string) => {
     const userMsg: Message = { role: 'user', text: label };
     setMessages(prev => [...prev, userMsg]);
 
+    if (waText) {
+      setTimeout(() => {
+        const url = `https://wa.me/526622455087?text=${encodeURIComponent(waText)}`;
+        window.open(url, "_blank");
+      }, 600);
+      return;
+    }
+
     setTimeout(() => {
       switch(action) {
-        case 'all': router.push('/store'); break;
-        case 'bordados': router.push('/store?category=bordados'); break;
-        case 'estampados': router.push('/store?category=estampados'); break;
-        case 'special': router.push('/store?category=edicion-especial'); break;
-        case 'sizes': router.push('/guia-de-tallas'); break;
-        case 'tracking': router.push('/mi-cuenta'); break;
-        case 'faq': router.push('/faq'); break;
-        case 'privacy': router.push('/aviso-de-privacidad'); break;
-        case 'crew': window.open("https://wa.me/526622455087", "_blank"); break;
+        case 'go_custom': 
+          setFlow('custom');
+          setMessages(prev => [...prev, { role: 'bot', text: '¡Excelente elección! Cuéntame, ¿qué tipo de tesoro quieres que personalicemos hoy?' }]);
+          break;
+        case 'go_main':
+          setFlow('main');
+          setMessages(prev => [...prev, { role: 'bot', text: 'De vuelta al menú principal. ¿En qué más puedo ayudarte, Nakama?' }]);
+          break;
+        case 'all': router.push('/store'); setIsOpen(false); break;
+        case 'bordados': router.push('/store?category=bordados'); setIsOpen(false); break;
+        case 'estampados': router.push('/store?category=estampados'); setIsOpen(false); break;
+        case 'special': router.push('/store?category=edicion-especial'); setIsOpen(false); break;
+        case 'sizes': router.push('/guia-de-tallas'); setIsOpen(false); break;
+        case 'tracking': router.push('/mi-cuenta'); setIsOpen(false); break;
+        case 'crew': 
+          window.open("https://wa.me/526622455087?text=Hola%20Nakama!%20Vengo%20desde%20la%20p%C3%A1gina%20web%20y%20necesito%20ayuda.", "_blank"); 
+          break;
       }
-      if (action !== 'crew') setIsOpen(false);
     }, 600);
   };
 
+  const currentButtons = flow === 'main' ? mainButtons : customButtons;
+
   return (
     <>
-      {/* Botón Flotante con Sombrero */}
       <div className="nk-whatsapp-wrapper" style={{ position: 'fixed', bottom: '30px', right: '30px', zIndex: 10000, width: '65px', height: '65px' }}>
         {!isOpen && (
           <div className="nk-luffy-hat-floating">
@@ -103,10 +132,8 @@ export default function WhatsAppButton() {
         </button>
       </div>
 
-      {/* Chat Interface */}
       {isOpen && (
         <div className="nk-chatbot-window nk-manga-border">
-          {/* Header */}
           <div className="nk-chatbot-header">
             <div className="nk-chatbot-avatar">
               <Image 
@@ -123,7 +150,6 @@ export default function WhatsAppButton() {
             </div>
           </div>
 
-          {/* Body */}
           <div className="nk-chatbot-body">
             {messages.map((msg, i) => (
               <div key={i} className={`nk-chat-bubble ${msg.role}`}>
@@ -133,14 +159,13 @@ export default function WhatsAppButton() {
             <div ref={chatEndRef} />
           </div>
 
-          {/* New Button-Only Navigation Area */}
           <div className="nk-chatbot-navigation">
-            <p className="nk-nav-hint">{t('bot.hint')}</p>
+            <p className="nk-nav-hint">{flow === 'main' ? t('bot.hint') : 'PERSONALIZACIÓN'}</p>
             <div className="nk-chatbot-grid">
-              {quickButtons.map((btn, i) => (
+              {currentButtons.map((btn, i) => (
                 <button 
                   key={i} 
-                  onClick={() => handleQuickAction(btn.label, btn.action)}
+                  onClick={() => handleQuickAction(btn.label, (btn as any).action || '', (btn as any).text)}
                   className="nk-chatbot-nav-btn nk-manga-border"
                 >
                   {btn.label}

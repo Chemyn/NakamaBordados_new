@@ -42,7 +42,9 @@ export const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { 
             .then(res => res.json())
             .then(data => {
               if (data && data.products) {
-                setProducts(data.products);
+                // Randomize results
+                const shuffled = [...data.products].sort(() => 0.5 - Math.random());
+                setProducts(shuffled);
               }
             })
             .catch(err => console.error(err));
@@ -62,10 +64,10 @@ export const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { 
 
   return (
     <section ref={sectionRef} className="nk-home-section" style={{ borderTop: '1px solid var(--nk-border)', minHeight: '300px' }}>
-      <div className="nk-container">
-        <div className="nk-home-section-header">
-          <h2 className="nk-section-title" style={isSpecial ? { color: 'var(--nk-primary)' } : undefined}>{title}</h2>
-          <Link className="nk-home-view-all" href={href}>
+      <div className="nk-container" style={{ maxWidth: '100%', padding: 0 }}>
+        <div className="nk-home-section-header" style={{ flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '15px', marginBottom: '30px', padding: '0 20px' }}>
+          <h2 className="nk-section-title" style={isSpecial ? { color: 'var(--nk-primary)', margin: 0 } : { margin: 0 }}>{title}</h2>
+          <Link className="nk-home-view-all" href={href} style={{ borderBottom: '2px solid var(--nk-primary)', paddingBottom: '2px' }}>
             {t('nav.all')} <span className="material-icons-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
           </Link>
         </div>
@@ -81,35 +83,19 @@ export const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { 
 
 export const ScrollContainer = ({ products }: { products: Product[] }) => {
   const { t } = useLanguage();
-  const containerRef = useRef<HTMLDivElement>(null);
   const { formatPrice } = useCurrency();
-
-  const scroll = (direction: 'left' | 'right') => {
-    if (containerRef.current) {
-      const scrollAmount = 300;
-      containerRef.current.scrollBy({
-        left: direction === 'left' ? -scrollAmount : scrollAmount,
-        behavior: 'smooth'
-      });
-    }
-  };
 
   if (products.length === 0) {
     return <SkeletonScrollContainer />;
   }
 
+  // Double products for infinite loop
+  const displayProducts = [...products, ...products];
+
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '8px', marginBottom: '12px' }}>
-        <button className="nk-arrow-btn" onClick={() => scroll('left')} aria-label="Scroll left">
-          <span className="material-icons-outlined">arrow_back</span>
-        </button>
-        <button className="nk-arrow-btn" onClick={() => scroll('right')} aria-label="Scroll right">
-          <span className="material-icons-outlined">arrow_forward</span>
-        </button>
-      </div>
-      <div className="nk-product-carousel" ref={containerRef}>
-        {products.map(p => {
+    <div className="nk-marquee-scroll-container">
+      <div className="nk-product-marquee-content">
+        {displayProducts.map((p, idx) => {
           const minPrice = p.type === 'variable' && p.variations.length > 0
             ? Math.min(...p.variations.map(v => v.price)) 
             : p.price;
@@ -121,7 +107,7 @@ export const ScrollContainer = ({ products }: { products: Product[] }) => {
             : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
 
           return (
-            <div className="nk-carousel-card" key={p.id}>
+            <div className="nk-carousel-card" key={`${p.id}-${idx}`}>
               <Link href={`/product/${p.id}`} className="nk-carousel-link">
                 <div className="nk-carousel-img-wrapper" style={{ boxShadow: 'var(--nk-manga-shadow)', border: 'var(--nk-manga-border)' }}>
                   <Image 
@@ -146,12 +132,43 @@ export const ScrollContainer = ({ products }: { products: Product[] }) => {
           );
         })}
       </div>
+
+      <style jsx>{`
+        .nk-marquee-scroll-container {
+          width: 100%;
+          overflow: hidden;
+          padding: 20px 0;
+        }
+
+        .nk-product-marquee-content {
+          display: flex;
+          gap: 20px;
+          width: max-content;
+          animation: productLoop 40s linear infinite;
+        }
+
+        .nk-marquee-scroll-container:hover .nk-product-marquee-content {
+          animation-play-state: paused;
+        }
+
+        @keyframes productLoop {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+
+        @media (max-width: 768px) {
+          .nk-product-marquee-content {
+            animation-duration: 25s;
+          }
+        }
+      `}</style>
     </div>
   );
 };
 
 export const CategoriesExplore = () => {
   const { t } = useLanguage();
+  
   const categories = [
     { name: t('nav.all'), img: 'https://nakamabordados.com/wp-content/uploads/2026/01/todas.avif', href: '/store' },
     { name: t('nav.embroidery'), img: 'https://nakamabordados.com/wp-content/uploads/2026/01/bordadocat.avif', href: '/store?category=bordados' },
@@ -166,33 +183,71 @@ export const CategoriesExplore = () => {
   const doubleCategories = [...categories, ...categories];
 
   return (
-    <section className="nk-home-section" style={{ borderTop: '1px solid var(--nk-border)', overflow: 'hidden' }}>
+    <section className="nk-home-section" style={{ borderTop: '1px solid var(--nk-border)', overflow: 'hidden', padding: '80px 0' }}>
       <div className="nk-container" style={{ maxWidth: '100%', padding: 0 }}>
         <h2 className="nk-section-title" style={{ textAlign: 'center', marginBottom: '40px' }}>{t('home.explore_cats.title')}</h2>
         
         <div className="nk-categories-marquee-wrapper">
           <div className="nk-categories-marquee-content">
             {doubleCategories.map((cat, idx) => (
-              <Link href={cat.href} key={idx} className="nk-explore-card nk-manga-border" style={{ boxShadow: 'var(--nk-manga-shadow)' }}>
+              <Link 
+                href={cat.href} 
+                key={idx} 
+                className="nk-explore-card nk-manga-border" 
+                style={{ 
+                  flex: '0 0 280px', 
+                  boxShadow: 'var(--nk-manga-shadow)',
+                  height: '350px'
+                }}
+              >
                 <Image 
                   src={cat.img} 
                   alt={cat.name} 
                   width={300} 
-                  height={300} 
+                  height={350} 
                   className="nk-explore-card-img" 
                   loading="lazy"
-                  style={{ objectFit: 'cover' }}
+                  style={{ objectFit: 'cover', height: '100%' }}
                 />
                 <div className="nk-explore-card-overlay" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)', opacity: 1 }}></div>
                 <div className="nk-explore-card-info" style={{ bottom: '20px', left: '20px' }}>
-                  <h3 style={{ fontSize: '1.8rem', textShadow: '2px 2px 0px #000' }}>{cat.name}</h3>
-                  <span style={{ color: '#fff', borderBottomColor: 'var(--nk-primary)', fontSize: '0.8rem' }}>{t('home.explore_cats.view')}</span>
+                  <h3 style={{ fontSize: '1.8rem', textShadow: '2px 2px 0px #000', margin: 0 }}>{cat.name}</h3>
+                  <span style={{ color: 'var(--nk-primary)', fontWeight: 800, fontSize: '0.8rem', textTransform: 'uppercase' }}>{t('home.explore_cats.view')}</span>
                 </div>
               </Link>
             ))}
           </div>
         </div>
       </div>
+
+      <style jsx>{`
+        .nk-categories-marquee-wrapper {
+          width: 100%;
+          overflow: hidden;
+        }
+
+        .nk-categories-marquee-content {
+          display: flex;
+          gap: 20px;
+          width: max-content;
+          animation: categoryLoop 35s linear infinite;
+        }
+
+        .nk-categories-marquee-wrapper:hover .nk-categories-marquee-content {
+          animation-play-state: paused;
+        }
+
+        @keyframes categoryLoop {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+
+        @media (max-width: 768px) {
+          .nk-categories-marquee-content {
+            animation-duration: 20s;
+          }
+        }
+      `}</style>
     </section>
   );
 };

@@ -3,10 +3,10 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage, Language } from '../context/LanguageContext';
+import { useLanguage } from '../context/LanguageContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { fetchCategories } from '../data/products';
 import { WPCategory } from '@/lib/queries';
@@ -14,12 +14,15 @@ import SearchBar from './SearchBar';
 
 export default function Navbar() {
   const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const currentCategory = searchParams.get('category');
+  
   const { cartCount } = useCart();
   const { isAdmin } = useAuth();
   const { language, setLanguage, t } = useLanguage();
   const { currencyInfo, setCurrencyManual } = useCurrency();
 
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
   const [menuOpen, setMenuOpen] = useState(false);
   const [subActive, setSubActive] = useState<string | null>(null);
   const [categories, setCategories] = useState<WPCategory[]>([]);
@@ -32,21 +35,16 @@ export default function Navbar() {
     return () => { mounted = false; };
   }, []);
 
-  // Initialize theme
+  // Initialize theme from storage if different from default
   useEffect(() => {
     const savedTheme = localStorage.getItem('color-theme');
-    const systemPrefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const initialTheme = (savedTheme === 'dark' || (!savedTheme && systemPrefersDark)) ? 'dark' : 'light';
-
-    if (initialTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-    } else {
+    if (savedTheme === 'light') {
+      setTheme('light');
       document.documentElement.classList.remove('dark');
+    } else {
+      // Already dark by default state, but ensure class is there
+      document.documentElement.classList.add('dark');
     }
-
-    setTimeout(() => {
-      setTheme(initialTheme);
-    }, 0);
   }, []);
 
   const toggleTheme = () => {
@@ -72,16 +70,28 @@ export default function Navbar() {
       .sort((a, b) => a.name.localeCompare(b.name));
   };
 
+  const isCategoryActive = (slug: string) => {
+    if (slug === 'bordados') {
+      return currentCategory === 'bordados' || getSubcategories('bordados').some(s => s.slug === currentCategory);
+    }
+    if (slug === 'estampados') {
+      return currentCategory === 'estampados' || getSubcategories('estampados').some(s => s.slug === currentCategory);
+    }
+    return currentCategory === slug;
+  };
+
   return (
     <nav className="nk-navbar nk-manga-border" style={{ borderLeft: 'none', borderRight: 'none', borderTop: 'none' }}>
       <div className="nk-nav-container">
         {/* Mobile menu trigger */}
         <button
-          className="nk-nav-toggle nk-mobile-only"
+          className={`nk-nav-toggle nk-mobile-only ${menuOpen ? 'active' : ''}`}
           onClick={() => setMenuOpen(!menuOpen)}
           aria-label="Toggle navigation menu"
         >
-          <span className="material-icons-outlined">{menuOpen ? 'close' : 'menu'}</span>
+          <div className="hamburger-box">
+            <div className="hamburger-inner"></div>
+          </div>
         </button>
 
         {/* Brand Logo - ONLY HOME BUTTON */}
@@ -89,8 +99,8 @@ export default function Navbar() {
           <Image
             src="https://nakamabordados.com/wp-content/uploads/2025/11/LOGO-NAKAMA-scaled-2048x926.png"
             alt="NAKAMA Logo"
-            width={200}
-            height={90}
+            width={160}
+            height={70}
             className="nk-logo-img"
             priority
           />
@@ -102,7 +112,7 @@ export default function Navbar() {
             <li>
               <Link
                 href="/store"
-                className={`nk-nav-link ${pathname === '/store' ? 'active-menu-item' : ''}`}
+                className={`nk-nav-link ${pathname === '/store' && !currentCategory ? 'active-menu-item' : ''}`}
                 onClick={() => setMenuOpen(false)}
               >
                 {t('nav.store')}
@@ -117,7 +127,7 @@ export default function Navbar() {
               <div className="nk-dropdown-trigger-wrapper">
                 <Link
                   href="/store?category=bordados"
-                  className={`nk-nav-link ${pathname.includes('category=bordados') ? 'active-menu-item' : ''}`}
+                  className={`nk-nav-link ${isCategoryActive('bordados') ? 'active-menu-item' : ''}`}
                   onClick={() => setMenuOpen(false)}
                 >
                   {t('nav.embroidery')}
@@ -130,7 +140,11 @@ export default function Navbar() {
                 <ul className="nk-mega-grid">
                   {getSubcategories('bordados').map((sub) => (
                     <li key={sub.id}>
-                      <Link href={`/store?category=${sub.slug}`} className="nk-mega-link" onClick={() => { setMenuOpen(false); setSubActive(null); }}>
+                      <Link 
+                        href={`/store?category=${sub.slug}`} 
+                        className={`nk-mega-link ${currentCategory === sub.slug ? 'active-link' : ''}`} 
+                        onClick={() => { setMenuOpen(false); setSubActive(null); }}
+                      >
                         {sub.name}
                       </Link>
                     </li>
@@ -142,7 +156,7 @@ export default function Navbar() {
             <li>
               <Link
                 href="/store?category=bordado-con-estampado"
-                className={`nk-nav-link ${pathname.includes('category=bordado-con-estampado') ? 'active-menu-item' : ''}`}
+                className={`nk-nav-link ${isCategoryActive('bordado-con-estampado') ? 'active-menu-item' : ''}`}
                 onClick={() => setMenuOpen(false)}
               >
                 {t('nav.combo')}
@@ -157,7 +171,7 @@ export default function Navbar() {
               <div className="nk-dropdown-trigger-wrapper">
                 <Link
                   href="/store?category=estampados"
-                  className={`nk-nav-link ${pathname.includes('category=estampados') ? 'active-menu-item' : ''}`}
+                  className={`nk-nav-link ${isCategoryActive('estampados') ? 'active-menu-item' : ''}`}
                   onClick={() => setMenuOpen(false)}
                 >
                   {t('nav.prints')}
@@ -170,7 +184,11 @@ export default function Navbar() {
                 <ul className="nk-mega-grid">
                   {getSubcategories('estampados').map((sub) => (
                     <li key={sub.id}>
-                      <Link href={`/store?category=${sub.slug}`} className="nk-mega-link" onClick={() => { setMenuOpen(false); setSubActive(null); }}>
+                      <Link 
+                        href={`/store?category=${sub.slug}`} 
+                        className={`nk-mega-link ${currentCategory === sub.slug ? 'active-link' : ''}`} 
+                        onClick={() => { setMenuOpen(false); setSubActive(null); }}
+                      >
                         {sub.name}
                       </Link>
                     </li>
@@ -182,7 +200,7 @@ export default function Navbar() {
             <li>
               <Link
                 href="/store?category=edicion-especial"
-                className="nk-nav-link nk-link-highlight"
+                className={`nk-nav-link nk-link-highlight ${isCategoryActive('edicion-especial') ? 'active-menu-item' : ''}`}
                 onClick={() => setMenuOpen(false)}
               >
                 {t('nav.special')}
@@ -192,7 +210,7 @@ export default function Navbar() {
             <li>
               <Link
                 href="/store?category=lisas"
-                className={`nk-nav-link ${pathname.includes('category=lisas') ? 'active-menu-item' : ''}`}
+                className={`nk-nav-link ${isCategoryActive('lisas') ? 'active-menu-item' : ''}`}
                 onClick={() => setMenuOpen(false)}
               >
                 {t('nav.plain')}
@@ -202,7 +220,7 @@ export default function Navbar() {
             <li>
               <Link
                 href="/store?category=variedad"
-                className={`nk-nav-link ${pathname.includes('category=variedad') ? 'active-menu-item' : ''}`}
+                className={`nk-nav-link ${isCategoryActive('variedad') ? 'active-menu-item' : ''}`}
                 onClick={() => setMenuOpen(false)}
               >
                 {t('nav.variety')}
@@ -212,7 +230,7 @@ export default function Navbar() {
             <li>
               <Link
                 href="/store?category=gorras"
-                className={`nk-nav-link ${pathname.includes('category=gorras') ? 'active-menu-item' : ''}`}
+                className={`nk-nav-link ${isCategoryActive('gorras') ? 'active-menu-item' : ''}`}
                 onClick={() => setMenuOpen(false)}
               >
                 {t('nav.caps')}
