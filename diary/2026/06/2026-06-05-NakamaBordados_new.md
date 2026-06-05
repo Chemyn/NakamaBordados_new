@@ -14,7 +14,7 @@
 - **Estética Manga**: Se corrigieron las sombras en modo oscuro (ahora usan el rojo primario para visibilidad) y el logo conserva sus colores originales mientras las letras pasan a blanco.
 - **GraphQL**: Se añadieron validaciones locales de JWT para evitar "Internal Server Errors" y se silenciaron los logs ruidosos de sesiones expiradas.
 - **Chatbot**: El botón de WhatsApp ahora incluye un flujo de "Diseño Personalizado" con mensajes pre-escritos.
-- **Hero Video**: Se sustituyeron las imágenes estáticas por el video de fondo original del sitio.
+- **Hero Video**: Se sustituyeron las imágenes estáticas por el video de fondo original del sitio (corregido a `banner2.webm` ya que el link anterior daba 404).
 
 ### 🚩 Challenges & Solutions
 - **Problema**: Las sombras desaparecían en modo oscuro.
