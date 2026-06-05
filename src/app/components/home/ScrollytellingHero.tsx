@@ -29,7 +29,8 @@ export default function ScrollytellingHero() {
           opacity: 0.7
         }}
       >
-        <source src="https://nakamabordados.com/wp-content/uploads/2024/09/Video-de-WhatsApp-2024-09-11-a-las-19.10.10_6996996b.mp4" type="video/mp4" />
+        <source src="https://nakamabordados.com/wp-content/uploads/2026/01/banner2.webm" type="video/webm" />
+        <source src="https://nakamabordados.com/wp-content/uploads/2026/01/banner2.mp4" type="video/mp4" />
       </video>
 
       {/* Overlay Gradient */}
