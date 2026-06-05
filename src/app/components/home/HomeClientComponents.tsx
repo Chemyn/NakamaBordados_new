@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { Product } from '@/types/product';
 import { useCurrency } from '../../context/CurrencyContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 // ---------------------------------------------------------
 // Helper Components
@@ -27,6 +28,7 @@ export const SkeletonScrollContainer = () => (
 );
 
 export const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { title: string, categorySlug: string, href: string, isSpecial?: boolean }) => {
+  const { t } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [hasFetched, setHasFetched] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
@@ -64,7 +66,7 @@ export const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { 
         <div className="nk-home-section-header">
           <h2 className="nk-section-title" style={isSpecial ? { color: 'var(--nk-primary)' } : undefined}>{title}</h2>
           <Link className="nk-home-view-all" href={href}>
-            VER TODO <span className="material-icons-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
+            {t('nav.all')} <span className="material-icons-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
           </Link>
         </div>
         {!hasFetched ? (
@@ -78,6 +80,7 @@ export const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { 
 };
 
 export const ScrollContainer = ({ products }: { products: Product[] }) => {
+  const { t } = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
   const { formatPrice } = useCurrency();
 
@@ -131,7 +134,7 @@ export const ScrollContainer = ({ products }: { products: Product[] }) => {
                     sizes="(max-width: 768px) 240px, 300px"
                   />
                   <div className="nk-carousel-overlay">
-                    <span className="nk-overlay-btn">Ver Producto</span>
+                    <span className="nk-overlay-btn">{t('product.view')}</span>
                   </div>
                 </div>
                 <div className="nk-carousel-info">
@@ -148,15 +151,16 @@ export const ScrollContainer = ({ products }: { products: Product[] }) => {
 };
 
 export const CategoriesExplore = () => {
+  const { t } = useLanguage();
   const categories = [
-    { name: 'Todas', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/todas.avif', href: '/store' },
-    { name: 'Bordados', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/bordadocat.avif', href: '/store?category=bordados' },
-    { name: 'Con Estampado', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/bordado%20con%20estampado.avif', href: '/store?category=bordado-con-estampado' },
-    { name: 'Estampado', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/estampado.avif', href: '/store?category=estampados' },
-    { name: 'Gorras', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/gorras.avif', href: '/store?category=gorras' },
-    { name: 'Lisas', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/lisas.avif', href: '/store?category=lisas' },
-    { name: 'Edición Especial', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/edicionespecial.avif', href: '/store?category=edicion-especial' },
-    { name: 'Variedad', img: 'https://nakamabordados.com/wp-content/uploads/2026/01/varias.avif', href: '/store?category=variedad' }
+    { name: t('nav.all'), img: 'https://nakamabordados.com/wp-content/uploads/2026/01/todas.avif', href: '/store' },
+    { name: t('nav.embroidery'), img: 'https://nakamabordados.com/wp-content/uploads/2026/01/bordadocat.avif', href: '/store?category=bordados' },
+    { name: t('nav.combo'), img: 'https://nakamabordados.com/wp-content/uploads/2026/01/bordado%20con%20estampado.avif', href: '/store?category=bordado-con-estampado' },
+    { name: t('nav.prints'), img: 'https://nakamabordados.com/wp-content/uploads/2026/01/estampado.avif', href: '/store?category=estampados' },
+    { name: t('nav.caps'), img: 'https://nakamabordados.com/wp-content/uploads/2026/01/gorras.avif', href: '/store?category=gorras' },
+    { name: t('nav.plain'), img: 'https://nakamabordados.com/wp-content/uploads/2026/01/lisas.avif', href: '/store?category=lisas' },
+    { name: t('nav.special'), img: 'https://nakamabordados.com/wp-content/uploads/2026/01/edicionespecial.avif', href: '/store?category=edicion-especial' },
+    { name: t('nav.variety'), img: 'https://nakamabordados.com/wp-content/uploads/2026/01/varias.avif', href: '/store?category=variedad' }
   ];
 
   const doubleCategories = [...categories, ...categories];
@@ -164,7 +168,7 @@ export const CategoriesExplore = () => {
   return (
     <section className="nk-home-section" style={{ borderTop: '1px solid var(--nk-border)', overflow: 'hidden' }}>
       <div className="nk-container" style={{ maxWidth: '100%', padding: 0 }}>
-        <h2 className="nk-section-title" style={{ textAlign: 'center', marginBottom: '40px' }}>EXPLORA POR CATEGORÍA</h2>
+        <h2 className="nk-section-title" style={{ textAlign: 'center', marginBottom: '40px' }}>{t('home.explore_cats.title')}</h2>
         
         <div className="nk-categories-marquee-wrapper">
           <div className="nk-categories-marquee-content">
@@ -182,7 +186,7 @@ export const CategoriesExplore = () => {
                 <div className="nk-explore-card-overlay" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.2) 60%, transparent 100%)', opacity: 1 }}></div>
                 <div className="nk-explore-card-info" style={{ bottom: '20px', left: '20px' }}>
                   <h3 style={{ fontSize: '1.8rem', textShadow: '2px 2px 0px #000' }}>{cat.name}</h3>
-                  <span style={{ color: '#fff', borderBottomColor: 'var(--nk-primary)', fontSize: '0.8rem' }}>Ver Colección</span>
+                  <span style={{ color: '#fff', borderBottomColor: 'var(--nk-primary)', fontSize: '0.8rem' }}>{t('home.explore_cats.view')}</span>
                 </div>
               </Link>
             ))}

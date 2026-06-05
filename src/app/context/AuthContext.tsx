@@ -75,14 +75,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const fetchCustomerData = React.useCallback(async (token: string) => {
+    // Consulta combinada: Viewer para datos WP y Customer para datos WC
     const query = `
-      query GetCustomer {
-        customer {
+      query GetUserData {
+        viewer {
           id
           databaseId
           firstName
           lastName
           email
+          roles {
+            nodes {
+              name
+            }
+          }
+        }
+        customer {
           shipping {
             address1
             address2
@@ -94,15 +102,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           orders(first: 20) {
             nodes {
               id
-              orderKey
               orderNumber
               status
               total
               date
-              metaData {
-                key
-                value
-              }
               lineItems {
                 nodes {
                   product {
@@ -121,23 +124,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const { data } = await fetchGraphQL(query, {}, { Authorization: `Bearer ${token}` });
-      if (data?.customer) {
-        const customer = data.customer;
+      
+      if (data?.viewer) {
+        const v = data.viewer;
+        const c = data.customer || {};
         
-        console.log("AuthProvider: Datos del cliente cargados:", { 
-          email: customer.email, 
-          firstName: customer.firstName, 
-          lastName: customer.lastName 
-        });
+        // Mapear datos a nuestra interfaz Customer
+        const customer: Customer = {
+          id: v.id,
+          databaseId: v.databaseId,
+          firstName: v.firstName || '',
+          lastName: v.lastName || '',
+          email: v.email,
+          role: v.roles?.nodes?.[0]?.name || 'customer',
+          orders: c.orders || { nodes: [] },
+          shipping: c.shipping || {
+            address1: '', address2: '', city: '',
+            state: '', postcode: '', country: ''
+          }
+        };
 
-        // --- BYPASS TEMPORAL PARA PRUEBAS ---
+        console.log("AuthProvider: Usuario cargado:", customer.email);
+
+        // --- BYPASS TEMPORAL PARA PRUEBAS (Chemyn) ---
         const isChemyn = 
           (customer.email && customer.email.toLowerCase().includes('josemlopez2310@gmail.com')) || 
-          (customer.email && customer.email.toLowerCase().includes('chemyn')) || 
           (customer.firstName && customer.firstName.toLowerCase().includes('chemyn'));
 
         if (isChemyn) {
-          console.log("AuthProvider: Bypass detectado para Chemyn. Inyectando pedido 100303.");
+          console.log("AuthProvider: Aplicando bypass para Chemyn.");
           const testOrder = {
             id: 'test-100303',
             orderNumber: '100303',
@@ -147,27 +162,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             enviaTrackingCode: '1055910227610700042072',
             enviaCarrier: 'Estafeta',
             metaData: [],
-            lineItems: { nodes: [] }
+            lineItems: { 
+              nodes: [{ product: { node: { name: 'Hoodie Luffy Gear 5 (Test)' } }, quantity: 1 }] 
+            }
           };
-          
-          if (!customer.orders) {
-            customer.orders = { nodes: [] };
-          }
           
           if (!customer.orders.nodes.find((o: Order) => o.orderNumber === '100303')) {
             customer.orders.nodes = [testOrder, ...customer.orders.nodes];
-            console.log("AuthProvider: Pedido 100303 inyectado exitosamente.");
           }
         }
         // ------------------------------------
 
         setUser(customer);
       } else {
-        // Token might be expired or invalid
+        console.warn("AuthProvider: No se pudo obtener el usuario.");
         logout();
       }
     } catch (err) {
-      console.error('Failed to fetch customer data', err);
+      console.error('AuthProvider: Error al cargar datos', err);
     } finally {
       setIsLoading(false);
     }

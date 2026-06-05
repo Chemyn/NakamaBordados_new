@@ -1,15 +1,18 @@
 'use client';
 
 import React from 'react';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function TermsPage() {
+  const { t } = useLanguage();
+
   return (
     <div className="nk-store-page">
       <div className="nk-store-hero" style={{ background: 'var(--nk-navy)', color: '#fff', padding: '120px 24px 80px', borderBottom: '4px solid var(--nk-primary)' }}>
         <div className="nk-container">
-          <span className="nk-store-hero-badge" style={{ background: 'var(--nk-primary)', color: 'white', border: 'none' }}>Legal</span>
-          <h1 className="nk-store-hero-title" style={{ color: '#fff', textShadow: '4px 4px 0px #000' }}>Términos y Condiciones</h1>
-          <p className="nk-store-hero-subtitle" style={{ color: '#ccc' }}>Reglas de nuestra tripulación.</p>
+          <span className="nk-store-hero-badge" style={{ background: 'var(--nk-primary)', color: 'white', border: 'none' }}>{t('footer.legal')}</span>
+          <h1 className="nk-store-hero-title" style={{ color: '#fff', textShadow: '4px 4px 0px #000' }}>{t('terms.title')}</h1>
+          <p className="nk-store-hero-subtitle" style={{ color: '#ccc' }}>{t('terms.subtitle')}</p>
         </div>
       </div>
 

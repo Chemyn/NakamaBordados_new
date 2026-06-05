@@ -1,0 +1,6 @@
+{
+  "query": "query GetProducts($first: Int!) { products(first: $first) { nodes { databaseId name slug } } }",
+  "variables": {
+    "first": 3
+  }
+}

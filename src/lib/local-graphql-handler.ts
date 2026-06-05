@@ -204,7 +204,7 @@ export async function handleLocalGraphQL(query: string, variables: Record<string
       if (!slug) return { data: { product: null } };
       
       const p = await getProductBySlugSQL(slug);
-      if (!p) return { data: { product: null } };
+      if (!p) return null; // Fallback to remote API if not found locally
 
       const parsePrice = (val?: string) => {
         if (!val) return 0;

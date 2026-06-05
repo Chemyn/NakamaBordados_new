@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef, useEffect, useLayoutEffect } from 'react';
+import { useLanguage } from '../../context/LanguageContext';
 
 const heroImages = [
   "https://nakamabordados.com/wp-content/uploads/2026/05/hsale1.avif",
@@ -9,6 +10,7 @@ const heroImages = [
 ];
 
 export default function ScrollytellingHero() {
+  const { t } = useLanguage();
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -81,7 +83,7 @@ export default function ScrollytellingHero() {
       }
 
       // Lógica de "240 fotogramas" mapeada al scroll (0 a 1)
-      const sectionCount = heroImages.length;
+      const sectionCount = heroImages.sectionCount || heroImages.length;
       const sectionProgress = progress * (sectionCount - 1);
       const currentIdx = Math.floor(sectionProgress);
       const nextIdx = Math.min(currentIdx + 1, sectionCount - 1);
@@ -149,7 +151,7 @@ export default function ScrollytellingHero() {
       window.removeEventListener('scroll', onScroll);
       window.removeEventListener('resize', handleResize);
     };
-  }, []);
+  }, [t]);
 
   return (
     <section 
@@ -193,13 +195,13 @@ export default function ScrollytellingHero() {
               className="nk-store-hero-badge" 
               style={{ background: 'var(--nk-primary)', color: 'white', border: 'none' }}
             >
-              Nueva Colección
+              {t('hero.scrolly.badge')}
             </span>
             <h2 
               className="nk-section-title" 
               style={{ fontSize: 'clamp(2.5rem, 8vw, 5rem)', color: 'white', textShadow: '0 4px 30px rgba(0,0,0,0.8), 4px 4px 0px #000', lineHeight: 1 }}
             >
-              Domina el Grand Line
+              {t('hero.scrolly.title')}
             </h2>
           </div>
         </div>

@@ -2,27 +2,29 @@
 
 import React, { useState } from 'react';
 import Image from 'next/image';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function SizeGuidePage() {
+  const { t } = useLanguage();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const guides = [
-    { title: "Playeras", img: "https://nakamabordados.com/wp-content/uploads/2026/01/2.webp" },
-    { title: "Oversize", img: "https://nakamabordados.com/wp-content/uploads/2026/01/3.webp" },
-    { title: "Sudaderas", img: "https://nakamabordados.com/wp-content/uploads/2026/01/4.webp" },
-    { title: "Hoodies", img: "https://nakamabordados.com/wp-content/uploads/2026/01/5.webp" },
-    { title: "Acid Wash", img: "https://nakamabordados.com/wp-content/uploads/2026/01/6.webp" },
-    { title: "Shorts", img: "https://nakamabordados.com/wp-content/uploads/2026/01/7.webp" },
-    { title: "Cromas", img: "https://nakamabordados.com/wp-content/uploads/2026/01/8.webp" }
+    { title: t('sizes.cat.tshirts'), img: "https://nakamabordados.com/wp-content/uploads/2026/01/2.webp" },
+    { title: t('sizes.cat.oversize'), img: "https://nakamabordados.com/wp-content/uploads/2026/01/3.webp" },
+    { title: t('sizes.cat.sweatshirts'), img: "https://nakamabordados.com/wp-content/uploads/2026/01/4.webp" },
+    { title: t('sizes.cat.hoodies'), img: "https://nakamabordados.com/wp-content/uploads/2026/01/5.webp" },
+    { title: t('sizes.cat.acid'), img: "https://nakamabordados.com/wp-content/uploads/2026/01/6.webp" },
+    { title: t('sizes.cat.shorts'), img: "https://nakamabordados.com/wp-content/uploads/2026/01/7.webp" },
+    { title: t('sizes.cat.chroma'), img: "https://nakamabordados.com/wp-content/uploads/2026/01/8.webp" }
   ];
 
   return (
     <div className="nk-store-page">
       <div className="nk-store-hero" style={{ background: 'var(--nk-navy)', color: '#fff', padding: '120px 24px 80px', borderBottom: '4px solid var(--nk-primary)' }}>
         <div className="nk-container">
-          <span className="nk-store-hero-badge" style={{ background: 'var(--nk-primary)', color: 'white', border: 'none' }}>Guía</span>
-          <h1 className="nk-store-hero-title" style={{ color: '#fff', textShadow: '4px 4px 0px #000' }}>Guía de Tallas</h1>
-          <p className="nk-store-hero-subtitle" style={{ color: '#ccc' }}>Asegúrate de que tu equipo te quede a la perfección.</p>
+          <span className="nk-store-hero-badge" style={{ background: 'var(--nk-primary)', color: 'white', border: 'none' }}>{t('sizes.badge')}</span>
+          <h1 className="nk-store-hero-title" style={{ color: '#fff', textShadow: '4px 4px 0px #000' }}>{t('sizes.title')}</h1>
+          <p className="nk-store-hero-subtitle" style={{ color: '#ccc' }}>{t('sizes.subtitle')}</p>
         </div>
       </div>
 
@@ -104,8 +106,8 @@ export default function SizeGuidePage() {
         )}
 
         <div style={{ marginTop: '50px', background: '#fffbe6', padding: '30px', border: '2px solid #ffe58f', borderRadius: '8px', color: '#856404' }}>
-          <h4 style={{ fontSize: '1.4rem', marginBottom: '10px' }}>💡 Pro-Tip Nakama</h4>
-          <p>Nuestras tallas son estándar mexicanas. Si buscas un estilo más relajado o 'baggy', te recomendamos pedir una talla más arriba de lo habitual, especialmente en nuestras piezas bordadas.</p>
+          <h4 style={{ fontSize: '1.4rem', marginBottom: '10px' }}>{t('sizes.pro_tip')}</h4>
+          <p>{t('sizes.pro_tip_text')}</p>
         </div>
       </div>
     </div>

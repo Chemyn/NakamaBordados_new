@@ -1,0 +1,7 @@
+{
+  "query": "query GetProductsPage($first: Int!, $search: String) { products(first: $first, where: { search: $search }) { nodes { databaseId name slug } } }",
+  "variables": {
+    "first": 5,
+    "search": "Tony"
+  }
+}

@@ -3,6 +3,7 @@ import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
 import { CartProvider } from "./context/CartContext";
 import { CurrencyProvider } from "./context/CurrencyContext";
+import { LanguageProvider } from "./context/LanguageContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import WhatsAppButton from "./components/WhatsAppButton";
@@ -27,16 +28,18 @@ export default function RootLayout({
     <html lang="es">
       <body>
         <AuthProvider>
-          <CurrencyProvider>
-            <CartProvider>
-              <Navbar />
-              <div style={{ minHeight: "calc(100vh - 80px - 350px)" }}>
-                {children}
-              </div>
-              <Footer />
-              <WhatsAppButton />
-            </CartProvider>
-          </CurrencyProvider>
+          <LanguageProvider>
+            <CurrencyProvider>
+              <CartProvider>
+                <Navbar />
+                <div style={{ minHeight: "calc(100vh - 80px - 350px)" }}>
+                  {children}
+                </div>
+                <Footer />
+                <WhatsAppButton />
+              </CartProvider>
+            </CurrencyProvider>
+          </LanguageProvider>
         </AuthProvider>
       </body>
     </html>

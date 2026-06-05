@@ -2,8 +2,8 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import { useLanguage } from '../context/LanguageContext';
 
 interface Message {
   role: 'bot' | 'user';
@@ -12,22 +12,30 @@ interface Message {
 
 export default function WhatsAppButton() {
   const router = useRouter();
+  const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>([
-    { role: 'bot', text: '¡Oi, Nakama! 🍖 Soy Luffy, el guardián de este barco. ¡No pierdas tiempo escribiendo, mejor pícale a los botones para encontrar tu tesoro! 🏴‍☠️' }
-  ]);
+  
+  // We initialize messages in a useEffect to handle language changes or initial load
+  const [messages, setMessages] = useState<Message[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    // Reset or initialize welcome message when language changes
+    setMessages([
+      { role: 'bot', text: t('bot.welcome') }
+    ]);
+  }, [t]);
+
   const quickButtons = [
-    "🔥 Ver Todo el Catálogo",
-    "🪡 Ver Bordados",
-    "👕 Ver Estampados",
-    "✨ Edición Especial",
-    "📐 Guía de Tallas",
-    "🔍 Rastreo de Pedido",
-    "❓ Preguntas Frecuentes",
-    "📄 Aviso de Privacidad",
-    "🏴‍☠️ Hablar con Tripulación"
+    { label: t('bot.btn.all'), action: 'all' },
+    { label: t('bot.btn.embroidery'), action: 'bordados' },
+    { label: t('bot.btn.prints'), action: 'estampados' },
+    { label: t('bot.btn.special'), action: 'special' },
+    { label: t('bot.btn.sizes'), action: 'sizes' },
+    { label: t('bot.btn.tracking'), action: 'tracking' },
+    { label: t('bot.btn.faq'), action: 'faq' },
+    { label: t('bot.btn.privacy'), action: 'privacy' },
+    { label: t('bot.btn.crew'), action: 'crew' }
   ];
 
   useEffect(() => {
@@ -36,60 +44,64 @@ export default function WhatsAppButton() {
     }
   }, [messages]);
 
-  const handleQuickAction = (btn: string) => {
+  const handleQuickAction = (label: string, action: string) => {
     // Add user message for visual feedback
-    const userMsg: Message = { role: 'user', text: btn };
+    const userMsg: Message = { role: 'user', text: label };
     setMessages(prev => [...prev, userMsg]);
 
     setTimeout(() => {
-      if (btn.includes("Todo el Catálogo")) {
-        router.push('/store');
-        setIsOpen(false);
-      } else if (btn.includes("Bordados")) {
-        router.push('/store?category=bordados');
-        setIsOpen(false);
-      } else if (btn.includes("Estampados")) {
-        router.push('/store?category=estampados');
-        setIsOpen(false);
-      } else if (btn.includes("Edición Especial")) {
-        router.push('/store?category=edicion-especial');
-        setIsOpen(false);
-      } else if (btn.includes("Tallas")) {
-        router.push('/guia-de-tallas');
-        setIsOpen(false);
-      } else if (btn.includes("Rastreo")) {
-        router.push('/mi-cuenta');
-        setIsOpen(false);
-      } else if (btn.includes("Preguntas")) {
-        router.push('/faq');
-        setIsOpen(false);
-      } else if (btn.includes("Privacidad")) {
-        router.push('/aviso-de-privacidad');
-        setIsOpen(false);
-      } else if (btn.includes("Tripulación")) {
-        window.open("https://wa.me/526622455087", "_blank");
+      switch(action) {
+        case 'all': router.push('/store'); break;
+        case 'bordados': router.push('/store?category=bordados'); break;
+        case 'estampados': router.push('/store?category=estampados'); break;
+        case 'special': router.push('/store?category=edicion-especial'); break;
+        case 'sizes': router.push('/guia-de-tallas'); break;
+        case 'tracking': router.push('/mi-cuenta'); break;
+        case 'faq': router.push('/faq'); break;
+        case 'privacy': router.push('/aviso-de-privacidad'); break;
+        case 'crew': window.open("https://wa.me/526622455087", "_blank"); break;
       }
+      if (action !== 'crew') setIsOpen(false);
     }, 600);
   };
 
   return (
     <>
-      {/* Botón Flotante */}
-      <button 
-        onClick={() => setIsOpen(!isOpen)}
-        className="nk-whatsapp-btn"
-        style={{ 
-          background: isOpen ? 'var(--nk-primary)' : '#25D366',
-          border: 'none',
-          cursor: 'pointer',
-          zIndex: 10000
-        }}
-        title="Hablar con Luffy"
-      >
-        <span className="material-icons-outlined" style={{ fontSize: '32px' }}>
-          {isOpen ? 'close' : 'smart_toy'}
-        </span>
-      </button>
+      {/* Botón Flotante con Sombrero */}
+      <div className="nk-whatsapp-wrapper" style={{ position: 'fixed', bottom: '30px', right: '30px', zIndex: 10000, width: '65px', height: '65px' }}>
+        {!isOpen && (
+          <div className="nk-luffy-hat-floating">
+             <div className="mini-straw-crown">
+                <div className="mini-straw-band"></div>
+             </div>
+             <div className="mini-straw-brim"></div>
+          </div>
+        )}
+        
+        <button 
+          onClick={() => setIsOpen(!isOpen)}
+          className="nk-whatsapp-btn"
+          style={{ 
+            background: isOpen ? 'var(--nk-primary)' : '#25D366',
+            width: '100%',
+            height: '100%',
+            position: 'relative',
+            zIndex: 1
+          }}
+          title={t('bot.welcome').substring(0, 20)}
+        >
+          {isOpen ? (
+            <span className="material-icons-outlined" style={{ fontSize: '32px', color: '#fff' }}>close</span>
+          ) : (
+            <Image 
+              src="https://upload.wikimedia.org/wikipedia/commons/6/6b/WhatsApp.svg" 
+              alt="WhatsApp" 
+              width={35} 
+              height={35} 
+            />
+          )}
+        </button>
+      </div>
 
       {/* Chat Interface */}
       {isOpen && (
@@ -107,7 +119,7 @@ export default function WhatsAppButton() {
             </div>
             <div className="nk-chatbot-header-text">
               <h4>Luffy (Nakama-Bot)</h4>
-              <span className="nk-status-tag">● NAVEGANDO POR EL MENÚ</span>
+              <span className="nk-status-tag">{t('bot.status')}</span>
             </div>
           </div>
 
@@ -123,15 +135,15 @@ export default function WhatsAppButton() {
 
           {/* New Button-Only Navigation Area */}
           <div className="nk-chatbot-navigation">
-            <p className="nk-nav-hint">¿A dónde zarpamos, Nakama?</p>
+            <p className="nk-nav-hint">{t('bot.hint')}</p>
             <div className="nk-chatbot-grid">
               {quickButtons.map((btn, i) => (
                 <button 
                   key={i} 
-                  onClick={() => handleQuickAction(btn)}
+                  onClick={() => handleQuickAction(btn.label, btn.action)}
                   className="nk-chatbot-nav-btn nk-manga-border"
                 >
-                  {btn}
+                  {btn.label}
                 </button>
               ))}
             </div>

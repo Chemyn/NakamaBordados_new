@@ -16,14 +16,16 @@ interface CartContextType {
   cart: CartItem[];
   addToCart: (product: Product, variation: Variation | null, qty: number) => void;
   removeFromCart: (index: number) => void;
+  updateQuantity: (index: number, qty: number) => void;
   clearCart: () => void;
   cartCount: number;
   subtotal: number;
   shipping: number;
   total: number;
   couponCode: string;
-  discount: number;
-  applyCoupon: (code: string) => boolean;
+  discount: number; // Stored as absolute monetary discount or fractional depending on logic
+  discountType: 'percent' | 'fixed';
+  applyCoupon: (code: string) => Promise<{ success: boolean; message?: string }>;
   removeCoupon: () => void;
 }
 
@@ -33,12 +35,14 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [couponCode, setCouponCode] = useState<string>('');
   const [discount, setDiscount] = useState<number>(0);
+  const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent');
 
   // Load cart from localStorage on mount
   useEffect(() => {
     const savedCart = localStorage.getItem('nakama_cart');
     const savedCoupon = localStorage.getItem('nakama_coupon');
     const savedDiscount = localStorage.getItem('nakama_discount');
+    const savedType = localStorage.getItem('nakama_discount_type');
 
     setTimeout(() => {
       if (savedCart) {
@@ -51,6 +55,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (savedCoupon && savedDiscount) {
         setCouponCode(savedCoupon);
         setDiscount(parseFloat(savedDiscount));
+        setDiscountType((savedType as 'percent' | 'fixed') || 'percent');
       }
     }, 0);
   }, []);
@@ -90,38 +95,81 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     saveCart(newCart);
   };
 
+  const updateQuantity = (index: number, qty: number) => {
+    if (qty <= 0) {
+      removeFromCart(index);
+      return;
+    }
+    const newCart = [...cart];
+    if (newCart[index]) {
+      newCart[index].quantity = qty;
+      saveCart(newCart);
+    }
+  };
+
   const clearCart = () => {
     saveCart([]);
     removeCoupon();
   };
 
-  const applyCoupon = (code: string): boolean => {
+  const applyCoupon = async (code: string): Promise<{ success: boolean; message?: string }> => {
     const normalized = code.trim().toUpperCase();
-    // Simple mock coupons:
-    // NAKAMA10 - 10% off
-    // NAKAMA20 - 20% off
-    // GRATIS - Free shipping (handled in shipping calculation)
+    
+    try {
+      // Intentar validar usando la API real (requiere nakama-checkout-tools.php)
+      const res = await fetch(`https://nakamabordados.com/wp-json/nakama/v1/check-coupon?code=${normalized}`);
+      
+      if (res.ok) {
+        const data = await res.json();
+        if (data.valid) {
+          setCouponCode(normalized);
+          // percentage or fixed_cart
+          const type = data.type === 'percent' ? 'percent' : 'fixed';
+          const amt = data.type === 'percent' ? (data.amount / 100) : data.amount;
+          
+          setDiscount(amt);
+          setDiscountType(type);
+          
+          localStorage.setItem('nakama_coupon', normalized);
+          localStorage.setItem('nakama_discount', amt.toString());
+          localStorage.setItem('nakama_discount_type', type);
+          return { success: true };
+        } else {
+          return { success: false, message: data.message || 'Cupón inválido' };
+        }
+      }
+    } catch (e) {
+      console.warn("Fallo API cupones, usando fallback local", e);
+    }
+
+    // Fallback local hardcoded si la API falla
     if (normalized === 'NAKAMA10' || normalized === 'CREADOR10') {
       setCouponCode(normalized);
-      setDiscount(0.1); // 10%
+      setDiscount(0.1); 
+      setDiscountType('percent');
       localStorage.setItem('nakama_coupon', normalized);
       localStorage.setItem('nakama_discount', '0.1');
-      return true;
+      localStorage.setItem('nakama_discount_type', 'percent');
+      return { success: true };
     } else if (normalized === 'NAKAMA20') {
       setCouponCode(normalized);
-      setDiscount(0.2); // 20%
+      setDiscount(0.2); 
+      setDiscountType('percent');
       localStorage.setItem('nakama_coupon', normalized);
       localStorage.setItem('nakama_discount', '0.2');
-      return true;
+      localStorage.setItem('nakama_discount_type', 'percent');
+      return { success: true };
     }
-    return false;
+    return { success: false, message: 'Cupón no encontrado' };
   };
 
   const removeCoupon = () => {
     setCouponCode('');
     setDiscount(0);
+    setDiscountType('percent');
     localStorage.removeItem('nakama_coupon');
     localStorage.removeItem('nakama_discount');
+    localStorage.removeItem('nakama_discount_type');
   };
 
   // Calculations
@@ -132,25 +180,28 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return sum + (price * item.quantity);
   }, 0);
 
+  // Calculate discount absolute value
+  const discountAmount = discountType === 'percent' ? (subtotal * discount) : discount;
+
   // Free shipping in 4 items (4pz) or if subtotal >= 1200 as per snippets!
-  // "Nuevas promociones 4pz y envio gratis a partir de 1200"
   const isFreeShipping = cartCount >= 4 || subtotal >= 1200;
   const shipping = subtotal > 0 && !isFreeShipping ? 150 : 0; // Standard shipping 150 MXN
 
-  const total = Math.max(0, subtotal * (1 - discount) + shipping);
+  const total = Math.max(0, subtotal - discountAmount + shipping);
 
   return (
     <CartContext.Provider value={{
       cart,
       addToCart,
       removeFromCart,
+      updateQuantity,
       clearCart,
       cartCount,
       subtotal,
       shipping,
       total,
       couponCode,
-      discount,
+      discount: discountAmount, // Export the absolute amount for UI consistency
       applyCoupon,
       removeCoupon
     }}>

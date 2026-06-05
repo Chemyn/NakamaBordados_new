@@ -1,0 +1,7 @@
+{
+  "query": "query GetProducts($first: Int!, $category: String) { products(first: $first, where: { category: $category }) { nodes { databaseId name slug productCategories { nodes { slug } } } } }",
+  "variables": {
+    "first": 3,
+    "category": "one-piece"
+  }
+}

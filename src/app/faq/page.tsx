@@ -2,38 +2,26 @@
 
 import React from 'react';
 import Link from 'next/link';
+import { useLanguage } from '../context/LanguageContext';
 
 export default function FAQPage() {
+  const { t } = useLanguage();
+
   const faqs = [
-    {
-      q: "¿Cuánto tiempo tarda en llegar mi pedido?",
-      a: "El tiempo de elaboración es de 7 a 15 días hábiles, ya que cada pieza se fabrica bajo pedido para asegurar la máxima calidad. Una vez enviado, el tiempo de entrega depende de la paquetería (Estafeta o FedEx), usualmente de 2 a 5 días."
-    },
-    {
-      q: "¿Hacen envíos a todo México?",
-      a: "Sí, realizamos envíos a toda la República Mexicana a través de Envia.com con las mejores paqueterías del país."
-    },
-    {
-      q: "¿Cómo puedo rastrear mi paquete?",
-      a: "Puedes rastrearlo directamente en nuestra sección 'Mi Cuenta' si estás registrado, o ingresando el número de guía que te enviaremos por correo en el portal oficial de la paquetería correspondiente."
-    },
-    {
-      q: "¿Tienen tienda física?",
-      a: "Actualmente operamos exclusivamente de manera online para poder ofrecer la mayor variedad de diseños a nakamas de todo México."
-    },
-    {
-      q: "¿Qué cuidados debo tener con mi prenda bordada?",
-      a: "Recomendamos lavar la prenda al revés con agua fría, no usar secadora y nunca planchar directamente sobre el bordado para preservar la densidad y el color de los hilos."
-    }
+    { q: t('faq.q1'), a: t('faq.a1') },
+    { q: t('faq.q2'), a: t('faq.a2') },
+    { q: t('faq.q3'), a: t('faq.a3') },
+    { q: t('faq.q4'), a: t('faq.a4') },
+    { q: t('faq.q5'), a: t('faq.a5') }
   ];
 
   return (
     <div className="nk-store-page">
       <div className="nk-store-hero" style={{ background: 'var(--nk-navy)', color: '#fff', padding: '120px 24px 80px', borderBottom: '4px solid var(--nk-primary)' }}>
         <div className="nk-container">
-          <span className="nk-store-hero-badge" style={{ background: 'var(--nk-primary)', color: 'white', border: 'none' }}>Soporte</span>
-          <h1 className="nk-store-hero-title" style={{ color: '#fff', textShadow: '4px 4px 0px #000' }}>Preguntas Frecuentes</h1>
-          <p className="nk-store-hero-subtitle" style={{ color: '#ccc' }}>Todo lo que necesitas saber para tu próxima misión.</p>
+          <span className="nk-store-hero-badge" style={{ background: 'var(--nk-primary)', color: 'white', border: 'none' }}>{t('footer.support')}</span>
+          <h1 className="nk-store-hero-title" style={{ color: '#fff', textShadow: '4px 4px 0px #000' }}>{t('faq.title')}</h1>
+          <p className="nk-store-hero-subtitle" style={{ color: '#ccc' }}>{t('faq.subtitle')}</p>
         </div>
       </div>
 
@@ -48,10 +36,10 @@ export default function FAQPage() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: '60px' }}>
-          <p style={{ marginBottom: '20px', fontWeight: 600 }}>¿Aún tienes dudas?</p>
-          <Link href="https://wa.me/526622455087" target="_blank" className="nk-btn">
-            Contáctanos por WhatsApp
-          </Link>
+          <p style={{ marginBottom: '20px', fontWeight: 600 }}>{t('faq.still_doubts')}</p>
+          <a href="https://wa.me/526622455087" target="_blank" rel="noopener noreferrer" className="nk-btn">
+            {t('faq.contact')}
+          </a>
         </div>
       </div>
     </div>

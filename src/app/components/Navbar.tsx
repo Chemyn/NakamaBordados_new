@@ -6,6 +6,8 @@ import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage, Language } from '../context/LanguageContext';
+import { useCurrency } from '../context/CurrencyContext';
 import { fetchCategories } from '../data/products';
 import { WPCategory } from '@/lib/queries';
 import SearchBar from './SearchBar';
@@ -14,6 +16,8 @@ export default function Navbar() {
   const pathname = usePathname();
   const { cartCount } = useCart();
   const { isAdmin } = useAuth();
+  const { language, setLanguage, t } = useLanguage();
+  const { currencyInfo, setCurrencyManual } = useCurrency();
 
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -101,7 +105,7 @@ export default function Navbar() {
                 className={`nk-nav-link ${pathname === '/store' ? 'active-menu-item' : ''}`}
                 onClick={() => setMenuOpen(false)}
               >
-                Tienda
+                {t('nav.store')}
               </Link>
             </li>
 
@@ -116,7 +120,7 @@ export default function Navbar() {
                   className={`nk-nav-link ${pathname.includes('category=bordados') ? 'active-menu-item' : ''}`}
                   onClick={() => setMenuOpen(false)}
                 >
-                  Bordados
+                  {t('nav.embroidery')}
                 </Link>
                 <button className="nk-dropdown-toggle-btn" onClick={(e) => toggleSubmenu('bordados', e)}>
                   <span className={`material-icons-outlined ${subActive === 'bordados' ? 'rotate-180' : ''}`}>expand_more</span>
@@ -141,7 +145,7 @@ export default function Navbar() {
                 className={`nk-nav-link ${pathname.includes('category=bordado-con-estampado') ? 'active-menu-item' : ''}`}
                 onClick={() => setMenuOpen(false)}
               >
-                C/Estampado
+                {t('nav.combo')}
               </Link>
             </li>
 
@@ -156,7 +160,7 @@ export default function Navbar() {
                   className={`nk-nav-link ${pathname.includes('category=estampados') ? 'active-menu-item' : ''}`}
                   onClick={() => setMenuOpen(false)}
                 >
-                  Estampado
+                  {t('nav.prints')}
                 </Link>
                 <button className="nk-dropdown-toggle-btn" onClick={(e) => toggleSubmenu('estampados', e)}>
                   <span className={`material-icons-outlined ${subActive === 'estampados' ? 'rotate-180' : ''}`}>expand_more</span>
@@ -181,7 +185,7 @@ export default function Navbar() {
                 className="nk-nav-link nk-link-highlight"
                 onClick={() => setMenuOpen(false)}
               >
-                Especial
+                {t('nav.special')}
               </Link>
             </li>
 
@@ -191,7 +195,7 @@ export default function Navbar() {
                 className={`nk-nav-link ${pathname.includes('category=lisas') ? 'active-menu-item' : ''}`}
                 onClick={() => setMenuOpen(false)}
               >
-                Lisas
+                {t('nav.plain')}
               </Link>
             </li>
 
@@ -201,7 +205,7 @@ export default function Navbar() {
                 className={`nk-nav-link ${pathname.includes('category=variedad') ? 'active-menu-item' : ''}`}
                 onClick={() => setMenuOpen(false)}
               >
-                Variedad
+                {t('nav.variety')}
               </Link>
             </li>
 
@@ -211,7 +215,7 @@ export default function Navbar() {
                 className={`nk-nav-link ${pathname.includes('category=gorras') ? 'active-menu-item' : ''}`}
                 onClick={() => setMenuOpen(false)}
               >
-                Gorras
+                {t('nav.caps')}
               </Link>
             </li>
 
@@ -221,28 +225,88 @@ export default function Navbar() {
                 <span className="material-icons-outlined">
                   {theme === 'light' ? 'dark_mode' : 'light_mode'}
                 </span>
-                <span>{theme === 'light' ? 'Modo Oscuro' : 'Modo Claro'}</span>
+                <span>{theme === 'light' ? t('theme.dark') : t('theme.light')}</span>
               </button>
+            </li>
+
+            {/* Mobile Global Selectors */}
+            <li className="nk-mobile-only" style={{ padding: '15px 20px', borderTop: '1px solid var(--nk-border)', marginTop: '10px' }}>
+              <div style={{ display: 'flex', gap: '10px', flexDirection: 'column' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--nk-text-sec)' }}>{t('nav.language') || 'Idioma'}</span>
+                  <select 
+                    value={language} 
+                    onChange={(e) => { setLanguage(e.target.value as Language); setMenuOpen(false); }}
+                    className="nk-manga-input"
+                    style={{ padding: '5px 10px', fontSize: '1rem', width: '120px' }}
+                  >
+                    <option value="es">Español</option>
+                    <option value="en">English</option>
+                    <option value="jp">日本語</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--nk-text-sec)' }}>{t('nav.currency') || 'Moneda'}</span>
+                  <select 
+                    value={currencyInfo.currency} 
+                    onChange={(e) => { setCurrencyManual(e.target.value); setMenuOpen(false); }}
+                    className="nk-manga-input"
+                    style={{ padding: '5px 10px', fontSize: '1rem', width: '120px' }}
+                  >
+                    <option value="MXN">MXN $</option>
+                    <option value="USD">USD $</option>
+                    <option value="EUR">EUR €</option>
+                    <option value="JPY">JPY ¥</option>
+                  </select>
+                </div>
+              </div>
             </li>
           </ul>
         </div>
 
-        {/* Action icons (Search, Account, Cart, Theme Toggle) */}
-        <div className="nk-nav-actions">
+        {/* Action icons (Search, Account, Cart, Theme Toggle, Selectors) */}
+        <div className="nk-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          
+          {/* Custom Selectors (Desktop only for brevity, handle mobile styles independently) */}
+          <div className="nk-desktop-only" style={{ display: 'flex', gap: '5px' }}>
+            <select 
+              value={language} 
+              onChange={(e) => setLanguage(e.target.value as Language)}
+              className="nk-manga-input"
+              style={{ padding: '2px 5px', fontSize: '0.8rem', height: 'auto', border: '2px solid var(--nk-border)' }}
+            >
+              <option value="es">ES</option>
+              <option value="en">EN</option>
+              <option value="jp">JP</option>
+            </select>
+
+            <select 
+              value={currencyInfo.currency} 
+              onChange={(e) => setCurrencyManual(e.target.value)}
+              className="nk-manga-input"
+              style={{ padding: '2px 5px', fontSize: '0.8rem', height: 'auto', border: '2px solid var(--nk-border)' }}
+            >
+              <option value="MXN">MXN $</option>
+              <option value="USD">USD $</option>
+              <option value="EUR">EUR €</option>
+              <option value="JPY">JPY ¥</option>
+            </select>
+          </div>
+
           <SearchBar />
 
-          <Link href="/mi-cuenta" className="nk-action-btn" title="Mi Cuenta" style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
+          <Link href="/mi-cuenta" className="nk-action-btn" title={t('nav.account')} style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
             <span className="material-icons-outlined">person</span>
           </Link>
 
-          <Link href="/checkout" className="nk-action-btn nk-cart-btn" style={{ background: 'transparent', boxShadow: 'none', border: 'none', color: 'inherit' }} title="Carrito">        
+          <Link href="/cart" className="nk-action-btn nk-cart-btn" style={{ background: 'transparent', boxShadow: 'none', border: 'none', color: 'inherit' }} title={t('cart.title')}>        
             <span className="material-icons-outlined">shopping_bag</span>
             {cartCount > 0 && (
               <span className="nk-cart-badge">{cartCount}</span>
             )}
           </Link>
 
-          <button className="nk-action-btn" onClick={toggleTheme} title="Cambiar Tema" style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
+          <button className="nk-action-btn nk-desktop-only" onClick={toggleTheme} title="Cambiar Tema" style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
             <span className="material-icons-outlined">
               {theme === 'light' ? 'dark_mode' : 'light_mode'}
             </span>

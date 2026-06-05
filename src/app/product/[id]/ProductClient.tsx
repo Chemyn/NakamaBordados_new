@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Product, Variation } from '@/types/product';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
+import { useLanguage } from '../../context/LanguageContext';
 
 interface ProductClientProps {
   initialProduct: Product;
@@ -15,6 +16,7 @@ interface ProductClientProps {
 export default function ProductClient({ initialProduct: product, relatedProducts }: ProductClientProps) {
   const { addToCart } = useCart();
   const { formatPrice } = useCurrency();
+  const { t } = useLanguage();
   
   // States
   const [activeImage, setActiveImage] = useState(product.images[0]);
@@ -28,23 +30,23 @@ export default function ProductClient({ initialProduct: product, relatedProducts
   
   const WARNINGS = [
     { 
-      title: '¡OI, NAKAMA!', 
-      phrase: '¡Elige tu estilo antes de zarpar al Grand Line!', 
+      title: t('product.warning.luffy.title'), 
+      phrase: t('product.warning.luffy.phrase'), 
       crewClass: 'crew-luffy' 
     },
     { 
-      title: '¡ZORO SE PERDIÓ!', 
-      phrase: 'Y tú también si no eliges una talla primero...', 
+      title: t('product.warning.zoro.title'), 
+      phrase: t('product.warning.zoro.phrase'), 
       crewClass: 'crew-zoro' 
     },
     { 
-      title: '¡SANJI ESTÁ FURIOSO!', 
-      phrase: '¡No puedes ordenar sin elegir los ingredientes (variaciones)!', 
+      title: t('product.warning.sanji.title'), 
+      phrase: t('product.warning.sanji.phrase'), 
       crewClass: 'crew-sanji' 
     },
     { 
-      title: '¡CHOPPER ESTÁ ASUSTADO!', 
-      phrase: '¡Doctor! ¡Doctor! ¡Falta seleccionar el color!', 
+      title: t('product.warning.chopper.title'), 
+      phrase: t('product.warning.chopper.phrase'), 
       crewClass: 'crew-chopper' 
     }
   ];
@@ -157,7 +159,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
       }
     }
     addToCart(product, currentVariation, quantity);
-    alert(`¡${product.name} agregado al carrito!`);
+    alert(t('product.added').replace('{name}', product.name));
   };
 
   const isGorras = product.categories.includes('gorras') || product.name.toLowerCase().includes('gorra');
@@ -209,14 +211,14 @@ export default function ProductClient({ initialProduct: product, relatedProducts
 
           <div className="nk-detail-info">
             <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                <span className="nk-info-badge nk-manga-border" style={{ background: 'var(--nk-accent)', color: '#000' }}>Colección Oficial Nakama</span>
-                <span className="nk-info-badge nk-manga-border" style={{ background: '#000', color: '#fff' }}>Calidad Premium Grand Line</span>
+                <span className="nk-info-badge nk-manga-border" style={{ background: 'var(--nk-accent)', color: '#fff' }}>{t('product.official')}</span>
+                <span className="nk-info-badge nk-manga-border" style={{ background: '#000', color: '#fff' }}>{t('product.premium')}</span>
             </div>
             <h1 className="nk-detail-title" style={{ textShadow: '2px 2px 0px var(--nk-accent)' }}>{product.name}</h1>
             
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '15px' }}>
                 <p className="nk-detail-price" style={{ fontSize: '2.5rem' }}>{displayPrice}</p>
-                {product.price > 0 && <span style={{ color: 'var(--nk-primary)', fontWeight: 800 }}>¡ENVÍO GRATIS!*</span>}
+                {product.price > 0 && <span style={{ color: 'var(--nk-primary)', fontWeight: 800 }}>{t('product.free_shipping_badge')}</span>}
             </div>
 
             <div className="nk-detail-divider" style={{ background: '#000', height: '2px' }}></div>
@@ -229,7 +231,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                   const isColor = name.toLowerCase().includes('color');
                   return (
                     <div className="nk-swatch-group" key={name}>
-                      <span className="nk-swatch-label" style={{ fontWeight: 800 }}>{name}: {selectedVal || 'Seleccionar'}</span>
+                      <span className="nk-swatch-label" style={{ fontWeight: 800 }}>{name}: {selectedVal || t('product.select')}</span>
                       <div className={isColor ? "nk-color-swatches-container" : "nk-swatches-container"}>
                         {options.map(opt => {
                           const isActive = selectedVal === opt;
@@ -273,7 +275,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                 <div style={{ marginBottom: '15px' }}>
                   <button type="button" className="nk-size-guide-trigger" onClick={() => setSizeGuideOpen(true)}>
                     <span className="material-icons-outlined">straighten</span>
-                    Ver Guía de Tallas
+                    {t('product.size_guide')}
                   </button>
                 </div>
               )}
@@ -284,7 +286,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                   <button className="nk-qty-btn" onClick={() => setQuantity(quantity + 1)}>+</button>
                 </div>
                 <button type="button" className={`nk-btn nk-btn-add-cart nk-manga-border ${vibrateBtn ? 'nk-vibrate' : ''}`} style={{ boxShadow: '4px 4px 0px #000' }} onClick={handleAddToCart}>
-                  ¡Lo Quiero!
+                  {t('product.add_to_cart')}
                 </button>
               </div>
             </div>
@@ -293,18 +295,18 @@ export default function ProductClient({ initialProduct: product, relatedProducts
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginTop: '20px' }}>
                 <div className="nk-trust-badge" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', fontWeight: 700 }}>
                     <span className="material-icons-outlined" style={{ color: 'var(--nk-primary)' }}>verified_user</span>
-                    Pago 100% Seguro
+                    {t('product.secure_payment')}
                 </div>
                 <div className="nk-trust-badge" style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.8rem', fontWeight: 700 }}>
                     <span className="material-icons-outlined" style={{ color: 'var(--nk-primary)' }}>local_shipping</span>
-                    Envío Garantizado
+                    {t('product.guaranteed_shipping')}
                 </div>
             </div>
 
             <div className="nk-detail-tabs-section">
               <ul className="tab-list">
-                <li><button className={`tab-btn ${activeTab === 'desc' ? 'active' : ''}`} onClick={() => setActiveTab('desc')}>Descripción</button></li>
-                <li><button className={`tab-btn ${activeTab === 'care' ? 'active' : ''}`} onClick={() => setActiveTab('care')}>Cuidado</button></li>
+                <li><button className={`tab-btn ${activeTab === 'desc' ? 'active' : ''}`} onClick={() => setActiveTab('desc')}>{t('product.desc_tab')}</button></li>
+                <li><button className={`tab-btn ${activeTab === 'care' ? 'active' : ''}`} onClick={() => setActiveTab('care')}>{t('product.care_tab')}</button></li>
               </ul>
               <div className="tab-content" style={{ fontSize: '0.95rem', lineHeight: '1.6' }}>
                 {activeTab === 'desc' ? (
@@ -314,13 +316,13 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                   </div>
                 ) : (
                   <div>
-                    <p style={{ fontWeight: 700, marginBottom: '10px' }}>¡Cuida tu equipo como un verdadero pirata!</p>
+                    <p style={{ fontWeight: 700, marginBottom: '10px' }}>{t('product.care_title')}</p>
                     <ul style={{ paddingLeft: '20px' }}>
-                      <li>Lavar a mano o ciclo delicado (agua fría).</li>
-                      <li>Al revés para proteger el bordado/estampado.</li>
-                      <li>Sin blanqueadores químicos.</li>
-                      <li>Secar a la sombra (el sol es para navegar, no para secar).</li>
-                      <li>No planchar sobre el diseño directamente.</li>
+                      <li>{t('product.care_1')}</li>
+                      <li>{t('product.care_2')}</li>
+                      <li>{t('product.care_3')}</li>
+                      <li>{t('product.care_4')}</li>
+                      <li>{t('product.care_5')}</li>
                     </ul>
                   </div>
                 )}
@@ -333,20 +335,18 @@ export default function ProductClient({ initialProduct: product, relatedProducts
       <div className="nk-marquee-bar" style={{ margin: '60px 0' }}>
         <div className="nk-marquee-wrapper">
           <div className="nk-marquee-content animate-marquee">
-            <span>• ENVIO GRATIS EN 4PZ O DESDE $1200 MXN</span>
-            <span>• 3 MSI A PARTIR DE $500 MXN</span>
-            <span>• ENVIOS SEGUROS A TODO MÉXICO</span>
-            <span>• CALIDAD PREMIUM EXCLUSIVA</span>
-            <span>• ENVIO GRATIS EN 4PZ O DESDE $1200 MXN</span>
-            <span>• 3 MSI A PARTIR DE $500 MXN</span>
-            <span>• ENVIOS SEGUROS A TODO MÉXICO</span>
-            <span>• CALIDAD PREMIUM EXCLUSIVA</span>
+            <span>• {t('marquee.msi')}</span>
+            <span>• {t('marquee.quality')}</span>
+            <span>• {t('marquee.join')}</span>
+            <span>• {t('marquee.msi')}</span>
+            <span>• {t('marquee.quality')}</span>
+            <span>• {t('marquee.join')}</span>
           </div>
         </div>
       </div>
 
       <div className="nk-container pb-20">
-        <h2 className="nk-section-title text-center" style={{ marginBottom: '40px' }}>También te puede gustar</h2>
+        <h2 className="nk-section-title text-center" style={{ marginBottom: '40px' }}>{t('product.related')}</h2>
         <div className="nk-store-grid">
           {relatedProducts.length > 0 ? relatedProducts.map(p => {
             const minPrice = p.type === 'variable' && p.variations.length > 0 ? Math.min(...p.variations.map(v => v.price)) : p.price;
@@ -365,7 +365,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                       style={{ objectFit: 'cover' }}
                     />
                   </Link>
-                  <div className="nk-card-overlay"><Link href={`/product/${p.id}`} className="nk-overlay-btn">Ver Producto</Link></div>
+                  <div className="nk-card-overlay"><Link href={`/product/${p.id}`} className="nk-overlay-btn">{t('product.view')}</Link></div>
                 </div>
                 <div className="nk-card-info">
                   <h3 className="nk-card-title"><Link href={`/product/${p.id}`}>{p.name}</Link></h3>
@@ -383,7 +383,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
         <div className="nk-modal-backdrop" onClick={() => setSizeGuideOpen(false)}>
           <div className="nk-modal-card" onClick={(e) => e.stopPropagation()}>
             <button className="nk-modal-close" onClick={() => setSizeGuideOpen(false)}><span className="material-icons-outlined">close</span></button>
-            <h2 className="nk-modal-title">Guía de tallas</h2>
+            <h2 className="nk-modal-title">{t('product.size_guide')}</h2>
             <div className="nk-size-guide-images">
               <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/2.webp" alt="Guía 1" width={600} height={800} className="nk-guide-img" />
               <Image src="https://nakamabordados.com/wp-content/uploads/2026/01/3.webp" alt="Guía 2" width={600} height={800} className="nk-guide-img" />
@@ -422,7 +422,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
             </div>
             <h2 className="nk-warning-title">{currentWarning.title}</h2>
             <p className="nk-warning-phrase">{currentWarning.phrase}</p>
-            <button className="nk-warning-close-btn" onClick={() => setLuffyModalOpen(false)}>¡Entendido!</button>
+            <button className="nk-warning-close-btn" onClick={() => setLuffyModalOpen(false)}>{t('product.warning.close')}</button>
           </div>
         </div>
       )}

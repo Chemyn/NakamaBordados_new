@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 
 // =================================================================
 // TYPES
@@ -110,7 +111,7 @@ const TEMPLATE_DESC = '✨ Fabricado con pasión en Nakama Bordados ✨\n\nCada 
 // COMPONENT
 // =================================================================
 export default function AdminSuitePage() {
-  const [isOpen, setIsOpen] = useState(true); // open by default on this page
+  const router = useRouter();
   const [screen, setScreen] = useState<'start' | 'manual' | 'review'>('start');
 
   // Form state
@@ -354,14 +355,6 @@ export default function AdminSuitePage() {
   // ---------------------------------------------------------------
   // RENDER
   // ---------------------------------------------------------------
-  if (!isOpen) {
-    return (
-      <div className="nk-suite-launcher" onClick={() => setIsOpen(true)} title="Abrir Nakama Suite">
-        <span className="material-icons-outlined" style={{ fontSize: '32px' }}>rocket_launch</span>
-      </div>
-    );
-  }
-
   return (
     <div className="nk-suite-modal">
       {/* HEADER */}
@@ -374,9 +367,9 @@ export default function AdminSuitePage() {
         </div>
         <div className="nk-suite-header-actions">
           {screen !== 'start' && (
-            <button className="nk-suite-btn-secondary" onClick={resetAll}>Inicio</button>
+            <button className="nk-suite-btn-secondary" onClick={() => setScreen('start')}>Inicio</button>
           )}
-          <button className="nk-suite-btn-secondary" onClick={() => setIsOpen(false)}>Cerrar</button>
+          <button className="nk-suite-btn-secondary" onClick={() => router.push('/mi-cuenta')}>Cerrar</button>
           {screen === 'review' && products.length > 0 && !isUploading && (
             <button className="nk-suite-btn-primary" onClick={simulateUpload}>
               🚀 Subir

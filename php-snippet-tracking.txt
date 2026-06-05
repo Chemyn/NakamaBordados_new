@@ -1,0 +1,29 @@
+<?php
+/**
+ * Plugin Name: Nakama Envia.com Tracking GraphQL
+ * Description: Expone los campos meta _envia_tracking_code y _envia_carrier en WPGraphQL para los pedidos (Orders).
+ * Version: 1.0
+ * Author: Nakama
+ */
+
+add_action( 'graphql_register_types', function() {
+    // Registrar el campo tracking_code
+    register_graphql_field( 'Order', 'enviaTrackingCode', [
+        'type' => 'String',
+        'description' => 'Código de rastreo de Envia.com',
+        'resolve' => function( $order ) {
+            $tracking_code = get_post_meta( $order->databaseId, '_envia_tracking_code', true );
+            return ! empty( $tracking_code ) ? $tracking_code : null;
+        }
+    ]);
+
+    // Registrar el campo carrier (paquetería)
+    register_graphql_field( 'Order', 'enviaCarrier', [
+        'type' => 'String',
+        'description' => 'Paquetería asignada por Envia.com',
+        'resolve' => function( $order ) {
+            $carrier = get_post_meta( $order->databaseId, '_envia_carrier', true );
+            return ! empty( $carrier ) ? $carrier : null;
+        }
+    ]);
+});

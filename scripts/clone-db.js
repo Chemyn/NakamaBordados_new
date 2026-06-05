@@ -83,46 +83,37 @@ async function clone() {
     const tableNames = tables.map(t => Object.values(t)[0]);
 
     for (const tableName of tableNames) {
-      const [checkTable] = await localConn.query(`SHOW TABLES LIKE '${tableName}'`);
-      if (checkTable.length > 0) {
-        const [localRows] = await localConn.query(`SELECT COUNT(*) as count FROM \`${tableName}\``);
-        if (localRows[0].count > 0) {
-          console.log(`Saltando tabla ya clonada: ${tableName} (${localRows[0].count} filas)`);
-          continue;
-        }
-      }
-
-      console.log(`Clonando tabla: ${tableName}...`);
+      console.log(`Procesando tabla: ${tableName}...`);
       
       // Get schema
       const [[createResult]] = await remoteConn.query(`SHOW CREATE TABLE \`${tableName}\``);
       const createSql = createResult['Create Table'];
       
-      await localConn.query(`DROP TABLE IF EXISTS \`${tableName}\``);
-      await localConn.query(createSql);
+      // We ensure the table exists locally with the correct schema
+      await localConn.query(createSql.replace('CREATE TABLE', 'CREATE TABLE IF NOT EXISTS'));
 
-      // Get data
+      // Get data (In a real sync, we might want to only get recent ones, but for this project we'll do a full pull with IGNORE)
       const [rows] = await remoteConn.query(`SELECT * FROM \`${tableName}\``);
       
       if (rows.length > 0) {
-        // Adjust batch size based on table
         let batchSize = 100;
         if (tableName.endsWith('_posts') || tableName.endsWith('_options')) {
-          batchSize = 10; // Smaller batches for potentially huge rows
+          batchSize = 25; 
         }
 
         for (let i = 0; i < rows.length; i += batchSize) {
           const batch = rows.slice(i, i + batchSize);
           const keys = Object.keys(batch[0]).map(k => `\`${k}\``).join(', ');
-          const values = batch.map(row => Object.values(row));
           const placeholder = batch.map(() => `(${Object.values(batch[0]).map(() => '?').join(', ')})`).join(', ');
           
-          const flatValues = values.reduce((acc, val) => acc.concat(val), []);
+          const flatValues = batch.reduce((acc, row) => acc.concat(Object.values(row)), []);
+          
           try {
-            await localConn.query(`INSERT INTO \`${tableName}\` (${keys}) VALUES ${placeholder}`, flatValues);
+            // Use INSERT IGNORE to skip existing records (based on primary key)
+            await localConn.query(`INSERT IGNORE INTO \`${tableName}\` (${keys}) VALUES ${placeholder}`, flatValues);
           } catch (insertErr) {
-             console.error(`Error insertando batch en ${tableName}:`, insertErr.message);
-             // Try one by one if batch fails
+             console.error(`Error en batch de ${tableName}:`, insertErr.message);
+             // Individual fallback if batch fails for other reasons
              for (const row of batch) {
                const rowKeys = Object.keys(row).map(k => `\`${k}\``).join(', ');
                const rowValues = Object.values(row);
@@ -130,18 +121,18 @@ async function clone() {
                try {
                  await localConn.query(`INSERT IGNORE INTO \`${tableName}\` (${rowKeys}) VALUES ${rowPlaceholder}`, rowValues);
                } catch (singleErr) {
-                 console.error(`  - Fallo total en fila de ${tableName}:`, singleErr.message);
+                 // console.error(`  - Fallo total en fila:`, singleErr.message);
                }
              }
           }
         }
-        console.log(`  - ${rows.length} filas procesadas.`);
+        console.log(`  - ${rows.length} filas sincronizadas (incluyendo duplicados saltados).`);
       } else {
         console.log(`  - Tabla vacía.`);
       }
     }
 
-    console.log('\n¡Réplica completada con éxito!');
+    console.log('\n¡Sincronización completada con éxito!');
   } catch (err) {
     console.error('Error durante la clonación:', err);
   } finally {

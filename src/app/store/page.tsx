@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { Product } from '@/types/product';
 import { useCurrency } from '../context/CurrencyContext';
+import { useLanguage } from '../context/LanguageContext';
 
 const SkeletonProductCard = () => (
   <div className="nk-store-card" style={{ opacity: 0.7 }}>
@@ -18,6 +19,7 @@ const SkeletonProductCard = () => (
 );
 
 function StoreContent() {
+  const { t } = useLanguage();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get('category') || 'todas';
   const tagParam = searchParams.get('tag') || '';
@@ -45,7 +47,6 @@ function StoreContent() {
     }
 
     try {
-      // Cargamos de 16 en 16 para una cuadrícula más equilibrada
       let url = `/api/products?limit=16`;
       if (categoryParam && categoryParam !== 'todas') url += `&category=${categoryParam}`;
       if (tagParam) url += `&tag=${tagParam}`;
@@ -73,15 +74,12 @@ function StoreContent() {
     }
   }, [categoryParam, tagParam, searchParam, after, hasNextPage, loadingMore]);
 
-  // Initial load & reset on param change
   useEffect(() => {
     queueMicrotask(() => {
       fetchProducts(true);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [categoryParam, tagParam, searchParam]);
 
-  // Scroll to top visibility
   useEffect(() => {
     const handleScroll = () => {
       setShowScrollTop(window.scrollY > 500);
@@ -95,27 +93,39 @@ function StoreContent() {
   };
 
   const getPageTitle = () => {
-    if (searchParam) return `Buscando: ${searchParam}`;
-    if (tagParam) return `Etiqueta: ${tagParam}`;
-    return categoryParam.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+    if (searchParam) return t('store.search.results').replace('{query}', searchParam);
+    if (tagParam) return t('store.tag.results').replace('{tag}', tagParam);
+    
+    // Map internal slugs to translations if available
+    const slugMap: Record<string, string> = {
+      'bordados': t('nav.embroidery'),
+      'estampados': t('nav.prints'),
+      'bordado-con-estampado': t('nav.combo'),
+      'edicion-especial': t('nav.special'),
+      'lisas': t('nav.plain'),
+      'variedad': t('nav.variety'),
+      'gorras': t('nav.caps'),
+      'todas': t('nav.all')
+    };
+    
+    return slugMap[categoryParam] || categoryParam.split('-').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   };
 
   return (
     <div className="nk-store-page" style={{ background: 'var(--nk-bg-body)', minHeight: '100vh', transition: 'background-color 0.3s ease' }}>
       <div className="nk-store-hero" style={{ background: 'var(--nk-navy)', color: '#fff', padding: '120px 24px 80px', borderBottom: '4px solid var(--nk-primary)', position: 'relative', overflow: 'hidden' }}>
-        {/* Subtle background pattern for hero */}
         <div style={{ position: 'absolute', inset: 0, opacity: 0.1, backgroundImage: 'radial-gradient(var(--nk-primary) 1px, transparent 0)', backgroundSize: '30px 30px', pointerEvents: 'none' }}></div>
         
         <div className="nk-container" style={{ position: 'relative', zIndex: 1 }}>
-          <span className="nk-store-hero-badge" style={{ borderColor: 'var(--nk-primary)', color: 'var(--nk-primary)', background: '#fff', padding: '4px 12px', fontWeight: 800, fontSize: '0.8rem', textTransform: 'uppercase', border: '2px solid' }}>Catálogo Nakama</span>
+          <span className="nk-store-hero-badge" style={{ borderColor: 'var(--nk-primary)', color: 'var(--nk-primary)', background: 'var(--nk-bg-card)', padding: '4px 12px', fontWeight: 800, fontSize: '0.8rem', textTransform: 'uppercase', border: '2px solid' }}>{t('store.hero.badge')}</span>
           <h1 className="nk-store-hero-title" style={{ color: '#fff', fontFamily: 'Teko', fontSize: 'clamp(3rem, 10vw, 6rem)', lineHeight: 0.9, marginTop: '15px' }}>{getPageTitle()}</h1>
           <p className="nk-store-hero-subtitle" style={{ color: 'rgba(255,255,255,0.7)', fontWeight: 600, fontSize: '1.2rem', maxWidth: '600px', marginTop: '10px' }}>
-            {tagParam ? `Tesoro encontrado en ${tagParam}` : 'Bordados de alta densidad y streetwear premium diseñado para la tripulación.'}
+            {tagParam ? `${t('store.tag.results').split(':')[0]}: ${tagParam}` : t('store.hero.subtitle')}
           </p>
         </div>
-      </div>
+        </div>
 
-      <div className="nk-container" style={{ marginTop: '60px', paddingBottom: '120px' }}>
+        <div className="nk-container" style={{ marginTop: '60px', paddingBottom: '120px' }}>
         {loading && products.length === 0 ? (
           <div className="nk-store-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '40px' }}>
             {[1, 2, 3, 4, 5, 6, 7, 8].map(i => <SkeletonProductCard key={i} />)}
@@ -123,7 +133,7 @@ function StoreContent() {
         ) : products.length > 0 ? (
           <>
             <div className="nk-store-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '40px' }}>
-              {products.map((p) => {
+              {products.map((p, idx) => {
                 const minPrice = p.type === 'variable' && p.variations && p.variations.length > 0
                   ? Math.min(...p.variations.map(v => v.price)) 
                   : p.price;
@@ -137,7 +147,7 @@ function StoreContent() {
                 return (
                   <div 
                     className="nk-store-card" 
-                    key={p.id} 
+                    key={`${p.id}-${idx}`} 
                     style={{ background: 'var(--nk-bg-card)', border: '2px solid var(--nk-border)', borderRadius: '0', padding: '0', transition: 'transform 0.3s ease, box-shadow 0.3s ease', boxShadow: 'var(--nk-manga-shadow)' }}
                   >
                     <div className="nk-store-card-img-wrapper" style={{ borderRadius: '0', overflow: 'hidden', position: 'relative', aspectRatio: '1/1', borderBottom: '2px solid var(--nk-border)' }}>
@@ -163,7 +173,7 @@ function StoreContent() {
                 );
               })}
             </div>
-            
+
             {loadingMore && (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '40px', marginTop: '40px' }}>
                 {[1, 2, 3, 4].map(i => <SkeletonProductCard key={`more-${i}`} />)}
@@ -181,43 +191,42 @@ function StoreContent() {
                     fontSize: '1.8rem', 
                     background: 'var(--nk-primary)', 
                     color: '#fff',
-                    border: '3px solid #000',
-                    boxShadow: '8px 8px 0px #000',
+                    border: '3px solid var(--nk-border)',
+                    boxShadow: 'var(--nk-manga-shadow-lg)',
                     cursor: loadingMore ? 'not-allowed' : 'pointer',
                     opacity: loadingMore ? 0.7 : 1,
                     transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
                   }}
                 >
-                  {loadingMore ? 'EXPLORANDO...' : 'CARGAR MÁS PRODUCTOS'}
+                  {loadingMore ? t('store.loading_more') : t('store.load_more')}
                 </button>
               </div>
             )}
 
             {!hasNextPage && products.length > 0 && (
               <div style={{ textAlign: 'center', marginTop: '60px', color: 'var(--nk-text-sec)', fontSize: '1.2rem', fontFamily: 'Teko', textTransform: 'uppercase', letterSpacing: '2px', borderTop: '2px solid var(--nk-border)', paddingTop: '30px' }}>
-                🏴‍☠️ Has llegado al final de la colección 🏴‍☠️
+                {t('store.end')}
               </div>
             )}
           </>
         ) : (
-          <div className="nk-no-results" style={{ padding: '100px 24px', textAlign: 'center' }}>
-            <span className="material-icons-outlined" style={{ fontSize: '4rem', color: '#ccc' }}>search_off</span>
-            <h3 style={{ marginTop: '20px', fontWeight: 800 }}>No encontramos tesoros</h3>
-            <p style={{ color: '#666' }}>Intenta con otros términos o navega por las categorías.</p>
-            <Link href="/store" className="nk-btn" style={{ marginTop: '24px', display: 'inline-block', padding: '12px 30px', background: '#000', color: '#fff', textDecoration: 'none' }}>Ver Todo</Link>
+          <div className="nk-no-results" style={{ padding: '100px 24px', textAlign: 'center', background: 'var(--nk-bg-card)', border: '2px dashed var(--nk-border)' }}>
+            <span className="material-icons-outlined" style={{ fontSize: '4rem', color: 'var(--nk-text-sec)', opacity: 0.5 }}>search_off</span>
+            <h3 style={{ marginTop: '20px', fontWeight: 800 }}>{t('store.no_results')}</h3>
+            <p style={{ color: 'var(--nk-text-sec)' }}>{t('store.no_results_text')}</p>
+            <Link href="/store" className="nk-btn" style={{ marginTop: '24px', display: 'inline-block', padding: '12px 30px', background: 'var(--nk-border)', color: 'var(--nk-bg-body)', textDecoration: 'none', border: 'none', boxShadow: 'var(--nk-manga-shadow)' }}>{t('nav.all')}</Link>
           </div>
         )}
-      </div>
+        </div>
 
-      {/* Back to Top Button */}
-      <button 
+        <button 
         onClick={scrollToTop}
         className={`nk-back-to-top ${showScrollTop ? 'visible' : ''}`}
         aria-label="Volver arriba"
         style={{
           position: 'fixed',
-          bottom: '100px',
-          right: '30px',
+          bottom: '30px',
+          left: '30px',
           background: 'var(--nk-primary)',
           color: '#fff',
           width: '50px',
@@ -226,15 +235,15 @@ function StoreContent() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          border: '2px solid #000',
-          boxShadow: '4px 4px 0px #000',
+          border: '2px solid var(--nk-border)',
+          boxShadow: 'var(--nk-manga-shadow)',
           cursor: 'pointer',
           zIndex: 99,
           opacity: showScrollTop ? 1 : 0,
           transform: showScrollTop ? 'translateY(0)' : 'translateY(20px)',
           transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
         }}
-      >
+        >
         <span className="material-icons-outlined">expand_less</span>
       </button>
     </div>
@@ -242,8 +251,9 @@ function StoreContent() {
 }
 
 export default function StorePage() {
+  const { t } = useLanguage();
   return (
-    <Suspense fallback={<div style={{ padding: '100px', textAlign: 'center', fontFamily: 'Teko', fontSize: '2rem' }}>Cargando Catálogo...</div>}>
+    <Suspense fallback={<div style={{ padding: '100px', textAlign: 'center', fontFamily: 'Teko', fontSize: '2rem' }}>{t('store.loading')}</div>}>
       <StoreContent />
     </Suspense>
   );

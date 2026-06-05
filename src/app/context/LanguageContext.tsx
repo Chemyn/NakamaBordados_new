@@ -1,0 +1,628 @@
+'use client';
+
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+
+export type Language = 'es' | 'en' | 'jp';
+
+interface LanguageContextProps {
+  language: Language;
+  setLanguage: (lang: Language) => void;
+  t: (key: string) => string;
+}
+
+const translations: Record<Language, Record<string, string>> = {
+  es: {
+    // Nav
+    'nav.home': 'Inicio',
+    'nav.store': 'Tienda',
+    'nav.embroidery': 'Bordados',
+    'nav.combo': 'C/Estampado',
+    'nav.prints': 'Estampado',
+    'nav.special': 'Especial',
+    'nav.plain': 'Lisas',
+    'nav.variety': 'Variedad',
+    'nav.caps': 'Gorras',
+    'nav.account': 'Tripulación',
+    'nav.all': 'Ver Todo',
+    'nav.language': 'Idioma',
+    'nav.currency': 'Moneda',
+    
+    // Home
+    'hero.title': 'Bordados Épicos',
+    'hero.subtitle': 'Vístete como un verdadero Nakama',
+    'hero.scrolly.badge': 'Nueva Colección',
+    'hero.scrolly.title': 'Domina el Grand Line',
+    'marquee.join': 'ÚNETE A LA TRIPULACIÓN',
+    'marquee.shipping': 'ENVÍO GRATIS DESDE $1,200 MXN',
+    'marquee.msi': '3 MSI CON TARJETAS PARTICIPANTES',
+    'marquee.quality': 'CALIDAD PREMIUM GRAND LINE',
+    'marquee.limited': 'PIEZAS LIMITADAS DE COLECCIÓN',
+    'marquee.high_density': 'BORDADOS DE ALTA DENSIDAD',
+    'home.intro.badge': 'Estilo Streetwear Anime',
+    'home.intro.title': 'Tu Próximo Tesoro',
+    'home.intro.text': 'En Nakama Bordados no solo hacemos ropa, forjamos el equipo para tu próxima aventura. Bordados de alta densidad y diseños exclusivos con la calidad que un futuro Rey de los Piratas merece. Moda anime hecha por fans para fans.',
+    'home.intro.btn': 'Explorar Catálogo',
+    'home.bestsellers.title': 'LOS MÁS BUSCADOS',
+    'home.bestsellers.reward': 'RECOMPENSA: CALIDAD MÁXIMA',
+    'home.explore_cats.title': 'EXPLORA POR CATEGORÍA',
+    'home.explore_cats.view': 'Ver Colección',
+    
+    // Store
+    'store.loading': 'Cargando Catálogo...',
+    'store.hero.badge': 'Catálogo Nakama',
+    'store.hero.subtitle': 'Bordados de alta densidad y streetwear premium diseñado para la tripulación.',
+    'store.search.results': 'Buscando: {query}',
+    'store.tag.results': 'Etiqueta: {tag}',
+    'store.load_more': 'CARGAR MÁS PRODUCTOS',
+    'store.loading_more': 'EXPLORANDO...',
+    'store.end': '🏴‍☠️ Has llegado al final de la colección 🏴‍☠️',
+    'store.no_results': 'No encontramos tesoros',
+    'store.no_results_text': 'Intenta con otros términos o navega por las categorías.',
+    
+    // Product
+    'product.official': 'Colección Oficial Nakama',
+    'product.premium': 'Calidad Premium Grand Line',
+    'product.free_shipping_badge': '¡ENVÍO GRATIS!*',
+    'product.select': 'Seleccionar',
+    'product.size_guide': 'Ver Guía de Tallas',
+    'product.add_to_cart': '¡Lo Quiero!',
+    'product.secure_payment': 'Pago 100% Seguro',
+    'product.guaranteed_shipping': 'Envío Garantizado',
+    'product.desc_tab': 'Descripción',
+    'product.care_tab': 'Cuidado',
+    'product.care_title': '¡Cuida tu equipo como un verdadero pirata!',
+    'product.care_1': 'Lavar a mano o ciclo delicado (agua fría).',
+    'product.care_2': 'Al revés para proteger el bordado/estampado.',
+    'product.care_3': 'Sin blanqueadores químicos.',
+    'product.care_4': 'Secar a la sombra (el sol es para navegar, no para secar).',
+    'product.care_5': 'No planchar sobre el diseño directamente.',
+    'product.related': 'También te puede gustar',
+    'product.view': 'Ver Producto',
+    'product.added': '¡{name} agregado al carrito!',
+    'product.warning.luffy.title': '¡OI, NAKAMA!',
+    'product.warning.luffy.phrase': '¡Elige tu estilo antes de zarpar al Grand Line!',
+    'product.warning.zoro.title': '¡ZORO SE PERDIÓ!',
+    'product.warning.zoro.phrase': 'Y tú también si no eliges una talla primero...',
+    'product.warning.sanji.title': '¡SANJI ESTÁ FURIOSO!',
+    'product.warning.sanji.phrase': '¡No puedes ordenar sin elegir los ingredientes (variaciones)!',
+    'product.warning.chopper.title': '¡CHOPPER ESTÁ ASUSTADO!',
+    'product.warning.chopper.phrase': '¡Doctor! ¡Doctor! ¡Falta seleccionar el color!',
+    'product.warning.close': '¡Entendido!',
+
+    // Checkout & Cart
+    'cart.page_title': 'Valida tu Botín',
+    'cart.item_table.product': 'Producto',
+    'cart.item_table.price': 'Precio',
+    'cart.item_table.qty': 'Cant.',
+    'cart.item_table.total': 'Subtotal',
+    'cart.finalize_btn': 'Finalizar Compra en el Barco Principal',
+    'cart.continue_btn': 'Seguir Buscando Tesoros',
+    'checkout.title': 'Finalizar Pedido',
+    'checkout.billing': 'Datos de Envío',
+    'checkout.email': 'Correo Electrónico',
+    'checkout.first_name': 'Nombre',
+    'checkout.last_name': 'Apellidos',
+    'checkout.phone': 'Teléfono',
+    'checkout.address': 'Dirección (Calle y Número)',
+    'checkout.apartment': 'Depto / Suite / Referencias',
+    'checkout.city': 'Ciudad',
+    'checkout.state': 'Estado',
+    'checkout.postcode': 'Código Postal',
+    'checkout.country': 'País',
+    'checkout.summary': 'Resumen del Tesoro',
+    'checkout.shipping_method': 'Método de Envío',
+    'checkout.payment_method': 'Método de Pago',
+    'checkout.place_order': 'Zarpar Pedido',
+    'checkout.processing': 'Procesando...',
+    'checkout.coupon.placeholder': 'Código de Cupón',
+    'checkout.coupon.apply': 'Aplicar',
+    'checkout.subtotal': 'Subtotal',
+    'checkout.shipping': 'Envío',
+    'checkout.discount': 'Descuento',
+    'checkout.total': 'Total',
+    'checkout.empty': 'Tu barco está vacío',
+    'checkout.back': 'Volver a la tienda',
+    'checkout.free': '¡GRATIS!',
+
+    // Account
+    'account.title': 'Centro de Mando',
+    'account.welcome': '¡Bienvenido a bordo, {name}!',
+    'account.logout': 'Abandonar Barco',
+    'account.orders': 'Mis Pedidos',
+    'account.no_orders': 'Aún no tienes botines registrados.',
+    'account.profile': 'Perfil Nakama',
+    'account.email': 'Email',
+    'account.member_since': 'Miembro desde',
+    'account.login.title': 'Acceso a la Tripulación',
+    'account.login.user': 'Usuario o Email',
+    'account.login.pass': 'Contraseña',
+    'account.login.btn': 'Entrar al Barco',
+    'account.login.error': 'Credenciales piratas inválidas',
+    
+    // FAQ
+    'faq.title': 'Preguntas Frecuentes',
+    'faq.subtitle': 'Todo lo que necesitas saber para tu próxima misión.',
+    'faq.still_doubts': '¿Aún tienes dudas?',
+    'faq.contact': 'Contáctanos por WhatsApp',
+    'faq.q1': '¿Cuánto tiempo tarda en llegar mi pedido?',
+    'faq.a1': 'El tiempo de elaboración es de 7 a 15 días hábiles, ya que cada pieza se fabrica bajo pedido para asegurar la máxima calidad. Una vez enviado, el tiempo de entrega depende de la paquetería (Estafeta o FedEx), usualmente de 2 a 5 días.',
+    'faq.q2': '¿Hacen envíos a todo México?',
+    'faq.a2': 'Sí, realizamos envíos a toda la República Mexicana a través de Envia.com con las mejores paqueterías del país.',
+    'faq.q3': '¿Cómo puedo rastrear mi paquete?',
+    'faq.a3': 'Puedes rastrearlo directamente en nuestra sección \'Mi Cuenta\' si estás registrado, o ingresando el número de guía que te enviaremos por correo en el portal oficial de la paquetería correspondiente.',
+    'faq.q4': '¿Tienen tienda física?',
+    'faq.a4': 'Actualmente operamos exclusivamente de manera online para poder ofrecer la mayor variedad de diseños a nakamas de todo México.',
+    'faq.q5': '¿Qué cuidados debo tener con mi prenda bordada?',
+    'faq.a5': 'Recomendamos lavar la prenda al revés con agua fría, no usar secadora y nunca planchar directamente sobre el bordado para preservar la densidad y el color de los hilos.',
+
+    // Size Guide
+    'sizes.title': 'Guía de Tallas',
+    'sizes.subtitle': 'Asegúrate de que tu equipo te quede perfecto antes de zarpar.',
+    'sizes.badge': 'Guía',
+    'sizes.pro_tip': '💡 Pro-Tip Nakama',
+    'sizes.pro_tip_text': 'Nuestras tallas son estándar mexicanas. Si buscas un estilo más relajado o \'baggy\', te recomendamos pedir una talla más arriba de lo habitual, especialmente en nuestras piezas bordadas.',
+    'sizes.cat.tshirts': 'Playeras',
+    'sizes.cat.oversize': 'Oversize',
+    'sizes.cat.sweatshirts': 'Sudaderas',
+    'sizes.cat.hoodies': 'Hoodies',
+    'sizes.cat.acid': 'Acid Wash',
+    'sizes.cat.shorts': 'Shorts',
+    'sizes.cat.chroma': 'Cromas',
+
+    // Legal
+    'privacy.title': 'Aviso de Privacidad',
+    'privacy.subtitle': 'Protegiendo tus datos como el One Piece.',
+    'terms.title': 'Términos y Condiciones',
+    'terms.subtitle': 'Las reglas de este barco para una navegación segura.',
+
+    // Bot
+    'bot.welcome': '¡Oi, Nakama! 🍖 Soy Luffy, el guardián de este barco. ¡No pierdas tiempo escribiendo, mejor pícale a los botones para encontrar tu tesoro! 🏴‍☠️',
+    'bot.status': '● NAVEGANDO POR EL MENÚ',
+    'bot.hint': '¿A dónde zarpamos, Nakama?',
+    'bot.btn.all': '🔥 Ver Todo el Catálogo',
+    'bot.btn.embroidery': '🪡 Ver Bordados',
+    'bot.btn.prints': '👕 Ver Estampados',
+    'bot.btn.special': '✨ Edición Especial',
+    'bot.btn.sizes': '📐 Guía de Tallas',
+    'bot.btn.tracking': '🔍 Rastreo de Pedido',
+    'bot.btn.faq': '❓ Preguntas Frecuentes',
+    'bot.btn.privacy': '📄 Aviso de Privacidad',
+    'bot.btn.crew': '🏴‍☠️ Hablar con Tripulación',
+    
+    // Global & UI
+    'cart.title': 'Tu Botín',
+    'cart.empty': 'Tu carrito está vacío',
+    'checkout.button': 'Ir a la Caja',
+    'theme.dark': 'Modo Oscuro',
+    'theme.light': 'Modo Claro',
+    
+    // Footer
+    'footer.description': 'Forjando el equipo de los próximos Reyes de los Piratas. Streetwear anime de alta densidad.',
+    'footer.support': 'Soporte',
+    'footer.legal': 'Legal',
+    'footer.secure_payment': 'Pago Seguro',
+    'footer.rights': 'Todos los derechos reservados.',
+    'footer.faq': 'Preguntas Frecuentes',
+    'footer.size_guide': 'Guía de Tallas',
+    'footer.terms': 'Términos y Condiciones',
+    'footer.privacy': 'Aviso de Privacidad',
+    'footer.dev': 'Diseño y Desarrollo',
+  },
+  en: {
+    // Nav
+    'nav.home': 'Home',
+    'nav.store': 'Store',
+    'nav.embroidery': 'Embroidery',
+    'nav.combo': 'W/Prints',
+    'nav.prints': 'Prints',
+    'nav.special': 'Special',
+    'nav.plain': 'Plain',
+    'nav.variety': 'Variety',
+    'nav.caps': 'Caps',
+    'nav.account': 'Crew',
+    'nav.all': 'View All',
+    'nav.language': 'Language',
+    'nav.currency': 'Currency',
+    
+    // Home
+    'hero.title': 'Epic Embroidery',
+    'hero.subtitle': 'Dress like a true Nakama',
+    'hero.scrolly.badge': 'New Collection',
+    'hero.scrolly.title': 'Master the Grand Line',
+    'marquee.join': 'JOIN THE CREW',
+    'marquee.shipping': 'FREE SHIPPING FROM $1,200 MXN',
+    'marquee.msi': '3 MONTHS INTEREST FREE',
+    'marquee.quality': 'GRAND LINE PREMIUM QUALITY',
+    'marquee.limited': 'LIMITED COLLECTOR PIECES',
+    'marquee.high_density': 'HIGH DENSITY EMBROIDERY',
+    'home.intro.badge': 'Anime Streetwear Style',
+    'home.intro.title': 'Your Next Treasure',
+    'home.intro.text': 'At Nakama Bordados we don\'t just make clothes, we forge the gear for your next adventure. High-density embroidery and exclusive designs with the quality a future Pirate King deserves. Anime fashion made by fans for fans.',
+    'home.intro.btn': 'Explore Catalog',
+    'home.bestsellers.title': 'MOST WANTED',
+    'home.bestsellers.reward': 'REWARD: MAXIMUM QUALITY',
+    'home.explore_cats.title': 'EXPLORE BY CATEGORY',
+    'home.explore_cats.view': 'View Collection',
+    
+    // Store
+    'store.loading': 'Loading Catalog...',
+    'store.hero.badge': 'Nakama Catalog',
+    'store.hero.subtitle': 'High-density embroidery and premium streetwear designed for the crew.',
+    'store.search.results': 'Searching: {query}',
+    'store.tag.results': 'Tag: {tag}',
+    'store.load_more': 'LOAD MORE PRODUCTS',
+    'store.loading_more': 'EXPLORING...',
+    'store.end': '🏴‍☠️ You have reached the end of the collection 🏴‍☠️',
+    'store.no_results': 'No treasures found',
+    'store.no_results_text': 'Try other terms or navigate through the categories.',
+    
+    // Product
+    'product.official': 'Official Nakama Collection',
+    'product.premium': 'Grand Line Premium Quality',
+    'product.free_shipping_badge': 'FREE SHIPPING!*',
+    'product.select': 'Select',
+    'product.size_guide': 'View Size Guide',
+    'product.add_to_cart': 'I Want It!',
+    'product.secure_payment': '100% Secure Payment',
+    'product.guaranteed_shipping': 'Guaranteed Shipping',
+    'product.desc_tab': 'Description',
+    'product.care_tab': 'Care',
+    'product.care_title': 'Take care of your gear like a true pirate!',
+    'product.care_1': 'Hand wash or delicate cycle (cold water).',
+    'product.care_2': 'Inside out to protect embroidery/print.',
+    'product.care_3': 'No chemical bleaches.',
+    'product.care_4': 'Dry in shade (sun is for sailing, not drying).',
+    'product.care_5': 'Do not iron directly on the design.',
+    'product.related': 'You may also like',
+    'product.view': 'View Product',
+    'product.added': '{name} added to cart!',
+    'product.warning.luffy.title': 'OI, NAKAMA!',
+    'product.warning.luffy.phrase': 'Choose your style before sailing to the Grand Line!',
+    'product.warning.zoro.title': 'ZORO GOT LOST!',
+    'product.warning.zoro.phrase': 'And so will you if you don\'t choose a size first...',
+    'product.warning.sanji.title': 'SANJI IS FURIOUS!',
+    'product.warning.sanji.phrase': 'You can\'t order without choosing the ingredients (variations)!',
+    'product.warning.chopper.title': 'CHOPPER IS SCARED!',
+    'product.warning.chopper.phrase': 'Doctor! Doctor! Color selection is missing!',
+    'product.warning.close': 'Understood!',
+
+    // Checkout & Cart
+    'checkout.title': 'Checkout',
+    'checkout.billing': 'Shipping Details',
+    'checkout.email': 'Email',
+    'checkout.first_name': 'First Name',
+    'checkout.last_name': 'Last Name',
+    'checkout.phone': 'Phone',
+    'checkout.address': 'Address (Street and Number)',
+    'checkout.apartment': 'Apartment / Suite / References',
+    'checkout.city': 'City',
+    'checkout.state': 'State',
+    'checkout.postcode': 'Postcode',
+    'checkout.country': 'Country',
+    'checkout.summary': 'Treasure Summary',
+    'checkout.shipping_method': 'Shipping Method',
+    'checkout.payment_method': 'Payment Method',
+    'checkout.place_order': 'Sail Order',
+    'checkout.processing': 'Processing...',
+    'checkout.coupon.placeholder': 'Coupon Code',
+    'checkout.coupon.apply': 'Apply',
+    'checkout.subtotal': 'Subtotal',
+    'checkout.shipping': 'Shipping',
+    'checkout.discount': 'Discount',
+    'checkout.total': 'Total',
+    'checkout.empty': 'Your ship is empty',
+    'checkout.back': 'Back to Store',
+    'checkout.free': 'FREE!',
+
+    // Account
+    'account.title': 'Command Center',
+    'account.welcome': 'Welcome aboard, {name}!',
+    'account.logout': 'Leave Ship',
+    'account.orders': 'My Orders',
+    'account.no_orders': 'No loot recorded yet.',
+    'account.profile': 'Nakama Profile',
+    'account.email': 'Email',
+    'account.member_since': 'Member since',
+    'account.login.title': 'Crew Access',
+    'account.login.user': 'Username or Email',
+    'account.login.pass': 'Password',
+    'account.login.btn': 'Enter Ship',
+    'account.login.error': 'Invalid pirate credentials',
+    
+    // FAQ
+    'faq.title': 'Frequently Asked Questions',
+    'faq.subtitle': 'Everything you need to know for your next mission.',
+    'faq.still_doubts': 'Still have questions?',
+    'faq.contact': 'Contact us via WhatsApp',
+    'faq.q1': 'How long does my order take to arrive?',
+    'faq.a1': 'Processing time is 7 to 15 business days, as each piece is made to order to ensure maximum quality. Once shipped, delivery time depends on the carrier (Estafeta or FedEx), usually 2 to 5 days.',
+    'faq.q2': 'Do you ship all over Mexico?',
+    'faq.a2': 'Yes, we ship to all of Mexico through Envia.com with the best couriers in the country.',
+    'faq.q3': 'How can I track my package?',
+    'faq.a3': 'You can track it directly in our \'My Account\' section if you are registered, or by entering the tracking number we will send you by email in the corresponding carrier\'s official portal.',
+    'faq.q4': 'Do you have a physical store?',
+    'faq.a4': 'Currently we operate exclusively online to offer the widest variety of designs to nakamas across Mexico.',
+    'faq.q5': 'What care should I take with my embroidered garment?',
+    'faq.a5': 'We recommend washing the garment inside out with cold water, do not use a dryer, and never iron directly on the embroidery to preserve thread density and color.',
+
+    // Size Guide
+    'sizes.title': 'Size Guide',
+    'sizes.subtitle': 'Make sure your gear fits perfectly before sailing.',
+    'sizes.badge': 'Guide',
+    'sizes.pro_tip': '💡 Nakama Pro-Tip',
+    'sizes.pro_tip_text': 'Our sizes are standard Mexican sizes. If you are looking for a more relaxed or \'baggy\' style, we recommend ordering one size up from your usual, especially for our embroidered pieces.',
+    'sizes.cat.tshirts': 'T-Shirts',
+    'sizes.cat.oversize': 'Oversize',
+    'sizes.cat.sweatshirts': 'Sweatshirts',
+    'sizes.cat.hoodies': 'Hoodies',
+    'sizes.cat.acid': 'Acid Wash',
+    'sizes.cat.shorts': 'Shorts',
+    'sizes.cat.chroma': 'Chroma',
+
+    // Legal
+    'privacy.title': 'Privacy Policy',
+    'privacy.subtitle': 'Protecting your data like the One Piece.',
+    'terms.title': 'Terms & Conditions',
+    'terms.subtitle': 'The rules of this ship for a safe navigation.',
+
+    // Bot
+    'bot.welcome': 'Oi, Nakama! 🍖 I\'m Luffy, the guardian of this ship. Don\'t waste time typing, just tap the buttons to find your treasure! 🏴‍☠️',
+    'bot.status': '● NAVIGATING THE MENU',
+    'bot.hint': 'Where are we sailing, Nakama?',
+    'bot.btn.all': '🔥 View Full Catalog',
+    'bot.btn.embroidery': '🪡 View Embroidery',
+    'bot.btn.prints': '👕 View Prints',
+    'bot.btn.special': '✨ Special Edition',
+    'bot.btn.sizes': '📐 Size Guide',
+    'bot.btn.tracking': '🔍 Order Tracking',
+    'bot.btn.faq': '❓ FAQ',
+    'bot.btn.privacy': '📄 Privacy Policy',
+    'bot.btn.crew': '🏴‍☠️ Talk to Crew',
+    
+    // Global & UI
+    'cart.title': 'Your Loot',
+    'cart.empty': 'Your cart is empty',
+    'checkout.button': 'Go to Checkout',
+    'theme.dark': 'Dark Mode',
+    'theme.light': 'Light Mode',
+    
+    // Footer
+    'footer.description': 'Forging the gear for the next Pirate Kings. High density anime streetwear.',
+    'footer.support': 'Support',
+    'footer.legal': 'Legal',
+    'footer.secure_payment': 'Secure Payment',
+    'footer.rights': 'All rights reserved.',
+    'footer.faq': 'FAQ',
+    'footer.size_guide': 'Size Guide',
+    'footer.terms': 'Terms & Conditions',
+    'footer.privacy': 'Privacy Policy',
+    'footer.dev': 'Design & Development',
+  },
+  jp: {
+    // Nav
+    'nav.home': 'ホーム',
+    'nav.store': '店',
+    'nav.embroidery': '刺繍',
+    'nav.combo': 'プリント付き',
+    'nav.prints': 'プリント',
+    'nav.special': 'スペシャル',
+    'nav.plain': '無地',
+    'nav.variety': 'バラエティ',
+    'nav.caps': 'キャップ',
+    'nav.account': 'クルー',
+    'nav.all': 'すべて見る',
+    'nav.language': '言語',
+    'nav.currency': '通貨',
+    
+    // Home
+    'hero.title': '壮大な刺繍',
+    'hero.subtitle': '本当の仲間のようになれ',
+    'hero.scrolly.badge': '新着コレクション',
+    'hero.scrolly.title': 'グランドラインを制覇せよ',
+    'marquee.join': '乗組員に加わる',
+    'marquee.shipping': '1,200 MXN以上で送料無料',
+    'marquee.msi': '分割払い可能',
+    'marquee.quality': 'グランドライン品質',
+    'marquee.limited': '限定コレクション',
+    'marquee.high_density': '高密度刺繍',
+    'home.intro.badge': 'アニメ・ストリートウェア',
+    'home.intro.title': '次なる秘宝',
+    'home.intro.text': 'ナカマ刺繍では、ただ服を作るのではなく、あなたの次の冒険のための装備を鍛え上げます。海賊王にふさわしい品質、高密度な刺繍と独自のデザイン。ファンのためのアニメファッション。',
+    'home.intro.btn': 'カタログを見る',
+    'home.bestsellers.title': '手配書（売れ筋）',
+    'home.bestsellers.reward': '懸賞金：最高品質',
+    'home.explore_cats.title': 'カテゴリーから探す',
+    'home.explore_cats.view': 'コレクションを見る',
+    
+    // Store
+    'store.loading': 'カタログを読み込み中...',
+    'store.hero.badge': 'ナカマ・カタログ',
+    'store.hero.subtitle': '乗組員のためにデザインされた、高密度刺繍とプレミアムなストリートウェア。',
+    'store.search.results': '検索中: {query}',
+    'store.tag.results': 'タグ: {tag}',
+    'store.load_more': 'さらに商品を読み込む',
+    'store.loading_more': '航海中...',
+    'store.end': '🏴‍☠️ コレクションの最後に到達しました 🏴‍☠️',
+    'store.no_results': '宝物が見つかりませんでした',
+    'store.no_results_text': '他のキーワードで試すか、カテゴリーから探してください。',
+    
+    // Product
+    'product.official': 'ナカマ公式コレクション',
+    'product.premium': 'グランドライン最高品質',
+    'product.free_shipping_badge': '送料無料！*',
+    'product.select': '選択する',
+    'product.size_guide': 'サイズガイドを見る',
+    'product.add_to_cart': '手に入れる！',
+    'product.secure_payment': '100%安全な決済',
+    'product.guaranteed_shipping': '配送保証',
+    'product.desc_tab': '説明',
+    'product.care_tab': 'お手入れ',
+    'product.care_title': '本物の海賊のようにお手入れしよう！',
+    'product.care_1': '手洗いまたは手洗いコース（冷水）で。',
+    'product.care_2': '刺繍やプリントを保護するため、裏返して。',
+    'product.care_3': '塩素系漂白剤は使用不可。',
+    'product.care_4': '陰干しで（太陽は航海のため、乾燥のためではありません）。',
+    'product.care_5': 'デザイン部分に直接アイロンをかけないでください。',
+    'product.related': 'こちらもおすすめ',
+    'product.view': '商品を見る',
+    'product.added': '{name} をカートに追加しました！',
+    'product.warning.luffy.title': 'おい、仲間！',
+    'product.warning.luffy.phrase': 'グランドラインへ出航する前に、スタイルを選べ！',
+    'product.warning.zoro.title': 'ゾロが迷子になった！',
+    'product.warning.zoro.phrase': '先にサイズを選ばないと、お前も迷子になるぞ...',
+    'product.warning.sanji.title': 'サンジが激怒している！',
+    'product.warning.sanji.phrase': '材料（バリエーション）を選ばずに注文はできないぞ！',
+    'product.warning.chopper.title': 'チョッパーが怯えている！',
+    'product.warning.chopper.phrase': '医者！医者！色が選ばれていないぞ！',
+    'product.warning.close': '了解！',
+
+    // Checkout & Cart
+    'checkout.title': '注文を確定する',
+    'checkout.billing': '配送先情報',
+    'checkout.email': 'メールアドレス',
+    'checkout.first_name': '名',
+    'checkout.last_name': '姓',
+    'checkout.phone': '電話番号',
+    'checkout.address': '住所（番地・部屋番号）',
+    'checkout.apartment': '建物名 / 補足',
+    'checkout.city': '市区町村',
+    'checkout.state': '都道府県',
+    'checkout.postcode': '郵便番号',
+    'checkout.country': '国',
+    'checkout.summary': '戦利品の概要',
+    'checkout.shipping_method': '配送方法',
+    'checkout.payment_method': 'お支払い方法',
+    'checkout.place_order': '出航する（注文確定）',
+    'checkout.processing': '処理中...',
+    'checkout.coupon.placeholder': 'クーポンコード',
+    'checkout.coupon.apply': '適用',
+    'checkout.subtotal': '小計',
+    'checkout.shipping': '送料',
+    'checkout.discount': '割引',
+    'checkout.total': '合計',
+    'checkout.empty': '船は空です',
+    'checkout.back': '店に戻る',
+    'checkout.free': '無料！',
+
+    // Account
+    'account.title': '指令センター',
+    'account.welcome': 'ようこそ、{name}！',
+    'account.logout': '船を降りる',
+    'account.orders': '注文履歴',
+    'account.no_orders': 'まだ戦利品がありません。',
+    'account.profile': '仲間プロフィール',
+    'account.email': 'メール',
+    'account.member_since': 'メンバー登録日',
+    'account.login.title': '乗組員アクセス',
+    'account.login.user': 'ユーザー名またはメール',
+    'account.login.pass': 'パスワード',
+    'account.login.btn': '船に入る',
+    'account.login.error': '海賊の資格が無効です',
+    
+    // FAQ
+    'faq.title': 'よくある質問',
+    'faq.subtitle': '次の任務のために知っておくべきことすべて。',
+    'faq.still_doubts': 'まだ質問がありますか？',
+    'faq.contact': 'WhatsAppでお問い合わせ',
+    'faq.q1': '注文してから届くまでどのくらいかかりますか？',
+    'faq.a1': '最高品質を確保するため、各商品は注文を受けてから製作されます。製作期間は7〜15営業日です。発送後、配送時間は運送会社（EstafetaまたはFedEx）によりますが、通常2〜5日です。',
+    'faq.q2': 'メキシコ全土に配送していますか？',
+    'faq.a2': 'はい、Envia.comを通じてメキシコ国内の主要な運送会社を利用し、全国に配送しています。',
+    'faq.q3': '荷物を追跡するにはどうすればいいですか？',
+    'faq.a3': '登録済みの方は「マイアカウント」セクションから直接追跡できます。または、メールでお送りする追跡番号を運送会社の公式ポータルに入力してください。',
+    'faq.q4': '実店舗はありますか？',
+    'faq.a4': '現在はオンライン限定で運営しており、メキシコ全土の仲間に幅広いデザインを提供しています。',
+    'faq.q5': '刺繍製品の手入れはどうすればいいですか？',
+    'faq.a5': '刺繍の密度と糸の色を保つため、裏返して冷水で洗うことをお勧めします。乾燥機の使用は避け、刺繍部分に直接アイロンをかけないでください。',
+
+    // Size Guide
+    'sizes.title': 'サイズガイド',
+    'sizes.subtitle': '出航前に装備が完璧にフィットすることを確認してください。',
+    'sizes.badge': 'ガイド',
+    'sizes.pro_tip': '💡 仲間のアドバイス',
+    'sizes.pro_tip_text': '当店のサイズはメキシコの標準規格です。よりリラックスした、または「バギー」なスタイルをお求めの場合は、通常よりワンサイズ上を注文することをお勧めします。特に刺繍製品にはお勧めです。',
+    'sizes.cat.tshirts': 'Tシャツ',
+    'sizes.cat.oversize': 'オーバーサイズ',
+    'sizes.cat.sweatshirts': 'スウェットシャツ',
+    'sizes.cat.hoodies': 'パーカー',
+    'sizes.cat.acid': 'アシッドウォッシュ',
+    'sizes.cat.shorts': 'ショーツ',
+    'sizes.cat.chroma': 'クロマ',
+
+    // Legal
+    'privacy.title': 'プライバシーポリシー',
+    'privacy.subtitle': 'あなたのデータをワンピースのように守ります。',
+    'terms.title': '利用規約',
+    'terms.subtitle': '安全な航海のための、この船のルール。',
+
+    // Bot
+    'bot.welcome': 'おい、仲間！🍖 俺はルフィ、この船の守護者だ。文字を打つ時間はもったいない、ボタンを押してお前の宝物を見つけろ！🏴‍☠️',
+    'bot.status': '● メニューを航海中',
+    'bot.hint': 'どこへ航海する、仲間よ？',
+    'bot.btn.all': '🔥 全カタログを見る',
+    'bot.btn.embroidery': '🪡 刺繍を見る',
+    'bot.btn.prints': '👕 プリントを見る',
+    'bot.btn.special': '✨ 特別版',
+    'bot.btn.sizes': '📐 サイズガイド',
+    'bot.btn.tracking': '🔍 注文追跡',
+    'bot.btn.faq': '❓ よくある質問',
+    'bot.btn.privacy': '📄 プライバシーポリシー',
+    'bot.btn.crew': '🏴‍☠️ クルーと話す',
+    
+    // Global & UI
+    'cart.title': '戦利品',
+    'cart.empty': 'カートは空です',
+    'checkout.button': 'レジに進む',
+    'theme.dark': 'ダークモード',
+    'theme.light': 'ライトモード',
+    
+    // Footer
+    'footer.description': '次なる海賊王たちのための装備を鍛え上げる。高密度アニメストリートウェア。',
+    'footer.support': 'サポート',
+    'footer.legal': '法的情報',
+    'footer.secure_payment': '安全な決済',
+    'footer.rights': '不許複製・無断転載を禁じます。',
+    'footer.faq': 'よくある質問',
+    'footer.size_guide': 'サイズガイド',
+    'footer.terms': '利用規約',
+    'footer.privacy': 'プライバシーポリシー',
+    'footer.dev': 'デザインと開発',
+  }
+};
+
+const LanguageContext = createContext<LanguageContextProps | undefined>(undefined);
+
+export const LanguageProvider = ({ children }: { children: ReactNode }) => {
+  const [language, setLanguageState] = useState<Language>('es');
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+    const saved = localStorage.getItem('user-language') as Language;
+    if (saved && translations[saved]) {
+      setLanguageState(saved);
+    }
+  }, []);
+
+  const setLanguage = (lang: Language) => {
+    setLanguageState(lang);
+    localStorage.setItem('user-language', lang);
+  };
+
+  const t = (key: string) => {
+    if (!isClient) return translations['es'][key] || key;
+    return translations[language][key] || translations['es'][key] || key;
+  };
+
+  return (
+    <LanguageContext.Provider value={{ language, setLanguage, t }}>
+      {children}
+    </LanguageContext.Provider>
+  );
+};
+
+export const useLanguage = () => {
+  const context = useContext(LanguageContext);
+  if (!context) throw new Error('useLanguage must be used within a LanguageProvider');
+  return context;
+};

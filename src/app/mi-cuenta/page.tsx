@@ -5,738 +5,403 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
-
-interface TrackingEvent {
-  date: string;
-  status: string;
-  description?: string;
-  location?: string;
-}
-
-interface OrderMeta {
-  key: string;
-  value: string;
-}
-
-interface Order {
-  id: string;
-  orderNumber: string;
-  status: string;
-  total: string;
-  date: string;
-  enviaTrackingCode?: string;
-  enviaCarrier?: string;
-  metaData: OrderMeta[];
-  lineItems: {
-    nodes: {
-      product: {
-        node: {
-          name: string;
-        };
-      };
-      quantity: number;
-    }[];
-  };
-}
-
-// Pre-calculated static values for floating symbols to keep rendering pure and idempotent
-const FLOATING_SYMBOLS_DASHBOARD = [
-  { sym: 'ゴ', speed: 1.1, left: '12%', top: '15%', fontSize: '50px', opacity: 0.06 },
-  { sym: 'ゴ', speed: 0.9, left: '82%', top: '35%', fontSize: '65px', opacity: 0.04 },
-  { sym: 'ドン', speed: 1.8, left: '35%', top: '75%', fontSize: '110px', opacity: 0.08 },
-  { sym: '!!', speed: 1.3, left: '78%', top: '25%', fontSize: '85px', opacity: 0.05 },
-  { sym: '海', speed: 1.0, left: '8%', top: '55%', fontSize: '60px', opacity: 0.03 },
-  { sym: '賊', speed: 1.5, left: '62%', top: '65%', fontSize: '70px', opacity: 0.07 },
-];
-
-const FLOATING_SYMBOLS_LOGIN = [
-  { sym: 'ゴ', speed: 1.5, left: '15%', top: '20%', fontSize: '70px', opacity: 0.07 },
-  { sym: 'ゴ', speed: 1.1, left: '75%', top: '40%', fontSize: '80px', opacity: 0.05 },
-  { sym: 'ドン', speed: 2.2, left: '42%', top: '82%', fontSize: '120px', opacity: 0.09 },
-  { sym: '!!', speed: 1.7, left: '80%', top: '18%', fontSize: '95px', opacity: 0.06 },
-  { sym: '海', speed: 1.2, left: '10%', top: '60%', fontSize: '65px', opacity: 0.04 },
-  { sym: '賊', speed: 1.9, left: '58%', top: '72%', fontSize: '85px', opacity: 0.08 },
-];
+import { useLanguage } from '../context/LanguageContext';
 
 export default function MiCuentaPage() {
-  const { user, login, logout, authToken, isLoading, isAdmin } = useAuth();
+  const { user, login, logout, isLoading, isAdmin } = useAuth();
   const { formatPrice } = useCurrency();
+  const { t } = useLanguage();
   
-  const isLoggedIn = !!authToken && !!user;
-
-  const [activeTab, setActiveTab] = useState<'login' | 'register' | 'lostpw'>('login');
-  const [dashboardSection, setDashboardSection] = useState('dashboard');
-  const [trackingData, setTrackingData] = useState<Record<string, { success: boolean, data: unknown[] }>>({});
-  const [loadingTracking, setLoadingTracking] = useState<Record<string, boolean>>({});
-
-  const fetchTracking = async (trackingNum: string, carrier: string, orderId: string) => {
-    setLoadingTracking(prev => ({ ...prev, [orderId]: true }));
-    try {
-      // Usar la ruta pública de WordPress (CORS y API REST deben estar habilitados en WP)
-      const res = await fetch(`https://nakamabordados.com/wp-json/nakama/v1/track-shipment?tracking=${trackingNum}&carrier=${carrier}`);
-      const data = await res.json();
-      if (data.success) {
-        setTrackingData(prev => ({ ...prev, [orderId]: data }));
-      }
-    } catch (err: unknown) {
-      console.error('Failed to fetch tracking', err);
-    } finally {
-      setLoadingTracking(prev => ({ ...prev, [orderId]: false }));
-    }
-  };
-
-  // New tab options for Client Panel
-  const navItems = [
-    { key: 'dashboard', icon: 'dashboard', label: 'Escritorio' },
-    { key: 'orders', icon: 'receipt_long', label: 'Mis Pedidos' },
-    { key: 'tracking', icon: 'local_shipping', label: 'Rastreo' },
-    { key: 'shipping', icon: 'home', label: 'Dirección de Envío' },
-    { key: 'comisiones', icon: 'payments', label: 'Mis Comisiones' },
-    { key: 'account', icon: 'settings', label: 'Detalles de Cuenta' },
-  ];
-
-  // Helper to find tracking number in order metadata
-  const getTrackingInfo = (order: Order) => {
-    if (order.enviaTrackingCode) return order.enviaTrackingCode;
-
-    // Standard meta keys for tracking (depending on plugin)
-    const trackingKey = order.metaData?.find((m: OrderMeta) =>
-      m.key === '_wc_shipment_tracking_items' ||
-      m.key === 'tracking_number' ||
-      m.key === 'rastreo'
-    );
-
-    if (trackingKey) {
-      try {
-        // Some plugins store it as serialized PHP or JSON
-        if (trackingKey.value.startsWith('a:') || trackingKey.value.startsWith('{')) return "Ver en WordPress";
-        return trackingKey.value;
-      } catch {
-        return trackingKey.value;
-      }
-    }
-    return null;
-  };
-
-  const getCarrier = (order: Order) => {
-    if (order.enviaCarrier) return order.enviaCarrier;
-    return 'fedex'; // Default fallback
-  };
-
-  // Login form
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [showLoginPw, setShowLoginPw] = useState(false);
-  const [loginError, setLoginError] = useState('');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'profile' | 'addresses' | 'tracking' | 'commissions'>('dashboard');
+  const [userCredentials, setUserCredentials] = useState({ username: '', password: '' });
+  const [error, setError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  
+  // Tracking state - indexed by tracking code to avoid conflicts
+  const [trackingLoading, setTrackingLoading] = useState<string | null>(null);
+  const [trackingResults, setTrackingResults] = useState<Record<string, any>>({});
 
-  // Register form (Mock for now, requires WP GraphQL WooCommerce Registration extension)
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regConfirm, setRegConfirm] = useState('');
-  const [showRegPw, setShowRegPw] = useState(false);
-
-  // Lost password
-  const [lostPwEmail, setLostPwEmail] = useState('');
-  const [lostPwSent, setLostPwSent] = useState(false);
-
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      const floaters = document.querySelectorAll('.op-floating-text-mi');
-      const x = (window.innerWidth - e.pageX * 5) / 100;
-      const y = (window.innerHeight - e.pageY * 5) / 100;
-      floaters.forEach((el) => {
-        const speed = parseFloat(el.getAttribute('data-speed') || '1');
-        (el as HTMLElement).style.transform = `translateX(${x * speed}px) translateY(${y * speed}px)`;
-      });
-    };
-
-    if (!isLoggedIn) {
-      document.addEventListener('mousemove', handleMouseMove);
-    }
-    return () => document.removeEventListener('mousemove', handleMouseMove);
-  }, [isLoggedIn]);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setUserCredentials({ ...userCredentials, [e.target.name]: e.target.value });
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!loginEmail || !loginPassword) return;
+    setError('');
     setIsLoggingIn(true);
-    setLoginError('');
-    const res = await login(loginEmail, loginPassword);
-    if (!res.success) {
-      setLoginError(res.error || 'Credenciales incorrectas');
+    const success = await login(userCredentials.username, userCredentials.password);
+    if (!success) {
+      setError(t('account.login.error'));
     }
     setIsLoggingIn(false);
   };
 
-  const handleRegister = (e: React.FormEvent) => {
-    e.preventDefault();
-    alert("El registro desde esta página requiere una extensión premium de GraphQL. Por favor, crea tu cuenta durante el Checkout.");
-  };
-
-  const handleLostPassword = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!lostPwEmail) return;
-    setLostPwSent(true);
+  const fetchTracking = async (code: string, carrier: string) => {
+    if (!code) return;
+    setTrackingLoading(code);
+    try {
+      const res = await fetch(`/api/tracking?tracking=${code}&carrier=${carrier.toLowerCase()}`);
+      if (res.ok) {
+        const data = await res.json();
+        setTrackingResults(prev => ({
+          ...prev,
+          [code]: data.data?.[0] || { status: 'desconocido', description: 'No se encontraron datos.' }
+        }));
+      } else {
+        setTrackingResults(prev => ({
+          ...prev,
+          [code]: { status: 'error', description: 'Error al consultar la paquetería.' }
+        }));
+      }
+    } catch (e) {
+      console.error("Error fetching tracking:", e);
+    } finally {
+      setTrackingLoading(null);
+    }
   };
 
   if (isLoading) {
     return (
-      <div className="nk-container text-center" style={{ padding: '120px 24px' }}>
-        <h2 className="animate-pulse">Sincronizando con el servidor...</h2>
+      <div className="nk-loading-container" style={{ padding: '150px', textAlign: 'center' }}>
+        <div className="nk-spinner" style={{ margin: '0 auto 20px' }}></div>
+        <p style={{ fontFamily: 'Teko', fontSize: '1.5rem' }}>{t('store.loading')}</p>
       </div>
     );
   }
 
-  // ============================================
-  // LOGGED-IN DASHBOARD
-  // ============================================
-  if (isLoggedIn) {
-    return (
-      <div className="nk-dashboard-page">
-        {/* Floating Background Symbols (subtle) */}
-        <div className="nk-dashboard-fx-container">
-          {FLOATING_SYMBOLS_DASHBOARD.map((item, i) => (
-            <div
-              key={i}
-              className="op-floating-text-mi"
-              data-speed={item.speed}
-              style={{ left: item.left, top: item.top, fontSize: item.fontSize, opacity: item.opacity }}
-            >
-              {item.sym}
-            </div>
-          ))}
-        </div>
-
-        <div className="nk-dashboard-layout">
-          {/* Sidebar Navigation */}
-          <nav className="nk-dashboard-nav">
-            <div className="nk-dashboard-nav-header">
-              <div className="nk-dashboard-avatar">
-                <span className="material-icons-outlined" style={{ fontSize: '32px' }}>person</span>
-              </div>
-              <div>
-                <p className="nk-dashboard-user-name">{user?.firstName} {user?.lastName}</p>
-                <p className="nk-dashboard-user-email">{user?.email}</p>
-              </div>
-            </div>
-
-            <ul className="nk-dashboard-nav-list">
-              {navItems.map((item) => (
-                <li key={item.key}>
-                  <button
-                    className={`nk-dashboard-nav-link ${dashboardSection === item.key ? 'active' : ''}`}
-                    onClick={() => setDashboardSection(item.key)}
-                  >
-                    <span className="material-icons-outlined">{item.icon}</span>
-                    {item.label}
-                  </button>
-                </li>
-              ))}
-              <li className="nk-dashboard-nav-divider"></li>
-              <li>
-                <button className="nk-dashboard-nav-link nk-dashboard-nav-logout" onClick={logout}>
-                  <span className="material-icons-outlined">logout</span>
-                  Cerrar Sesión
-                </button>
-              </li>
-            </ul>
-          </nav>
-
-          {/* Content Area */}
-          <main className="nk-dashboard-content">
-            {/* Dashboard Home */}
-            {dashboardSection === 'dashboard' && (
-              <div className="nk-dash-section nk-dash-animate">
-                <h2 className="nk-dash-title">¡Bienvenido a Bordo, {user?.firstName}!</h2>
-                <p className="nk-dash-subtitle">Desde aquí puedes ver tus pedidos recientes y administrar tu cuenta.</p>
-
-                {/* Admin Actions (Replacement for Admin Bar) */}
-                {isAdmin && (
-                  <div className="nk-admin-quick-actions" style={{ 
-                    display: 'flex', 
-                    gap: '15px', 
-                    marginBottom: '30px', 
-                    padding: '20px', 
-                    background: 'rgba(var(--nk-primary-rgb), 0.1)', 
-                    borderRadius: '12px',
-                    border: '1px dashed var(--nk-primary)'
-                  }}>
-                    <div style={{ flex: 1 }}>
-                      <h4 style={{ margin: '0 0 5px 0', color: 'var(--nk-primary)' }}>Acciones de Administrador</h4>
-                      <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--nk-text-sec)' }}>Accesos directos para la gestión del barco.</p>
+  return (
+    <div className="nk-account-page" style={{ padding: '100px 0', background: 'var(--nk-bg-body)', minHeight: '80vh' }}>
+      <div className="nk-container">
+        <div className="nk-account-card nk-manga-border" style={{ background: 'var(--nk-bg-card)', padding: '40px', maxWidth: '1200px', margin: '0 auto', boxShadow: 'var(--nk-manga-shadow-lg)' }}>
+          {user ? (
+            <div className="nk-user-dashboard">
+              <div style={{ display: 'grid', gridTemplateColumns: '250px 1fr', gap: '50px' }}>
+                {/* Sidebar Navigation */}
+                <aside className="nk-dashboard-sidebar">
+                  <div style={{ textAlign: 'center', marginBottom: '30px', paddingBottom: '20px', borderBottom: '2px solid var(--nk-border)' }}>
+                    <div className="nk-user-avatar" style={{ width: '80px', height: '80px', borderRadius: '50%', border: '3px solid var(--nk-border)', margin: '0 auto 15px', overflow: 'hidden', background: 'var(--nk-bg-wrapper)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span className="material-icons-outlined" style={{ fontSize: '3rem' }}>person</span>
                     </div>
-                    <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                      <Link 
-                        href="https://nakamabordados.com/wp-admin" 
-                        target="_blank" 
-                        className="nk-btn" 
-                        style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}
-                      >
-                        <span className="material-icons-outlined" style={{ fontSize: '18px' }}>dashboard</span>
-                        Escritorio WP
-                      </Link>
-                      <Link 
-                        href="/admin/suite" 
-                        className="nk-btn nk-btn-primary" 
-                        style={{ padding: '8px 16px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px' }}
-                      >
-                        <span className="material-icons-outlined" style={{ fontSize: '18px' }}>settings_suggest</span>
-                        Admin Suite
-                      </Link>
-                    </div>
+                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontFamily: 'Teko', letterSpacing: '1px' }}>{user.firstName || user.username}</h3>
+                    <p style={{ fontSize: '0.7rem', opacity: 0.5, textTransform: 'uppercase' }}>{user.role || 'Nakama'}</p>
                   </div>
-                )}
 
-                <div className="nk-dash-cards-grid">
-                  <div className="nk-dash-stat-card" onClick={() => setDashboardSection('orders')}>
-                    <span className="material-icons-outlined nk-dash-stat-icon">local_shipping</span>
-                    <div>
-                      <p className="nk-dash-stat-number">{user?.orders?.nodes?.length || 0}</p>
-                      <p className="nk-dash-stat-label">Pedidos Totales</p>
-                    </div>
-                  </div>
-                  <div className="nk-dash-stat-card" onClick={() => setDashboardSection('tracking')}>
-                    <span className="material-icons-outlined nk-dash-stat-icon">gps_fixed</span>
-                    <div>
-                      <p className="nk-dash-stat-number">
-                        {user?.orders?.nodes?.filter(o => o.status === 'SHIPPED' || o.status === 'PROCESSING').length || 0}
+                  <nav className="nk-dashboard-nav">
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      <li>
+                        <button onClick={() => setActiveTab('dashboard')} className={`nk-dashboard-link ${activeTab === 'dashboard' ? 'active' : ''}`} style={{ width: '100%', textAlign: 'left', padding: '12px 15px', border: 'none', background: activeTab === 'dashboard' ? 'var(--nk-primary)' : 'transparent', color: activeTab === 'dashboard' ? '#fff' : 'var(--nk-text-main)', fontFamily: 'Teko', fontSize: '1.3rem', textTransform: 'uppercase', cursor: 'pointer', transition: '0.2s' }}>
+                          <span className="material-icons-outlined" style={{ verticalAlign: 'middle', marginRight: '10px', fontSize: '1.2rem' }}>dashboard</span>
+                          Dashboard
+                        </button>
+                      </li>
+                      <li>
+                        <button onClick={() => setActiveTab('orders')} className={`nk-dashboard-link ${activeTab === 'orders' ? 'active' : ''}`} style={{ width: '100%', textAlign: 'left', padding: '12px 15px', border: 'none', background: activeTab === 'orders' ? 'var(--nk-primary)' : 'transparent', color: activeTab === 'orders' ? '#fff' : 'var(--nk-text-main)', fontFamily: 'Teko', fontSize: '1.3rem', textTransform: 'uppercase', cursor: 'pointer', transition: '0.2s' }}>
+                          <span className="material-icons-outlined" style={{ verticalAlign: 'middle', marginRight: '10px', fontSize: '1.2rem' }}>shopping_bag</span>
+                          Mis Pedidos
+                        </button>
+                      </li>
+                      <li>
+                        <button onClick={() => setActiveTab('tracking')} className={`nk-dashboard-link ${activeTab === 'tracking' ? 'active' : ''}`} style={{ width: '100%', textAlign: 'left', padding: '12px 15px', border: 'none', background: activeTab === 'tracking' ? 'var(--nk-primary)' : 'transparent', color: activeTab === 'tracking' ? '#fff' : 'var(--nk-text-main)', fontFamily: 'Teko', fontSize: '1.3rem', textTransform: 'uppercase', cursor: 'pointer', transition: '0.2s' }}>
+                          <span className="material-icons-outlined" style={{ verticalAlign: 'middle', marginRight: '10px', fontSize: '1.2rem' }}>local_shipping</span>
+                          Rastreo
+                        </button>
+                      </li>
+                      
+                      {user.comisiones && (
+                        <li>
+                          <button onClick={() => setActiveTab('commissions')} className={`nk-dashboard-link ${activeTab === 'commissions' ? 'active' : ''}`} style={{ width: '100%', textAlign: 'left', padding: '12px 15px', border: 'none', background: activeTab === 'commissions' ? 'var(--nk-primary)' : 'transparent', color: activeTab === 'commissions' ? '#fff' : 'var(--nk-text-main)', fontFamily: 'Teko', fontSize: '1.3rem', textTransform: 'uppercase', cursor: 'pointer', transition: '0.2s' }}>
+                            <span className="material-icons-outlined" style={{ verticalAlign: 'middle', marginRight: '10px', fontSize: '1.2rem' }}>payments</span>
+                            Comisiones
+                          </button>
+                        </li>
+                      )}
+
+                      <li>
+                        <button onClick={() => setActiveTab('addresses')} className={`nk-dashboard-link ${activeTab === 'addresses' ? 'active' : ''}`} style={{ width: '100%', textAlign: 'left', padding: '12px 15px', border: 'none', background: activeTab === 'addresses' ? 'var(--nk-primary)' : 'transparent', color: activeTab === 'addresses' ? '#fff' : 'var(--nk-text-main)', fontFamily: 'Teko', fontSize: '1.3rem', textTransform: 'uppercase', cursor: 'pointer', transition: '0.2s' }}>
+                          <span className="material-icons-outlined" style={{ verticalAlign: 'middle', marginRight: '10px', fontSize: '1.2rem' }}>location_on</span>
+                          Direcciones
+                        </button>
+                      </li>
+                      <li>
+                        <button onClick={() => setActiveTab('profile')} className={`nk-dashboard-link ${activeTab === 'profile' ? 'active' : ''}`} style={{ width: '100%', textAlign: 'left', padding: '12px 15px', border: 'none', background: activeTab === 'profile' ? 'var(--nk-primary)' : 'transparent', color: activeTab === 'profile' ? '#fff' : 'var(--nk-text-main)', fontFamily: 'Teko', fontSize: '1.3rem', textTransform: 'uppercase', cursor: 'pointer', transition: '0.2s' }}>
+                          <span className="material-icons-outlined" style={{ verticalAlign: 'middle', marginRight: '10px', fontSize: '1.2rem' }}>manage_accounts</span>
+                          Cuenta
+                        </button>
+                      </li>
+
+                      {/* HERRAMIENTAS DE ADMINISTRADOR */}
+                      {isAdmin && (
+                        <>
+                          <li style={{ marginTop: '20px', padding: '10px 0 5px', fontSize: '0.7rem', fontWeight: 800, color: 'var(--nk-primary)', letterSpacing: '2px', borderTop: '1px solid var(--nk-border)' }}>
+                            ADMIN TOOLS
+                          </li>
+                          <li>
+                            <Link href="/admin/suite" style={{ textDecoration: 'none' }}>
+                              <button style={{ 
+                                width: '100%', textAlign: 'left', padding: '12px 15px', border: '2px solid #000', 
+                                background: '#FFD700', color: '#000', fontFamily: 'Teko', fontSize: '1.3rem', 
+                                textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', 
+                                gap: '10px', fontWeight: 900, boxShadow: '4px 4px 0px #000', transition: 'all 0.2s'
+                              }}>
+                                <span className="material-icons-outlined">rocket_launch</span>
+                                Nakama Suite
+                              </button>
+                            </Link>
+                          </li>
+                          <li style={{ marginTop: '10px' }}>
+                            <a href="https://nakamabordados.com/wp-admin" target="_blank" rel="noopener noreferrer" style={{ textDecoration: 'none' }}>
+                              <button style={{ 
+                                width: '100%', textAlign: 'left', padding: '12px 15px', border: '2px solid var(--nk-border)', 
+                                background: '#1d2327', color: '#fff', fontFamily: 'Teko', fontSize: '1.3rem', 
+                                textTransform: 'uppercase', cursor: 'pointer', display: 'flex', alignItems: 'center', 
+                                gap: '10px', fontWeight: 700, boxShadow: '4px 4px 0px var(--nk-border)'
+                              }}>
+                                <span className="material-icons-outlined">settings</span>
+                                WP Admin Panel
+                              </button>
+                            </a>
+                          </li>
+                        </>
+                      )}
+
+                      <li style={{ marginTop: '20px', paddingTop: '20px', borderTop: '1px solid var(--nk-border)' }}>
+                        <button onClick={logout} style={{ width: '100%', textAlign: 'left', padding: '12px 15px', border: 'none', background: 'transparent', color: '#ff4444', fontFamily: 'Teko', fontSize: '1.3rem', textTransform: 'uppercase', cursor: 'pointer', fontWeight: 800 }}>
+                          <span className="material-icons-outlined" style={{ verticalAlign: 'middle', marginRight: '10px', fontSize: '1.2rem' }}>logout</span>
+                          Cerrar Sesión
+                        </button>
+                      </li>
+                    </ul>
+                  </nav>
+                </aside>
+
+                {/* Main Content Area */}
+                <main className="nk-dashboard-content">
+                  {activeTab === 'dashboard' && (
+                    <div className="nk-tab-pane nk-dash-animate">
+                      <h2 className="nk-section-title" style={{ marginBottom: '20px' }}>Hola, {user.firstName || user.username}</h2>
+                      <p style={{ lineHeight: 1.6, color: 'var(--nk-text-sec)' }}>
+                        Desde el centro de mando puedes gestionar tus tesoros y tu configuración pirata.
                       </p>
-                      <p className="nk-dash-stat-label">En Camino / Proceso</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Quick orders */}
-                <h3 className="nk-dash-section-title" style={{ marginTop: '40px' }}>Últimos Pedidos</h3>
-                <div className="nk-orders-table-wrapper">
-                  <table className="nk-orders-table">
-                    <thead>
-                      <tr>
-                        <th>Pedido</th>
-                        <th>Fecha</th>
-                        <th>Estado</th>
-                        <th>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {user?.orders?.nodes?.slice(0, 5).map((order) => (
-                        <tr key={order.id}>
-                          <td className="nk-order-id">#{order.orderNumber}</td>
-                          <td>{new Date(order.date).toLocaleDateString()}</td>
-                          <td>
-                            <span className={`nk-order-status nk-status-${order.status.toLowerCase()}`}>
-                              {order.status}
-                            </span>
-                          </td>
-                          <td className="nk-order-total">{order.total}</td>
-                        </tr>
-                      ))}
-                      {(!user?.orders?.nodes || user.orders.nodes.length === 0) && (
-                        <tr><td colSpan={4} style={{textAlign: 'center', padding: '20px'}}>No hay actividad reciente.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Orders Section */}
-            {dashboardSection === 'orders' && (
-              <div className="nk-dash-section nk-dash-animate">
-                <h2 className="nk-dash-title">Mis Pedidos</h2>
-                <p className="nk-dash-subtitle">Historial completo de tus compras en Nakama Bordados.</p>
-                <div className="nk-orders-table-wrapper">
-                  <table className="nk-orders-table">
-                    <thead>
-                      <tr>
-                        <th>Pedido</th>
-                        <th>Fecha</th>
-                        <th>Estado</th>
-                        <th>Artículos</th>
-                        <th>Total</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {user?.orders?.nodes?.map((order) => (
-                        <tr key={order.id}>
-                          <td className="nk-order-id">#{order.orderNumber}</td>
-                          <td>{new Date(order.date).toLocaleDateString()}</td>
-                          <td>
-                            <span className={`nk-order-status nk-status-${order.status.toLowerCase()}`}>
-                              {order.status}
-                            </span>
-                          </td>
-                          <td>{order.lineItems?.nodes?.reduce((sum, item) => sum + item.quantity, 0)} pz</td>
-                          <td className="nk-order-total">{order.total}</td>
-                        </tr>
-                      ))}
-                      {(!user?.orders?.nodes || user.orders.nodes.length === 0) && (
-                        <tr><td colSpan={5} style={{textAlign: 'center', padding: '20px'}}>No tienes pedidos recientes.</td></tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            )}
-
-            {/* Tracking Section */}
-            {dashboardSection === 'tracking' && (
-              <div className="nk-dash-section nk-dash-animate">
-                <h2 className="nk-dash-title">Seguimiento de Pedidos</h2>
-                <p className="nk-dash-subtitle">Rastrea tus paquetes activos en tiempo real.</p>
-                
-                <div className="nk-tracking-list">
-                  {user?.orders?.nodes?.filter(order => order.status !== 'CANCELLED' && order.status !== 'REFUNDED').map((order) => {
-                    const trackingNum = getTrackingInfo(order);
-                    return (
-                      <div className="nk-tracking-card" key={order.id}>
-                        <div className="nk-tracking-card-header">
-                          <span className="nk-tracking-order-num">Pedido #{order.orderNumber}</span>
-                          <span className={`nk-order-status nk-status-${order.status.toLowerCase()}`}>{order.status}</span>
+                      
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px', marginTop: '40px' }}>
+                        <div className="nk-manga-border" style={{ padding: '20px', textAlign: 'center', cursor: 'pointer', background: 'var(--nk-bg-wrapper)' }} onClick={() => setActiveTab('orders')}>
+                           <span className="material-icons-outlined" style={{ fontSize: '2.5rem', color: 'var(--nk-primary)', marginBottom: '10px' }}>receipt_long</span>
+                           <h4 style={{ margin: 0, fontFamily: 'Teko', fontSize: '1.4rem' }}>Pedidos</h4>
                         </div>
-                        <div className="nk-tracking-card-body">
-                          {trackingNum ? (
-                            <>
-                              <div className="nk-tracking-id-box">
-                                <span className="nk-tracking-label">Número de Guía:</span>
-                                <span className="nk-tracking-value">{trackingNum} ({getCarrier(order)})</span>
-                              </div>
-                              
-                              {!trackingData[order.id] ? (
-                                <button 
-                                  className="nk-btn nk-btn-tracking"
-                                  onClick={() => fetchTracking(trackingNum, getCarrier(order), order.id)}
-                                  disabled={loadingTracking[order.id]}
-                                >
-                                  {loadingTracking[order.id] ? 'Consultando...' : 'Rastrear Paquete en Tiempo Real'}
-                                </button>
-                              ) : (
-                                <div className="nk-tracking-timeline" style={{ marginTop: '20px', padding: '15px', background: 'var(--nk-bg-wrapper)', borderRadius: '8px' }}>
-                                  <h4 style={{ marginBottom: '15px', color: 'var(--nk-primary)' }}>Línea de Tiempo del Envío</h4>
-                                  {(trackingData[order.id].data as TrackingEvent[])?.map((event, idx) => (
-                                    <div key={idx} style={{ display: 'flex', gap: '15px', marginBottom: '10px', paddingBottom: '10px', borderBottom: '1px solid var(--nk-border-color)' }}>
-                                      <div style={{ minWidth: '120px', fontSize: '0.85rem', color: 'var(--nk-text-sec)' }}>
-                                        {new Date(event.date).toLocaleString()}
-                                      </div>
-                                      <div>
-                                        <strong>{event.status}</strong>
-                                        {event.description && <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--nk-text-sec)' }}>{event.description}</p>}
-                                        {event.location && <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--nk-text-ter)' }}>{event.location}</p>}
-                                      </div>
-                                    </div>
-                                  ))}
-                                  {(!trackingData[order.id].data || trackingData[order.id].data.length === 0) && (
-                                    <p>No se encontraron eventos recientes para este envío.</p>
-                                  )}
-                                  
-                                  {/* Portal de Paquetería Dinámico */}
-                                  {(() => {
-                                    const carrier = getCarrier(order).toLowerCase();
-                                    let portalUrl = "";
-                                    
-                                    if (carrier.includes("estafeta")) {
-                                      // Usamos GuiaCodigo que es el name/id del textarea en su portal
-                                      portalUrl = `https://www.estafeta.com/rastrear-envio?rastreo=true&GuiaCodigo=${trackingNum}`;
-                                    } else if (carrier.includes("dhl")) {
-                                      portalUrl = `https://www.dhl.com/mx-es/home/rastreo.html?tracking-id=${trackingNum}`;
-                                    } else if (carrier.includes("paquetexpress") || carrier.includes("paquete express")) {
-                                      portalUrl = `https://www.paquetexpress.com.mx/rastreo/${trackingNum}`;
-                                    } else {
-                                      // Fallback a FedEx
-                                      portalUrl = `https://www.fedex.com/apps/fedextrack/?tracknumbers=${trackingNum}`;
-                                    }
-
-                                    return (
-                                      <Link 
-                                        href={portalUrl} 
-                                        target="_blank" 
-                                        className="nk-btn nk-btn-tracking"
-                                        style={{ marginTop: '15px', display: 'inline-block' }}
-                                      >
-                                        Ver en portal oficial de ({getCarrier(order)})
-                                      </Link>
-                                    );
-                                  })()}
-                                </div>
-                              )}
-                            </>
-                          ) : (
-                            <div className="nk-tracking-pending">
-                              <span className="material-icons-outlined">pending_actions</span>
-                              <p>Tu guía se generará automáticamente una vez que el pedido sea despachado.</p>
-                            </div>
-                          )}
+                        <div className="nk-manga-border" style={{ padding: '20px', textAlign: 'center', cursor: 'pointer', background: 'var(--nk-bg-wrapper)' }} onClick={() => setActiveTab('tracking')}>
+                           <span className="material-icons-outlined" style={{ fontSize: '2.5rem', color: 'var(--nk-primary)', marginBottom: '10px' }}>local_shipping</span>
+                           <h4 style={{ margin: 0, fontFamily: 'Teko', fontSize: '1.4rem' }}>Rastreo</h4>
+                        </div>
+                        <div className="nk-manga-border" style={{ padding: '20px', textAlign: 'center', cursor: 'pointer', background: 'var(--nk-bg-wrapper)' }} onClick={() => setActiveTab('addresses')}>
+                           <span className="material-icons-outlined" style={{ fontSize: '2.5rem', color: 'var(--nk-primary)', marginBottom: '10px' }}>home</span>
+                           <h4 style={{ margin: 0, fontFamily: 'Teko', fontSize: '1.4rem' }}>Direcciones</h4>
+                        </div>
+                        <div className="nk-manga-border" style={{ padding: '20px', textAlign: 'center', cursor: 'pointer', background: 'var(--nk-bg-wrapper)' }} onClick={() => setActiveTab('profile')}>
+                           <span className="material-icons-outlined" style={{ fontSize: '2.5rem', color: 'var(--nk-primary)', marginBottom: '10px' }}>settings</span>
+                           <h4 style={{ margin: 0, fontFamily: 'Teko', fontSize: '1.4rem' }}>Ajustes</h4>
                         </div>
                       </div>
-                    );
-                  })}
-                  {(!user?.orders?.nodes || user.orders.nodes.length === 0) && (
-                    <p style={{ textAlign: 'center', padding: '40px', color: 'var(--nk-text-sec)' }}>No hay pedidos activos para rastrear.</p>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Shipping Info Section */}
-            {dashboardSection === 'shipping' && (
-              <div className="nk-dash-section nk-dash-animate">
-                <h2 className="nk-dash-title">Información de Envío</h2>
-                <p className="nk-dash-subtitle">Tus datos de entrega predeterminados.</p>
-                
-                <div className="nk-addresses-grid">
-                  <div className="nk-address-card">
-                    <div className="nk-address-card-header">
-                      <h4>Dirección Principal</h4>
                     </div>
-                    <div className="nk-address-card-body">
-                      {user?.shipping?.address1 ? (
-                        <>
-                          <p><strong>{user.firstName} {user.lastName}</strong></p>
-                          <p>{user.shipping.address1} {user.shipping.address2}</p>
-                          <p>{user.shipping.city}, {user.shipping.state} {user.shipping.postcode}</p>
-                          <p>{user.shipping.country}</p>
-                        </>
+                  )}
+
+                  {activeTab === 'orders' && (
+                    <div className="nk-tab-pane nk-dash-animate">
+                      <h2 className="nk-section-title" style={{ marginBottom: '30px' }}>Historial de Botín</h2>
+                      {user.orders && user.orders.nodes.length > 0 ? (
+                        <div className="nk-orders-list" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+                          {user.orders.nodes.map((order: any) => (
+                            <div key={order.id} className="nk-order-item nk-manga-border" style={{ padding: '25px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--nk-border)', paddingBottom: '15px' }}>
+                                <div>
+                                  <p style={{ fontWeight: 900, fontSize: '1.4rem', fontFamily: 'Teko', color: 'var(--nk-primary)' }}>PEDIDO #{order.orderNumber}</p>
+                                  <p style={{ fontSize: '0.8rem', opacity: 0.7 }}>{new Date(order.date).toLocaleDateString()}</p>
+                                </div>
+                                <div style={{ textAlign: 'right' }}>
+                                  <span style={{ fontSize: '0.7rem', padding: '4px 12px', background: 'var(--nk-border)', color: 'var(--nk-bg-body)', borderRadius: '20px', fontWeight: 800, textTransform: 'uppercase' }}>{order.status}</span>
+                                </div>
+                              </div>
+                              
+                              <div className="nk-order-details">
+                                <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                                  {order.lineItems?.nodes.map((item: any, i: number) => (
+                                    <li key={i} style={{ fontSize: '0.9rem', marginBottom: '5px', display: 'flex', justifyContent: 'space-between' }}>
+                                      <span>{item.quantity}x {item.product.node.name}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                                <div style={{ marginTop: '15px', textAlign: 'right', fontWeight: 900, fontSize: '1.2rem', fontFamily: 'Teko' }}>
+                                  TOTAL: {formatPrice(parseFloat(order.total))}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       ) : (
-                        <p style={{ fontStyle: 'italic' }}>No has configurado una dirección de envío aún.</p>
+                        <div style={{ textAlign: 'center', padding: '60px', background: 'var(--nk-bg-wrapper)', border: '2px dashed var(--nk-border)' }}>
+                          <span className="material-icons-outlined" style={{ fontSize: '4rem', opacity: 0.2 }}>inventory_2</span>
+                          <p style={{ marginTop: '15px', fontWeight: 700 }}>Aún no has capturado ningún tesoro.</p>
+                          <Link href="/store" className="nk-btn" style={{ marginTop: '20px', fontSize: '1rem' }}>Ir a la Tienda</Link>
+                        </div>
                       )}
                     </div>
-                  </div>
-                </div>
-                <p style={{ marginTop: '20px', fontSize: '0.85rem', color: 'var(--nk-text-sec)' }}>
-                  * Para actualizar tu dirección, por favor realiza una nueva compra o edítala desde el sitio principal.
-                </p>
-              </div>
-            )}
+                  )}
 
-            {/* Comisiones Section */}
-            {dashboardSection === 'comisiones' && (
-              <div className="nk-dash-section nk-dash-animate">
-                <h2 className="nk-dash-title">Mis Comisiones</h2>
-                <p className="nk-dash-subtitle">Programa de Apoyo a Creadores Nakama (10% por ventas).</p>
-                <div className="nk-orders-table-wrapper" style={{ marginTop: '20px' }}>
-                  {user?.comisiones && Array.isArray(user.comisiones) && user.comisiones.length > 0 ? (
-                    <table className="nk-orders-table">
-                      <thead>
-                        <tr>
-                          <th>Mes</th>
-                          <th>Comisión Acumulada</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {user.comisiones.map((com, i) => {
-                          const [mes, monto] = com.split('|');
-                          return (
-                            <tr key={i}>
-                              <td style={{ fontWeight: '600' }}>{mes}</td>
-                              <td className="nk-order-total" style={{ color: 'var(--nk-primary)' }}>{formatPrice(parseFloat(monto))}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                  ) : (
-                    <div style={{ padding: '30px', textAlign: 'center', background: 'var(--nk-bg-wrapper)', borderRadius: '8px' }}>
-                      <span className="material-icons-outlined" style={{ fontSize: '48px', color: 'var(--nk-text-sec)', marginBottom: '10px', display: 'block' }}>payments</span>
-                      <h3>No hay comisiones registradas</h3>
-                      <p style={{ color: 'var(--nk-text-sec)', marginTop: '10px' }}>Aún no tienes comisiones registradas en el periodo reciente. ¡Asegúrate de compartir tu cupón de creador!</p>
+                  {activeTab === 'tracking' && (
+                    <div className="nk-tab-pane nk-dash-animate">
+                      <h2 className="nk-section-title" style={{ marginBottom: '30px' }}>Rastreo de Botín</h2>
+                      
+                      {user.orders && user.orders.nodes.some((o: any) => o.enviaTrackingCode) ? (
+                        <div className="nk-tracking-list" style={{ display: 'flex', flexDirection: 'column', gap: '25px' }}>
+                          {user.orders.nodes.filter((o: any) => o.enviaTrackingCode).map((order: any) => {
+                            const code = order.enviaTrackingCode;
+                            const res = trackingResults[code];
+                            return (
+                              <div key={`track-${order.id}`} className="nk-tracking-card nk-manga-border" style={{ padding: '0', overflow: 'hidden' }}>
+                                <div style={{ background: 'var(--nk-border)', color: 'var(--nk-bg-body)', padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span style={{ fontFamily: 'Teko', fontSize: '1.4rem', fontWeight: 800 }}>PEDIDO #{order.orderNumber}</span>
+                                  <span style={{ fontSize: '0.8rem', fontWeight: 800, textTransform: 'uppercase' }}>{order.enviaCarrier || 'Envío'}</span>
+                                </div>
+                                <div style={{ padding: '25px' }}>
+                                  <div className="nk-manga-border" style={{ background: 'var(--nk-bg-wrapper)', padding: '15px', marginBottom: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <div>
+                                      <p style={{ fontSize: '0.7rem', textTransform: 'uppercase', fontWeight: 800, opacity: 0.6 }}>Guía de Rastreo</p>
+                                      <p style={{ fontFamily: 'Courier New', fontWeight: 'bold', fontSize: '1.1rem', color: 'var(--nk-primary)' }}>{code}</p>
+                                    </div>
+                                    <button 
+                                      className="nk-btn" 
+                                      style={{ padding: '10px 20px', fontSize: '1rem' }} 
+                                      onClick={() => fetchTracking(code, order.enviaCarrier || 'estafeta')} 
+                                      disabled={trackingLoading === code}
+                                    >
+                                      {trackingLoading === code ? 'Consultando...' : 'Ver Estado'}
+                                    </button>
+                                  </div>
+
+                                  {res && (
+                                    <div className="nk-tracking-details nk-dash-animate" style={{ padding: '15px', background: 'var(--nk-bg-wrapper)', borderLeft: '5px solid var(--nk-primary)' }}>
+                                      <p style={{ fontWeight: 900, color: 'var(--nk-primary)', marginBottom: '8px', fontFamily: 'Teko', fontSize: '1.3rem', textTransform: 'uppercase' }}>
+                                        ESTADO: {res.status || 'En camino'}
+                                      </p>
+                                      <p style={{ fontSize: '0.95rem', lineHeight: 1.4 }}>{res.description || 'El paquete está siendo procesado por la tripulación logística.'}</p>
+                                      {res.checkpoint && (
+                                        <p style={{ fontSize: '0.8rem', marginTop: '10px', opacity: 0.6, fontStyle: 'italic' }}>Último avistamiento: {res.checkpoint}</p>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ) : (
+                        <div className="nk-tracking-pending" style={{ textAlign: 'center', padding: '60px', opacity: 0.5 }}>
+                          <span className="material-icons-outlined" style={{ fontSize: '4rem' }}>local_shipping</span>
+                          <p style={{ marginTop: '15px', fontWeight: 700 }}>Tus pedidos aún están en el astillero. Te avisaremos cuando zarpen.</p>
+                        </div>
+                      )}
                     </div>
                   )}
-                </div>
-              </div>
-            )}
 
-            {/* Edit Account Section */}
-            {dashboardSection === 'account' && (
-              <div className="nk-dash-section nk-dash-animate">
-                <h2 className="nk-dash-title">Detalles de Cuenta</h2>
-                <p className="nk-dash-subtitle">Información de perfil del tripulante.</p>
-
-                <form className="nk-account-form" onSubmit={(e) => { e.preventDefault(); alert('Modificación no disponible por API, ve al checkout.'); }}>
-                  <div className="nk-form-row">
-                    <div className="nk-form-group">
-                      <label>Nombre</label>
-                      <input type="text" readOnly defaultValue={user?.firstName} className="nk-input-base nk-input-disabled" />
+                  {activeTab === 'commissions' && (
+                    <div className="nk-tab-pane nk-dash-animate">
+                      <h2 className="nk-section-title" style={{ marginBottom: '30px' }}>Tus Ganancias</h2>
+                      <div className="nk-commission-current nk-manga-border" style={{ background: 'var(--nk-bg-wrapper)', padding: '30px', display: 'flex', alignItems: 'center', gap: '30px' }}>
+                        <div className="nk-commission-current-icon" style={{ background: 'var(--nk-primary)', color: '#fff', width: '70px', height: '70px', borderRadius: '15px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <span className="material-icons-outlined" style={{ fontSize: '2.5rem' }}>account_balance_wallet</span>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '0.8rem', textTransform: 'uppercase', fontWeight: 800, opacity: 0.6 }}>Saldo por Reclamar</p>
+                          <p style={{ fontFamily: 'Teko', fontSize: '3.5rem', fontWeight: 800, color: 'var(--nk-primary)', lineHeight: 1 }}>{formatPrice(1250.50)}</p>
+                          <p style={{ fontSize: '0.8rem', opacity: 0.7 }}>Corte de mes: 30 de Junio</p>
+                        </div>
+                      </div>
                     </div>
-                    <div className="nk-form-group">
-                      <label>Apellidos</label>
-                      <input type="text" readOnly defaultValue={user?.lastName} className="nk-input-base nk-input-disabled" />
+                  )}
+
+                  {activeTab === 'addresses' && (
+                    <div className="nk-tab-pane nk-dash-animate">
+                      <h2 className="nk-section-title" style={{ marginBottom: '30px' }}>Direcciones</h2>
+                      <div className="nk-manga-border" style={{ padding: '30px', background: 'var(--nk-bg-wrapper)' }}>
+                        <p style={{ fontWeight: 800, marginBottom: '10px', textTransform: 'uppercase', fontSize: '0.9rem' }}>Dirección de Envío Principal</p>
+                        <p style={{ opacity: 0.7, fontSize: '1rem', lineHeight: 1.5 }}>
+                          {user.shipping?.address1 ? (
+                            <>
+                              {user.shipping.address1}<br />
+                              {user.shipping.city}, {user.shipping.state}<br />
+                              CP: {user.shipping.postcode}<br />
+                              {user.shipping.country}
+                            </>
+                          ) : 'No has configurado una dirección de envío aún.'}
+                        </p>
+                        <button className="nk-btn" style={{ marginTop: '25px', fontSize: '1rem', padding: '10px 25px' }}>{user.shipping?.address1 ? 'Editar Dirección' : 'Añadir Nueva'}</button>
+                      </div>
                     </div>
-                  </div>
-                  <div className="nk-form-group">
-                    <label>Email</label>
-                    <input type="email" readOnly defaultValue={user?.email} className="nk-input-base nk-input-disabled" />
-                  </div>
-                </form>
+                  )}
+
+                  {activeTab === 'profile' && (
+                    <div className="nk-tab-pane nk-dash-animate">
+                      <h2 className="nk-section-title" style={{ marginBottom: '30px' }}>Detalles de la Cuenta</h2>
+                      <div className="nk-info-box nk-manga-border" style={{ padding: '30px', background: 'var(--nk-bg-wrapper)' }}>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '30px', marginBottom: '30px' }}>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', opacity: 0.5, marginBottom: '8px' }}>Nombre Completo</label>
+                            <p style={{ fontWeight: 800, fontSize: '1.1rem' }}>{user.firstName} {user.lastName || ''}</p>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', opacity: 0.5, marginBottom: '8px' }}>Email</label>
+                            <p style={{ fontWeight: 800, fontSize: '1.1rem' }}>{user.email}</p>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', opacity: 0.5, marginBottom: '8px' }}>Usuario</label>
+                            <p style={{ fontWeight: 700 }}>{user.username}</p>
+                          </div>
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 800, textTransform: 'uppercase', opacity: 0.5, marginBottom: '8px' }}>Rol</label>
+                            <p style={{ fontWeight: 700, color: 'var(--nk-primary)' }}>{user.role?.toUpperCase() || 'NAKAMA'}</p>
+                          </div>
+                        </div>
+                        <div style={{ paddingTop: '20px', borderTop: '1px solid var(--nk-border)' }}>
+                           <button className="nk-btn" style={{ fontSize: '1.1rem', padding: '10px 30px' }}>Editar Perfil</button>
+                           <button className="nk-btn-sec" style={{ fontSize: '1.1rem', padding: '10px 30px', marginLeft: '15px', background: 'transparent', border: 'none' }}>Cambiar Contraseña</button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </main>
               </div>
-            )}
-          </main>
-        </div>
-      </div>
-    );
-  }
-
-  // ============================================
-  // NOT LOGGED IN - LOGIN / REGISTER PORTAL
-  // ============================================
-  return (
-    <div className="nk-login-page">
-      <div className="nk-login-bg">
-        <div className="nk-login-bg-pattern"></div>
-        <div className="nk-login-bg-gradient"></div>
-        {FLOATING_SYMBOLS_LOGIN.map((item, i) => (
-          <div
-            key={i}
-            className="op-floating-text-mi"
-            data-speed={item.speed}
-            style={{ left: item.left, top: item.top, fontSize: item.fontSize, opacity: item.opacity }}
-          >
-            {item.sym}
-          </div>
-        ))}
-      </div>
-
-      <div className="nk-login-wrapper">
-        <div className="nk-login-header">
-          <Image 
-            src="https://nakamabordados.com/wp-content/uploads/2025/11/LOGO-NAKAMA-scaled-2048x926.png" 
-            alt="Nakama Bordados" 
-            width={240} 
-            height={110} 
-            className="nk-login-logo" 
-            priority
-          />
-          <h2 className="nk-login-title">Portal de la Tripulación</h2>
-        </div>
-
-        {activeTab !== 'lostpw' && (
-          <div className="nk-login-tabs">
-            <button className={`nk-tab-btn ${activeTab === 'login' ? 'active' : ''}`} onClick={() => setActiveTab('login')}>
-              Pirata (Login)
-            </button>
-            <button className={`nk-tab-btn ${activeTab === 'register' ? 'active' : ''}`} onClick={() => setActiveTab('register')}>
-              Recluta (Registro)
-            </button>
-          </div>
-        )}
-
-        <div className="nk-login-card">
-          <div className="nk-login-card-accent"></div>
-
-          {activeTab === 'login' && (
-            <div className="nk-login-form-content nk-dash-animate">
-              <div className="nk-login-form-header">
-                <h3>Bienvenido a Bordo</h3>
-                <p>Ingresa tus credenciales para zarpar.</p>
+            </div>
+          ) : (
+            <div className="nk-login-form-wrapper" style={{ maxWidth: '400px', margin: '0 auto' }}>
+              <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+                <Image src="https://nakamabordados.com/wp-content/uploads/2025/11/LOGO-NAKAMA-scaled-2048x926.png" alt="Nakama" width={150} height={70} style={{ objectFit: 'contain' }} className="nk-logo-img" />
+                <h2 className="nk-section-title" style={{ marginTop: '20px' }}>{t('account.login.title')}</h2>
               </div>
-              <form onSubmit={handleLogin}>
+
+              <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
                 <div className="nk-form-group">
-                  <label>Correo electrónico o Usuario</label>
-                  <input
-                    type="text"
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    className="nk-input-base"
-                    placeholder="usuario o email"
-                    required
-                  />
+                  <label>{t('account.login.user')}</label>
+                  <input type="text" name="username" value={userCredentials.username} onChange={handleInputChange} required className="nk-manga-input" />
                 </div>
-                <div className="nk-form-group nk-password-group">
-                  <label>Contraseña</label>
-                  <div className="nk-password-wrapper">
-                    <input
-                      type={showLoginPw ? 'text' : 'password'}
-                      value={loginPassword}
-                      onChange={(e) => setLoginPassword(e.target.value)}
-                      className="nk-input-base"
-                      placeholder="••••••••"
-                      required
-                    />
-                    <button type="button" className="nk-pw-toggle" onClick={() => setShowLoginPw(!showLoginPw)}>
-                      <span className="material-icons-outlined">{showLoginPw ? 'visibility_off' : 'visibility'}</span>
-                    </button>
-                  </div>
+                <div className="nk-form-group">
+                  <label>{t('account.login.pass')}</label>
+                  <input type="password" name="password" value={userCredentials.password} onChange={handleInputChange} required className="nk-manga-input" />
                 </div>
-                {loginError && <p style={{ color: 'red', fontSize: '0.9rem', marginBottom: '10px' }}>{loginError}</p>}
-                <div className="nk-login-extras">
-                  <label className="nk-remember-me"><input type="checkbox" /> Recuérdame</label>
-                  <button type="button" className="nk-lost-pw-link" onClick={() => setActiveTab('lostpw')}>¿Olvidaste tu contraseña?</button>
-                </div>
-                <button type="submit" className="nk-btn nk-btn-login" disabled={isLoggingIn}>
-                  {isLoggingIn ? 'Verificando...' : 'Iniciar Sesión'}
+
+                {error && <p style={{ color: 'var(--nk-primary)', fontWeight: 700, textAlign: 'center', fontSize: '0.9rem' }}>{error}</p>}
+
+                <button type="submit" disabled={isLoggingIn} className="nk-btn nk-btn-block" style={{ padding: '15px', fontSize: '1.4rem' }}>
+                  {isLoggingIn ? '...' : t('account.login.btn')}
                 </button>
               </form>
-            </div>
-          )}
-
-          {activeTab === 'register' && (
-            <div className="nk-login-form-content nk-dash-animate">
-              <div className="nk-login-form-header">
-                <h3>Únete a la Flota</h3>
-                <p>Crea tu cuenta de tripulante hoy.</p>
+              
+              <div style={{ marginTop: '30px', textAlign: 'center' }}>
+                <Link href="/" className="nk-btn-sec" style={{ fontSize: '0.9rem', opacity: 0.7, textDecoration: 'none' }}>{t('nav.home')}</Link>
               </div>
-              <form onSubmit={handleRegister}>
-                <div className="nk-form-group">
-                  <label>Correo electrónico</label>
-                  <input type="email" value={regEmail} onChange={(e) => setRegEmail(e.target.value)} className="nk-input-base" placeholder="tu@email.com" required />
-                </div>
-                <div className="nk-form-group nk-password-group">
-                  <label>Contraseña</label>
-                  <div className="nk-password-wrapper">
-                    <input type={showRegPw ? 'text' : 'password'} value={regPassword} onChange={(e) => setRegPassword(e.target.value)} className="nk-input-base" placeholder="Mínimo 8 caracteres" required />
-                    <button type="button" className="nk-pw-toggle" onClick={() => setShowRegPw(!showRegPw)}>
-                      <span className="material-icons-outlined">{showRegPw ? 'visibility_off' : 'visibility'}</span>
-                    </button>
-                  </div>
-                </div>
-                <div className="nk-form-group">
-                  <label>Confirmar Contraseña</label>
-                  <input type="password" value={regConfirm} onChange={(e) => setRegConfirm(e.target.value)} className="nk-input-base" placeholder="Repite tu contraseña" required />
-                </div>
-                <div className="nk-login-extras">
-                  <label className="nk-remember-me" style={{ fontSize: '0.8rem', color: 'var(--nk-text-sec)' }}>
-                    El registro nativo en este portal requiere configuración adicional. Por favor, realiza tu registro en el Checkout de tu próxima compra.
-                  </label>
-                </div>
-                <button type="button" className="nk-btn nk-btn-login" onClick={() => setActiveTab('login')}>
-                  Ir al Login
-                </button>
-              </form>
-            </div>
-          )}
-
-          {activeTab === 'lostpw' && (
-            <div className="nk-login-form-content nk-dash-animate">
-              {!lostPwSent ? (
-                <>
-                  <div className="nk-login-form-header">
-                    <h3>Recuperar Rumbo</h3>
-                    <p>Ingresa tu correo o usuario para restablecer tu contraseña.</p>
-                  </div>
-                  <form onSubmit={handleLostPassword}>
-                    <div className="nk-form-group">
-                      <label>Correo electrónico</label>
-                      <input type="email" value={lostPwEmail} onChange={(e) => setLostPwEmail(e.target.value)} className="nk-input-base" placeholder="tu@email.com" required />
-                    </div>
-                    <button type="submit" className="nk-btn nk-btn-login">Enviar Enlace</button>
-                  </form>
-                  <div style={{ textAlign: 'center', marginTop: '16px' }}>
-                    <button className="nk-lost-pw-link" onClick={() => { setActiveTab('login'); setLostPwSent(false); }}>← Volver al Login</button>
-                  </div>
-                </>
-              ) : (
-                <div className="nk-lostpw-sent nk-dash-animate">
-                  <span className="material-icons-outlined" style={{ fontSize: '3rem', color: 'var(--nk-primary)', marginBottom: '16px' }}>mark_email_read</span>
-                  <h3>Mensaje Enviado</h3>
-                  <p>Revisa tu bandeja de entrada o carpeta de spam para encontrar el enlace de recuperación.</p>
-                  <button className="nk-btn nk-btn-login" style={{ marginTop: '20px' }} onClick={() => { setActiveTab('login'); setLostPwSent(false); }}>Volver al Login</button>
-                </div>
-              )}
             </div>
           )}
         </div>
 
-        <div className="nk-login-protocol">NAKAMA SECURITY PROTOCOL // GRAND LINE</div>
+        <div className="nk-login-protocol" style={{ textAlign: 'center', marginTop: '40px', fontSize: '0.7rem', opacity: 0.3, letterSpacing: '4px' }}>NAKAMA SECURITY PROTOCOL // GRAND LINE</div>
       </div>
     </div>
   );
