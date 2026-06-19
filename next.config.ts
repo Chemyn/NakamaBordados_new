@@ -22,7 +22,7 @@ const nextConfig: NextConfig = {
       },
     ],
   },
-  allowedDevOrigins: ['localhost', '192.168.0.241', '189.198.139.6', '*'],
+  allowedDevOrigins: ['localhost', '192.168.0.241', '189.198.139.6','*.trycloudflare.com','*.localtunnel.me', '*'],
 };
 
 export default nextConfig;

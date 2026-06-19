@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AuthProvider } from "./context/AuthContext";
@@ -7,6 +8,7 @@ import { LanguageProvider } from "./context/LanguageContext";
 import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import WhatsAppButton from "./components/WhatsAppButton";
+import MaintenanceWrapper from "./components/MaintenanceWrapper";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -31,12 +33,16 @@ export default function RootLayout({
           <LanguageProvider>
             <CurrencyProvider>
               <CartProvider>
-                <Navbar />
-                <div style={{ minHeight: "calc(100vh - 80px - 350px)" }}>
-                  {children}
-                </div>
-                <Footer />
-                <WhatsAppButton />
+                <MaintenanceWrapper>
+                  <Suspense fallback={<div style={{ height: "80px", background: "var(--nk-bg-card)" }} />}>
+                    <Navbar />
+                  </Suspense>
+                  <div style={{ minHeight: "calc(100vh - 80px - 350px)" }}>
+                    {children}
+                  </div>
+                  <Footer />
+                  <WhatsAppButton />
+                </MaintenanceWrapper>
               </CartProvider>
             </CurrencyProvider>
           </LanguageProvider>

@@ -6,8 +6,19 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     
-    // Logica básica de seguridad
-    // En producción, valida un token secreto o header
+    // Validate security token
+    const authHeader = request.headers.get('authorization') || request.headers.get('x-sync-token');
+    const expectedToken = process.env.SYNC_DB_SECRET;
+
+    if (!expectedToken) {
+      console.error('Database Sync Secret (SYNC_DB_SECRET) is not configured');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
+    if (authHeader !== expectedToken && authHeader !== `Bearer ${expectedToken}`) {
+      console.warn('Unauthorized DB sync attempt');
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
     
     console.log('[Sync DB] Triggered update for Product ID:', body.product_id);
 

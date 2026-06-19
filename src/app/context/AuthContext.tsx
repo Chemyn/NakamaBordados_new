@@ -32,6 +32,7 @@ interface Order {
 interface Customer {
   id: string;
   databaseId: number;
+  username: string;
   firstName: string;
   lastName: string;
   email: string;
@@ -91,108 +92,69 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("AuthProvider: Error validando formato de token:", e);
     }
 
-    // Consulta combinada: Viewer para datos WP y Customer para datos WC
-    const query = `
-      query GetUserData {
-        viewer {
-          id
-          databaseId
-          firstName
-          lastName
-          email
-          roles {
-            nodes {
-              name
-            }
-          }
-        }
-        customer {
-          shipping {
-            address1
-            address2
-            city
-            state
-            postcode
-            country
-          }
-          orders(first: 20) {
-            nodes {
-              id
-              orderNumber
-              status
-              total
-              date
-              lineItems {
-                nodes {
-                  product {
-                    node {
-                      name
-                    }
-                  }
-                  quantity
-                }
-              }
-            }
-          }
-        }
-      }
-    `;
-
     try {
-      const { data } = await fetchGraphQL(query, {}, { Authorization: `Bearer ${token}` });
+      const response = await fetch('/api/auth/me', {
+        headers: { Authorization: `Bearer ${token}` }
+      });
       
-      if (data?.viewer) {
-        const v = data.viewer;
-        const c = data.customer || {};
-        
-        // Mapear datos a nuestra interfaz Customer
-        const customer: Customer = {
-          id: v.id,
-          databaseId: v.databaseId,
-          firstName: v.firstName || '',
-          lastName: v.lastName || '',
-          email: v.email,
-          role: v.roles?.nodes?.[0]?.name || 'customer',
-          orders: c.orders || { nodes: [] },
-          shipping: c.shipping || {
-            address1: '', address2: '', city: '',
-            state: '', postcode: '', country: ''
-          }
-        };
-
-        console.log("AuthProvider: Usuario cargado:", customer.email);
-
-        // --- BYPASS TEMPORAL PARA PRUEBAS (Chemyn) ---
-        const isChemyn = 
-          (customer.email && customer.email.toLowerCase().includes('josemlopez2310@gmail.com')) || 
-          (customer.firstName && customer.firstName.toLowerCase().includes('chemyn'));
-
-        if (isChemyn) {
-          console.log("AuthProvider: Aplicando bypass para Chemyn.");
-          const testOrder = {
-            id: 'test-100303',
-            orderNumber: '100303',
-            status: 'COMPLETED',
-            total: '999.00',
-            date: new Date().toISOString(),
-            enviaTrackingCode: '1055910227610700042072',
-            enviaCarrier: 'Estafeta',
-            metaData: [],
-            lineItems: { 
-              nodes: [{ product: { node: { name: 'Hoodie Luffy Gear 5 (Test)' } }, quantity: 1 }] 
+      if (response.ok) {
+        const body = await response.json();
+        if (body.viewer) {
+          const v = body.viewer;
+          const c = body.customer || {};
+          
+          // Mapear datos a nuestra interfaz Customer
+          const customer: Customer = {
+            id: v.id,
+            databaseId: v.databaseId,
+            username: v.username || '',
+            firstName: v.firstName || '',
+            lastName: v.lastName || '',
+            email: v.email,
+            role: v.role || 'customer',
+            orders: c.orders || { nodes: [] },
+            shipping: c.shipping || {
+              address1: '', address2: '', city: '',
+              state: '', postcode: '', country: ''
             }
           };
-          
-          if (!customer.orders.nodes.find((o: Order) => o.orderNumber === '100303')) {
-            customer.orders.nodes = [testOrder, ...customer.orders.nodes];
-          }
-        }
-        // ------------------------------------
 
-        setUser(customer);
+          console.log("AuthProvider: Usuario cargado:", customer.email);
+
+          // --- BYPASS TEMPORAL PARA PRUEBAS (Chemyn) ---
+          const isChemyn = 
+            (customer.email && customer.email.toLowerCase().includes('josemlopez2310@gmail.com')) || 
+            (customer.firstName && customer.firstName.toLowerCase().includes('chemyn'));
+
+          if (isChemyn) {
+            console.log("AuthProvider: Aplicando bypass para Chemyn.");
+            const testOrder = {
+              id: 'test-100303',
+              orderNumber: '100303',
+              status: 'COMPLETED',
+              total: '999.00',
+              date: new Date().toISOString(),
+              enviaTrackingCode: '1055910227610700042072',
+              enviaCarrier: 'Estafeta',
+              metaData: [],
+              lineItems: { 
+                nodes: [{ product: { node: { name: 'Hoodie Luffy Gear 5 (Test)' } }, quantity: 1 }] 
+              }
+            };
+            
+            if (!customer.orders.nodes.find((o: Order) => o.orderNumber === '100303')) {
+              customer.orders.nodes = [testOrder, ...customer.orders.nodes];
+            }
+          }
+          // ------------------------------------
+
+          setUser(customer);
+        } else {
+          console.warn("AuthProvider: No se pudo obtener el usuario, el token podría ser inválido.");
+          logout();
+        }
       } else {
-        // Si no hay viewer pero el fetch terminó, es probable que el token sea inválido
-        console.warn("AuthProvider: No se pudo obtener el usuario, el token podría ser inválido.");
+        console.warn("AuthProvider: Falló llamado a /api/auth/me.");
         logout();
       }
     } catch (err) {
@@ -218,33 +180,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchCustomerData]);
 
   const login = async (username: string, password: string) => {
-    const mutation = `
-      mutation LoginUser($username: String!, $password: String!) {
-        login(input: {
-          clientMutationId: "uniqueId",
-          username: $username,
-          password: $password
-        }) {
-          authToken
-          user {
-            id
-            databaseId
-            name
-          }
-        }
-      }
-    `;
-
     try {
-      const { data } = await fetchGraphQL(mutation, { username, password });
-      if (data?.login?.authToken) {
-        const token = data.login.authToken;
+      const response = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password })
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success && data.authToken) {
+        const token = data.authToken;
         setAuthToken(token);
         localStorage.setItem('wp-jwt', token);
         await fetchCustomerData(token);
         return { success: true };
       } else {
-        return { success: false, error: 'Credenciales inválidas' };
+        const errorMsg = data.error || 'Credenciales inválidas';
+        return { success: false, error: errorMsg };
       }
     } catch (err) {
       console.error('Login error', err);

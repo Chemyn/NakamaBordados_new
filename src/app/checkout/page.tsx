@@ -30,6 +30,20 @@ export default function CheckoutPage() {
   const [couponInput, setCouponInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [redirecting, setRedirecting] = useState(false);
+
+  useEffect(() => {
+    if (cart.length > 0) {
+      setRedirecting(true);
+      const itemsStr = cart.map(item => {
+        const id = item.variation?.databaseId || item.product.databaseId;
+        return `${id}:${item.quantity}`;
+      }).join(',');
+      
+      const checkoutUrl = `https://nakamabordados.com/?nk_bridge=1&items=${itemsStr}${couponCode ? `&coupon=${couponCode}` : ''}`;
+      window.location.href = checkoutUrl;
+    }
+  }, [cart, couponCode]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setLocalFormData({ ...formData, [e.target.name]: e.target.value });
@@ -46,15 +60,6 @@ export default function CheckoutPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setIsProcessing(true);
-    
-    // Simulate order processing
-    setTimeout(() => {
-      setIsProcessing(false);
-      alert('¡Pedido realizado con éxito! (Simulación)');
-      clearCart();
-      router.push('/');
-    }, 2000);
   };
 
   if (cart.length === 0) {
@@ -65,6 +70,20 @@ export default function CheckoutPage() {
             <span className="material-icons-outlined" style={{ fontSize: '5rem', color: 'var(--nk-primary)' }}>sailing</span>
             <h2>{t('checkout.empty')}</h2>
             <Link href="/store" className="nk-btn">{t('checkout.back')}</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (redirecting) {
+    return (
+      <div className="nk-checkout-empty" style={{ padding: '150px 20px', textAlign: 'center' }}>
+        <div className="nk-container">
+          <div className="nk-empty-card nk-manga-border" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', padding: '60px 40px', background: 'var(--nk-bg-card)', maxWidth: '500px', margin: '0 auto' }}>
+            <div className="nk-spinner" style={{ margin: '0 auto 20px' }}></div>
+            <h2 style={{ fontFamily: 'Teko', fontSize: '2.5rem' }}>{t('checkout.processing') || 'Redirigiendo...'}</h2>
+            <p style={{ opacity: 0.7 }}>{t('checkout.redirect_msg') || 'Cargando tu tripulación y tu tesoro...'}</p>
           </div>
         </div>
       </div>

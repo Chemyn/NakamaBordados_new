@@ -81,20 +81,108 @@ export const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { 
   );
 };
 
+// ---------------------------------------------------------
+// Hooks
+// ---------------------------------------------------------
+
+export const useDraggableScroll = (autoScroll: boolean = false) => {
+  const ref = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
+  const [startX, setStartX] = useState(0);
+  const [scrollLeft, setScrollLeft] = useState(0);
+
+  useEffect(() => {
+    if (!autoScroll || isDragging || isHovered) return;
+    
+    const interval = setInterval(() => {
+      if (ref.current) {
+        ref.current.scrollLeft += 1;
+        // Infinite loop reset
+        if (ref.current.scrollLeft >= ref.current.scrollWidth * 0.66) {
+          ref.current.scrollLeft = ref.current.scrollWidth * 0.33;
+        }
+      }
+    }, 30);
+    return () => clearInterval(interval);
+  }, [autoScroll, isDragging, isHovered]);
+
+  const onMouseDown = (e: React.MouseEvent) => {
+    if (!ref.current) return;
+    setIsDragging(true);
+    setStartX(e.pageX - ref.current.offsetLeft);
+    setScrollLeft(ref.current.scrollLeft);
+    ref.current.style.cursor = 'grabbing';
+    ref.current.style.userSelect = 'none';
+  };
+
+  const onMouseUp = () => {
+    setIsDragging(false);
+    if (ref.current) {
+      ref.current.style.cursor = 'grab';
+      ref.current.style.removeProperty('user-select');
+    }
+  };
+
+  const onMouseMove = (e: React.MouseEvent) => {
+    if (!isDragging || !ref.current) return;
+    e.preventDefault();
+    ref.current.style.scrollBehavior = 'auto'; // Disable smooth scroll while dragging
+    const x = e.pageX - ref.current.offsetLeft;
+    const walk = (x - startX) * 2; 
+    ref.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const onTouchStart = (e: React.TouchEvent) => {
+    if (!ref.current) return;
+    setIsDragging(true);
+    setStartX(e.touches[0].pageX - ref.current.offsetLeft);
+    setScrollLeft(ref.current.scrollLeft);
+    ref.current.style.scrollBehavior = 'auto';
+  };
+
+  const onTouchMove = (e: React.TouchEvent) => {
+    if (!isDragging || !ref.current) return;
+    // We don't preventDefault here to allow vertical page scroll
+    const x = e.touches[0].pageX - ref.current.offsetLeft;
+    const walk = (x - startX) * 1.5;
+    ref.current.scrollLeft = scrollLeft - walk;
+  };
+
+  return { 
+    ref, 
+    onMouseDown, 
+    onMouseUp, 
+    onMouseLeave: () => { onMouseUp(); setIsHovered(false); }, 
+    onMouseEnter: () => setIsHovered(true),
+    onMouseMove,
+    onTouchStart,
+    onTouchEnd: () => { setIsDragging(false); if(ref.current) ref.current.style.scrollBehavior = 'smooth'; },
+    onTouchMove
+  };
+};
+
 export const ScrollContainer = ({ products }: { products: Product[] }) => {
   const { t } = useLanguage();
   const { formatPrice } = useCurrency();
+  const dragProps = useDraggableScroll(true);
 
   if (products.length === 0) {
     return <SkeletonScrollContainer />;
   }
 
-  // Double products for infinite loop
-  const displayProducts = [...products, ...products];
+  // Triple duplicated items for infinite effect
+  const displayProducts = [...products, ...products, ...products];
+
+  useEffect(() => {
+    if (dragProps.ref.current) {
+      dragProps.ref.current.scrollLeft = dragProps.ref.current.scrollWidth * 0.33;
+    }
+  }, []);
 
   return (
-    <div className="nk-marquee-scroll-container">
-      <div className="nk-product-marquee-content">
+    <div className="nk-draggable-scroll-container" {...dragProps} style={{ cursor: 'grab', overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+      <div className="nk-product-carousel-inner">
         {displayProducts.map((p, idx) => {
           const minPrice = p.type === 'variable' && p.variations.length > 0
             ? Math.min(...p.variations.map(v => v.price)) 
@@ -134,31 +222,37 @@ export const ScrollContainer = ({ products }: { products: Product[] }) => {
       </div>
 
       <style jsx>{`
-        .nk-marquee-scroll-container {
+        .nk-draggable-scroll-container {
           width: 100%;
-          overflow: hidden;
+          overflow-x: auto;
           padding: 20px 0;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
         }
 
-        .nk-product-marquee-content {
+        .nk-draggable-scroll-container::-webkit-scrollbar {
+          display: none;
+        }
+
+        .nk-product-carousel-inner {
           display: flex;
-          gap: 20px;
+          gap: 25px;
+          padding: 0 20px;
           width: max-content;
-          animation: productLoop 40s linear infinite;
         }
 
-        .nk-marquee-scroll-container:hover .nk-product-marquee-content {
-          animation-play-state: paused;
+        .nk-carousel-card {
+          flex: 0 0 300px;
+          transition: transform 0.3s cubic-bezier(0.19, 1, 0.22, 1);
         }
 
-        @keyframes productLoop {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
+        .nk-carousel-card:hover {
+          transform: translateY(-10px);
         }
 
         @media (max-width: 768px) {
-          .nk-product-marquee-content {
-            animation-duration: 25s;
+          .nk-carousel-card {
+            flex: 0 0 240px;
           }
         }
       `}</style>
@@ -168,6 +262,7 @@ export const ScrollContainer = ({ products }: { products: Product[] }) => {
 
 export const CategoriesExplore = () => {
   const { t } = useLanguage();
+  const dragProps = useDraggableScroll(true);
   
   const categories = [
     { name: t('nav.all'), img: 'https://nakamabordados.com/wp-content/uploads/2026/01/todas.avif', href: '/store' },
@@ -180,16 +275,22 @@ export const CategoriesExplore = () => {
     { name: t('nav.variety'), img: 'https://nakamabordados.com/wp-content/uploads/2026/01/varias.avif', href: '/store?category=variedad' }
   ];
 
-  const doubleCategories = [...categories, ...categories];
+  const displayCategories = [...categories, ...categories, ...categories];
+
+  useEffect(() => {
+    if (dragProps.ref.current) {
+      dragProps.ref.current.scrollLeft = dragProps.ref.current.scrollWidth * 0.33;
+    }
+  }, []);
 
   return (
     <section className="nk-home-section" style={{ borderTop: '1px solid var(--nk-border)', overflow: 'hidden', padding: '80px 0' }}>
       <div className="nk-container" style={{ maxWidth: '100%', padding: 0 }}>
         <h2 className="nk-section-title" style={{ textAlign: 'center', marginBottom: '40px' }}>{t('home.explore_cats.title')}</h2>
         
-        <div className="nk-categories-marquee-wrapper">
-          <div className="nk-categories-marquee-content">
-            {doubleCategories.map((cat, idx) => (
+        <div className="nk-categories-drag-wrapper" {...dragProps} style={{ cursor: 'grab', overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <div className="nk-categories-drag-content">
+            {displayCategories.map((cat, idx) => (
               <Link 
                 href={cat.href} 
                 key={idx} 
@@ -221,31 +322,31 @@ export const CategoriesExplore = () => {
       </div>
 
       <style jsx>{`
-        .nk-categories-marquee-wrapper {
+        .nk-categories-drag-wrapper {
           width: 100%;
-          overflow: hidden;
+          overflow-x: auto;
+          scrollbar-width: none;
+          -ms-overflow-style: none;
         }
 
-        .nk-categories-marquee-content {
+        .nk-categories-drag-wrapper::-webkit-scrollbar {
+          display: none;
+        }
+
+        .nk-categories-drag-content {
           display: flex;
-          gap: 20px;
+          gap: 25px;
+          padding: 0 20px;
           width: max-content;
-          animation: categoryLoop 35s linear infinite;
         }
 
-        .nk-categories-marquee-wrapper:hover .nk-categories-marquee-content {
-          animation-play-state: paused;
+        .nk-explore-card {
+          transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
         }
 
-        @keyframes categoryLoop {
-          0% { transform: translateX(0); }
-          100% { transform: translateX(-50%); }
-        }
-
-        @media (max-width: 768px) {
-          .nk-categories-marquee-content {
-            animation-duration: 20s;
-          }
+        .nk-explore-card:hover {
+          transform: scale(1.02);
+          border-color: var(--nk-primary);
         }
       `}</style>
     </section>

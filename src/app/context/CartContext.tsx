@@ -202,6 +202,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       total,
       couponCode,
       discount: discountAmount, // Export the absolute amount for UI consistency
+      discountType,
       applyCoupon,
       removeCoupon
     }}>

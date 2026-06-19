@@ -32,6 +32,9 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
         const geoData = await geoRes.json();
         const country = geoData.country_code || 'MX';
         let targetCurrency = geoData.currency || 'MXN';
+        if (targetCurrency !== 'USD') {
+          targetCurrency = 'MXN';
+        }
         
         // Fetch rates based on MXN
         const rateRes = await fetch('https://open.er-api.com/v6/latest/MXN');
@@ -40,10 +43,8 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
         let rate = 1;
         let symbol = '$';
         
-        if (targetCurrency !== 'MXN' && rateData.rates[targetCurrency]) {
-          rate = rateData.rates[targetCurrency];
-          if (targetCurrency === 'EUR') symbol = '€';
-          else if (targetCurrency === 'JPY') symbol = '¥';
+        if (targetCurrency === 'USD' && rateData.rates.USD) {
+          rate = rateData.rates.USD;
         } else {
           targetCurrency = 'MXN';
         }
@@ -59,9 +60,15 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     const saved = localStorage.getItem('user-currency');
     if (saved) {
       try {
-        setCurrencyInfo(JSON.parse(saved));
+        const parsed = JSON.parse(saved);
+        if (parsed.currency !== 'MXN' && parsed.currency !== 'USD') {
+          fetchCurrency();
+        } else {
+          setCurrencyInfo(parsed);
+        }
       } catch (e) {
         console.error(e);
+        fetchCurrency();
       }
     } else {
       fetchCurrency();
@@ -74,12 +81,14 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
       const rateData = await rateRes.json();
       let rate = 1;
       let symbol = '$';
-      if (targetCurrency !== 'MXN' && rateData.rates[targetCurrency]) {
-         rate = rateData.rates[targetCurrency];
-         if (targetCurrency === 'EUR') symbol = '€';
-         else if (targetCurrency === 'JPY') symbol = '¥';
+      let cleanCurrency = targetCurrency;
+      if (cleanCurrency !== 'USD') {
+        cleanCurrency = 'MXN';
       }
-      const newInfo = { ...currencyInfo, currency: targetCurrency, rate, symbol };
+      if (cleanCurrency === 'USD' && rateData.rates.USD) {
+         rate = rateData.rates.USD;
+      }
+      const newInfo = { ...currencyInfo, currency: cleanCurrency, rate, symbol };
       setCurrencyInfo(newInfo);
       localStorage.setItem('user-currency', JSON.stringify(newInfo));
     } catch (e) {

@@ -41,6 +41,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
   // Modals
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [luffyModalOpen, setLuffyModalOpen] = useState(false);
+  const [successModalOpen, setSuccessModalOpen] = useState(false);
   
   const WARNINGS = [
     { 
@@ -173,7 +174,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
       }
     }
     addToCart(product, currentVariation, quantity);
-    alert(t('product.added').replace('{name}', product.name));
+    setSuccessModalOpen(true);
   };
 
   const isGorras = product.categories.includes('gorras') || product.name.toLowerCase().includes('gorra');
@@ -502,6 +503,45 @@ export default function ProductClient({ initialProduct: product, relatedProducts
             <h2 className="nk-warning-title" style={{ color: 'var(--nk-primary)' }}>{currentWarning.title}</h2>
             <p className="nk-warning-phrase" style={{ color: 'var(--nk-text-main)' }}>{currentWarning.phrase}</p>
             <button className="nk-warning-close-btn" style={{ background: 'var(--nk-primary)', color: '#fff', border: 'none', padding: '10px 20px', fontWeight: 800, marginTop: '20px' }} onClick={() => setLuffyModalOpen(false)}>{t('product.warning.close')}</button>
+          </div>
+        </div>
+      )}
+
+      {successModalOpen && (
+        <div className="nk-modal-backdrop" onClick={() => setSuccessModalOpen(false)} style={{ zIndex: 99999 }}>
+          <div className="nk-modal-card nk-manga-border" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px', textAlign: 'center', padding: '40px', background: 'var(--nk-bg-card)', boxShadow: 'var(--nk-manga-shadow-lg)' }}>
+            <button className="nk-modal-close" onClick={() => setSuccessModalOpen(false)} style={{ background: 'var(--nk-primary)', color: '#fff' }}>
+              <span className="material-icons-outlined">close</span>
+            </button>
+            
+            <div style={{ margin: '0 auto 20px', width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(255, 69, 0, 0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '3px solid var(--nk-primary)' }}>
+              <span className="material-icons-outlined" style={{ fontSize: '3.5rem', color: 'var(--nk-primary)' }}>sailing</span>
+            </div>
+            
+            <h2 style={{ fontFamily: 'Teko', fontSize: '2.5rem', textTransform: 'uppercase', marginBottom: '10px', color: 'var(--nk-text-main)' }}>
+              ¡AGREGADO AL BARCO!
+            </h2>
+            <p style={{ fontSize: '1.1rem', marginBottom: '25px', opacity: 0.8, color: 'var(--nk-text-sec)' }}>
+              Has sumado <strong>{product.name}</strong> {quantity > 1 ? `(x${quantity})` : ''} a tu botín.
+            </p>
+            
+            <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
+              <button 
+                type="button" 
+                className="nk-btn" 
+                style={{ flex: 1, padding: '12px', fontSize: '1.1rem', background: 'transparent', border: '3px solid var(--nk-border)', color: 'var(--nk-text-main)', boxShadow: 'none' }} 
+                onClick={() => setSuccessModalOpen(false)}
+              >
+                Seguir Navegando
+              </button>
+              <Link 
+                href="/cart" 
+                className="nk-btn" 
+                style={{ flex: 1, padding: '12px', fontSize: '1.1rem', background: 'var(--nk-primary)', color: '#fff', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
+                Ver Carrito
+              </Link>
+            </div>
           </div>
         </div>
       )}

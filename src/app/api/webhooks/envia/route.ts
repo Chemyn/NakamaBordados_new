@@ -6,7 +6,12 @@ export async function POST(req: Request) {
     const authHeader = req.headers.get('authorization') || req.headers.get('x-envia-token');
     const expectedToken = process.env.ENVIA_WEBHOOK_SECRET;
 
-    if (expectedToken && authHeader !== expectedToken && authHeader !== `Bearer ${expectedToken}`) {
+    if (!expectedToken) {
+      console.error('WooCommerce Envia Webhook Secret is not configured in environment variables');
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
+
+    if (authHeader !== expectedToken && authHeader !== `Bearer ${expectedToken}`) {
       console.warn('Unauthorized webhook attempt');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }

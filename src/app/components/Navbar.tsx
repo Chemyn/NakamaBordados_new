@@ -6,7 +6,7 @@ import Image from 'next/image';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useCart } from '../context/CartContext';
 import { useAuth } from '../context/AuthContext';
-import { useLanguage } from '../context/LanguageContext';
+import { useLanguage, Language } from '../context/LanguageContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { fetchCategories } from '../data/products';
 import { WPCategory } from '@/lib/queries';
@@ -260,7 +260,6 @@ export default function Navbar() {
                   >
                     <option value="es">Español</option>
                     <option value="en">English</option>
-                    <option value="jp">日本語</option>
                   </select>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px' }}>
@@ -273,8 +272,6 @@ export default function Navbar() {
                   >
                     <option value="MXN">MXN $</option>
                     <option value="USD">USD $</option>
-                    <option value="EUR">EUR €</option>
-                    <option value="JPY">JPY ¥</option>
                   </select>
                 </div>
               </div>
@@ -295,7 +292,6 @@ export default function Navbar() {
             >
               <option value="es">ES</option>
               <option value="en">EN</option>
-              <option value="jp">JP</option>
             </select>
 
             <select 
@@ -306,8 +302,6 @@ export default function Navbar() {
             >
               <option value="MXN">MXN $</option>
               <option value="USD">USD $</option>
-              <option value="EUR">EUR €</option>
-              <option value="JPY">JPY ¥</option>
             </select>
           </div>
 

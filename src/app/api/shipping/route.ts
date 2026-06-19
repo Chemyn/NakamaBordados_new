@@ -9,7 +9,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Missing required parameters' }, { status: 400 });
     }
 
-    const token = 'ffdc74c1e385071b3094f4d76f5ff8a8d3ef081710858db64745b8713bd52893';
+    const token = process.env.ENVIA_API_TOKEN;
+    if (!token) {
+      console.error("Envia.com API Token is not configured in environment variables");
+      return NextResponse.json({ error: 'Server configuration error' }, { status: 500 });
+    }
     
     // Calculate total weight based on quantity (assuming 1kg per item)
     let totalItems = 0;

@@ -1,6 +1,6 @@
 import mysql from 'mysql2/promise';
 
-const pool = mysql.createPool({
+export const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
   password: process.env.DB_PASS,
@@ -99,7 +99,10 @@ export async function getProductsSQL(options: GetProductsOptions = {}): Promise<
     // Improved sorting: if specific IDs are provided (e.g. from search), keep that order
     let orderSql = 'ORDER BY p.post_date DESC, p.ID DESC';
     if (include && include.length > 0 && !search && !category && !tag) {
-       orderSql = `ORDER BY FIELD(p.ID, ${include.join(',')})`;
+       const safeIds = include.map(Number).filter(n => !isNaN(n));
+       if (safeIds.length > 0) {
+         orderSql = `ORDER BY FIELD(p.ID, ${safeIds.join(',')})`;
+       }
     }
 
     const sql = `

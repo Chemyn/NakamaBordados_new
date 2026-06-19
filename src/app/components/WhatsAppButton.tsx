@@ -139,9 +139,9 @@ export default function WhatsAppButton() {
               <Image 
                 src="https://nakamabordados.com/wp-content/uploads/2025/11/LOGO-NAKAMA-scaled-2048x926.png" 
                 alt="Luffy" 
-                width={40} 
-                height={20} 
-                style={{ objectFit: 'contain', marginTop: '10px' }}
+                width={44} 
+                height={44} 
+                style={{ objectFit: 'contain', padding: '5px' }}
               />
             </div>
             <div className="nk-chatbot-header-text">

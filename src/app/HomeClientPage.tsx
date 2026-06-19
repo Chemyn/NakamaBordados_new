@@ -56,8 +56,8 @@ export default function HomeClientPage({ bestSellers }: { bestSellers: Product[]
 
       {/* 4. Best Sellers */}
       <section className="nk-home-section">
-        <div className="nk-container">
-          <div className="nk-home-section-header">
+        <div className="nk-container" style={{ maxWidth: '100%', padding: 0 }}>
+          <div className="nk-home-section-header" style={{ padding: '0 20px', marginBottom: '30px' }}>
             <div>
               <h2 className="nk-section-title">{t('home.bestsellers.title')}</h2>
               <p className="pulse-red-text" style={{ letterSpacing: '2px', fontWeight: '800' }}>{t('home.bestsellers.reward')}</p>
