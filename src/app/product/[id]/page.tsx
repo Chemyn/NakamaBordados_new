@@ -1,115 +1,40 @@
-import React from 'react';
 import { Metadata } from 'next';
-import { fetchProductById, fetchProductsByCategory, fetchProducts } from '../../data/products';
-import { Product } from '@/types/product';
-import ProductClient from './ProductClient';
-import { notFound } from 'next/navigation';
+import { apiFetchProductSlugs } from '@/lib/products-api';
+import ProductLoader from './ProductLoader';
 
 interface Props {
   params: Promise<{ id: string }>;
 }
 
-// Export estático: pre-generamos una página por producto en build.
-// dynamicParams=false → cualquier id no listado devuelve 404 (no intenta SSR).
+// Export estático: pre-generamos un cascarón por producto (rutas), pero los
+// DATOS se cargan en el navegador (ProductLoader) desde el API PHP/MySQL.
+// => cambiar el contenido de un producto NO requiere rebuild; solo agregar o
+//    quitar productos del catálogo necesita regenerar rutas.
 export const dynamicParams = false;
 
 export async function generateStaticParams() {
-  const products = await fetchProducts();
-  return products.map((p) => ({ id: String(p.id) }));
+  const slugs = await apiFetchProductSlugs();
+  if (!slugs || slugs.length === 0) {
+    // Si el API no responde en build, no rompas el build: deja un placeholder.
+    return [{ id: 'placeholder' }];
+  }
+  return slugs.map((slug) => ({ id: String(slug) }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const product = await fetchProductById(id);
-
-  if (!product) {
-    return {
-      title: 'Producto no encontrado | Nakama Bordados',
-    };
-  }
-
+  // Título derivado del slug (sin fetch en build → build rápido y desacoplado).
+  const pretty = id
+    .split('-')
+    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+    .join(' ');
   return {
-    title: `${product.name} | Streetwear Anime Premium | Nakama Bordados`,
-    description: product.description.substring(0, 160),
-    openGraph: {
-      title: product.name,
-      description: product.description.substring(0, 160),
-      images: [{ url: product.images[0] }],
-      type: 'website',
-    },
-    twitter: {
-      card: 'summary_large_image',
-      title: product.name,
-      description: product.description.substring(0, 160),
-      images: [product.images[0]],
-    },
+    title: `${pretty} | Streetwear Anime Premium | Nakama Bordados`,
+    description: `${pretty} — bordados y estampados premium de anime, hechos con pasión en Nakama Bordados.`,
   };
 }
 
 export default async function ProductPage({ params }: Props) {
   const { id } = await params;
-  console.log(`Rendering Product Page for ID/Slug: "${id}"`);
-  
-  const product = await fetchProductById(id);
-
-  if (!product) {
-    console.error(`Product with ID/Slug "${id}" not found. Triggering 404.`);
-    notFound();
-  }
-
-  let relatedProducts: Product[] = [];
-  if (product.categories && product.categories.length > 0) {
-    // Pick a random category from the product's categories (excluding generic 'bordados' or 'estampados' if there are others)
-    let catToFetch = product.categories[product.categories.length - 1]; // usually more specific
-    if (product.categories.length > 1 && (catToFetch === 'bordados' || catToFetch === 'estampados')) {
-        catToFetch = product.categories[product.categories.length - 2];
-    }
-
-    const related = await fetchProductsByCategory(catToFetch, 12);
-    
-    // Create a shuffled copy
-    // eslint-disable-next-line @next/next/no-assign-module-variable, react-hooks/purity
-    const shuffled = [...related]
-      .filter(p => p.id !== product.id)
-      .sort(() => 0.5 - Math.random());
-      
-    relatedProducts = shuffled.slice(0, 4);
-  }
-
-  // Schema.org JSON-LD
-  const jsonLd = {
-    '@context': 'https://schema.org',
-    '@type': 'Product',
-    name: product.name,
-    image: product.images,
-    description: product.description,
-    sku: product.sku,
-    brand: {
-      '@type': 'Brand',
-      name: 'Nakama Bordados',
-    },
-    offers: {
-      '@type': 'Offer',
-      url: `https://nakamabordados.com/product/${product.id}`,
-      priceCurrency: 'MXN',
-      price: product.price,
-      itemCondition: 'https://schema.org/NewCondition',
-      availability: 'https://schema.org/InStock',
-    },
-    aggregateRating: {
-      '@type': 'AggregateRating',
-      ratingValue: product.rating || 5,
-      reviewCount: product.salesCount || 10,
-    },
-  };
-
-  return (
-    <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
-      <ProductClient initialProduct={product} relatedProducts={relatedProducts} />
-    </>
-  );
+  return <ProductLoader slug={id} />;
 }

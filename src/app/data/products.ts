@@ -4,12 +4,10 @@ import {
   getProductsByCategoryFromWP,
   getCategoriesFromWP,
   getProductByIdFromWP,
-  getProductsPageFromWP,
-  getCategoriesBySearch,
-  getTagsBySearch,
   WPCategory,
   WPTag
 } from '@/lib/queries';
+import { apiFetchProducts } from '@/lib/products-api';
 
 export interface ProductsSearchResult {
   products: Product[];
@@ -31,30 +29,8 @@ export async function fetchProductsSearch(opts: {
   search?: string;
   tag?: string;
 } = {}): Promise<ProductsSearchResult> {
-  const { limit = 20, after = null, category, search, tag } = opts;
-  let productsData: { products: Product[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } } = {
-    products: [],
-    pageInfo: { hasNextPage: false, endCursor: null },
-  };
-  let categories: WPCategory[] = [];
-  let tags: WPTag[] = [];
-
-  try {
-    productsData = await getProductsPageFromWP(limit, after, category, search, tag);
-    // En una búsqueda (primera página) también traemos categorías/tags coincidentes.
-    if (search && !after) {
-      const [catResults, tagResults] = await Promise.all([
-        getCategoriesBySearch(search),
-        getTagsBySearch(search),
-      ]);
-      categories = catResults;
-      tags = tagResults as WPTag[];
-    }
-  } catch (err) {
-    console.error('fetchProductsSearch error:', err);
-  }
-
-  return { ...productsData, categories, tags };
+  // Delega al API PHP/MySQL de WordPress (sin GraphQL). Carga en runtime.
+  return apiFetchProducts(opts);
 }
 
 export const CATEGORIES: Category[] = [
