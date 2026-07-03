@@ -325,9 +325,16 @@ export default function Navbar() {
           </button>
 
           {isAdmin && (
-            <Link href="/admin/suite" className="nk-action-btn nk-suite-btn" style={{ background: 'transparent', boxShadow: 'none', border: 'none', color: 'inherit' }} title="Nakama Suite (Admin)">
-              <span className="material-icons-outlined">rocket_launch</span>
-            </Link>
+            <a
+              href={process.env.NEXT_PUBLIC_WP_ADMIN_URL || 'https://nakamabordados.com/wp-admin'}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="nk-action-btn nk-suite-btn"
+              style={{ background: 'transparent', boxShadow: 'none', border: 'none', color: 'inherit' }}
+              title="Escritorio WordPress (Admin)"
+            >
+              <span className="material-icons-outlined">dashboard</span>
+            </a>
           )}
         </div>
       </div>

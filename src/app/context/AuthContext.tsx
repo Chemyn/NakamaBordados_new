@@ -67,7 +67,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  const isAdmin = user?.email === 'josemlopez2310@gmail.com' || false;
+  // Autorización basada en rol (se eliminó el email admin hardcodeado).
+  // El backend valida de verdad; esto solo controla la UI (botón al escritorio de WordPress).
+  const isAdmin = user?.role === 'admin';
 
   const logout = React.useCallback(() => {
     setAuthToken(null);
@@ -118,35 +120,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               state: '', postcode: '', country: ''
             }
           };
-
-          console.log("AuthProvider: Usuario cargado:", customer.email);
-
-          // --- BYPASS TEMPORAL PARA PRUEBAS (Chemyn) ---
-          const isChemyn = 
-            (customer.email && customer.email.toLowerCase().includes('josemlopez2310@gmail.com')) || 
-            (customer.firstName && customer.firstName.toLowerCase().includes('chemyn'));
-
-          if (isChemyn) {
-            console.log("AuthProvider: Aplicando bypass para Chemyn.");
-            const testOrder = {
-              id: 'test-100303',
-              orderNumber: '100303',
-              status: 'COMPLETED',
-              total: '999.00',
-              date: new Date().toISOString(),
-              enviaTrackingCode: '1055910227610700042072',
-              enviaCarrier: 'Estafeta',
-              metaData: [],
-              lineItems: { 
-                nodes: [{ product: { node: { name: 'Hoodie Luffy Gear 5 (Test)' } }, quantity: 1 }] 
-              }
-            };
-            
-            if (!customer.orders.nodes.find((o: Order) => o.orderNumber === '100303')) {
-              customer.orders.nodes = [testOrder, ...customer.orders.nodes];
-            }
-          }
-          // ------------------------------------
 
           setUser(customer);
         } else {

@@ -11,13 +11,18 @@ import {
 } from './components/home/HomeClientComponents';
 import { Product } from '@/types/product';
 
-export default function HomeClientPage({ bestSellers }: { bestSellers: Product[] }) {
+interface HeroSources {
+  webm?: string;
+  mp4?: string;
+}
+
+export default function HomeClientPage({ bestSellers, heroSources }: { bestSellers: Product[]; heroSources?: HeroSources }) {
   const { t } = useLanguage();
 
   return (
     <div className="nk-home-page">
       {/* 1. Scrollytelling Hero (Client Component) */}
-      <ScrollytellingHero />
+      <ScrollytellingHero heroSources={heroSources} />
 
       {/* 2. Promotional Marquee Bar */}
       <div className="nk-marquee-bar nk-manga-border" style={{ borderLeft: 'none', borderRight: 'none' }}>

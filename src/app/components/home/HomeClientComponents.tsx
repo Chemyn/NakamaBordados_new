@@ -271,7 +271,7 @@ export const CategoriesExplore = () => {
     { name: t('nav.prints'), img: 'https://nakamabordados.com/wp-content/uploads/2026/01/estampado.avif', href: '/store?category=estampados' },
     { name: t('nav.caps'), img: 'https://nakamabordados.com/wp-content/uploads/2026/01/gorras.avif', href: '/store?category=gorras' },
     { name: t('nav.plain'), img: 'https://nakamabordados.com/wp-content/uploads/2026/01/lisas.avif', href: '/store?category=lisas' },
-    { name: t('nav.special'), img: 'https://nakamabordados.com/wp-content/uploads/2026/01/edicionespecial.avif', href: '/store?category=edicion-especial' },
+    { name: t('nav.special'), img: '/edicion-especial.jpg', href: '/store?category=edicion-especial' },
     { name: t('nav.variety'), img: 'https://nakamabordados.com/wp-content/uploads/2026/01/varias.avif', href: '/store?category=variedad' }
   ];
 

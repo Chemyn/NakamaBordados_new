@@ -136,20 +136,17 @@ export default function MiCuentaPage() {
                         <>
                           <li className="nk-nav-divider">ADMIN TOOLS</li>
                           <li>
-                            <Link href="/admin" className="nk-admin-btn-link">
+                            <a
+                              href={process.env.NEXT_PUBLIC_WP_ADMIN_URL || 'https://nakamabordados.com/wp-admin'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="nk-admin-btn-link"
+                            >
                               <button className="nk-admin-btn gold">
-                                <span className="material-icons-outlined">query_stats</span>
-                                Nakama Admin
+                                <span className="material-icons-outlined">dashboard</span>
+                                Escritorio WordPress
                               </button>
-                            </Link>
-                          </li>
-                          <li>
-                            <Link href="/admin/suite" className="nk-admin-btn-link">
-                              <button className="nk-admin-btn dark">
-                                <span className="material-icons-outlined">rocket_launch</span>
-                                Nakama Suite
-                              </button>
-                            </Link>
+                            </a>
                           </li>
                         </>
                       )}

@@ -3,6 +3,7 @@
 import React, { useState, useRef } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import DOMPurify from 'isomorphic-dompurify';
 import { Product, Variation } from '@/types/product';
 import { useCart } from '../../context/CartContext';
 import { useCurrency } from '../../context/CurrencyContext';
@@ -354,7 +355,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
               <div className="tab-content nk-manga-border" style={{ fontSize: '0.95rem', lineHeight: '1.6', background: 'var(--nk-bg-card)', padding: '20px' }}>
                 {activeTab === 'desc' ? (
                   <div>
-                    <div className="nk-product-html-desc" dangerouslySetInnerHTML={{ __html: product.description }} />
+                    <div className="nk-product-html-desc" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.description || '') }} />
                     <p style={{ marginTop: '15px', fontWeight: 'bold', fontFamily: 'Courier New' }}>SKU: {currentVariation ? currentVariation.sku : product.sku}</p>
                   </div>
                 ) : (

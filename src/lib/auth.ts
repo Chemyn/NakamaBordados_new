@@ -1,6 +1,11 @@
 import { SignJWT, jwtVerify } from 'jose';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'nakamabordados_secret_key_change_me_in_prod';
+const JWT_SECRET = process.env.JWT_SECRET;
+// Fail-closed: sin un secreto configurado NO se firman/verifican tokens.
+// Antes existía un fallback hardcodeado que permitía forjar tokens de admin.
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET no está configurado. Define JWT_SECRET en el entorno (.env.local).');
+}
 const key = new TextEncoder().encode(JWT_SECRET);
 
 export async function signToken(payload: { id: number; email: string; role: string; name: string }) {
@@ -48,5 +53,6 @@ export async function getAuthUser(request: Request) {
 export async function isAdmin(request: Request) {
   const user = await getAuthUser(request);
   if (!user) return false;
-  return user.role === 'admin' || user.email === 'josemlopez2310@gmail.com';
+  // Autorización basada en rol únicamente (se eliminó el email admin hardcodeado).
+  return user.role === 'admin';
 }

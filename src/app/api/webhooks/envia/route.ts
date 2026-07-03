@@ -17,7 +17,8 @@ export async function POST(req: Request) {
     }
 
     const payload = await req.json();
-    console.log('Received Envia.com Webhook:', JSON.stringify(payload, null, 2));
+    // Avoid logging full payloads (may contain PII / tokens); log a minimal, non-PII event only.
+    console.log('[Envia webhook] received event for order tracking update');
 
     // 2. Extract data (Envia.com payload structure can vary depending on the specific event)
     // Often it comes in a data array or object

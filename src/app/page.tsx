@@ -1,6 +1,7 @@
 import React from 'react';
 import { Metadata } from 'next';
 import { fetchProductsByCategory } from './data/products';
+import { getHeroConfig } from '@/lib/hero-config';
 import HomeClientPage from './HomeClientPage';
 
 export const metadata: Metadata = {
@@ -31,6 +32,10 @@ export default async function HomePage() {
   // Fetch best sellers on the server for better SEO indexation
   const bestSellers = await fetchProductsByCategory('lo-mas-vendido', 12);
 
+  // Fetch the configurable hero video sources (falls back to hardcoded defaults on error).
+  const heroConfig = await getHeroConfig();
+  const heroSources = { webm: heroConfig.home.webm, mp4: heroConfig.home.mp4 };
+
   // Organization JSON-LD
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -60,7 +65,7 @@ export default async function HomePage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <HomeClientPage bestSellers={bestSellers} />
+      <HomeClientPage bestSellers={bestSellers} heroSources={heroSources} />
     </>
   );
 }

@@ -7,6 +7,7 @@ import { useSearchParams } from 'next/navigation';
 import { Product } from '@/types/product';
 import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
+import HeroBackground from '../components/HeroBackground';
 
 const SkeletonProductCard = () => (
   <div className="nk-store-card" style={{ opacity: 0.7 }}>
@@ -114,7 +115,8 @@ function StoreContent() {
   return (
     <div className="nk-store-page" style={{ background: 'var(--nk-bg-body)', minHeight: '100vh', transition: 'background-color 0.3s ease' }}>
       <div className="nk-store-hero" style={{ background: 'var(--nk-navy)', color: '#fff', padding: '120px 24px 80px', borderBottom: '4px solid var(--nk-primary)', position: 'relative', overflow: 'hidden' }}>
-        <div style={{ position: 'absolute', inset: 0, opacity: 0.1, backgroundImage: 'radial-gradient(var(--nk-primary) 1px, transparent 0)', backgroundSize: '30px 30px', pointerEvents: 'none' }}></div>
+        <HeroBackground pageKey="store" />
+        <div style={{ position: 'absolute', inset: 0, opacity: 0.1, backgroundImage: 'radial-gradient(var(--nk-primary) 1px, transparent 0)', backgroundSize: '30px 30px', pointerEvents: 'none', zIndex: 1 }}></div>
         
         <div className="nk-container" style={{ position: 'relative', zIndex: 1 }}>
           <span className="nk-store-hero-badge" style={{ borderColor: 'var(--nk-primary)', color: 'var(--nk-primary)', background: 'var(--nk-bg-card)', padding: '4px 12px', fontWeight: 800, fontSize: '0.8rem', textTransform: 'uppercase', border: '2px solid' }}>{t('store.hero.badge')}</span>

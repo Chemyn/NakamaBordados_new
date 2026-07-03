@@ -52,8 +52,8 @@ add_action( 'rest_api_init', function () {
 
 // 3. HANDLER DEL WEBHOOK (Actualiza WooCommerce)
 function nakama_handle_envia_webhook( WP_REST_Request $request ) {
-    // Configura tu secreto aquí (el proporcionado por Envia.com)
-    $webhook_secret = '6f2656ab48a0eb24c62f3a9664195520c4511a832f3e42eef52c538892c4577a';
+    // El secreto debe configurarse via variable de entorno u opcion de WordPress. NUNCA hardcodear.
+    $webhook_secret = getenv('ENVIA_WEBHOOK_SECRET') ?: get_option('nakama_envia_webhook_secret', '');
     
     // Verificar token (Envia.com suele enviarlo en el header Authorization o X-Envia-Token)
     $auth_header = $request->get_header( 'authorization' ) ?: $request->get_header( 'x_envia_token' );
@@ -105,8 +105,8 @@ function nakama_get_tracking_data( WP_REST_Request $request ) {
         return new WP_Error( 'missing_params', 'tracking y carrier son requeridos', array( 'status' => 400 ) );
     }
 
-    // Configura tu Token Oficial de Producción de Envia.com
-    $envia_api_token = 'ffdc74c1e385071b3094f4d76f5ff8a8d3ef081710858db64745b8713bd52893'; // CAMBIAR
+    // El token debe configurarse via variable de entorno u opcion de WordPress. NUNCA hardcodear.
+    $envia_api_token = getenv('ENVIA_API_TOKEN') ?: get_option('nakama_envia_api_token', '');
 
     $url = 'https://queries.envia.com/guide/track';
     

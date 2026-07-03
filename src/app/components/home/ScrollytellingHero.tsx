@@ -4,9 +4,21 @@ import React, { useRef } from 'react';
 import { useLanguage } from '../../context/LanguageContext';
 import Link from 'next/link';
 
-export default function ScrollytellingHero() {
+interface HeroSources {
+  webm?: string;
+  mp4?: string;
+}
+
+// Current hardcoded defaults — used if no prop is supplied.
+const DEFAULT_WEBM = 'https://nakamabordados.com/wp-content/uploads/2026/01/banner2.webm';
+const DEFAULT_MP4 = 'https://nakamabordados.com/wp-content/uploads/2026/01/banner2.mp4';
+
+export default function ScrollytellingHero({ heroSources }: { heroSources?: HeroSources }) {
   const { t } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
+
+  const webmSrc = heroSources?.webm || DEFAULT_WEBM;
+  const mp4Src = heroSources?.mp4 || DEFAULT_MP4;
 
   return (
     <section className="nk-video-hero" style={{ position: 'relative', width: '100%', height: '90vh', overflow: 'hidden', background: '#000' }}>
@@ -29,8 +41,8 @@ export default function ScrollytellingHero() {
           opacity: 0.7
         }}
       >
-        <source src="https://nakamabordados.com/wp-content/uploads/2026/01/banner2.webm" type="video/webm" />
-        <source src="https://nakamabordados.com/wp-content/uploads/2026/01/banner2.mp4" type="video/mp4" />
+        <source src={webmSrc} type="video/webm" />
+        <source src={mp4Src} type="video/mp4" />
       </video>
 
       {/* Overlay Gradient */}

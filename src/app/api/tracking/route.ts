@@ -1,7 +1,39 @@
 import { NextResponse } from 'next/server';
 
+// Basic anti-abuse same-origin guard. This is NOT full authentication: it only
+// blocks cross-origin browser requests (which always send an Origin/Referer header)
+// from third parties trying to burn our server-side ENVIA_API_TOKEN. Server-to-server
+// callers (curl, our own server code) send no Origin/Referer and are allowed through.
+// Rate-limiting is strongly recommended on top of this for real protection.
+function isAllowedOrigin(req: Request): boolean {
+  const origin = req.headers.get('origin') || req.headers.get('referer');
+  // No origin/referer header (server-to-server / curl): allow to avoid breaking existing usage.
+  if (!origin) return true;
+
+  try {
+    const originHost = new URL(origin).host;
+    const requestHost = new URL(req.url).host;
+    const siteHost = process.env.NEXT_PUBLIC_SITE_URL
+      ? new URL(process.env.NEXT_PUBLIC_SITE_URL).host
+      : null;
+
+    if (originHost === requestHost) return true;
+    if (siteHost && originHost === siteHost) return true;
+    if (originHost.startsWith('localhost') || originHost.startsWith('127.0.0.1')) return true;
+
+    return false;
+  } catch {
+    // Malformed origin header: reject to be safe.
+    return false;
+  }
+}
+
 export async function GET(req: Request) {
   try {
+    if (!isAllowedOrigin(req)) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const trackingNumber = searchParams.get('tracking');
     const carrier = searchParams.get('carrier');

@@ -313,3 +313,71 @@ export async function searchTaxonomyBySQL(query: string): Promise<{ categories: 
     return null;
   }
 }
+
+// ============================================================
+//  USUARIOS (tabla local `users`, post-decomisión de WordPress)
+// ============================================================
+export interface SQLUser {
+  id: number;
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  phone: string | null;
+  role: string | null;
+  created_at: string | null;
+  orders_count: number;
+  total_spent: string; // decimal serializado
+}
+
+export interface GetUsersOptions {
+  limit?: number;
+  offset?: number;
+  search?: string;
+}
+
+/**
+ * Lee los usuarios registrados desde la base de datos local, enriquecidos
+ * con el número de pedidos y el total gastado (pedidos completados).
+ * NUNCA expone el hash de la contraseña.
+ */
+export async function getUsersSQL(options: GetUsersOptions = {}): Promise<SQLUser[] | null> {
+  const { limit = 100, offset = 0, search } = options;
+  try {
+    const params: (string | number)[] = [];
+    let whereSql = '';
+    if (search && search.trim()) {
+      const pattern = `%${search.trim()}%`;
+      whereSql = `WHERE (u.email LIKE ? OR u.first_name LIKE ? OR u.last_name LIKE ? OR u.phone LIKE ?)`;
+      params.push(pattern, pattern, pattern, pattern);
+    }
+
+    const safeLimit = Math.max(1, Math.min(Number(limit) || 100, 500));
+    const safeOffset = Math.max(0, Number(offset) || 0);
+
+    const sql = `
+      SELECT
+        u.id,
+        u.email,
+        u.first_name,
+        u.last_name,
+        u.phone,
+        u.role,
+        u.created_at,
+        COUNT(o.id) AS orders_count,
+        COALESCE(SUM(CASE WHEN o.status = 'completed' THEN o.total ELSE 0 END), 0) AS total_spent
+      FROM users u
+      LEFT JOIN orders o ON o.user_id = u.id
+      ${whereSql}
+      GROUP BY u.id, u.email, u.first_name, u.last_name, u.phone, u.role, u.created_at
+      ORDER BY u.created_at DESC, u.id DESC
+      LIMIT ${safeLimit} OFFSET ${safeOffset}
+    `;
+
+    const [rows] = await pool.execute(sql, params);
+    return rows as SQLUser[];
+  } catch (error) {
+    const err = error as { code?: string; message?: string };
+    console.error('[getUsersSQL] Error:', err.code, err.message);
+    return null;
+  }
+}

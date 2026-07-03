@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { useLanguage } from '../context/LanguageContext';
+import HeroBackground from '../components/HeroBackground';
 
 export default function SizeGuidePage() {
   const { t } = useLanguage();
@@ -20,8 +21,9 @@ export default function SizeGuidePage() {
 
   return (
     <div className="nk-store-page">
-      <div className="nk-store-hero" style={{ background: 'var(--nk-navy)', color: '#fff', padding: '120px 24px 80px', borderBottom: '4px solid var(--nk-primary)' }}>
-        <div className="nk-container">
+      <div className="nk-store-hero" style={{ background: 'var(--nk-navy)', color: '#fff', padding: '120px 24px 80px', borderBottom: '4px solid var(--nk-primary)', position: 'relative', overflow: 'hidden' }}>
+        <HeroBackground pageKey="guia-de-tallas" />
+        <div className="nk-container" style={{ position: 'relative', zIndex: 1 }}>
           <span className="nk-store-hero-badge" style={{ background: 'var(--nk-primary)', color: 'white', border: 'none' }}>{t('sizes.badge')}</span>
           <h1 className="nk-store-hero-title" style={{ color: '#fff', textShadow: '4px 4px 0px #000' }}>{t('sizes.title')}</h1>
           <p className="nk-store-hero-subtitle" style={{ color: '#ccc' }}>{t('sizes.subtitle')}</p>
