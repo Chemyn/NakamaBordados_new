@@ -1,11 +1,61 @@
 import { Product, Category } from '@/types/product';
-import { 
-  getProductsFromWP, 
-  getProductsByCategoryFromWP, 
-  getCategoriesFromWP, 
+import {
+  getProductsFromWP,
+  getProductsByCategoryFromWP,
+  getCategoriesFromWP,
   getProductByIdFromWP,
-  WPCategory
+  getProductsPageFromWP,
+  getCategoriesBySearch,
+  getTagsBySearch,
+  WPCategory,
+  WPTag
 } from '@/lib/queries';
+
+export interface ProductsSearchResult {
+  products: Product[];
+  pageInfo: { hasNextPage: boolean; endCursor: string | null };
+  categories: WPCategory[];
+  tags: WPTag[];
+}
+
+/**
+ * Búsqueda/paginación de productos 100% vía WPGraphQL (reemplaza la ruta
+ * /api/products del server, que hacía un híbrido SQL+GraphQL). Apto para
+ * export estático: corre en el cliente llamando a WordPress directo.
+ * Devuelve el mismo shape que devolvía /api/products.
+ */
+export async function fetchProductsSearch(opts: {
+  limit?: number;
+  after?: string | null;
+  category?: string;
+  search?: string;
+  tag?: string;
+} = {}): Promise<ProductsSearchResult> {
+  const { limit = 20, after = null, category, search, tag } = opts;
+  let productsData: { products: Product[]; pageInfo: { hasNextPage: boolean; endCursor: string | null } } = {
+    products: [],
+    pageInfo: { hasNextPage: false, endCursor: null },
+  };
+  let categories: WPCategory[] = [];
+  let tags: WPTag[] = [];
+
+  try {
+    productsData = await getProductsPageFromWP(limit, after, category, search, tag);
+    // En una búsqueda (primera página) también traemos categorías/tags coincidentes.
+    if (search && !after) {
+      const [catResults, tagResults] = await Promise.all([
+        getCategoriesBySearch(search),
+        getTagsBySearch(search),
+      ]);
+      categories = catResults;
+      tags = tagResults as WPTag[];
+    }
+  } catch (err) {
+    console.error('fetchProductsSearch error:', err);
+  }
+
+  return { ...productsData, categories, tags };
+}
 
 export const CATEGORIES: Category[] = [
   { slug: 'todas', name: 'Todas' },

@@ -24,7 +24,9 @@ type HeroCfg = { all_pages?: HeroMedia; pages?: Record<string, HeroMedia> };
 let configPromise: Promise<HeroCfg> | null = null;
 function loadHeroConfig(): Promise<HeroCfg> {
   if (!configPromise) {
-    configPromise = fetch('/api/hero-config')
+    // Export estático: se lee la config directo del REST público de WordPress
+    // (plugin Nakama Hero, CORS abierto). Ya no hay proxy /api/hero-config.
+    configPromise = fetch('https://nakamabordados.com/wp-json/nakama/v1/hero-config')
       .then((r) => (r.ok ? r.json() : {}))
       .catch(() => ({}));
   }

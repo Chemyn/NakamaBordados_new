@@ -250,7 +250,7 @@ export async function getShippingRates(postcode: string, state: string, city: st
       };
     });
 
-    const response = await fetch('/api/shipping', {
+    const response = await fetch('https://nakamabordados.com/wp-json/nakama/v1/shipping', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ postcode, state, city, cart: formattedCart })

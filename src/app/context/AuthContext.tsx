@@ -67,9 +67,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authToken, setAuthToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Autorización basada en rol (se eliminó el email admin hardcodeado).
-  // El backend valida de verdad; esto solo controla la UI (botón al escritorio de WordPress).
-  const isAdmin = user?.role === 'admin';
+  // Autorización basada en rol de WordPress (viewer.roles). En WP el rol de
+  // administrador es 'administrator'. Solo controla la UI (botón al escritorio de WP).
+  const isAdmin = user?.role === 'administrator' || user?.role === 'admin';
 
   const logout = React.useCallback(() => {
     setAuthToken(null);
@@ -94,40 +94,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("AuthProvider: Error validando formato de token:", e);
     }
 
-    try {
-      const response = await fetch('/api/auth/me', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      if (response.ok) {
-        const body = await response.json();
-        if (body.viewer) {
-          const v = body.viewer;
-          const c = body.customer || {};
-          
-          // Mapear datos a nuestra interfaz Customer
-          const customer: Customer = {
-            id: v.id,
-            databaseId: v.databaseId,
-            username: v.username || '',
-            firstName: v.firstName || '',
-            lastName: v.lastName || '',
-            email: v.email,
-            role: v.role || 'customer',
-            orders: c.orders || { nodes: [] },
-            shipping: c.shipping || {
-              address1: '', address2: '', city: '',
-              state: '', postcode: '', country: ''
-            }
-          };
-
-          setUser(customer);
-        } else {
-          console.warn("AuthProvider: No se pudo obtener el usuario, el token podría ser inválido.");
-          logout();
+    // Consulta WPGraphQL: viewer (WP) + customer (WooCommerce). Directo a WP.
+    const query = `
+      query GetUserData {
+        viewer {
+          id
+          databaseId
+          username
+          firstName
+          lastName
+          email
+          roles { nodes { name } }
         }
+        customer {
+          shipping { address1 address2 city state postcode country }
+          orders(first: 20) {
+            nodes {
+              id orderNumber status total date
+              lineItems { nodes { product { node { name } } quantity } }
+            }
+          }
+        }
+      }
+    `;
+
+    try {
+      const { data } = await fetchGraphQL(query, {}, { Authorization: `Bearer ${token}` });
+
+      if (data?.viewer) {
+        const v = data.viewer;
+        const c = data.customer || {};
+
+        const customer: Customer = {
+          id: v.id,
+          databaseId: v.databaseId,
+          username: v.username || '',
+          firstName: v.firstName || '',
+          lastName: v.lastName || '',
+          email: v.email,
+          role: v.roles?.nodes?.[0]?.name || 'customer',
+          orders: c.orders || { nodes: [] },
+          shipping: c.shipping || {
+            address1: '', address2: '', city: '',
+            state: '', postcode: '', country: ''
+          }
+        };
+
+        setUser(customer);
       } else {
-        console.warn("AuthProvider: Falló llamado a /api/auth/me.");
+        console.warn("AuthProvider: viewer vacío; el token podría ser inválido/expirado.");
         logout();
       }
     } catch (err) {
@@ -153,25 +168,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchCustomerData]);
 
   const login = async (username: string, password: string) => {
+    // Autenticación vía WPGraphQL (plugin JWT Authentication) directo a WordPress.
+    const mutation = `
+      mutation LoginUser($username: String!, $password: String!) {
+        login(input: { clientMutationId: "nk", username: $username, password: $password }) {
+          authToken
+          user { id databaseId name }
+        }
+      }
+    `;
+
     try {
-      const response = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
-      
-      const data = await response.json();
-      
-      if (response.ok && data.success && data.authToken) {
-        const token = data.authToken;
+      const { data } = await fetchGraphQL(mutation, { username, password });
+
+      if (data?.login?.authToken) {
+        const token = data.login.authToken;
         setAuthToken(token);
         localStorage.setItem('wp-jwt', token);
         await fetchCustomerData(token);
         return { success: true };
-      } else {
-        const errorMsg = data.error || 'Credenciales inválidas';
-        return { success: false, error: errorMsg };
       }
+      return { success: false, error: 'Credenciales inválidas' };
     } catch (err) {
       console.error('Login error', err);
       return { success: false, error: 'Error al iniciar sesión' };

@@ -7,6 +7,7 @@ import Image from 'next/image';
 import { Product } from '@/types/product';
 import { useCurrency } from '../context/CurrencyContext';
 import { WPCategory, WPTag } from '@/lib/queries';
+import { fetchProductsSearch } from '../data/products';
 
 export default function SearchBar() {
   const [query, setQuery] = useState('');
@@ -59,8 +60,7 @@ export default function SearchBar() {
     const delayDebounce = setTimeout(async () => {
       setIsLoading(true);
       try {
-        const res = await fetch(`/api/products?search=${encodeURIComponent(query)}&limit=6`);
-        const data = await res.json();
+        const data = await fetchProductsSearch({ search: query, limit: 6 });
         if (data) {
           setResults(data.products || []);
           setCatResults(data.categories || []);

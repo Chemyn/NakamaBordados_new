@@ -48,6 +48,15 @@ add_action( 'rest_api_init', function () {
         'callback' => 'nakama_get_tracking_data',
         'permission_callback' => '__return_true', // Permitimos consulta pública (se podría asegurar con JWT)
     ) );
+
+    // Endpoint Proxy para cotizar envíos (rate) desde el frontend estático (Next.js export)
+    // Reemplaza la ruta Next.js /api/shipping para mantener el ENVIA_API_TOKEN en el servidor.
+    // URL: https://tudominio.com/wp-json/nakama/v1/shipping
+    register_rest_route( 'nakama/v1', '/shipping', array(
+        'methods' => 'POST, OPTIONS', // OPTIONS para el preflight CORS del navegador
+        'callback' => 'nakama_get_shipping_rates',
+        'permission_callback' => '__return_true', // Es una cotización pública; se valida el origen dentro de la función.
+    ) );
 });
 
 // 3. HANDLER DEL WEBHOOK (Actualiza WooCommerce)
@@ -134,10 +143,222 @@ function nakama_get_tracking_data( WP_REST_Request $request ) {
     $data = json_decode( $body_response, true );
 
     $response_obj = rest_ensure_response( array( 'success' => true, 'data' => $data ) );
-    
+
     // Habilitar CORS para permitir consultas desde el entorno local o cualquier origen
     $response_obj->header( 'Access-Control-Allow-Origin', '*' );
     $response_obj->header( 'Access-Control-Allow-Methods', 'GET' );
-    
+
+    return $response_obj;
+}
+
+// 5. GUARDA DE ORIGEN (anti-abuso) PARA EL PROXY DE COTIZACIÓN
+// No es autenticación completa: solo bloquea peticiones de navegador cross-origin
+// (que siempre envían Origin/Referer) de terceros que intenten gastar el ENVIA_API_TOKEN.
+// Peticiones servidor-a-servidor (curl, sin Origin/Referer) se permiten. Espeja isAllowedOrigin() de route.ts.
+function nakama_shipping_is_allowed_origin( WP_REST_Request $request ) {
+    $origin = $request->get_header( 'origin' );
+    if ( ! $origin ) {
+        $origin = $request->get_header( 'referer' );
+    }
+
+    // Sin Origin/Referer (servidor-a-servidor / curl): permitir para no romper usos existentes.
+    if ( ! $origin ) {
+        return true;
+    }
+
+    $origin_host = wp_parse_url( $origin, PHP_URL_HOST );
+    if ( ! $origin_host ) {
+        return false; // Origin malformado: rechazar por seguridad.
+    }
+
+    // Permitir el propio sitio de WordPress.
+    $site_host = wp_parse_url( home_url(), PHP_URL_HOST );
+    if ( $site_host && $origin_host === $site_host ) {
+        return true;
+    }
+
+    // Permitir dominio público del frontend configurable via variable de entorno u opción.
+    $frontend_url = getenv( 'NEXT_PUBLIC_SITE_URL' ) ?: get_option( 'nakama_frontend_url', 'https://nakamabordados.com' );
+    $frontend_host = $frontend_url ? wp_parse_url( $frontend_url, PHP_URL_HOST ) : null;
+    if ( $frontend_host && $origin_host === $frontend_host ) {
+        return true;
+    }
+
+    // Permitir desarrollo local.
+    if ( strpos( $origin_host, 'localhost' ) === 0 || strpos( $origin_host, '127.0.0.1' ) === 0 ) {
+        return true;
+    }
+
+    return false;
+}
+
+// 6. HANDLER DEL PROXY DE COTIZACIÓN (Consulta rates a Envia.com ocultando el Token)
+// Reemplaza src/app/api/shipping/route.ts. Espera { postcode, state, city, cart } en el body JSON.
+function nakama_get_shipping_rates( WP_REST_Request $request ) {
+    // Responder al preflight CORS del navegador antes de procesar nada.
+    if ( 'OPTIONS' === $request->get_method() ) {
+        $preflight = rest_ensure_response( null );
+        $preflight->header( 'Access-Control-Allow-Origin', '*' );
+        $preflight->header( 'Access-Control-Allow-Methods', 'POST, OPTIONS' );
+        $preflight->header( 'Access-Control-Allow-Headers', 'Content-Type, Authorization' );
+        return $preflight;
+    }
+
+    // Guarda de origen anti-abuso (protege el gasto del token).
+    if ( ! nakama_shipping_is_allowed_origin( $request ) ) {
+        return new WP_Error( 'forbidden', 'Forbidden', array( 'status' => 403 ) );
+    }
+
+    $body = $request->get_json_params();
+
+    // Esperamos { postcode, state, city, cart }
+    if ( empty( $body['postcode'] ) || empty( $body['cart'] ) || ! is_array( $body['cart'] ) ) {
+        return new WP_Error( 'missing_params', 'Missing required parameters', array( 'status' => 400 ) );
+    }
+
+    // El token debe configurarse via variable de entorno u opcion de WordPress. NUNCA hardcodear.
+    $envia_api_token = getenv( 'ENVIA_API_TOKEN' ) ?: get_option( 'nakama_envia_api_token', '' );
+    if ( empty( $envia_api_token ) ) {
+        return new WP_Error( 'server_config', 'Server configuration error', array( 'status' => 500 ) );
+    }
+
+    // Sanitizar entradas del cliente.
+    $postcode = sanitize_text_field( $body['postcode'] );
+    $state    = ! empty( $body['state'] ) ? sanitize_text_field( $body['state'] ) : 'SO';
+    $city     = ! empty( $body['city'] ) ? sanitize_text_field( $body['city'] ) : 'Hermosillo';
+
+    // Calcular peso total basado en la cantidad (asumiendo 1kg por artículo).
+    $total_items = 0;
+    foreach ( $body['cart'] as $item ) {
+        $qty = ( is_array( $item ) && isset( $item['quantity'] ) ) ? intval( $item['quantity'] ) : 1;
+        $total_items += $qty > 0 ? $qty : 1;
+    }
+    if ( $total_items < 1 ) {
+        $total_items = 1;
+    }
+
+    // Plantilla del payload de Envia.com (misma que route.ts).
+    $payload_template = array(
+        'origin' => array(
+            'name'       => 'Nakama',
+            'company'    => 'Nakama Bordados',
+            'email'      => 'info@nakamabordados.com',
+            'phone'      => '8180000000',
+            'street'     => 'Bujalance Oriente',
+            'number'     => '7',
+            'district'   => 'Puerta Real Residencial VII',
+            'city'       => 'Hermosillo',
+            'state'      => 'SO',
+            'country'    => 'MX',
+            'postalCode' => '83177',
+            'reference'  => '',
+        ),
+        'destination' => array(
+            'name'       => 'Cliente',
+            'company'    => '',
+            'email'      => 'cliente@example.com',
+            'phone'      => '8180000000',
+            'street'     => 'Calle',
+            'number'     => '1',
+            'district'   => $city,
+            'city'       => $city,
+            'state'      => $state,
+            'country'    => 'MX',
+            'postalCode' => $postcode,
+            'reference'  => '',
+        ),
+        'packages' => array(
+            array(
+                'content'       => 'Ropa',
+                'amount'        => 1,
+                'type'          => 'box',
+                'dimensions'    => array(
+                    'length' => 30,
+                    'width'  => 25,
+                    'height' => 5,
+                ),
+                'weight'        => $total_items, // 1 kg por artículo (total artículos * 1kg)
+                'insurance'     => 0,
+                'declaredValue' => 0,
+                'weightUnit'    => 'KG',
+                'lengthUnit'    => 'CM',
+            ),
+        ),
+        'settings' => array(
+            'printFormat' => 'PDF',
+            'printSize'   => 'STOCK_4X6',
+            'comments'    => '',
+        ),
+    );
+
+    // Debemos consultar cada paquetería individualmente (la API de Envia lo requiere en el objeto shipment).
+    $carriers = array( 'fedex', 'estafeta', 'dhl', 'redpack' );
+
+    $formatted_rates = array();
+
+    foreach ( $carriers as $carrier ) {
+        $payload = $payload_template;
+        $payload['shipment'] = array(
+            'carrier' => $carrier,
+            'type'    => 1,
+        );
+
+        $args = array(
+            'body'    => wp_json_encode( $payload ),
+            'timeout' => 20,
+            'headers' => array(
+                'Content-Type'  => 'application/json',
+                'Authorization' => 'Bearer ' . $envia_api_token,
+            ),
+        );
+
+        $response = wp_remote_post( 'https://api.envia.com/ship/rate/', $args );
+
+        if ( is_wp_error( $response ) ) {
+            continue; // Ignorar esta paquetería si falla la petición.
+        }
+        if ( 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+            continue;
+        }
+
+        $data = json_decode( wp_remote_retrieve_body( $response ), true );
+
+        if ( is_array( $data ) && isset( $data['meta'] ) && 'rate' === $data['meta'] && ! empty( $data['data'] ) && is_array( $data['data'] ) ) {
+            foreach ( $data['data'] as $rate ) {
+                if ( ! is_array( $rate ) ) {
+                    continue;
+                }
+                $rate_carrier         = isset( $rate['carrier'] ) ? $rate['carrier'] : $carrier;
+                $service_id           = isset( $rate['serviceId'] ) ? $rate['serviceId'] : '';
+                $carrier_description  = isset( $rate['carrierDescription'] ) ? $rate['carrierDescription'] : '';
+                $service_description  = isset( $rate['serviceDescription'] ) ? $rate['serviceDescription'] : '';
+                $delivery_estimate    = isset( $rate['deliveryEstimate'] ) ? $rate['deliveryEstimate'] : '';
+                $total_price          = isset( $rate['totalPrice'] ) ? $rate['totalPrice'] : 0;
+
+                $formatted_rates[] = array(
+                    'id'        => 'envia_' . $rate_carrier . '_' . $service_id,
+                    'method_id' => 'envia_shipping',
+                    'label'     => $carrier_description . ' - ' . $service_description . ' (' . $delivery_estimate . ')',
+                    'cost'      => (string) $total_price,
+                );
+            }
+        }
+    }
+
+    // Envolver en estructura de paquete como lo hace WooCommerce (igual que route.ts).
+    $response_data = array(
+        array(
+            'package' => 0,
+            'rates'   => $formatted_rates,
+        ),
+    );
+
+    $response_obj = rest_ensure_response( $response_data );
+
+    // Habilitar CORS igual que el endpoint de rastreo.
+    $response_obj->header( 'Access-Control-Allow-Origin', '*' );
+    $response_obj->header( 'Access-Control-Allow-Methods', 'POST, OPTIONS' );
+    $response_obj->header( 'Access-Control-Allow-Headers', 'Content-Type, Authorization' );
+
     return $response_obj;
 }

@@ -8,6 +8,7 @@ import { Product } from '@/types/product';
 import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
 import HeroBackground from '../components/HeroBackground';
+import { fetchProductsSearch } from '../data/products';
 
 const SkeletonProductCard = () => (
   <div className="nk-store-card" style={{ opacity: 0.7 }}>
@@ -48,16 +49,14 @@ function StoreContent() {
     }
 
     try {
-      let url = `/api/products?limit=16`;
-      if (categoryParam && categoryParam !== 'todas') url += `&category=${categoryParam}`;
-      if (tagParam) url += `&tag=${tagParam}`;
-      if (searchParam) url += `&search=${encodeURIComponent(searchParam)}`;
-      
       const currentAfter = isInitial ? null : after;
-      if (currentAfter) url += `&after=${currentAfter}`;
-
-      const res = await fetch(url);
-      const data = await res.json();
+      const data = await fetchProductsSearch({
+        limit: 16,
+        after: currentAfter,
+        category: categoryParam && categoryParam !== 'todas' ? categoryParam : undefined,
+        tag: tagParam || undefined,
+        search: searchParam || undefined,
+      });
 
       if (data && data.products) {
         setProducts(prev => isInitial ? data.products : [...prev, ...data.products]);

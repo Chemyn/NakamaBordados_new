@@ -1,9 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'standalone',
+  // Export estático (FTP a cPanel). Genera ./out/ con `next build`.
+  output: 'export',
+  trailingSlash: true,
   /* config options here */
   images: {
+    // El export estático no puede optimizar imágenes en runtime.
+    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',

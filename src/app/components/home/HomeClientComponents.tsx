@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { Product } from '@/types/product';
 import { useCurrency } from '../../context/CurrencyContext';
 import { useLanguage } from '../../context/LanguageContext';
+import { fetchProductsSearch } from '../../data/products';
 
 // ---------------------------------------------------------
 // Helper Components
@@ -38,8 +39,7 @@ export const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { 
       (entries) => {
         if (entries[0].isIntersecting && !hasFetched) {
           setHasFetched(true);
-          fetch(`/api/products?category=${categorySlug}&limit=12`)
-            .then(res => res.json())
+          fetchProductsSearch({ category: categorySlug, limit: 12 })
             .then(data => {
               if (data && data.products) {
                 // Randomize results

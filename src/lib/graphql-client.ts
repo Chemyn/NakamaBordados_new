@@ -32,9 +32,10 @@ export async function fetchGraphQL(query: string, variables = {}, extraHeaders: 
       ...extraHeaders,
     };
 
-    // Determine the endpoint URL
+    // Export estático: el cliente llama a WordPress directo (requiere CORS en WP).
+    // Ya no existe el proxy /api/graphql.
     const isClient = typeof window !== 'undefined';
-    const endpoint = isClient ? '/api/graphql' : WP_GRAPHQL_URL;
+    const endpoint = WP_GRAPHQL_URL;
 
     const isMutation = query.trim().startsWith('mutation');
     const fetchOptions: RequestInit & { next?: { revalidate: number } } = {

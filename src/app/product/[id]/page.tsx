@@ -1,12 +1,21 @@
 import React from 'react';
 import { Metadata } from 'next';
-import { fetchProductById, fetchProductsByCategory } from '../../data/products';
+import { fetchProductById, fetchProductsByCategory, fetchProducts } from '../../data/products';
 import { Product } from '@/types/product';
 import ProductClient from './ProductClient';
 import { notFound } from 'next/navigation';
 
 interface Props {
   params: Promise<{ id: string }>;
+}
+
+// Export estático: pre-generamos una página por producto en build.
+// dynamicParams=false → cualquier id no listado devuelve 404 (no intenta SSR).
+export const dynamicParams = false;
+
+export async function generateStaticParams() {
+  const products = await fetchProducts();
+  return products.map((p) => ({ id: String(p.id) }));
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {

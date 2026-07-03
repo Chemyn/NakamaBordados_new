@@ -26,26 +26,10 @@ export default function MaintenanceWrapper({ children }: { children: React.React
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function checkMaintenance() {
-      try {
-        const res = await fetch('/api/settings/maintenance');
-        if (res.ok) {
-          const data = await res.json();
-          setMaintenance(data);
-        }
-      } catch (e) {
-        console.error('Error checking maintenance status:', e);
-      } finally {
-        setLoading(false);
-      }
-    }
-    
-    // Check maintenance status unless we are explicitly on admin pages
-    if (!pathname.startsWith('/admin') && !pathname.startsWith('/api')) {
-      checkMaintenance();
-    } else {
-      setLoading(false);
-    }
+    // El modo mantenimiento se gestiona en WordPress; el frontend estático no
+    // consulta un backend local. Si en el futuro se quiere reactivar, apuntar
+    // este fetch a un endpoint REST de WordPress.
+    setLoading(false);
   }, [pathname]);
 
   if (authLoading || (loading && !pathname.startsWith('/admin') && !pathname.startsWith('/api'))) {

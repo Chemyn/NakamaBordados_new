@@ -1,30 +1,34 @@
 name: Deploy Next.js via FTP
+
 on:
-push:
-branches:
-- main
+  push:
+    branches:
+      - main
+
 jobs:
-build-and-deploy:
-runs-on: ubuntu-latest
-steps:
-- name: Descargar Código del Repositorio
-uses: actions/checkout@v4
-- name: Configurar Entorno de Node.js
-uses: actions/setup-node@v4
-with:
-node-version: 20
-cache: 'npm'
-- name: Instalar Dependencias
-run: npm ci
-- name: Compilar e Inyectar Datos de WordPress
-env:
-NEXT_PUBLIC_WORDPRESS_URL: ${{ secrets.WP_GRAPHQL_URL }}
-run: npm run build
-- name: Desplegar hacia cPanel vía FTP
-uses: SamKirkland/FTP-Deploy-Action@v4.3.5
-with:
-server: ${{ secrets.FTP_SERVER }}
-username: ${{ secrets.FTP_USERNAME }}
-password: ${{ secrets.FTP_PASSWORD }}
-local-dir: ./out/
-server-dir: ./ # Se queda como raíz porque el usuario FTP ya inicia sesión dentro de public_html
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar Código del Repositorio
+        uses: actions/checkout@v4
+
+      - name: Configurar Entorno de Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Instalar Dependencias
+        run: npm ci
+
+      - name: Compilar export estático (genera ./out)
+        run: npm run build
+
+      - name: Desplegar hacia cPanel vía FTP
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./out/
+          server-dir: ./ # El usuario FTP ya inicia sesión dentro de public_html
