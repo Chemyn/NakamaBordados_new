@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Nakama Checkout Tools
- * Description: Endpoints REST para validación de cupones, moneda y sincronización de base de datos local (Next.js).
- * Version: 1.2
+ * Description: Endpoints REST para validación de cupones, moneda, SSO al escritorio y sincronización de base de datos local (Next.js).
+ * Version: 1.3
  * Author: Nakama
  */
 
@@ -18,6 +18,18 @@ add_action( 'rest_api_init', function () {
         'permission_callback' => '__return_true'
     ) );
 
+    // SSO al escritorio de WordPress: convierte el JWT del frontend (que ya
+    // autentica esta petición vía el plugin de WPGraphQL JWT) en las cookies
+    // de sesión de WordPress, para que /wp-admin no pida iniciar sesión otra vez.
+    // Solo administradores; no acepta usuario por parámetro (usa el del token).
+    register_rest_route( 'nakama/v1', '/sso', array(
+        'methods' => 'POST',
+        'callback' => 'nakama_sso_set_cookie',
+        'permission_callback' => function () {
+            return current_user_can( 'manage_options' );
+        }
+    ) );
+
     // Info de moneda: expone el tipo de cambio MXN->USD que usa el snippet
     // "ImperioDev Currency Global V15.7" para que el frontend Next muestre
     // exactamente los mismos montos que el checkout de WooCommerce.
@@ -27,6 +39,26 @@ add_action( 'rest_api_init', function () {
         'permission_callback' => '__return_true'
     ) );
 });
+
+function nakama_sso_set_cookie() {
+    $user_id = get_current_user_id();
+    if ( ! $user_id ) {
+        return new WP_Error( 'no_user', 'Sesión no válida', array( 'status' => 401 ) );
+    }
+
+    // Sembrar la sesión de WordPress del MISMO usuario del token.
+    wp_set_current_user( $user_id );
+    wp_set_auth_cookie( $user_id, true, is_ssl() );
+
+    $response = rest_ensure_response( array(
+        'success' => true,
+        'adminUrl' => admin_url(),
+    ) );
+    // Nada de caché: la respuesta siembra cookies de sesión.
+    $response->header( 'X-LiteSpeed-Cache-Control', 'no-cache' );
+    $response->header( 'Cache-Control', 'no-store' );
+    return $response;
+}
 
 function nakama_currency_info() {
     $base = get_option( 'woocommerce_currency', 'MXN' );

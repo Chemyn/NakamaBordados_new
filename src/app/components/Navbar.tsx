@@ -10,6 +10,7 @@ import { useLanguage, Language } from '../context/LanguageContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { fetchCategories } from '../data/products';
 import { WPCategory } from '@/lib/queries';
+import { openWpAdmin, WP_ADMIN_URL } from '@/lib/wp-sso';
 import SearchBar from './SearchBar';
 
 export default function Navbar() {
@@ -335,9 +336,8 @@ export default function Navbar() {
 
           {isAdmin && (
             <a
-              href={process.env.NEXT_PUBLIC_WP_ADMIN_URL || 'https://nakamabordados.com/wp-admin'}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={WP_ADMIN_URL}
+              onClick={(e) => { e.preventDefault(); openWpAdmin(); }}
               className="nk-action-btn nk-suite-btn"
               style={{ background: 'transparent', boxShadow: 'none', border: 'none', color: 'inherit' }}
               title="Escritorio WordPress (Admin)"

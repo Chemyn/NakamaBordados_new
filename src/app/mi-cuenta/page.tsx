@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
 import MaintenanceToggle from '../components/MaintenanceToggle';
+import { openWpAdmin, WP_ADMIN_URL } from '@/lib/wp-sso';
 
 export default function MiCuentaPage() {
   const { user, login, logout, isLoading, isAdmin } = useAuth();
@@ -30,7 +31,9 @@ export default function MiCuentaPage() {
     e.preventDefault();
     setError('');
     setIsLoggingIn(true);
-    const result = await login(userCredentials.username, userCredentials.password);
+    // trim: el autocompletado móvil suele agregar un espacio final al usuario,
+    // y para WordPress "usuario " es un usuario distinto (login rechazado).
+    const result = await login(userCredentials.username.trim(), userCredentials.password);
     if (!result.success) {
       setError(result.error || t('account.login.error'));
     }
@@ -138,9 +141,8 @@ export default function MiCuentaPage() {
                           <li className="nk-nav-divider">ADMIN TOOLS</li>
                           <li>
                             <a
-                              href={process.env.NEXT_PUBLIC_WP_ADMIN_URL || 'https://nakamabordados.com/wp-admin'}
-                              target="_blank"
-                              rel="noopener noreferrer"
+                              href={WP_ADMIN_URL}
+                              onClick={(e) => { e.preventDefault(); openWpAdmin(); }}
                               className="nk-admin-btn-link"
                             >
                               <button className="nk-admin-btn gold">
@@ -386,11 +388,32 @@ export default function MiCuentaPage() {
               <form onSubmit={handleLogin} className="nk-login-form">
                 <div className="nk-form-group">
                   <label>{t('account.login.user')}</label>
-                  <input type="text" name="username" value={userCredentials.username} onChange={handleInputChange} required className="nk-manga-input" />
+                  {/* autoCapitalize/autoCorrect off: los teclados móviles capitalizan
+                      la primera letra o autocorrigen el usuario y el login falla. */}
+                  <input
+                    type="text"
+                    name="username"
+                    value={userCredentials.username}
+                    onChange={handleInputChange}
+                    required
+                    className="nk-manga-input"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    autoComplete="username"
+                  />
                 </div>
                 <div className="nk-form-group">
                   <label>{t('account.login.pass')}</label>
-                  <input type="password" name="password" value={userCredentials.password} onChange={handleInputChange} required className="nk-manga-input" />
+                  <input
+                    type="password"
+                    name="password"
+                    value={userCredentials.password}
+                    onChange={handleInputChange}
+                    required
+                    className="nk-manga-input"
+                    autoComplete="current-password"
+                  />
                 </div>
 
                 {error && <p className="nk-error-msg">{error}</p>}
