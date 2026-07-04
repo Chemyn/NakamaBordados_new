@@ -18,10 +18,22 @@ interface CurrencyContextProps {
 const CurrencyContext = createContext<CurrencyContextProps | undefined>(undefined);
 
 /**
+ * "Encarecimiento" de precios en USD — réplica EXACTA del snippet de WPCode
+ * "ImperioDev Currency Global V15.7" que usa el checkout de WooCommerce:
+ * al tipo de cambio (pesos por dólar) se le restan 2 pesos, lo que sube el
+ * precio final en dólares.
+ */
+function applyUsdMarkup(rawRate: number): number {
+  if (rawRate <= 0) return rawRate;
+  const pesosPorDolar = Math.max(1, 1 / rawRate - 2);
+  return 1 / pesosPorDolar;
+}
+
+/**
  * Tipo de cambio MXN->USD. Se intenta primero el de WordPress (endpoint
- * nakama/v1/currency, que expone el rate cacheado por el snippet de moneda
- * del checkout, con su margen incluido) para que los montos del sitio
- * coincidan EXACTO con los del checkout de WooCommerce. Fallback: API pública.
+ * nakama/v1/currency, que expone el rate del snippet YA con el margen) para
+ * que los montos coincidan exacto con el checkout. Fallback: API pública,
+ * a la que se le aplica el MISMO margen de -2 pesos del snippet.
  */
 async function fetchUsdRate(): Promise<number | null> {
   try {
@@ -29,6 +41,7 @@ async function fetchUsdRate(): Promise<number | null> {
     if (wpRes.ok) {
       const wpData = await wpRes.json();
       if (typeof wpData?.usdRate === 'number' && wpData.usdRate > 0) {
+        // El endpoint ya entrega el rate con margen: NO volver a aplicarlo.
         return wpData.usdRate;
       }
     }
@@ -38,7 +51,7 @@ async function fetchUsdRate(): Promise<number | null> {
   try {
     const rateRes = await fetch('https://open.er-api.com/v6/latest/MXN');
     const rateData = await rateRes.json();
-    if (rateData?.rates?.USD) return rateData.rates.USD;
+    if (rateData?.rates?.USD) return applyUsdMarkup(rateData.rates.USD);
   } catch (e) {
     console.warn('No se pudo obtener tipo de cambio USD:', e);
   }
