@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Products API
  * Description: API REST pública y RÁPIDA de productos (WooCommerce/$wpdb directo, sin WPGraphQL) para el frontend estático de Next.js.
- * Version: 1.3
+ * Version: 1.4
  * Author: Nakama
  */
 
@@ -113,27 +113,6 @@ add_action('rest_api_init', function () {
             'methods' => 'GET',
             'callback' => 'nakama_products_slugs',
             'permission_callback' => '__return_true',
-        ),
-        array(
-            'methods' => 'OPTIONS',
-            'callback' => 'nakama_products_preflight',
-            'permission_callback' => '__return_true',
-        ),
-    ));
-
-    // 4) Modo Mantenimiento GET/POST/OPTIONS
-    register_rest_route('nakama/v1', '/maintenance', array(
-        array(
-            'methods' => 'GET',
-            'callback' => 'nakama_get_maintenance_status',
-            'permission_callback' => '__return_true',
-        ),
-        array(
-            'methods' => 'POST',
-            'callback' => 'nakama_set_maintenance_status',
-            'permission_callback' => function () {
-                return current_user_can('manage_options');
-            },
         ),
         array(
             'methods' => 'OPTIONS',
@@ -519,51 +498,3 @@ function nakama_products_slugs($request)
         'slugs' => array_values($slugs),
     )));
 }
-
-// ============================================================================
-// 4) HANDLER: MODO MANTENIMIENTO
-// ============================================================================
-function nakama_get_maintenance_status()
-{
-    $enabled = get_option('nakama_maintenance_mode', 'off') === 'on';
-
-    $message = get_option('nakama_maintenance_message', 'Estamos preparando nuevos diseños increíbles para ti. ¡Volvemos muy pronto!');
-    $image = get_option('nakama_maintenance_image', 'https://nakamabordados.com/wp-content/uploads/2026/05/OPCR05-1.avif');
-    $facebook = get_option('nakama_maintenance_fb', 'https://facebook.com/nakamabordados');
-    $instagram = get_option('nakama_maintenance_ig', 'https://instagram.com/nakama.bordados');
-    $tiktok = get_option('nakama_maintenance_tt', 'https://tiktok.com/@nakama.bordados');
-
-    return nakama_products_add_cors(rest_ensure_response(array(
-        'maintenanceMode' => $enabled,
-        'message' => $message,
-        'image' => $image,
-        'socialLinks' => array(
-            'facebook' => $facebook,
-            'instagram' => $instagram,
-            'tiktok' => $tiktok,
-        ),
-    )));
-}
-
-function nakama_set_maintenance_status($request)
-{
-    $params = $request->get_json_params();
-    $enabled = isset($params['enabled']) ? (bool) $params['enabled'] : false;
-
-    update_option('nakama_maintenance_mode', $enabled ? 'on' : 'off');
-
-    return nakama_products_add_cors(rest_ensure_response(array(
-        'success' => true,
-        'maintenanceMode' => $enabled,
-    )));
-}
-
-// Bypassear el chequeo de nonce de WordPress solo para el endpoint de mantenimiento
-add_filter('rest_authentication_errors', function ($result) {
-    if (is_wp_error($result) && $result->get_error_code() === 'rest_cookie_invalid_nonce') {
-        if (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/nakama/v1/maintenance') !== false) {
-            return null; // Bypassear error de nonce
-        }
-    }
-    return $result;
-}, 99);
