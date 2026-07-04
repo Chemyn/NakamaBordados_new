@@ -45,13 +45,18 @@ export default function MaintenanceWrapper({ children }: { children: React.React
 
   const toggleMaintenance = async (newState: boolean) => {
     try {
+      const headers: HeadersInit = {
+        'Content-Type': 'application/json',
+      };
+      const token = typeof window !== 'undefined' ? localStorage.getItem('wp-jwt') : null;
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
       const res = await fetch('https://nakamabordados.com/?rest_route=/nakama/v1/maintenance', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers,
         body: JSON.stringify({ enabled: newState }),
-        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Products API
  * Description: API REST pública y RÁPIDA de productos (WooCommerce/$wpdb directo, sin WPGraphQL) para el frontend estático de Next.js.
- * Version: 1.2
+ * Version: 1.3
  * Author: Nakama
  */
 
