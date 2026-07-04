@@ -85,7 +85,7 @@ export default function TermsPage() {
       </div>
 
       <div className="nk-container" style={{ padding: '60px 24px' }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto', background: 'var(--nk-bg-card)', padding: '40px', border: '2px solid #000', boxShadow: 'var(--nk-manga-shadow-lg)' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto', background: 'var(--nk-bg-card)', padding: 'clamp(20px, 5vw, 40px)', border: '2px solid #000', boxShadow: 'var(--nk-manga-shadow-lg)' }}>
           <p style={{ marginBottom: '25px', fontStyle: 'italic', color: 'var(--nk-text-sec)' }}>Última actualización: 02 de julio de 2026</p>
 
           <Section n="1" title="Aceptación de los Términos y Dinámicas Comerciales">

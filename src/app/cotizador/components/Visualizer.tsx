@@ -80,13 +80,21 @@ export const Visualizer: React.FC<VisualizerProps> = ({
               <path d="M 29 38 L 20 46" fill="none" stroke="#94A3B8" strokeWidth="0.8" strokeDasharray="1 1" />
               <path d="M 71 38 L 80 46" fill="none" stroke="#94A3B8" strokeWidth="0.8" strokeDasharray="1 1" />
 
+              {/* Hit-areas táctiles ampliadas (~44px en móvil): los rects
+                  visibles de pecho miden ~26px renderizados y son difíciles
+                  de tocar. Van ANTES para que las zonas visibles conserven
+                  prioridad de clic donde se traslapan. */}
+              <rect x="29.5" y="23.5" width="18" height="18" fill="transparent" style={{ cursor: 'pointer' }} onClick={(e) => handleZoneClick('Pecho Izquierdo', e)} />
+              <rect x="52.5" y="23.5" width="18" height="18" fill="transparent" style={{ cursor: 'pointer' }} onClick={(e) => handleZoneClick('Pecho Derecho', e)} />
+              <rect x="41" y="24.5" width="18" height="18" fill="transparent" style={{ cursor: 'pointer' }} onClick={(e) => handleZoneClick('Pecho en Medio', e)} />
+
               {/* Clickable Overlay Zones */}
               {/* Pecho Izquierdo */}
               <rect x="33" y="27" width="11" height="11" rx="2" {...getZoneStyles('Pecho Izquierdo')} onClick={(e) => handleZoneClick('Pecho Izquierdo', e)} />
-              
+
               {/* Pecho Derecho */}
               <rect x="56" y="27" width="11" height="11" rx="2" {...getZoneStyles('Pecho Derecho')} onClick={(e) => handleZoneClick('Pecho Derecho', e)} />
-              
+
               {/* Pecho en Medio */}
               <rect x="45" y="29" width="10" height="9" rx="2" {...getZoneStyles('Pecho en Medio')} onClick={(e) => handleZoneClick('Pecho en Medio', e)} />
               

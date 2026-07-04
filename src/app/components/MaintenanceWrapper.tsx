@@ -162,7 +162,7 @@ export default function MaintenanceWrapper({ children }: { children: React.React
         <h1
           style={{
             fontFamily: 'Teko, sans-serif',
-            fontSize: 'clamp(3rem, 9vw, 4.8rem)',
+            fontSize: 'clamp(2.4rem, 9vw, 4.8rem)',
             color: 'var(--nk-primary, #e82e1e)',
             lineHeight: 0.95,
             margin: 0,

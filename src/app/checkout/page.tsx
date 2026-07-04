@@ -76,7 +76,7 @@ export default function CheckoutPage() {
       <div className="nk-checkout-empty">
         <div className="nk-container">
           <div className="nk-empty-card nk-manga-border">
-            <span className="material-icons-outlined" style={{ fontSize: '5rem', color: 'var(--nk-primary)' }}>sailing</span>
+            <span className="material-icons-outlined" style={{ fontSize: 'clamp(3rem, 12vw, 5rem)', color: 'var(--nk-primary)' }}>sailing</span>
             <h2>{t('checkout.empty')}</h2>
             <Link href="/store" className="nk-btn">{t('checkout.back')}</Link>
           </div>
@@ -89,9 +89,9 @@ export default function CheckoutPage() {
     return (
       <div className="nk-checkout-empty" style={{ padding: '150px 20px', textAlign: 'center' }}>
         <div className="nk-container">
-          <div className="nk-empty-card nk-manga-border" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', padding: '60px 40px', background: 'var(--nk-bg-card)', maxWidth: '500px', margin: '0 auto' }}>
+          <div className="nk-empty-card nk-manga-border" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '20px', padding: 'clamp(30px, 8vw, 60px) clamp(20px, 6vw, 40px)', background: 'var(--nk-bg-card)', maxWidth: '500px', margin: '0 auto' }}>
             <div className="nk-spinner" style={{ margin: '0 auto 20px' }}></div>
-            <h2 style={{ fontFamily: 'Teko', fontSize: '2.5rem' }}>{t('checkout.processing') || 'Redirigiendo...'}</h2>
+            <h2 style={{ fontFamily: 'Teko', fontSize: 'clamp(1.8rem, 6vw, 2.5rem)' }}>{t('checkout.processing') || 'Redirigiendo...'}</h2>
             <p style={{ opacity: 0.7 }}>{t('checkout.redirect_msg') || 'Cargando tu tripulación y tu tesoro...'}</p>
           </div>
         </div>
@@ -219,15 +219,17 @@ export default function CheckoutPage() {
 
               <div className="nk-coupon-section">
                 <div style={{ display: 'flex', gap: '10px' }}>
-                  <input 
-                    type="text" 
-                    placeholder={t('checkout.coupon.placeholder')} 
+                  {/* minWidth 0: sin esto el min-width intrínseco del input
+                      (~180px) + el botón desbordan la tarjeta en 360px */}
+                  <input
+                    type="text"
+                    placeholder={t('checkout.coupon.placeholder')}
                     value={couponInput}
                     onChange={(e) => setCouponInput(e.target.value)}
                     className="nk-manga-input"
-                    style={{ flex: 1 }}
+                    style={{ flex: 1, minWidth: 0 }}
                   />
-                  <button type="button" onClick={handleApplyCoupon} disabled={loading} className="nk-btn" style={{ padding: '0 20px' }}>
+                  <button type="button" onClick={handleApplyCoupon} disabled={loading} className="nk-btn" style={{ padding: '0 14px', fontSize: '1.1rem', flexShrink: 0 }}>
                     {loading ? '...' : t('checkout.coupon.apply')}
                   </button>
                 </div>

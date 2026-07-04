@@ -262,7 +262,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
             <h1 className="nk-detail-title" style={{ textShadow: '2px 2px 0px var(--nk-accent)' }}>{product.name}</h1>
             
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '15px' }}>
-                <p className="nk-detail-price" style={{ fontSize: '2.5rem' }}>{displayPrice}</p>
+                <p className="nk-detail-price" style={{ fontSize: 'clamp(1.8rem, 6.5vw, 2.5rem)' }}>{displayPrice}</p>
             </div>
 
             <div className="nk-detail-divider" style={{ background: 'var(--nk-border)', height: '2px' }}></div>
@@ -476,7 +476,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
             <button className="nk-modal-close" onClick={() => setSizeGuideOpen(false)} style={{ background: 'var(--nk-primary)', color: '#fff' }}><span className="material-icons-outlined">close</span></button>
             <h2 className="nk-modal-title" style={{ textAlign: 'center', fontSize: '2.5rem' }}>{t('product.size_guide')}</h2>
             <p style={{ textAlign: 'center', marginBottom: '20px', fontSize: '0.9rem', fontWeight: 600, color: 'var(--nk-text-sec)' }}>Haz clic en las imágenes para ampliar los detalles técnicos.</p>
-            <div className="nk-size-guide-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', gap: '20px' }}>
+            <div className="nk-size-guide-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: '20px' }}>
               {[2,3,4,5,6,7,8].map(num => (
                 <div key={num} onClick={() => setZoomImage(`https://nakamabordados.com/wp-content/uploads/2026/01/${num}.webp`)} style={{ cursor: 'zoom-in' }} className="nk-manga-border">
                   <Image 
@@ -526,7 +526,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
 
       {successModalOpen && (
         <div className="nk-modal-backdrop" onClick={() => setSuccessModalOpen(false)} style={{ zIndex: 99999 }}>
-          <div className="nk-modal-card nk-manga-border" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px', textAlign: 'center', padding: '40px', background: 'var(--nk-bg-card)', boxShadow: 'var(--nk-manga-shadow-lg)' }}>
+          <div className="nk-modal-card nk-manga-border" onClick={(e) => e.stopPropagation()} style={{ maxWidth: '450px', textAlign: 'center', padding: 'clamp(24px, 6vw, 40px)', background: 'var(--nk-bg-card)', boxShadow: 'var(--nk-manga-shadow-lg)' }}>
             <button className="nk-modal-close" onClick={() => setSuccessModalOpen(false)} style={{ background: 'var(--nk-primary)', color: '#fff' }}>
               <span className="material-icons-outlined">close</span>
             </button>
@@ -542,11 +542,13 @@ export default function ProductClient({ initialProduct: product, relatedProducts
               Has sumado <strong>{product.name}</strong> {quantity > 1 ? `(x${quantity})` : ''} a tu botín.
             </p>
             
-            <div style={{ display: 'flex', gap: '15px', justifyContent: 'center' }}>
-              <button 
-                type="button" 
-                className="nk-btn" 
-                style={{ flex: 1, padding: '12px', fontSize: '1.1rem', background: 'transparent', border: '3px solid var(--nk-border)', color: 'var(--nk-text-main)', boxShadow: 'none' }} 
+            {/* flexWrap: en 360px los dos botones no caben en una fila (el
+                font-size !important de .nk-btn los hace anchos) */}
+            <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
+              <button
+                type="button"
+                className="nk-btn"
+                style={{ flex: 1, padding: '12px', fontSize: '1.1rem', background: 'transparent', border: '3px solid var(--nk-border)', color: 'var(--nk-text-main)', boxShadow: 'none' }}
                 onClick={() => setSuccessModalOpen(false)}
               >
                 Seguir Navegando

@@ -607,61 +607,9 @@ export default function MiCuentaPage() {
           }
         }
 
-        /* ADMIN TOOLS — mismo lenguaje visual manga de la app (variables del
-           tema: funcionan en claro/oscuro) y usables en móvil dentro de la
-           fila deslizable. */
-        .nk-admin-btn-link {
-          text-decoration: none;
-          display: block;
-        }
-
-        .nk-admin-btn {
-          padding: 10px 16px;
-          font-family: 'Teko', sans-serif;
-          font-size: 1.2rem;
-          font-weight: 700;
-          letter-spacing: 0.5px;
-          text-transform: uppercase;
-          cursor: pointer;
-          display: flex;
-          align-items: center;
-          justify-content: flex-start;
-          gap: 8px;
-          white-space: nowrap;
-          min-height: 44px;
-          background: var(--nk-bg-wrapper);
-          color: var(--nk-text-main);
-          border: 2px solid var(--nk-border);
-          box-shadow: 3px 3px 0px var(--nk-border);
-          border-radius: 4px;
-          transition: all 0.2s;
-        }
-
-        .nk-admin-btn:hover:not(:disabled) {
-          transform: translate(-2px, -2px);
-          box-shadow: 5px 5px 0px var(--nk-border);
-        }
-
-        .nk-admin-btn:active:not(:disabled) {
-          transform: translate(0, 0);
-          box-shadow: 0 0 0 var(--nk-border);
-        }
-
-        @media (min-width: 992px) {
-          .nk-admin-btn {
-            width: 100%;
-            font-size: 1.3rem;
-            padding: 12px 15px;
-            border-radius: 0;
-          }
-        }
-
-        .nk-admin-btn.gold {
-          background: var(--nk-primary);
-          color: #fff;
-          border-color: var(--nk-border);
-        }
-        .nk-admin-btn.dark { background: #1d2327; color: #fff; }
+        /* Los estilos de .nk-admin-btn viven en globals.css: los usan
+           componentes distintos (esta página y MaintenanceToggle) y el scope
+           por hash de styled-jsx dejaba al toggle sin estilos. */
 
         .nk-logout-li {
           margin-left: auto;

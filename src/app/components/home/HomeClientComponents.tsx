@@ -79,7 +79,7 @@ export const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { 
       <div className="nk-container" style={{ maxWidth: '100%', padding: 0 }}>
         <div className="nk-home-section-header" style={{ flexDirection: 'column', alignItems: 'center', textAlign: 'center', gap: '15px', marginBottom: '30px', padding: '0 20px' }}>
           <h2 className="nk-section-title" style={isSpecial ? { color: 'var(--nk-primary)', margin: 0 } : { margin: 0 }}>{title}</h2>
-          <Link className="nk-home-view-all" href={href} style={{ borderBottom: '2px solid var(--nk-primary)', paddingBottom: '2px' }}>
+          <Link className="nk-home-view-all" href={href} style={{ borderBottom: '2px solid var(--nk-primary)', padding: '10px 8px 2px' }}>
             {t('nav.all')} <span className="material-icons-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
           </Link>
         </div>

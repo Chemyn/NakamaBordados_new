@@ -89,7 +89,9 @@ export default function ScrollytellingHero({ heroSources }: { heroSources?: Hero
           <span className="nk-store-hero-badge" style={{ background: 'var(--nk-primary)', color: 'white', border: 'none', marginBottom: '20px' }}>
             {t('hero.scrolly.badge')}
           </span>
-          <h1 className="nk-section-title" style={{ fontSize: 'clamp(3rem, 10vw, 6rem)', color: 'white', textShadow: '4px 4px 0px #000', lineHeight: 0.9, marginBottom: '30px' }}>
+          {/* El tamaño lo gobierna .nk-section-title (clamp global con
+              !important); un fontSize inline aquí es código muerto. */}
+          <h1 className="nk-section-title" style={{ color: 'white', textShadow: '4px 4px 0px #000', lineHeight: 0.9, marginBottom: '30px' }}>
             {t('hero.scrolly.title')}
           </h1>
           <div style={{ display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap' }}>

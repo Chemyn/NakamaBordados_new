@@ -321,11 +321,18 @@ export default function WhatsAppButton() {
             right: 0;
             bottom: 0;
             width: 100%;
-            height: 85vh;
-            max-height: 85vh;
+            /* dvh: con vh la barra dinámica de iOS corta el header del chat */
+            height: 85dvh;
+            max-height: 85dvh;
             border-right: none;
             border-left: none;
             border-bottom: none;
+          }
+
+          /* El FAB (bottom 30/right 30) queda encima de la esquina del grid
+             de botones cuando la ventana está abierta */
+          .nk-chatbot-navigation {
+            padding-bottom: 90px;
           }
         }
 

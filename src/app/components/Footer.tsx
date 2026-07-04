@@ -27,7 +27,7 @@ export default function Footer() {
             <p className="nk-footer-description" style={{ fontFamily: 'Inter', fontWeight: 600 }}>
               {t('footer.description')}
             </p>
-            <div className="nk-footer-social">
+            <div className="nk-footer-socials">
               <a href="https://www.instagram.com/nakama_bordados/" target="_blank" rel="noopener noreferrer" className="nk-social-link nk-manga-border" style={{ boxShadow: 'var(--nk-manga-shadow)' }}>
                 <i className="fab fa-instagram"></i>
               </a>

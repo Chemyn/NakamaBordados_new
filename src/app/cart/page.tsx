@@ -33,8 +33,8 @@ export default function CartPage() {
       <div className="nk-cart-page" style={{ padding: '100px 0', background: 'var(--nk-bg-body)', minHeight: '80vh' }}>
         <div className="nk-container">
           <div className="nk-empty-cart-view nk-manga-border" style={{ background: 'var(--nk-bg-card)', padding: '60px 20px', textAlign: 'center' }}>
-            <span className="material-icons-outlined" style={{ fontSize: '5rem', color: 'var(--nk-primary)', marginBottom: '20px' }}>shopping_basket</span>
-            <h2 style={{ fontSize: '2.5rem', marginBottom: '20px' }}>{t('checkout.empty')}</h2>
+            <span className="material-icons-outlined" style={{ fontSize: 'clamp(3rem, 12vw, 5rem)', color: 'var(--nk-primary)', marginBottom: '20px' }}>shopping_basket</span>
+            <h2 style={{ fontSize: 'clamp(1.8rem, 6vw, 2.5rem)', marginBottom: '20px' }}>{t('checkout.empty')}</h2>
             <Link href="/store" className="nk-btn">{t('checkout.back')}</Link>
           </div>
         </div>
@@ -65,7 +65,10 @@ export default function CartPage() {
         <div className="nk-cart-grid">
           {/* Table of products */}
           <div className="nk-cart-items nk-manga-border" style={{ background: 'var(--nk-bg-card)', padding: '30px' }}>
-            <div className="nk-cart-table-header nk-desktop-only">
+            {/* Sin nk-desktop-only: esa utilidad fuerza display:flex !important
+                y rompía el grid del encabezado; el media query de abajo ya lo
+                oculta en móvil. */}
+            <div className="nk-cart-table-header">
               <div style={{ width: '80px' }}></div>
               <div>{t('cart.item_table.product')}</div>
               <div style={{ textAlign: 'center' }}>{t('cart.item_table.price')}</div>
@@ -230,6 +233,7 @@ export default function CartPage() {
           font-size: 1.4rem;
           font-weight: 800;
           line-height: 1.1;
+          overflow-wrap: anywhere;
         }
 
         .nk-cart-item-meta {
@@ -265,6 +269,8 @@ export default function CartPage() {
           background: transparent;
           border: none;
           padding: 8px 12px;
+          min-width: 44px; /* target táctil mínimo */
+          min-height: 44px;
           cursor: pointer;
           font-weight: 800;
           color: var(--nk-text-main);
@@ -300,6 +306,8 @@ export default function CartPage() {
           display: flex;
           align-items: center;
           justify-content: center;
+          min-width: 44px; /* target táctil mínimo */
+          min-height: 44px;
           opacity: 0.5;
           transition: all 0.2s;
         }
@@ -342,23 +350,27 @@ export default function CartPage() {
 
         @media (max-width: 768px) {
           .nk-cart-row {
-            grid-template-columns: 80px 1fr 40px;
-            grid-template-areas: 
+            /* minmax(0,1fr) + auto: con "80px 1fr 40px" el total ($1,299 MXN)
+               caía en un track fijo de 40px y se derramaba fuera de la tarjeta */
+            grid-template-columns: 64px minmax(0, 1fr) auto;
+            grid-template-areas:
               "img info remove"
               "img qty total";
-            gap: 15px;
+            gap: 12px;
             padding: 20px 0;
           }
+
+          .nk-cart-items { padding: 16px !important; }
 
           .nk-cart-item-img { grid-area: img; }
           .nk-cart-item-info { grid-area: info; }
           .nk-cart-item-qty-col { grid-area: qty; justify-self: flex-start; }
-          .nk-cart-item-total-col { grid-area: total; align-self: center; }
+          .nk-cart-item-total-col { grid-area: total; align-self: center; justify-self: end; white-space: nowrap; }
           .nk-cart-item-remove-col { grid-area: remove; align-self: flex-start; }
 
           .nk-cart-item-title { font-size: 1.1rem; }
           .nk-cart-item-price-mobile { font-size: 0.9rem; font-weight: 700; color: var(--nk-primary); margin-top: 4px; }
-          
+
           .nk-cart-table-header { display: none !important; }
         }
       `}</style>

@@ -13,7 +13,9 @@ import MaintenanceWrapper from "./components/MaintenanceWrapper";
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  // Sin maximumScale: bloquear el pinch-zoom en iOS/Android es una barrera
+  // de accesibilidad (WCAG 1.4.4); el zoom por focus en inputs ya se evita
+  // con font-size >= 16px en los campos.
 };
 
 export const metadata: Metadata = {

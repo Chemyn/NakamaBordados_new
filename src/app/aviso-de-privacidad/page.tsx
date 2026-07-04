@@ -19,7 +19,7 @@ export default function PrivacyPage() {
       </div>
 
       <div className="nk-container" style={{ padding: '60px 24px' }}>
-        <div style={{ maxWidth: '900px', margin: '0 auto', background: 'var(--nk-bg-card)', padding: '40px', border: '2px solid #000', boxShadow: 'var(--nk-manga-shadow-lg)' }}>
+        <div style={{ maxWidth: '900px', margin: '0 auto', background: 'var(--nk-bg-card)', padding: 'clamp(20px, 5vw, 40px)', border: '2px solid #000', boxShadow: 'var(--nk-manga-shadow-lg)' }}>
           {/* Note: In a production site, the full body of legal texts would be dynamically swapped, 
               but for this prototype we'll keep the Spanish body as the primary reference and translate the headers */}
           <p style={{ marginBottom: '25px', fontStyle: 'italic', color: 'var(--nk-text-sec)' }}>Última actualización: 02 de junio de 2026</p>
@@ -46,7 +46,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 style={{ fontSize: '2rem', marginBottom: '15px' }}>5. Derechos ARCO</h2>
-            <p style={{ lineHeight: 1.6, color: 'var(--nk-text-sec)' }}>Usted tiene derecho al Acceso, Rectificación, Cancelación u Oposición del tratamiento de sus datos personales. Para ejercer estos derechos, puede enviarnos un correo a contacto@nakamabordados.com.</p>
+            <p style={{ lineHeight: 1.6, color: 'var(--nk-text-sec)', overflowWrap: 'anywhere' }}>Usted tiene derecho al Acceso, Rectificación, Cancelación u Oposición del tratamiento de sus datos personales. Para ejercer estos derechos, puede enviarnos un correo a contacto@nakamabordados.com.</p>
           </section>
         </div>
       </div>

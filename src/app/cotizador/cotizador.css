@@ -33,24 +33,35 @@ html.dark {
   text-transform: uppercase;
 }
 
-h1, h2, h3, h4, h5, h6 {
+/* Prefijados con .nk-cotizador-scope: en App Router este CSS queda cargado
+   globalmente tras visitar /cotizador y sin prefijo alteraba los títulos de
+   TODO el sitio. */
+.nk-cotizador-scope h1, .nk-cotizador-scope h2, .nk-cotizador-scope h3,
+.nk-cotizador-scope h4, .nk-cotizador-scope h5, .nk-cotizador-scope h6 {
   font-family: var(--font-display);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
-h1 { font-size: 2.0rem; }
-h2 { font-size: 1.6rem; }
-h3 { font-size: 1.4rem; }
-h4 { font-size: 1.25rem; }
-h5 { font-size: 1.1rem; }
+.nk-cotizador-scope h1 { font-size: 2.0rem; }
+.nk-cotizador-scope h2 { font-size: 1.6rem; }
+.nk-cotizador-scope h3 { font-size: 1.4rem; }
+.nk-cotizador-scope h4 { font-size: 1.25rem; }
+.nk-cotizador-scope h5 { font-size: 1.1rem; }
 
 @media (min-width: 576px) {
-  h1 { font-size: 2.7rem; }
-  h2 { font-size: 2.2rem; }
-  h3 { font-size: 1.8rem; }
-  h4 { font-size: 1.5rem; }
-  h5 { font-size: 1.25rem; }
+  .nk-cotizador-scope h1 { font-size: 2.7rem; }
+  .nk-cotizador-scope h2 { font-size: 2.2rem; }
+  .nk-cotizador-scope h3 { font-size: 1.8rem; }
+  .nk-cotizador-scope h4 { font-size: 1.5rem; }
+  .nk-cotizador-scope h5 { font-size: 1.25rem; }
+}
+
+/* Los .badge de Bootstrap traen white-space:nowrap; con etiquetas largas
+   ("Área 2 (Opcional): Manga Izquierda") desbordan la tarjeta en 360px. */
+.nk-cotizador-scope .badge {
+  white-space: normal;
+  text-align: left;
 }
 
 /* Custom Scrollbar */
@@ -274,53 +285,54 @@ h5 { font-size: 1.1rem; }
   animation: shake-btn 0.4s ease;
 }
 
-/* Header style overrides */
-header {
+/* Header style overrides (delimitados al cotizador para no pintar de blanco
+   otros headers del sitio) */
+.nk-cotizador-scope header {
   background-color: #FFFFFF !important;
   border-bottom: 1px solid #E2E8F0 !important;
 }
-header h1 {
+.nk-cotizador-scope header h1 {
   color: #0F172A !important;
 }
 
-html.dark header {
+html.dark .nk-cotizador-scope header {
   background-color: #1A1A1A !important;
   border-bottom: 1px solid #333333 !important;
 }
-html.dark header h1 {
+html.dark .nk-cotizador-scope header h1 {
   color: #FFFFFF !important;
 }
 
 /* Dark background element overrides for light mode styling compatibility */
-.bg-dark {
+.nk-cotizador-scope .bg-dark {
   background-color: #F8FAFC !important;
 }
-.border-secondary {
+.nk-cotizador-scope .border-secondary {
   border-color: #E2E8F0 !important;
 }
-.text-white {
+.nk-cotizador-scope .text-white {
   color: #0F172A !important;
 }
-.text-light {
+.nk-cotizador-scope .text-light {
   color: #1E293B !important;
 }
-.bg-black {
+.nk-cotizador-scope .bg-black {
   background-color: #FFFFFF !important;
 }
 
-html.dark .bg-dark {
+html.dark .nk-cotizador-scope .bg-dark {
   background-color: #121212 !important;
 }
-html.dark .border-secondary {
+html.dark .nk-cotizador-scope .border-secondary {
   border-color: #333333 !important;
 }
-html.dark .text-white {
+html.dark .nk-cotizador-scope .text-white {
   color: #FFFFFF !important;
 }
-html.dark .text-light {
+html.dark .nk-cotizador-scope .text-light {
   color: #BDBDBD !important;
 }
-html.dark .bg-black {
+html.dark .nk-cotizador-scope .bg-black {
   background-color: #0A0A0A !important;
 }
 

@@ -251,6 +251,8 @@ function StoreContent() {
           cursor: 'pointer',
           zIndex: 99,
           opacity: showScrollTop ? 1 : 0,
+          // invisible => tampoco clickeable (evita taps fantasma en móvil)
+          pointerEvents: showScrollTop ? 'auto' : 'none',
           transform: showScrollTop ? 'translateY(0)' : 'translateY(20px)',
           transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
         }}
@@ -264,7 +266,7 @@ function StoreContent() {
 export default function StorePage() {
   const { t } = useLanguage();
   return (
-    <Suspense fallback={<div style={{ padding: '100px', textAlign: 'center', fontFamily: 'Teko', fontSize: '2rem' }}>{t('store.loading')}</div>}>
+    <Suspense fallback={<div style={{ padding: '100px 24px', textAlign: 'center', fontFamily: 'Teko', fontSize: '2rem' }}>{t('store.loading')}</div>}>
       <StoreContent />
     </Suspense>
   );
