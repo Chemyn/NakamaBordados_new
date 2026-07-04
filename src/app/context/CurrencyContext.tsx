@@ -17,6 +17,34 @@ interface CurrencyContextProps {
 
 const CurrencyContext = createContext<CurrencyContextProps | undefined>(undefined);
 
+/**
+ * Tipo de cambio MXN->USD. Se intenta primero el de WordPress (endpoint
+ * nakama/v1/currency, que expone el rate cacheado por el snippet de moneda
+ * del checkout, con su margen incluido) para que los montos del sitio
+ * coincidan EXACTO con los del checkout de WooCommerce. Fallback: API pública.
+ */
+async function fetchUsdRate(): Promise<number | null> {
+  try {
+    const wpRes = await fetch(`https://nakamabordados.com/?rest_route=/nakama/v1/currency&nkcb=${Date.now()}`);
+    if (wpRes.ok) {
+      const wpData = await wpRes.json();
+      if (typeof wpData?.usdRate === 'number' && wpData.usdRate > 0) {
+        return wpData.usdRate;
+      }
+    }
+  } catch {
+    // WP no disponible: caer al fallback público.
+  }
+  try {
+    const rateRes = await fetch('https://open.er-api.com/v6/latest/MXN');
+    const rateData = await rateRes.json();
+    if (rateData?.rates?.USD) return rateData.rates.USD;
+  } catch (e) {
+    console.warn('No se pudo obtener tipo de cambio USD:', e);
+  }
+  return null;
+}
+
 export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
   const [currencyInfo, setCurrencyInfo] = useState<CurrencyData>({
     currency: 'MXN',
@@ -35,18 +63,17 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
         if (targetCurrency !== 'USD') {
           targetCurrency = 'MXN';
         }
-        
-        // Fetch rates based on MXN
-        const rateRes = await fetch('https://open.er-api.com/v6/latest/MXN');
-        const rateData = await rateRes.json();
-        
+
         let rate = 1;
-        let symbol = '$';
-        
-        if (targetCurrency === 'USD' && rateData.rates.USD) {
-          rate = rateData.rates.USD;
-        } else {
-          targetCurrency = 'MXN';
+        const symbol = '$';
+
+        if (targetCurrency === 'USD') {
+          const usdRate = await fetchUsdRate();
+          if (usdRate) {
+            rate = usdRate;
+          } else {
+            targetCurrency = 'MXN';
+          }
         }
         
         const newInfo = { currency: targetCurrency, rate, country, symbol };
@@ -77,16 +104,19 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
 
   const setCurrencyManual = async (targetCurrency: string) => {
     try {
-      const rateRes = await fetch('https://open.er-api.com/v6/latest/MXN');
-      const rateData = await rateRes.json();
       let rate = 1;
-      let symbol = '$';
+      const symbol = '$';
       let cleanCurrency = targetCurrency;
       if (cleanCurrency !== 'USD') {
         cleanCurrency = 'MXN';
       }
-      if (cleanCurrency === 'USD' && rateData.rates.USD) {
-         rate = rateData.rates.USD;
+      if (cleanCurrency === 'USD') {
+        const usdRate = await fetchUsdRate();
+        if (usdRate) {
+          rate = usdRate;
+        } else {
+          cleanCurrency = 'MXN';
+        }
       }
       const newInfo = { ...currencyInfo, currency: cleanCurrency, rate, symbol };
       setCurrencyInfo(newInfo);

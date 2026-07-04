@@ -10,7 +10,7 @@ import { useLanguage } from '../context/LanguageContext';
 
 export default function CartPage() {
   const { cart, subtotal, shipping, discount, total, removeFromCart, updateQuantity, couponCode } = useCart();
-  const { formatPrice } = useCurrency();
+  const { formatPrice, currencyInfo } = useCurrency();
   const { t } = useLanguage();
   const [showEmptyModal, setShowEmptyModal] = React.useState(false);
   const router = useRouter();
@@ -158,7 +158,9 @@ export default function CartPage() {
                   
                   // index.php explícito: la raíz "/" con query string sirve el index.html
                   // estático (DirectoryIndex) y el bridge nunca llega a WordPress.
-                  const checkoutUrl = `https://nakamabordados.com/index.php?nk_bridge=1&items=${itemsStr}${couponCode ? `&coupon=${couponCode}` : ''}`;
+                  // currency: el bridge fija la cookie nakama_currency para que el
+                  // checkout de WooCommerce cobre en la misma moneda que ve el usuario.
+                  const checkoutUrl = `https://nakamabordados.com/index.php?nk_bridge=1&items=${itemsStr}&currency=${currencyInfo.currency}${couponCode ? `&coupon=${couponCode}` : ''}`;
                   
                   return (
                     <a 

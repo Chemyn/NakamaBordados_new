@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Nakama Checkout Tools
- * Description: Endpoints REST para validación de cupones y sincronización de base de datos local (Next.js).
- * Version: 1.0
+ * Description: Endpoints REST para validación de cupones, moneda y sincronización de base de datos local (Next.js).
+ * Version: 1.1
  * Author: Nakama
  */
 
@@ -17,7 +17,30 @@ add_action( 'rest_api_init', function () {
         'callback' => 'nakama_check_coupon_logic',
         'permission_callback' => '__return_true'
     ) );
+
+    // Info de moneda: expone el tipo de cambio MXN->USD que cachea el snippet
+    // "ImperioDev Currency Global V15" (transient id_rate_v15_6_USD) para que
+    // el frontend Next muestre exactamente los mismos montos que el checkout.
+    register_rest_route( 'nakama/v1', '/currency', array(
+        'methods' => 'GET',
+        'callback' => 'nakama_currency_info',
+        'permission_callback' => '__return_true'
+    ) );
 });
+
+function nakama_currency_info() {
+    $usd_rate = get_transient( 'id_rate_v15_6_USD' );
+
+    $response = rest_ensure_response( array(
+        'baseCurrency' => get_option( 'woocommerce_currency', 'MXN' ),
+        // false => aún no cacheado por el snippet; el frontend usa su fallback.
+        'usdRate' => ( false === $usd_rate ) ? null : (float) $usd_rate,
+    ) );
+    $response->header( 'Access-Control-Allow-Origin', '*' );
+    $response->header( 'X-LiteSpeed-Cache-Control', 'no-cache' );
+    $response->header( 'Cache-Control', 'no-cache, must-revalidate, max-age=0' );
+    return $response;
+}
 
 function nakama_check_coupon_logic( WP_REST_Request $request ) {
     $code = sanitize_text_field( $request->get_param( 'code' ) );
@@ -72,6 +95,28 @@ function nakama_cart_bridge_handler() {
     if ( ! function_exists( 'WC' ) ) {
         if ( $debug ) echo "Error: WooCommerce no está activo.<br>";
         return;
+    }
+
+    // 0. Moneda elegida en el frontend Next: fijarla en la cookie que lee el
+    //    snippet "ImperioDev Currency Global V15" (nakama_currency). La cookie
+    //    es httpOnly, así que el navegador no puede escribirla con JS; se pasa
+    //    por la URL del bridge y se fija aquí (servidor) antes del redirect.
+    if ( ! empty( $_GET['currency'] ) ) {
+        $currency = strtoupper( sanitize_text_field( $_GET['currency'] ) );
+        if ( in_array( $currency, array( 'MXN', 'USD' ), true ) ) {
+            setcookie(
+                'nakama_currency',
+                $currency,
+                time() + DAY_IN_SECONDS,
+                COOKIEPATH,
+                COOKIE_DOMAIN,
+                is_ssl(),
+                true
+            );
+            // Disponible de inmediato para los filtros de moneda de ESTA petición.
+            $_COOKIE['nakama_currency'] = $currency;
+            if ( $debug ) echo "Moneda fijada: $currency<br>";
+        }
     }
 
     // Asegurar que la sesión de WC esté iniciada
