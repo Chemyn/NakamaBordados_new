@@ -7,6 +7,9 @@ import Link from 'next/link';
 interface HeroSources {
   webm?: string;
   mp4?: string;
+  /** Override global (all_pages) del Nakama Hero Manager */
+  video?: string;
+  image?: string;
 }
 
 // Current hardcoded defaults — used if no prop is supplied.
@@ -17,12 +20,43 @@ export default function ScrollytellingHero({ heroSources }: { heroSources?: Hero
   const { t } = useLanguage();
   const videoRef = useRef<HTMLVideoElement>(null);
 
-  const webmSrc = heroSources?.webm || DEFAULT_WEBM;
-  const mp4Src = heroSources?.mp4 || DEFAULT_MP4;
+  // Precedencia (igual que HeroBackground): video propio del home >
+  // override global (all_pages) > defaults. No se renderizan <source> vacíos.
+  const sources: { src: string; type?: string }[] = [];
+  let bgImage = '';
+  if (heroSources?.webm || heroSources?.mp4) {
+    if (heroSources.webm) sources.push({ src: heroSources.webm, type: 'video/webm' });
+    if (heroSources.mp4) sources.push({ src: heroSources.mp4, type: 'video/mp4' });
+  } else if (heroSources?.video) {
+    sources.push({ src: heroSources.video });
+  } else if (heroSources?.image) {
+    bgImage = heroSources.image;
+  } else {
+    sources.push({ src: DEFAULT_WEBM, type: 'video/webm' });
+    sources.push({ src: DEFAULT_MP4, type: 'video/mp4' });
+  }
+  // key: fuerza el remount del <video> cuando cambian las fuentes; sin esto el
+  // navegador sigue reproduciendo el video anterior (React no llama a load()).
+  const videoKey = sources.map(s => s.src).join('|');
 
   return (
     <section className="nk-video-hero" style={{ position: 'relative', width: '100%', height: '90vh', overflow: 'hidden', background: '#000' }}>
+      {bgImage ? (
+        <div
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            backgroundImage: `url(${bgImage})`,
+            backgroundSize: 'cover',
+            backgroundPosition: 'center',
+            zIndex: 0,
+            opacity: 0.7
+          }}
+        />
+      ) : (
       <video
+        key={videoKey}
         ref={videoRef}
         autoPlay
         muted
@@ -41,9 +75,11 @@ export default function ScrollytellingHero({ heroSources }: { heroSources?: Hero
           opacity: 0.7
         }}
       >
-        <source src={webmSrc} type="video/webm" />
-        <source src={mp4Src} type="video/mp4" />
+        {sources.map(s => (
+          <source key={s.src} src={s.src} type={s.type} />
+        ))}
       </video>
+      )}
 
       {/* Overlay Gradient */}
       <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, transparent 40%, rgba(0,0,0,0.8) 100%)', zIndex: 1 }}></div>
