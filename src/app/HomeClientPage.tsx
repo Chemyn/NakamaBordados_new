@@ -36,7 +36,7 @@ export default function HomeClientPage({ bestSellers: initialBestSellers, heroSo
 
     // Cargar config del hero si no está inicializada
     if (!heroSources) {
-      fetch((process.env.NEXT_PUBLIC_WP_REST_URL || 'https://nakamabordados.com') + '/wp-json/nakama/v1/hero-config')
+      fetch((process.env.NEXT_PUBLIC_WP_REST_URL || 'https://nakamabordados.com') + '/?rest_route=/nakama/v1/hero-config')
         .then(res => {
           if (res.ok) return res.json();
           throw new Error('API failed');

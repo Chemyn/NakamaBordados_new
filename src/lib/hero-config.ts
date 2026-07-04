@@ -34,7 +34,7 @@ const DEFAULT_HERO_CONFIG: HeroConfig = {
 };
 
 const WP_BASE = process.env.WP_REST_URL || 'https://nakamabordados.com';
-const HERO_ENDPOINT = `${WP_BASE}/wp-json/nakama/v1/hero-config`;
+const HERO_ENDPOINT = `${WP_BASE}/?rest_route=/nakama/v1/hero-config`;
 
 /**
  * Defensively normalize/merge an unknown JSON payload over the defaults so any

@@ -26,7 +26,7 @@ function loadHeroConfig(): Promise<HeroCfg> {
   if (!configPromise) {
     // Export estático: se lee la config directo del REST público de WordPress
     // (plugin Nakama Hero, CORS abierto). Ya no hay proxy /api/hero-config.
-    configPromise = fetch('https://nakamabordados.com/wp-json/nakama/v1/hero-config')
+    configPromise = fetch('https://nakamabordados.com/?rest_route=/nakama/v1/hero-config')
       .then((r) => (r.ok ? r.json() : {}))
       .catch(() => ({}));
   }

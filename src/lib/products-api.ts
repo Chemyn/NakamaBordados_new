@@ -9,7 +9,7 @@ import { Product } from '@/types/product';
 import type { WPCategory, WPTag } from '@/lib/queries';
 
 const API_BASE =
-  (process.env.NEXT_PUBLIC_WP_REST_URL || 'https://nakamabordados.com') + '/wp-json/nakama/v1';
+  process.env.NEXT_PUBLIC_WP_REST_URL || 'https://nakamabordados.com';
 
 export interface ProductsSearchResult {
   products: Product[];
@@ -44,7 +44,7 @@ export async function apiFetchProducts(opts: {
   if (search) params.set('search', search);
 
   try {
-    const res = await fetch(`${API_BASE}/products?${params.toString()}`);
+    const res = await fetch(`${API_BASE}/?rest_route=/nakama/v1/products&${params.toString()}`);
     if (!res.ok) return EMPTY_RESULT;
     const data = await res.json();
     return {
@@ -62,7 +62,7 @@ export async function apiFetchProducts(opts: {
 /** Un producto por slug (con variaciones). null si no existe. */
 export async function apiFetchProductBySlug(slug: string): Promise<Product | null> {
   try {
-    const res = await fetch(`${API_BASE}/product?slug=${encodeURIComponent(slug)}`);
+    const res = await fetch(`${API_BASE}/?rest_route=/nakama/v1/product&slug=${encodeURIComponent(slug)}`);
     if (!res.ok) return null;
     const data = await res.json();
     // El endpoint puede devolver el producto directo o { product: {...} }.
@@ -76,7 +76,7 @@ export async function apiFetchProductBySlug(slug: string): Promise<Product | nul
 /** Todos los slugs de producto (para generateStaticParams en build). */
 export async function apiFetchProductSlugs(): Promise<string[]> {
   try {
-    const res = await fetch(`${API_BASE}/product-slugs`);
+    const res = await fetch(`${API_BASE}/?rest_route=/nakama/v1/product-slugs`);
     if (!res.ok) return [];
     const data = await res.json();
     return Array.isArray(data) ? data : data?.slugs || [];

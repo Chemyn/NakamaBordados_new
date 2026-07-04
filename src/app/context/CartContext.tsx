@@ -117,7 +117,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     
     try {
       // Intentar validar usando la API real (requiere nakama-checkout-tools.php)
-      const res = await fetch(`https://nakamabordados.com/wp-json/nakama/v1/check-coupon?code=${normalized}`);
+      const res = await fetch(`https://nakamabordados.com/?rest_route=/nakama/v1/check-coupon&code=${normalized}`);
       
       if (res.ok) {
         const data = await res.json();

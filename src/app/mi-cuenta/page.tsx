@@ -40,7 +40,7 @@ export default function MiCuentaPage() {
     if (!code) return;
     setTrackingLoading(code);
     try {
-      const res = await fetch(`https://nakamabordados.com/wp-json/nakama/v1/track-shipment?tracking=${code}&carrier=${carrier.toLowerCase()}`);
+      const res = await fetch(`https://nakamabordados.com/?rest_route=/nakama/v1/track-shipment&tracking=${code}&carrier=${carrier.toLowerCase()}`);
       if (res.ok) {
         const data = await res.json();
         setTrackingResults(prev => ({
