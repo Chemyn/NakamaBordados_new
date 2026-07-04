@@ -58,7 +58,7 @@ function nakama_products_normalize_attribute_key($raw_key)
 function nakama_products_add_cors($response)
 {
     $response->header('Access-Control-Allow-Origin', '*');
-    $response->header('Access-Control-Allow-Methods', 'GET, OPTIONS');
+    $response->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     $response->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     return $response;
 }
@@ -113,6 +113,27 @@ add_action('rest_api_init', function () {
             'methods' => 'GET',
             'callback' => 'nakama_products_slugs',
             'permission_callback' => '__return_true',
+        ),
+        array(
+            'methods' => 'OPTIONS',
+            'callback' => 'nakama_products_preflight',
+            'permission_callback' => '__return_true',
+        ),
+    ));
+
+    // 4) Modo Mantenimiento GET/POST/OPTIONS
+    register_rest_route('nakama/v1', '/maintenance', array(
+        array(
+            'methods' => 'GET',
+            'callback' => 'nakama_get_maintenance_status',
+            'permission_callback' => '__return_true',
+        ),
+        array(
+            'methods' => 'POST',
+            'callback' => 'nakama_set_maintenance_status',
+            'permission_callback' => function() {
+                return current_user_can('manage_options');
+            },
         ),
         array(
             'methods' => 'OPTIONS',
@@ -496,5 +517,43 @@ function nakama_products_slugs($request)
 
     return nakama_products_add_cors(rest_ensure_response(array(
         'slugs' => array_values($slugs),
+    )));
+}
+
+// ============================================================================
+// 4) HANDLER: MODO MANTENIMIENTO
+// ============================================================================
+function nakama_get_maintenance_status()
+{
+    $enabled = get_option('nakama_maintenance_mode', 'off') === 'on';
+
+    $message = get_option('nakama_maintenance_message', 'Estamos preparando nuevos diseños increíbles para ti. ¡Volvemos muy pronto!');
+    $image = get_option('nakama_maintenance_image', 'https://nakamabordados.com/wp-content/uploads/2026/05/OPCR05-1.avif');
+    $facebook = get_option('nakama_maintenance_fb', 'https://facebook.com/nakamabordados');
+    $instagram = get_option('nakama_maintenance_ig', 'https://instagram.com/nakama.bordados');
+    $tiktok = get_option('nakama_maintenance_tt', 'https://tiktok.com/@nakama.bordados');
+
+    return nakama_products_add_cors(rest_ensure_response(array(
+        'maintenanceMode' => $enabled,
+        'message' => $message,
+        'image' => $image,
+        'socialLinks' => array(
+            'facebook' => $facebook,
+            'instagram' => $instagram,
+            'tiktok' => $tiktok,
+        ),
+    )));
+}
+
+function nakama_set_maintenance_status($request)
+{
+    $params = $request->get_json_params();
+    $enabled = isset($params['enabled']) ? (bool) $params['enabled'] : false;
+
+    update_option('nakama_maintenance_mode', $enabled ? 'on' : 'off');
+
+    return nakama_products_add_cors(rest_ensure_response(array(
+        'success' => true,
+        'maintenanceMode' => $enabled,
     )));
 }

@@ -26,11 +26,48 @@ export default function MaintenanceWrapper({ children }: { children: React.React
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // El modo mantenimiento se gestiona en WordPress; el frontend estático no
-    // consulta un backend local. Si en el futuro se quiere reactivar, apuntar
-    // este fetch a un endpoint REST de WordPress.
-    setLoading(false);
+    let active = true;
+    fetch('https://nakamabordados.com/?rest_route=/nakama/v1/maintenance')
+      .then(res => (res.ok ? res.json() : null))
+      .then(data => {
+        if (active && data) {
+          setMaintenance(data);
+        }
+      })
+      .catch(err => console.error('Error cargando estado de mantenimiento:', err))
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
   }, [pathname]);
+
+  const toggleMaintenance = async (newState: boolean) => {
+    try {
+      const res = await fetch('https://nakamabordados.com/?rest_route=/nakama/v1/maintenance', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ enabled: newState }),
+        credentials: 'include',
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success) {
+          setMaintenance(prev => (prev ? { ...prev, maintenanceMode: newState } : null));
+        } else {
+          alert('Error al guardar estado de mantenimiento.');
+        }
+      } else {
+        alert('Error al conectar con la API de WordPress (Verifica tu sesión).');
+      }
+    } catch (err) {
+      console.error(err);
+      alert('Error de conexión.');
+    }
+  };
 
   if (authLoading || (loading && !pathname.startsWith('/admin') && !pathname.startsWith('/api'))) {
     return (
@@ -49,7 +86,60 @@ export default function MaintenanceWrapper({ children }: { children: React.React
   const isBypassPath = pathname.startsWith('/admin') || pathname.startsWith('/api') || pathname === '/mi-cuenta';
   
   if (!maintenance?.maintenanceMode || isAdmin || isBypassPath) {
-    return <>{children}</>;
+    return (
+      <>
+        {isAdmin && maintenance && (
+          <div style={{
+            position: 'fixed',
+            bottom: '20px',
+            right: '20px',
+            zIndex: 99999,
+            background: 'var(--nk-bg-card)',
+            border: '2px solid var(--nk-border)',
+            boxShadow: 'var(--nk-manga-shadow)',
+            padding: '15px 20px',
+            fontFamily: 'Inter, sans-serif',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '10px',
+            maxWidth: '300px'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span className="material-icons-outlined" style={{ color: maintenance.maintenanceMode ? 'var(--nk-primary)' : '#10B981' }}>
+                {maintenance.maintenanceMode ? 'construction' : 'check_circle'}
+              </span>
+              <span style={{ fontWeight: 800, textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: '0.5px' }}>
+                Mantenimiento: {maintenance.maintenanceMode ? 'ACTIVO' : 'INACTIVO'}
+              </span>
+            </div>
+            <p style={{ fontSize: '0.75rem', margin: 0, opacity: 0.8 }}>
+              {maintenance.maintenanceMode 
+                ? 'Los clientes ven la pantalla de espera. Tú puedes ver el sitio normal.' 
+                : 'El sitio está visible para todo el público en producción.'}
+            </p>
+            <button 
+              onClick={() => toggleMaintenance(!maintenance.maintenanceMode)}
+              className="nk-btn" 
+              style={{
+                width: '100%',
+                padding: '8px',
+                fontSize: '0.8rem',
+                background: maintenance.maintenanceMode ? '#10B981' : 'var(--nk-primary)',
+                color: '#fff',
+                border: 'none',
+                boxShadow: 'none',
+                cursor: 'pointer',
+                fontWeight: 800,
+                textTransform: 'uppercase'
+              }}
+            >
+              {maintenance.maintenanceMode ? 'Desactivar Modo' : 'Activar Modo'}
+            </button>
+          </div>
+        )}
+        {children}
+      </>
+    );
   }
 
   // Render Maintenance Screen
