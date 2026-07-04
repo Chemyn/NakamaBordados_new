@@ -8,15 +8,23 @@
   --surface-light: #FFFFFF;
   --text-dark: #0F172A;
   --text-muted: #64748B;
+  --border-color: #E2E8F0;
   --font-display: 'Teko', sans-serif;
   --font-body: 'Inter', sans-serif;
 }
 
-body {
+html.dark {
+  --bg-light: #050505;
+  --surface-light: #1A1A1A;
+  --text-dark: #F2F2F2;
+  --text-muted: #BDBDBD;
+  --border-color: #333333;
+}
+
+.nk-cotizador-scope {
   background-color: var(--bg-light);
   color: var(--text-dark);
   font-family: var(--font-body);
-  overflow-x: hidden;
 }
 
 /* Custom Display Fonts for headings */
@@ -105,16 +113,16 @@ h5 { font-size: 1.1rem; }
 
 /* Inputs & Form styling */
 .form-control, .form-select {
-  background-color: #FFFFFF !important;
-  border: 1px solid #CBD5E1 !important;
-  color: #0F172A !important;
+  background-color: var(--surface-light) !important;
+  border: 1px solid var(--border-color) !important;
+  color: var(--text-dark) !important;
   font-family: var(--font-body);
   transition: border-color 0.25s, box-shadow 0.25s;
 }
 .form-control:focus, .form-select:focus {
   border-color: var(--primary-color) !important;
   box-shadow: 0 0 0 0.25rem rgba(255, 51, 51, 0.15) !important;
-  color: #0F172A !important;
+  color: var(--text-dark) !important;
 }
 
 /* Active tabs / buttons */
@@ -170,7 +178,7 @@ h5 { font-size: 1.1rem; }
   width: 40px;
   height: 40px;
   border-radius: 6px;
-  border: 2px solid #E2E8F0;
+  border: 2px solid var(--border-color);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -179,7 +187,7 @@ h5 { font-size: 1.1rem; }
 }
 .swatch-option:hover {
   transform: scale(1.1);
-  border-color: #CBD5E1;
+  border-color: var(--border-color);
 }
 .swatch-option.selected {
   border-color: var(--primary-color);
@@ -192,17 +200,17 @@ h5 { font-size: 1.1rem; }
   display: inline-block;
   padding: 6px 12px;
   border-radius: 4px;
-  background-color: #F1F5F9;
-  border: 1px solid #E2E8F0;
-  color: #475569;
+  background-color: var(--bg-light);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
   font-size: 0.85rem;
   cursor: pointer;
   user-select: none;
   transition: background-color 0.15s, border-color 0.15s;
 }
 .position-badge:hover {
-  background-color: #E2E8F0;
-  color: #0F172A;
+  background-color: var(--border-color);
+  color: var(--text-dark);
 }
 .position-badge.active {
   background-color: var(--primary-color);
@@ -275,6 +283,14 @@ header h1 {
   color: #0F172A !important;
 }
 
+html.dark header {
+  background-color: #1A1A1A !important;
+  border-bottom: 1px solid #333333 !important;
+}
+html.dark header h1 {
+  color: #FFFFFF !important;
+}
+
 /* Dark background element overrides for light mode styling compatibility */
 .bg-dark {
   background-color: #F8FAFC !important;
@@ -290,4 +306,127 @@ header h1 {
 }
 .bg-black {
   background-color: #FFFFFF !important;
+}
+
+html.dark .bg-dark {
+  background-color: #121212 !important;
+}
+html.dark .border-secondary {
+  border-color: #333333 !important;
+}
+html.dark .text-white {
+  color: #FFFFFF !important;
+}
+html.dark .text-light {
+  color: #BDBDBD !important;
+}
+html.dark .bg-black {
+  background-color: #0A0A0A !important;
+}
+
+/* --- DARK MODE COMPATIBILITY OVERRIDES --- */
+html.dark .nk-cotizador-scope {
+  background-color: var(--bg-light);
+  color: var(--text-dark);
+}
+
+html.dark .nk-cotizador-scope .min-h-screen.bg-light {
+  background-color: var(--bg-light) !important;
+}
+
+html.dark .nk-cotizador-scope .bg-white,
+html.dark .nk-cotizador-scope .custom-card {
+  background-color: var(--surface-light) !important;
+  color: var(--text-dark) !important;
+}
+
+html.dark .nk-cotizador-scope .bg-light {
+  background-color: var(--surface-light) !important;
+}
+
+html.dark .nk-cotizador-scope .bg-light,
+html.dark .nk-cotizador-scope .bg-light * {
+  color: var(--text-dark) !important;
+}
+
+html.dark .nk-cotizador-scope .bg-light .text-muted {
+  color: var(--text-muted) !important;
+}
+
+html.dark .nk-cotizador-scope .alert-info {
+  background-color: rgba(255, 51, 51, 0.1) !important;
+  border: 1px solid rgba(255, 51, 51, 0.2) !important;
+  color: var(--text-dark) !important;
+}
+
+html.dark .nk-cotizador-scope .alert-info * {
+  color: var(--text-dark) !important;
+}
+
+html.dark .nk-cotizador-scope .text-dark {
+  color: var(--text-dark) !important;
+}
+
+html.dark .nk-cotizador-scope .text-muted {
+  color: var(--text-muted) !important;
+}
+
+html.dark .nk-cotizador-scope .border,
+html.dark .nk-cotizador-scope .border-bottom,
+html.dark .nk-cotizador-scope .border-top,
+html.dark .nk-cotizador-scope .border-dashed,
+html.dark .nk-cotizador-scope .border-light-subtle {
+  border-color: var(--border-color) !important;
+}
+
+html.dark .nk-cotizador-scope .form-label {
+  color: var(--text-dark) !important;
+}
+
+html.dark .nk-cotizador-scope .form-control::placeholder {
+  color: var(--text-muted) !important;
+  opacity: 0.8;
+}
+
+html.dark .nk-cotizador-scope option {
+  background-color: var(--surface-light) !important;
+  color: var(--text-dark) !important;
+}
+
+html.dark .nk-cotizador-scope .custom-tab-btn {
+  color: var(--text-muted);
+}
+
+html.dark .nk-cotizador-scope .custom-tab-btn:hover {
+  color: var(--text-dark);
+}
+
+html.dark .nk-cotizador-scope .custom-tab-btn.active {
+  color: var(--primary-color);
+  background-color: rgba(255, 51, 51, 0.15);
+}
+
+/* Forzar que el footer sea oscuro en modo oscuro */
+html.dark footer,
+html.dark .nk-footer,
+.dark footer,
+.dark .nk-footer {
+  background-color: #050505 !important;
+  background: #050505 !important;
+  border-top: 2px solid var(--nk-primary) !important;
+}
+
+html.dark .nk-footer *,
+.dark .nk-footer * {
+  color: var(--text-dark) !important;
+}
+
+html.dark .nk-footer a,
+.dark .nk-footer a {
+  color: var(--text-muted) !important;
+}
+
+html.dark .nk-footer a:hover,
+.dark .nk-footer a:hover {
+  color: var(--text-dark) !important;
 }
