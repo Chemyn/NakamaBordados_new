@@ -32,8 +32,10 @@ export async function apiFetchProducts(opts: {
   category?: string;
   search?: string;
   tag?: string;
+  /** 'sales' = más vendidos primero (total_sales de WooCommerce) */
+  orderby?: 'sales';
 } = {}): Promise<ProductsSearchResult> {
-  const { limit = 20, after = null, category, search, tag } = opts;
+  const { limit = 20, after = null, category, search, tag, orderby } = opts;
   const offset = after ? parseInt(after, 10) || 0 : 0;
 
   const params = new URLSearchParams();
@@ -42,6 +44,7 @@ export async function apiFetchProducts(opts: {
   if (category) params.set('category', category);
   if (tag) params.set('tag', tag);
   if (search) params.set('search', search);
+  if (orderby) params.set('orderby', orderby);
 
   try {
     const res = await fetch(`${API_BASE}/?rest_route=/nakama/v1/products&${params.toString()}`);

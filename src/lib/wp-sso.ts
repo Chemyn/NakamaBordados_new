@@ -12,23 +12,33 @@ const WP_BASE = 'https://nakamabordados.com';
 export const WP_ADMIN_URL =
   process.env.NEXT_PUBLIC_WP_ADMIN_URL || `${WP_BASE}/wp-admin`;
 
+/**
+ * Siembra las cookies de sesión de WordPress a partir del JWT guardado.
+ * Se usa antes de abrir wp-admin (admins) y antes del bridge de checkout
+ * (clientes), para que WooCommerce no trate al usuario como invitado.
+ * Nunca lanza: si no hay token o el endpoint falla, simplemente no hay SSO.
+ */
+export async function seedWpSession(): Promise<boolean> {
+  try {
+    const token =
+      typeof window !== 'undefined' ? localStorage.getItem('wp-jwt') : null;
+    if (!token) return false;
+    const res = await fetch(`${WP_BASE}/?rest_route=/nakama/v1/sso&nkcb=${Date.now()}`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function openWpAdmin(): Promise<void> {
   // Abrir la pestaña de forma síncrona dentro del gesto del usuario: si se
   // abre después del await, el bloqueador de pop-ups del navegador la frena.
   const win = window.open('', '_blank', 'noopener=false');
 
-  try {
-    const token =
-      typeof window !== 'undefined' ? localStorage.getItem('wp-jwt') : null;
-    if (token) {
-      await fetch(`${WP_BASE}/?rest_route=/nakama/v1/sso&nkcb=${Date.now()}`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
-      });
-    }
-  } catch {
-    // Sin SSO (endpoint no disponible, red, etc.): wp-admin pedirá login manual.
-  }
+  await seedWpSession();
 
   if (win) {
     win.location.href = WP_ADMIN_URL;

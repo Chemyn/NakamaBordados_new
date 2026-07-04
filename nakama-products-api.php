@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Products API
  * Description: API REST pública y RÁPIDA de productos (WooCommerce/$wpdb directo, sin WPGraphQL) para el frontend estático de Next.js.
- * Version: 1.4
+ * Version: 1.5
  * Author: Nakama
  */
 
@@ -325,6 +325,7 @@ function nakama_products_list($request)
     $category = sanitize_text_field((string) $request->get_param('category'));
     $tag = sanitize_text_field((string) $request->get_param('tag'));
     $search = sanitize_text_field((string) $request->get_param('search'));
+    $orderby = sanitize_text_field((string) $request->get_param('orderby'));
 
     if ($limit <= 0) {
         $limit = 20; // Por defecto.
@@ -341,6 +342,13 @@ function nakama_products_list($request)
         'order' => 'DESC',
         'return' => 'objects',
     );
+
+    // orderby=sales: más vendidos primero (contador total_sales de WooCommerce).
+    if ('sales' === $orderby) {
+        $args['orderby'] = 'meta_value_num';
+        $args['meta_key'] = 'total_sales';
+        $args['order'] = 'DESC';
+    }
 
     // Filtro por categoría (slug). WC 'category' acepta slugs e incluye hijos por defecto.
     if (!empty($category)) {

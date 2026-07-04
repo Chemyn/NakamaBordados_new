@@ -247,6 +247,16 @@ export default function Navbar() {
               </Link>
             </li>
 
+            <li>
+              <Link
+                href="/cotizador"
+                className={`nk-nav-link nk-link-highlight ${pathname.startsWith('/cotizador') ? 'active-menu-item' : ''}`}
+                onClick={() => setMenuOpen(false)}
+              >
+                {t('nav.cotizador')}
+              </Link>
+            </li>
+
             {/* Mobile Mode Changer */}
             <li className="nk-mobile-theme-item">
               <button className="nk-mobile-theme-btn" onClick={toggleTheme}>

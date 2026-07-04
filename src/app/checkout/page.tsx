@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
+import { seedWpSession } from '@/lib/wp-sso';
 
 export default function CheckoutPage() {
   const { cart, subtotal, shipping, discount, total, couponCode, applyCoupon, removeCoupon, clearCart } = useCart();
@@ -45,7 +46,11 @@ export default function CheckoutPage() {
       // currency: el bridge fija la cookie nakama_currency para que el
       // checkout de WooCommerce cobre en la misma moneda que ve el usuario.
       const checkoutUrl = `https://nakamabordados.com/index.php?nk_bridge=1&items=${itemsStr}&currency=${currencyInfo.currency}${couponCode ? `&coupon=${couponCode}` : ''}`;
-      window.location.href = checkoutUrl;
+      // Sembrar la sesión de WordPress ANTES del bridge para que WooCommerce
+      // reconozca al usuario (sin esto pide login/datos de envío de nuevo).
+      seedWpSession().finally(() => {
+        window.location.href = checkoutUrl;
+      });
     }
   }, [cart, couponCode, currencyInfo.currency]);
 

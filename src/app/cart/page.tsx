@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
+import { seedWpSession } from '@/lib/wp-sso';
 
 export default function CartPage() {
   const { cart, subtotal, shipping, discount, total, removeFromCart, updateQuantity, couponCode } = useCart();
@@ -163,9 +164,17 @@ export default function CartPage() {
                   const checkoutUrl = `https://nakamabordados.com/index.php?nk_bridge=1&items=${itemsStr}&currency=${currencyInfo.currency}${couponCode ? `&coupon=${couponCode}` : ''}`;
                   
                   return (
-                    <a 
-                      href={checkoutUrl} 
+                    <a
+                      href={checkoutUrl}
                       className="nk-btn nk-btn-block nk-btn-cart-finalize"
+                      onClick={async (e) => {
+                        // Sembrar la sesión de WordPress ANTES del bridge: sin esto
+                        // WooCommerce trata al usuario como invitado y le pide
+                        // iniciar sesión / recapturar sus datos de envío.
+                        e.preventDefault();
+                        await seedWpSession();
+                        window.location.href = checkoutUrl;
+                      }}
                     >
                       {t('cart.finalize_btn')}
                     </a>

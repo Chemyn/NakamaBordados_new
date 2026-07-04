@@ -87,9 +87,10 @@ export default function MaintenanceToggle() {
               : 'El sitio está visible al público'
       }
       style={{
-        background: enabled ? 'var(--nk-primary)' : 'transparent',
-        color: enabled ? '#fff' : 'inherit',
-        border: enabled ? '2px solid var(--nk-primary)' : undefined,
+        // Hereda el estilo base .nk-admin-btn; solo se pinta rojo cuando el
+        // modo mantenimiento está ACTIVO.
+        background: enabled ? 'var(--nk-primary)' : undefined,
+        color: enabled ? '#fff' : undefined,
         opacity: (enabled === null && !failed) || saving ? 0.6 : 1,
         cursor: (enabled === null && !failed) || saving ? 'wait' : 'pointer',
       }}

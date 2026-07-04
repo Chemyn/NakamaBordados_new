@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO al escritorio y sincronización de base de datos local (Next.js).
- * Version: 1.3
+ * Version: 1.4
  * Author: Nakama
  */
 
@@ -18,16 +18,15 @@ add_action( 'rest_api_init', function () {
         'permission_callback' => '__return_true'
     ) );
 
-    // SSO al escritorio de WordPress: convierte el JWT del frontend (que ya
-    // autentica esta petición vía el plugin de WPGraphQL JWT) en las cookies
-    // de sesión de WordPress, para que /wp-admin no pida iniciar sesión otra vez.
-    // Solo administradores; no acepta usuario por parámetro (usa el del token).
+    // SSO: convierte el JWT del frontend (que ya autentica esta petición vía
+    // el plugin de WPGraphQL JWT) en las cookies de sesión de WordPress.
+    // Usos: abrir /wp-admin sin re-login (admins) y mantener la sesión del
+    // cliente en el checkout de WooCommerce (el bridge deja de ser "invitado").
+    // Cualquier usuario logueado; no acepta usuario por parámetro (usa el del token).
     register_rest_route( 'nakama/v1', '/sso', array(
         'methods' => 'POST',
         'callback' => 'nakama_sso_set_cookie',
-        'permission_callback' => function () {
-            return current_user_can( 'manage_options' );
-        }
+        'permission_callback' => 'is_user_logged_in'
     ) );
 
     // Info de moneda: expone el tipo de cambio MXN->USD que usa el snippet

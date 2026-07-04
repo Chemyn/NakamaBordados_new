@@ -26,12 +26,15 @@ export default function HomeClientPage({ bestSellers: initialBestSellers, heroSo
   const [heroSources, setHeroSources] = React.useState<HeroSources | undefined>(initialHeroSources);
 
   React.useEffect(() => {
-    // Cargar Best Sellers si vinieron vacíos (en dev o primera carga estática)
+    // Cargar Best Sellers si vinieron vacíos (en dev o primera carga estática):
+    // los 20 productos con más ventas reales (contador total_sales), no una categoría.
     if (!bestSellers || bestSellers.length === 0) {
-      fetchProductsSearch({ category: 'lo-mas-vendido', limit: 12 })
+      fetchProductsSearch({ orderby: 'sales', limit: 20 })
         .then(data => {
           if (data && data.products) {
-            setBestSellers(data.products);
+            // Refuerzo client-side por si el plugin desplegado aún no soporta orderby.
+            const sorted = [...data.products].sort((a, b) => (b.salesCount || 0) - (a.salesCount || 0));
+            setBestSellers(sorted.slice(0, 20));
           }
         })
         .catch(err => console.error("Error fetching best sellers:", err));
@@ -98,9 +101,6 @@ export default function HomeClientPage({ bestSellers: initialBestSellers, heroSo
             <p style={{ fontSize: '1.2rem', color: 'var(--nk-text-sec)', lineHeight: '1.6', marginBottom: '30px' }}>
               {t('home.intro.text')}
             </p>
-            <Link href="/store" className="nk-btn nk-btn-hero nk-manga-border" style={{ boxShadow: 'var(--nk-manga-shadow-lg)' }}>
-              {t('home.intro.btn')}
-            </Link>
           </div>
         </div>
       </section>

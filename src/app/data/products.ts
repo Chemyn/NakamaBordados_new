@@ -28,6 +28,7 @@ export async function fetchProductsSearch(opts: {
   category?: string;
   search?: string;
   tag?: string;
+  orderby?: 'sales';
 } = {}): Promise<ProductsSearchResult> {
   // Delega al API PHP/MySQL de WordPress (sin GraphQL). Carga en runtime.
   return apiFetchProducts(opts);
