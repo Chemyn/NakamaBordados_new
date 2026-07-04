@@ -158,8 +158,12 @@ RewriteEngine On
 RewriteBase /
 
 # 1.5 Redirigir consultas REST directas a WordPress (ej. ?rest_route=)
-RewriteCond %{QUERY_STRING} rest_route= [NC]
-RewriteRule ^ index.php [L]
+# y el bridge de carrito (?nk_bridge=). E=Cache-Control:no-cache evita que
+# LiteSpeed cachee las respuestas del API (respuestas vacías cacheadas hacían
+# que categorías enteras aparecieran sin productos).
+RewriteCond %{QUERY_STRING} rest_route= [NC,OR]
+RewriteCond %{QUERY_STRING} nk_bridge= [NC]
+RewriteRule ^ index.php [E=Cache-Control:no-cache,L]
 
 # 2. Excluir rutas del núcleo, panel de administración y APIs de WordPress
 # Esto asegura que /wp-admin, /wp-json y /graphql siempre se dirijan a PHP de WordPress

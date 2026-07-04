@@ -40,7 +40,9 @@ export default function CheckoutPage() {
         return `${id}:${item.quantity}`;
       }).join(',');
       
-      const checkoutUrl = `https://nakamabordados.com/?nk_bridge=1&items=${itemsStr}${couponCode ? `&coupon=${couponCode}` : ''}`;
+      // index.php explícito: la raíz "/" con query string sirve el index.html
+      // estático (DirectoryIndex) y el bridge nunca llega a WordPress.
+      const checkoutUrl = `https://nakamabordados.com/index.php?nk_bridge=1&items=${itemsStr}${couponCode ? `&coupon=${couponCode}` : ''}`;
       window.location.href = checkoutUrl;
     }
   }, [cart, couponCode]);

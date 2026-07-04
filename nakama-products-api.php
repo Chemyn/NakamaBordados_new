@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Products API
  * Description: API REST pública y RÁPIDA de productos (WooCommerce/$wpdb directo, sin WPGraphQL) para el frontend estático de Next.js.
- * Version: 1.3
+ * Version: 1.4
  * Author: Nakama
  */
 
@@ -60,6 +60,10 @@ function nakama_products_add_cors($response)
     $response->header('Access-Control-Allow-Origin', '*');
     $response->header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     $response->header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    // Evitar que LiteSpeed cachee respuestas del API: una respuesta vacía
+    // cacheada dejaba categorías enteras "sin productos" hasta purgar.
+    $response->header('X-LiteSpeed-Cache-Control', 'no-cache');
+    $response->header('Cache-Control', 'no-cache, must-revalidate, max-age=0');
     return $response;
 }
 
