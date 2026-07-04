@@ -10,6 +10,7 @@ interface VisualizerProps {
   selectedEditingPosition: string | null;
   onSelectPositionForEditing: (position: string) => void;
   patchShape?: 'Rectangular' | 'Cuadrado' | 'Circular' | 'Forma del diseño';
+  garmentModel?: string;
 }
 
 export const Visualizer: React.FC<VisualizerProps> = ({
@@ -18,7 +19,8 @@ export const Visualizer: React.FC<VisualizerProps> = ({
   onPositionToggle,
   selectedEditingPosition,
   onSelectPositionForEditing,
-  patchShape = 'Rectangular'
+  patchShape = 'Rectangular',
+  garmentModel
 }) => {
   const isPositionActive = (pos: string) => selectedPositions.includes(pos);
   const isPositionEditing = (pos: string) => selectedEditingPosition === pos;
@@ -92,10 +94,14 @@ export const Visualizer: React.FC<VisualizerProps> = ({
               <rect x="31" y="44" width="38" height="34" rx="3" {...getZoneStyles('Enfrente')} onClick={(e) => handleZoneClick('Enfrente', e)} />
               
               {/* Manga Izquierda */}
-              <path d="M 26 21 L 12 36 L 20 46 L 29 38 Z" {...getZoneStyles('Manga Izquierda')} onClick={(e) => handleZoneClick('Manga Izquierda', e)} />
+              {garmentModel !== 'Tank Top' && (
+                <path d="M 26 21 L 12 36 L 20 46 L 29 38 Z" {...getZoneStyles('Manga Izquierda')} onClick={(e) => handleZoneClick('Manga Izquierda', e)} />
+              )}
               
               {/* Manga Derecha */}
-              <path d="M 74 21 L 88 36 L 80 46 L 71 38 Z" {...getZoneStyles('Manga Derecha')} onClick={(e) => handleZoneClick('Manga Derecha', e)} />
+              {garmentModel !== 'Tank Top' && (
+                <path d="M 74 21 L 88 36 L 80 46 L 71 38 Z" {...getZoneStyles('Manga Derecha')} onClick={(e) => handleZoneClick('Manga Derecha', e)} />
+              )}
             </svg>
           </div>
         </div>

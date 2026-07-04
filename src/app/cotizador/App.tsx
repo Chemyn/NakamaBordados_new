@@ -121,6 +121,46 @@ export const App: React.FC = () => {
     }
   }, [area1Pos, area2Pos, activeProduct]);
 
+  // Sync effect: automatically reset sleeve positions if Tank Top is selected
+  useEffect(() => {
+    if (ropaConfig.model === 'Tank Top') {
+      let resetNeeded = false;
+      let newArea1Pos = area1Pos;
+      let newArea2Pos = area2Pos;
+
+      if (area1Pos === 'Manga Izquierda' || area1Pos === 'Manga Derecha') {
+        newArea1Pos = 'Pecho Izquierdo';
+        resetNeeded = true;
+      }
+      if (area2Pos === 'Manga Izquierda' || area2Pos === 'Manga Derecha') {
+        newArea2Pos = null;
+        resetNeeded = true;
+      }
+
+      if (resetNeeded) {
+        setArea1Pos(newArea1Pos);
+        setArea2Pos(newArea2Pos);
+        
+        const updatedPositions = { ...ropaConfig.positions };
+        Object.keys(updatedPositions).forEach(key => {
+          if (key === 'Manga Izquierda' || key === 'Manga Derecha') {
+            updatedPositions[key] = {
+              ...updatedPositions[key],
+              active: false,
+              file: null,
+              filePreview: ''
+            };
+          }
+        });
+        
+        setRopaConfig(prev => ({
+          ...prev,
+          positions: updatedPositions
+        }));
+      }
+    }
+  }, [ropaConfig.model, area1Pos, area2Pos]);
+
   // Sync effect: automatically sync capArea1Pos and capArea2Pos into capConfig.positions active states
   useEffect(() => {
     if (activeProduct === 'gorras') {
@@ -476,7 +516,11 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
     if (!pos) return null;
 
     const otherPos = posName === area1Pos ? area2Pos : area1Pos;
-    const selectOptions = availableGarmentPositions.filter(p => p !== otherPos);
+    let allowedPositions = availableGarmentPositions;
+    if (ropaConfig.model === 'Tank Top') {
+      allowedPositions = availableGarmentPositions.filter(p => p !== 'Manga Izquierda' && p !== 'Manga Derecha');
+    }
+    const selectOptions = allowedPositions.filter(p => p !== otherPos);
 
     const handleSelectPosition = (newPos: string) => {
       if (posName === area1Pos) {
@@ -959,6 +1003,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
               selectedEditingPosition={selectedPosition}
               onSelectPositionForEditing={setSelectedPosition}
               patchShape={patchConfig.shape}
+              garmentModel={ropaConfig.model}
             />
 
             {/* AREAS DE PERSONALIZACION ACTIVAS EDITORES */}
