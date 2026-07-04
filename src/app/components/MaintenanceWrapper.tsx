@@ -34,7 +34,9 @@ export default function MaintenanceWrapper({ children }: { children: React.React
           setMaintenance(data);
         }
       })
-      .catch(err => console.error('Error cargando estado de mantenimiento:', err))
+      // warn (no error): si el endpoint no responde (CORS/caché/red), el sitio
+      // simplemente se muestra normal; no es un fallo de la app.
+      .catch(err => console.warn('No se pudo cargar estado de mantenimiento (se asume inactivo):', err))
       .finally(() => {
         if (active) setLoading(false);
       });
