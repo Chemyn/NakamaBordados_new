@@ -1068,21 +1068,6 @@ html.dark .nk-detail-tabs-section .tab-content {
     display: block;
     border-bottom: none !important;
   }
-
-  .nk-mobile-theme-btn {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    background: var(--nk-border);
-    border: none;
-    color: var(--nk-text-main);
-    width: 100%;
-    padding: 12px;
-    border-radius: 8px;
-    margin-top: 12px;
-    font-weight: 700;
-    cursor: pointer;
-  }
 }
 
 /* --- 9. FOOTER STYLING (VANILLA CSS) --- */
