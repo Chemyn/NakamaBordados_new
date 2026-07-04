@@ -19,8 +19,13 @@ interface MaintenanceData {
   socialLinks: SocialLinks;
 }
 
+// Recursos de la página de mantenimiento (mismos que usaba CMP Coming Soon)
+const MAINTENANCE_LOGO = 'https://nakamabordados.com/wp-content/uploads/2024/01/Nakama-PNG-300x300.png';
+const MAINTENANCE_BG = 'https://nakamabordados.com/wp-content/uploads/2026/07/Fondo-topaz-cgi-4x-1024x1024.png';
+const DEFAULT_MESSAGE = 'Nuestros nakamas están realizando cambios increíbles en el sitio. ¡Volvemos muy pronto!';
+
 export default function MaintenanceWrapper({ children }: { children: React.ReactNode }) {
-  const { user, isAdmin, isLoading: authLoading } = useAuth();
+  const { isAdmin, isLoading: authLoading } = useAuth();
   const pathname = usePathname();
   const [maintenance, setMaintenance] = useState<MaintenanceData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,37 +50,6 @@ export default function MaintenanceWrapper({ children }: { children: React.React
     };
   }, [pathname]);
 
-  const toggleMaintenance = async (newState: boolean) => {
-    try {
-      const headers: HeadersInit = {
-        'Content-Type': 'application/json',
-      };
-      const token = typeof window !== 'undefined' ? localStorage.getItem('wp-jwt') : null;
-      if (token) {
-        headers['Authorization'] = `Bearer ${token}`;
-      }
-
-      const res = await fetch('https://nakamabordados.com/?rest_route=/nakama/v1/maintenance', {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({ enabled: newState }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success) {
-          setMaintenance(prev => (prev ? { ...prev, maintenanceMode: newState } : null));
-        } else {
-          alert('Error al guardar estado de mantenimiento.');
-        }
-      } else {
-        alert('Error al conectar con la API de WordPress (Verifica tu sesión).');
-      }
-    } catch (err) {
-      console.error(err);
-      alert('Error de conexión.');
-    }
-  };
-
   if (authLoading || (loading && !pathname.startsWith('/admin') && !pathname.startsWith('/api'))) {
     return (
       <div className="nk-loading-container" style={{ padding: '150px 0', textAlign: 'center', background: 'var(--nk-bg-body)', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' }}>
@@ -85,176 +59,149 @@ export default function MaintenanceWrapper({ children }: { children: React.React
     );
   }
 
-  // Bypass checks if:
-  // 1. Maintenance mode is OFF
-  // 2. The user is logged in and is an administrator
-  // 3. The current path is an admin page or API route
-  // 4. The current path is "/mi-cuenta" (so the admin can access the login form)
+  // Bypass de la pantalla de mantenimiento si:
+  // 1. El modo mantenimiento está APAGADO
+  // 2. El usuario es administrador (el toggle vive en Mi Cuenta > ADMIN TOOLS)
+  // 3. La ruta es de administración/API
+  // 4. La ruta es "/mi-cuenta" (para que el admin pueda iniciar sesión)
   const isBypassPath = pathname.startsWith('/admin') || pathname.startsWith('/api') || pathname === '/mi-cuenta';
-  
+
   if (!maintenance?.maintenanceMode || isAdmin || isBypassPath) {
-    return (
-      <>
-        {isAdmin && maintenance && (
-          <div style={{
-            position: 'fixed',
-            bottom: '20px',
-            right: '20px',
-            zIndex: 99999,
-            background: 'var(--nk-bg-card)',
-            border: '2px solid var(--nk-border)',
-            boxShadow: 'var(--nk-manga-shadow)',
-            padding: '15px 20px',
-            fontFamily: 'Inter, sans-serif',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '10px',
-            maxWidth: '300px'
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-              <span className="material-icons-outlined" style={{ color: maintenance.maintenanceMode ? 'var(--nk-primary)' : '#10B981' }}>
-                {maintenance.maintenanceMode ? 'construction' : 'check_circle'}
-              </span>
-              <span style={{ fontWeight: 800, textTransform: 'uppercase', fontSize: '0.85rem', letterSpacing: '0.5px' }}>
-                Mantenimiento: {maintenance.maintenanceMode ? 'ACTIVO' : 'INACTIVO'}
-              </span>
-            </div>
-            <p style={{ fontSize: '0.75rem', margin: 0, opacity: 0.8 }}>
-              {maintenance.maintenanceMode 
-                ? 'Los clientes ven la pantalla de espera. Tú puedes ver el sitio normal.' 
-                : 'El sitio está visible para todo el público en producción.'}
-            </p>
-            <button 
-              onClick={() => toggleMaintenance(!maintenance.maintenanceMode)}
-              className="nk-btn" 
-              style={{
-                width: '100%',
-                padding: '8px',
-                fontSize: '0.8rem',
-                background: maintenance.maintenanceMode ? '#10B981' : 'var(--nk-primary)',
-                color: '#fff',
-                border: 'none',
-                boxShadow: 'none',
-                cursor: 'pointer',
-                fontWeight: 800,
-                textTransform: 'uppercase'
-              }}
-            >
-              {maintenance.maintenanceMode ? 'Desactivar Modo' : 'Activar Modo'}
-            </button>
-          </div>
-        )}
-        {children}
-      </>
-    );
+    return <>{children}</>;
   }
 
-  // Render Maintenance Screen
+  const socials = [
+    { key: 'instagram', url: maintenance.socialLinks?.instagram, icon: 'photo_camera', label: 'Instagram' },
+    { key: 'facebook', url: maintenance.socialLinks?.facebook, icon: 'thumb_up', label: 'Facebook' },
+    { key: 'tiktok', url: maintenance.socialLinks?.tiktok, icon: 'music_note', label: 'TikTok' },
+  ].filter(s => s.url);
+
+  // Pantalla de mantenimiento: clon de la página CMP Coming Soon del sitio,
+  // adaptada al sistema de diseño manga/nk de la aplicación.
   return (
-    <div className="nk-maintenance-page" style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'var(--nk-bg-body)',
-      padding: '40px 20px',
-      color: 'var(--nk-text)',
-      fontFamily: 'Inter, sans-serif'
-    }}>
-      <div className="nk-maintenance-card nk-manga-border" style={{
-        maxWidth: '700px',
-        width: '100%',
-        background: 'var(--nk-bg-card)',
-        padding: '50px 30px',
-        textAlign: 'center',
+    <div
+      className="nk-maintenance-page"
+      style={{
+        minHeight: '100vh',
         display: 'flex',
-        flexDirection: 'column',
         alignItems: 'center',
-        gap: '30px'
-      }}>
-        {/* Title */}
-        <h1 style={{
-          fontFamily: 'Teko, sans-serif',
-          fontSize: '4.5rem',
-          color: 'var(--nk-primary)',
-          lineHeight: '0.9',
-          margin: 0,
-          textTransform: 'uppercase',
-          letterSpacing: '1px'
-        }}>
-          Sitio en Mantenimiento
+        justifyContent: 'center',
+        padding: '40px 20px',
+        color: 'var(--nk-text)',
+        fontFamily: 'Inter, sans-serif',
+        position: 'relative',
+        overflow: 'hidden',
+        backgroundImage: `url(${MAINTENANCE_BG})`,
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+      }}
+    >
+      {/* Overlay para legibilidad sobre el fondo */}
+      <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(2px)' }}></div>
+
+      {/* Textos flotantes decorativos (mismo recurso visual del home) */}
+      <div className="op-floating-text" style={{ position: 'absolute', top: '5%', left: '-4%', fontSize: '11rem', transform: 'rotate(-14deg)', pointerEvents: 'none', opacity: 0.06, fontWeight: 900 }}>海賊</div>
+      <div className="op-floating-text" style={{ position: 'absolute', bottom: '4%', right: '-4%', fontSize: '9rem', transform: 'rotate(10deg)', pointerEvents: 'none', opacity: 0.06, fontWeight: 900 }}>仲間</div>
+
+      <div
+        className="nk-maintenance-card nk-manga-border"
+        style={{
+          maxWidth: '640px',
+          width: '100%',
+          background: '#fff',
+          padding: '50px 30px',
+          textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '26px',
+          position: 'relative',
+          zIndex: 1,
+          boxShadow: 'var(--nk-manga-shadow-lg, 8px 8px 0 #000)',
+        }}
+      >
+        {/* Logo Nakama */}
+        <div style={{ position: 'relative', width: '150px', height: '150px' }}>
+          <Image
+            src={MAINTENANCE_LOGO}
+            alt="Nakama Bordados"
+            fill
+            style={{ objectFit: 'contain' }}
+            priority
+          />
+        </div>
+
+        {/* Título (clon del cmp-title) */}
+        <h1
+          style={{
+            fontFamily: 'Teko, sans-serif',
+            fontSize: 'clamp(3rem, 9vw, 4.8rem)',
+            color: 'var(--nk-primary, #e82e1e)',
+            lineHeight: 0.95,
+            margin: 0,
+            textTransform: 'uppercase',
+            letterSpacing: '1px',
+            textShadow: '3px 3px 0px #000',
+          }}
+        >
+          👷 En mantenimiento 🔧
         </h1>
 
-        {/* Maintenance Image */}
-        {maintenance.image && (
-          <div className="nk-manga-border" style={{
-            position: 'relative',
-            width: '100%',
-            height: '300px',
-            overflow: 'hidden'
-          }}>
-            <Image
-              src={maintenance.image}
-              alt="Mantenimiento"
-              fill
-              style={{ objectFit: 'cover' }}
-              priority
-            />
+        {/* Mensaje */}
+        <p style={{ fontSize: '1.15rem', lineHeight: 1.6, maxWidth: '520px', margin: 0, color: '#222', fontWeight: 500 }}>
+          {maintenance.message || DEFAULT_MESSAGE}
+        </p>
+        <span style={{ color: 'var(--nk-primary, #e82e1e)', fontSize: '1.4rem', lineHeight: 1 }}>♥</span>
+
+        {/* Redes sociales */}
+        {socials.length > 0 && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%', alignItems: 'center', borderTop: '2px dashed #ddd', paddingTop: '24px' }}>
+            <h3 style={{ fontFamily: 'Teko, sans-serif', fontSize: '1.7rem', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#111' }}>
+              Síguenos para avisos
+            </h3>
+            <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              {socials.map(s => (
+                <a
+                  key={s.key}
+                  href={s.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="nk-btn nk-manga-border"
+                  style={{
+                    padding: '10px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    background: 'var(--nk-primary, #e82e1e)',
+                    color: '#fff',
+                    textDecoration: 'none',
+                    fontWeight: 800,
+                    boxShadow: '4px 4px 0 #000',
+                  }}
+                >
+                  <span className="material-icons-outlined">{s.icon}</span> {s.label}
+                </a>
+              ))}
+            </div>
           </div>
         )}
 
-        {/* Message */}
-        <p style={{
-          fontSize: '1.2rem',
-          lineHeight: '1.6',
-          maxWidth: '550px',
-          opacity: 0.9,
-          margin: 0
-        }}>
-          {maintenance.message}
-        </p>
-
-        {/* Social Media Buttons */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', width: '100%', alignItems: 'center' }}>
-          <h3 style={{
-            fontFamily: 'Teko, sans-serif',
-            fontSize: '1.8rem',
-            margin: 0,
-            textTransform: 'uppercase',
-            letterSpacing: '0.5px'
-          }}>
-            Síguenos para avisos
-          </h3>
-          <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', justifyContent: 'center' }}>
-            {maintenance.socialLinks.instagram && (
-              <a href={maintenance.socialLinks.instagram} target="_blank" rel="noopener noreferrer" className="nk-btn" style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="material-icons-outlined">photo_camera</span> Instagram
-              </a>
-            )}
-            {maintenance.socialLinks.facebook && (
-              <a href={maintenance.socialLinks.facebook} target="_blank" rel="noopener noreferrer" className="nk-btn" style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="material-icons-outlined">facebook</span> Facebook
-              </a>
-            )}
-            {maintenance.socialLinks.tiktok && (
-              <a href={maintenance.socialLinks.tiktok} target="_blank" rel="noopener noreferrer" className="nk-btn" style={{ padding: '10px 20px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                <span className="material-icons-outlined">smart_display</span> TikTok
-              </a>
-            )}
-          </div>
-        </div>
-
-        {/* Admin Login Shortcut */}
-        <div style={{ marginTop: '20px', borderTop: '1px dashed var(--nk-border)', paddingTop: '20px', width: '100%' }}>
-          <p style={{ fontSize: '0.9rem', opacity: 0.6, margin: '0 0 10px 0' }}>¿Eres administrador?</p>
-          <Link href="/mi-cuenta" className="nk-btn" style={{
-            padding: '5px 15px',
-            fontSize: '0.85rem',
-            background: 'none',
-            border: '2px solid var(--nk-border)',
-            color: 'var(--nk-text)',
-            boxShadow: 'none'
-          }}>
+        {/* Acceso administrador */}
+        <div style={{ marginTop: '6px', borderTop: '1px dashed #ddd', paddingTop: '18px', width: '100%' }}>
+          <p style={{ fontSize: '0.85rem', opacity: 0.55, margin: '0 0 10px 0', color: '#333' }}>¿Eres administrador?</p>
+          <Link
+            href="/mi-cuenta"
+            className="nk-btn"
+            style={{
+              padding: '6px 16px',
+              fontSize: '0.85rem',
+              background: 'none',
+              border: '2px solid #111',
+              color: '#111',
+              boxShadow: 'none',
+              textDecoration: 'none',
+            }}
+          >
             Iniciar Sesión
           </Link>
         </div>

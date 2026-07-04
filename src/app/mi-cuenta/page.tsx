@@ -6,6 +6,7 @@ import Image from 'next/image';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
+import MaintenanceToggle from '../components/MaintenanceToggle';
 
 export default function MiCuentaPage() {
   const { user, login, logout, isLoading, isAdmin } = useAuth();
@@ -147,6 +148,9 @@ export default function MiCuentaPage() {
                                 Escritorio WordPress
                               </button>
                             </a>
+                          </li>
+                          <li>
+                            <MaintenanceToggle />
                           </li>
                         </>
                       )}
