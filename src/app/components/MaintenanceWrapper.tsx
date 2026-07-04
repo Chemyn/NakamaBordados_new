@@ -32,7 +32,10 @@ export default function MaintenanceWrapper({ children }: { children: React.React
 
   useEffect(() => {
     let active = true;
-    fetch('https://nakamabordados.com/?rest_route=/nakama/v1/maintenance')
+    // nkcb: cache-buster; LiteSpeed cachea las respuestas del API y sin esto
+    // un cambio del modo mantenimiento tardaría en verse (o serviría un 404
+    // viejo sin CORS, rompiendo el fetch en dev).
+    fetch(`https://nakamabordados.com/?rest_route=/nakama/v1/maintenance&nkcb=${Date.now()}`)
       .then(res => (res.ok ? res.json() : null))
       .then(data => {
         if (active && data) {
