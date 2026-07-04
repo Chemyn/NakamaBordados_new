@@ -1,3 +1,151 @@
+# BEGIN Imagify: webp file type
+<IfModule mod_mime.c>
+	AddType image/webp .webp
+</IfModule>
+# END Imagify: webp file type
+
+# BEGIN Imagify: avif file type
+<IfModule mod_mime.c>
+	AddType image/avif .avif
+</IfModule>
+# END Imagify: avif file type
+
+# BEGIN Imagify: rewrite rules for avif
+<IfModule mod_setenvif.c>
+	# Vary: Accept for all the requests to jpeg, png, and gif.
+	SetEnvIf Request_URI "\.(jpg|jpeg|jpe|png|gif|webp)$" REQUEST_image
+</IfModule>
+
+<IfModule mod_rewrite.c>
+	RewriteEngine On
+	RewriteBase /
+
+	# Check if browser supports AVIF images.
+	# Update the MIME type accordingly.
+	RewriteCond %{HTTP_ACCEPT} image/avif
+
+	# Check if AVIF replacement image exists.
+	RewriteCond %{REQUEST_FILENAME}.avif -f
+
+	# Serve AVIF image instead.
+	RewriteRule (.+)\.(jpg|jpeg|jpe|png|gif|webp)$ $1.$2.avif [T=image/avif,NC]
+</IfModule>
+
+<IfModule mod_headers.c>
+	# Update the MIME type accordingly.
+	Header append Vary Accept env=REQUEST_image
+</IfModule>
+# END Imagify: rewrite rules for avif
+
+# BEGIN Imagify: rewrite rules for webp
+<IfModule mod_setenvif.c>
+	# Vary: Accept for all the requests to jpeg, png, and gif.
+	SetEnvIf Request_URI "\.(jpg|jpeg|jpe|png|gif)$" REQUEST_image
+</IfModule>
+
+<IfModule mod_rewrite.c>
+	RewriteEngine On
+	RewriteBase /
+
+	# Check if browser supports WebP images.
+	RewriteCond %{HTTP_ACCEPT} image/webp
+
+	# Check if WebP replacement image exists.
+	RewriteCond %{REQUEST_FILENAME}.webp -f
+
+	# Serve WebP image instead.
+	RewriteRule (.+)\.(jpg|jpeg|jpe|png|gif)$ $1.$2.webp [T=image/webp,NC]
+</IfModule>
+
+<IfModule mod_headers.c>
+	Header append Vary Accept env=REQUEST_image
+</IfModule>
+# END Imagify: rewrite rules for webp
+
+# BEGIN LSCACHE
+## LITESPEED WP CACHE PLUGIN - Do not edit the contents of this block! ##
+<IfModule LiteSpeed>
+RewriteEngine on
+CacheLookup on
+RewriteRule .* - [E=Cache-Control:no-autoflush]
+RewriteRule litespeed/debug/.*\.log$ - [F,L]
+RewriteRule \.litespeed_conf\.dat - [F,L]
+
+### marker ASYNC start ###
+RewriteCond %{REQUEST_URI} /wp-admin/admin-ajax\.php
+RewriteCond %{QUERY_STRING} action=async_litespeed
+RewriteRule .* - [E=noabort:1]
+### marker ASYNC end ###
+
+### marker MOBILE start ###
+RewriteCond %{HTTP_USER_AGENT} Mobile|Android|Silk/|Kindle|BlackBerry|Opera\ Mini|Opera\ Mobi [NC]
+RewriteRule .* - [E=Cache-Control:vary=%{ENV:LSCACHE_VARY_VALUE}+ismobile]
+### marker MOBILE end ###
+
+### marker LOGIN COOKIE start ###
+RewriteRule .? - [E="Cache-Vary:nakama_currency"]
+### marker LOGIN COOKIE end ###
+
+### marker WEBP start ###
+RewriteCond %{HTTP_ACCEPT} image/webp [OR]
+RewriteCond %{HTTP_USER_AGENT} iPhone\ OS\ (1[4-9]|[2-9][0-9]) [OR]
+RewriteCond %{HTTP_USER_AGENT} Firefox/([6-9][0-9]|[1-9][0-9]{2,})
+RewriteRule .* - [E=Cache-Control:vary=%{ENV:LSCACHE_VARY_VALUE}+webp]
+### marker WEBP end ###
+
+### marker DROPQS start ###
+CacheKeyModify -qs:fbclid
+CacheKeyModify -qs:gclid
+CacheKeyModify -qs:utm*
+CacheKeyModify -qs:_ga
+### marker DROPQS end ###
+
+</IfModule>
+## LITESPEED WP CACHE PLUGIN - Do not edit the contents of this block! ##
+# END LSCACHE
+# BEGIN NON_LSCACHE
+## LITESPEED WP CACHE PLUGIN - Do not edit the contents of this block! ##
+### marker BROWSER CACHE start ###
+<IfModule mod_expires.c>
+ExpiresActive on
+ExpiresByType application/pdf A31557600
+ExpiresByType image/x-icon A31557600
+ExpiresByType image/vnd.microsoft.icon A31557600
+ExpiresByType image/svg+xml A31557600
+
+ExpiresByType image/jpg A31557600
+ExpiresByType image/jpeg A31557600
+ExpiresByType image/png A31557600
+ExpiresByType image/gif A31557600
+ExpiresByType image/webp A31557600
+ExpiresByType image/avif A31557600
+
+ExpiresByType video/ogg A31557600
+ExpiresByType audio/ogg A31557600
+ExpiresByType video/mp4 A31557600
+ExpiresByType video/webm A31557600
+
+ExpiresByType text/css A31557600
+ExpiresByType text/javascript A31557600
+ExpiresByType application/javascript A31557600
+ExpiresByType application/x-javascript A31557600
+
+ExpiresByType application/x-font-ttf A31557600
+ExpiresByType application/x-font-woff A31557600
+ExpiresByType application/font-woff A31557600
+ExpiresByType application/font-woff2 A31557600
+ExpiresByType application/vnd.ms-fontobject A31557600
+ExpiresByType font/ttf A31557600
+ExpiresByType font/otf A31557600
+ExpiresByType font/woff A31557600
+ExpiresByType font/woff2 A31557600
+
+</IfModule>
+### marker BROWSER CACHE end ###
+
+## LITESPEED WP CACHE PLUGIN - Do not edit the contents of this block! ##
+# END NON_LSCACHE
+
 # ----------------------------------------------------------------------
 # NAKAMA - Next.js (Static Export) + WordPress (API Backend) Coexistence
 # ----------------------------------------------------------------------
@@ -34,3 +182,43 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule . /index.php [L]
 </IfModule>
+
+
+# Wordfence WAF
+<IfModule LiteSpeed>
+php_value auto_prepend_file '/home/nakamabo/public_html/wordfence-waf.php'
+</IfModule>
+<IfModule lsapi_module>
+php_value auto_prepend_file '/home/nakamabo/public_html/wordfence-waf.php'
+</IfModule>
+<Files ".user.ini">
+<IfModule mod_authz_core.c>
+	Require all denied
+</IfModule>
+<IfModule !mod_authz_core.c>
+	Order deny,allow
+	Deny from all
+</IfModule>
+</Files>
+
+# END Wordfence WAF
+
+# Proteger el archivo .htaccess
+<files .htaccess>
+Order Allow,Deny
+#Deny from all
+</files>
+# Proteger el archivo wp-config.php
+<files wp-config.php>
+Order Allow,Deny
+Deny from all
+</files>
+# Proteger la navegación de carpetas
+Options All -Indexes
+
+# php -- BEGIN cPanel-generated handler, do not edit
+# Set the “ea-php82” package as the default “PHP” programming language.
+<IfModule mime_module>
+  AddHandler application/x-httpd-ea-php82___lsphp .php .php8 .phtml
+</IfModule>
+# php -- END cPanel-generated handler, do not edit
