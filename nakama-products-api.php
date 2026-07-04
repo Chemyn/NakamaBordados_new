@@ -145,7 +145,35 @@ add_action('rest_api_init', function () {
             'permission_callback' => '__return_true',
         ),
     ));
+
+    // 5) Folio de cotización incremental
+    register_rest_route('nakama/v1', '/next-folio', array(
+        array(
+            'methods' => array('GET', 'POST'),
+            'callback' => 'nakama_products_get_next_folio',
+            'permission_callback' => '__return_true',
+        ),
+        array(
+            'methods' => 'OPTIONS',
+            'callback' => 'nakama_products_preflight',
+            'permission_callback' => '__return_true',
+        ),
+    ));
 });
+
+function nakama_products_get_next_folio()
+{
+    $current_folio = get_option('nakama_quote_folio_counter', 1000);
+    $next_folio = $current_folio + 1;
+    update_option('nakama_quote_folio_counter', $next_folio);
+    
+    $response = rest_ensure_response(array(
+        'success' => true,
+        'folio' => $next_folio,
+        'formatted' => 'NK-' . $next_folio
+    ));
+    return nakama_products_add_cors($response);
+}
 
 // ============================================================================
 // CONSTRUCTORES DE OBJETOS (mapean WC_Product -> shape del frontend)

@@ -211,7 +211,7 @@ export const ParchesConfig: React.FC<ParchesConfigProps> = ({ config, onChange }
           rows={3}
           value={config.additionalDetails}
           onChange={(e) => onChange({ ...config, additionalDetails: e.target.value })}
-          placeholder="Especifica el tipo de contorno, colores de hilo preferidos, si requiere velcro en la parte posterior, o cualquier otro detalle..."
+          placeholder="Instrucciones adicionales para la producción de tu personalizado..."
         />
       </div>
     </div>

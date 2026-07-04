@@ -82,7 +82,8 @@ export const App: React.FC = () => {
   // State: Caps (Gorras) - Fully initialized
   const [capConfig, setCapConfig] = useState<CapCustomization>({
     option: 'Bordado Al frente',
-    model: 'Snapback (Visera plana)',
+    model: 'Kamel 804 (Tela)',
+    color: 'Black (Negro)',
     quantity: 20,
     add3D: true,
     positions: {
@@ -303,7 +304,7 @@ export const App: React.FC = () => {
 
 
   // Helper: send quote details and files (PDF & ZIP) to Discord Webhook
-  const sendQuoteToDiscord = async (pdfDoc: any, pdfFilename: string): Promise<boolean> => {
+  const sendQuoteToDiscord = async (pdfDoc: any, pdfFilename: string, folioStr: string): Promise<boolean> => {
     const webhookUrl = process.env.NEXT_PUBLIC_DISCORD_WEBHOOK_URL;
     if (!webhookUrl || webhookUrl.includes('your-webhook-id')) {
       console.warn("Discord Webhook URL not configured or has default placeholder.");
@@ -339,11 +340,11 @@ export const App: React.FC = () => {
           .filter(k => capConfig.positions[k].active)
           .map(k => `${k} (${capConfig.positions[k].type} - ${capConfig.positions[k].size})`)
           .join(', ');
-        productDetailsText = `**Gorras:** ${capConfig.model}\n- Cantidad: ${capConfig.quantity} pz\n- Áreas: ${activePositions}\n- Bordado 3D: ${capConfig.add3D ? 'Sí' : 'No'}`;
+        productDetailsText = `**Gorras:** ${capConfig.model}\n- Color: ${capConfig.color}\n- Cantidad: ${capConfig.quantity} pz\n- Áreas: ${activePositions}\n- Bordado 3D: ${capConfig.add3D ? 'Sí' : 'No'}`;
       }
 
       const discordMessage = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📢 **NUEVA SOLICITUD DE COTIZACIÓN**
+📢 **NUEVA SOLICITUD DE COTIZACIÓN (${folioStr})**
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 👤 **Cliente:** ${clientDetails.name}
 📱 **Teléfono (WhatsApp):** ${clientDetails.phone}
@@ -386,26 +387,48 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
     setIsSending(true);
     let sendSuccess = false;
 
+    // Fetch incremental folio from WooCommerce API with client-side fallback
+    let folioStr = `NK-${Math.floor(100000 + Math.random() * 900000)}`;
+    
+    // Bypass fetch on localhost to prevent CORS/Cloudflare dev overlay errors
+    const isLocalhost = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+    if (!isLocalhost) {
+      try {
+        const folioRes = await fetch('https://nakamabordados.com/wp-json/nakama/v1/next-folio');
+        if (folioRes.ok) {
+          const data = await folioRes.json();
+          if (data && data.formatted) {
+            folioStr = data.formatted;
+          }
+        }
+      } catch (e) {
+        console.error("Error fetching next folio from WP REST API, using fallback ID:", e);
+      }
+    }
+
     const sanitizedClientName = clientDetails.name
       .toLowerCase()
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .replace(/\s+/g, '-')
       .replace(/[^a-z0-9_-]/g, '');
-    const pdfFilename = `cotizacion_nakama_${sanitizedClientName || 'cliente'}.pdf`;
+    const pdfFilename = `cotizacion_nakama_${folioStr.toLowerCase()}_${sanitizedClientName || 'cliente'}.pdf`;
 
     try {
-      // 1. Generate PDF
+      // 1. Generate PDF with dynamic folio counter
       const doc = generateQuotePDF(
         clientDetails,
         activeProduct,
         ropaConfig,
         patchConfig,
-        capConfig
+        capConfig,
+        folioStr
       );
 
-      // 2. Upload to Discord Webhook
-      sendSuccess = await sendQuoteToDiscord(doc, pdfFilename);
+      // 2. Upload to Discord Webhook with folio identifier
+      sendSuccess = await sendQuoteToDiscord(doc, pdfFilename, folioStr);
 
       if (!sendSuccess) {
         // Fallback: download locally if webhook is down or not configured
@@ -429,12 +452,12 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
       summaryText = `Gorras (${capConfig.model} - ${capConfig.quantity}pz)`;
     }
 
-    const message = `¡Hola Nakama! Acabo de enviar mi solicitud de cotización formal para:\n` +
+    const message = `¡Hola Nakama! Acabo de enviar mi solicitud de cotización formal (${folioStr}) para:\n` +
       `*Producto:* ${summaryText}\n` +
       `*Cliente:* ${clientDetails.name}\n` +
       `*Teléfono:* ${clientDetails.phone}\n\n` +
       (sendSuccess 
-        ? `_Los archivos de diseño y PDF formal ya se han cargado automáticamente en el sistema del taller. Quedo en espera de la confirmación de recepción._`
+        ? `_Los archivos de diseño y PDF formal ya se han cargado automáticamente en el sistema del taller con el folio *${folioStr}*. Quedo en espera de la confirmación de recepción._`
         : `_Te adjunto a continuación la cotización en PDF que se acaba de descargar en mi dispositivo._`
       );
 
@@ -1085,6 +1108,10 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
                       <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
                         <span className="text-muted small">Modelo:</span>
                         <span className="text-dark">{capConfig.model}</span>
+                      </div>
+                      <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                        <span className="text-muted small">Color de Gorra:</span>
+                        <span className="text-dark">{capConfig.color}</span>
                       </div>
                       <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
                         <span className="text-muted small">Cantidad:</span>

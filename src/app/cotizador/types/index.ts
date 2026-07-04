@@ -43,6 +43,7 @@ export interface CapPosition {
 export interface CapCustomization {
   option: 'Bordado Al frente' | 'Bordado Al frente y un costado' | 'Bordado Al frente y ambos costados';
   model: string;
+  color: string;
   quantity: number;
   add3D: boolean; // Si / No
   positions: {

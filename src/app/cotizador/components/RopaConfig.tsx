@@ -3,16 +3,63 @@
 import React, { useEffect } from 'react';
 import type { GarmentCustomization } from '../types';
 
+const getGarmentPreviewPath = (model: string, color: string): string => {
+  if (!model || !color) return '';
+  const normColor = color.normalize("NFD").replace(/[\u0300-\u036f]/g, ""); // "Salmón" -> "Salmon"
+  
+  if (model === 'Oversize') {
+    let fileColor = normColor;
+    if (normColor.toLowerCase() === 'acero (plomo)') {
+      fileColor = 'acero (plomo)';
+    }
+    return `/Oversize/Oversize Con Colores_${fileColor}.png`;
+  }
+  
+  if (model === 'T-shirt 100% Algodón Peinado') {
+    return `/Oversize/Oversize Con Colores_${normColor}.png`;
+  }
+  
+  if (model === 'T-shirt 100% Algodón (Regular)') {
+    let fileColor = normColor;
+    if (normColor === 'Azul Marino') {
+      fileColor = 'Marino';
+    }
+    return `/T-shirt/T-shirt Nuevo modelo_${fileColor}.png`;
+  }
+  
+  if (model === 'Tank Top') {
+    let fileColor = normColor;
+    if (normColor === 'Azul Marino') {
+      fileColor = 'Marino';
+    }
+    return `/Tank top/Tank Top_${fileColor}.png`;
+  }
+  
+  if (model === 'Hoodie') {
+    return `/Hoodie/Hoodie_${normColor}.png`;
+  }
+  
+  if (model === 'Sudadera Cuello Redondo') {
+    let fileColor = normColor;
+    if (normColor === 'Azul Marino') {
+      fileColor = 'Marino';
+    }
+    return `/Sudadera/Sudadera_${fileColor}.png`;
+  }
+  
+  return '';
+};
+
 interface RopaConfigProps {
   config: GarmentCustomization;
   onChange: (newConfig: GarmentCustomization) => void;
 }
 
-// Data from PDF
+// Data from PDF and assets folder filenames
 const modelsData = [
   {
     name: 'Oversize',
-    colors: ['Negro', 'Blanco', 'Beige', 'Verde', 'Chocolate', 'Arena', 'Azul', 'Acero (plomo)', 'Azul Marino', 'Rojo']
+    colors: ['Negro', 'Blanco', 'Verde', 'Café Chocolate', 'Arena', 'Acero (plomo)', 'Azul Marino', 'Rojo', 'Azul Celeste', 'Hueso', 'Rosa']
   },
   {
     name: 'T-shirt 100% Algodón Peinado',
@@ -20,19 +67,19 @@ const modelsData = [
   },
   {
     name: 'T-shirt 100% Algodón (Regular)',
-    colors: ['Marino', 'Azul Rey', 'Rojo', 'Cherry', 'Kaki', 'Verde Botella', 'Morado Intenso', 'Salmón', 'Café Tabaco', 'Jaspe', 'Hueso']
+    colors: ['Azul Marino', 'Azul Rey', 'Rojo', 'Cherry', 'Kaki', 'Verde Botella', 'Morado Intenso', 'Salmón', 'Café Tabaco', 'Jaspe', 'Hueso']
   },
   {
     name: 'Tank Top',
-    colors: ['Blanco', 'Negro', 'Jaspe', 'Marino', 'Azul Rey', 'Rojo']
+    colors: ['Blanco', 'Negro', 'Jaspe', 'Azul Marino', 'Azul Rey', 'Rojo']
   },
   {
     name: 'Hoodie',
-    colors: ['Jaspe', 'Blanco', 'Kaki', 'Marino', 'Negro', 'Azul Rey', 'Rojo']
+    colors: ['Jaspe', 'Blanco', 'Kaki', 'Azul Marino', 'Negro', 'Azul Rey', 'Rojo']
   },
   {
     name: 'Sudadera Cuello Redondo',
-    colors: ['Jaspe', 'Blanco', 'Kaki', 'Marino', 'Negro', 'Azul Rey', 'Rojo']
+    colors: ['Jaspe', 'Blanco', 'Kaki', 'Azul Marino', 'Negro', 'Azul Rey', 'Rojo']
   }
 ];
 
@@ -96,7 +143,7 @@ export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange }) => {
       {/* 2. Seleccionar Color */}
       <div className="mb-4">
         <label className="form-label text-muted small uppercase fw-bold d-block">Color de Prenda:</label>
-        <div className="d-flex flex-wrap gap-2 mt-1">
+        <div className="d-flex flex-wrap gap-2 mt-1 mb-3">
           {selectedModelColors.map(color => (
             <button
               key={color}
@@ -108,6 +155,21 @@ export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange }) => {
             </button>
           ))}
         </div>
+
+        {/* Vista previa de la prenda */}
+        {getGarmentPreviewPath(config.model, config.color) && (
+          <div className="text-center p-3 rounded border border-light-subtle bg-light mt-2" style={{ position: 'relative', overflow: 'hidden' }}>
+            <span className="text-muted small uppercase fw-bold d-block mb-2">Vista Previa de Prenda ({config.color}):</span>
+            <div style={{ maxWidth: '200px', margin: '0 auto', position: 'relative', aspectRatio: '1/1' }}>
+              <img 
+                src={getGarmentPreviewPath(config.model, config.color)} 
+                alt={`Prenda ${config.model} en color ${config.color}`}
+                className="img-fluid rounded"
+                style={{ maxHeight: '180px', objectFit: 'contain', transition: 'all 0.3s ease' }}
+              />
+            </div>
+          </div>
+        )}
       </div>
 
       {/* 3. Cantidad */}
@@ -146,7 +208,7 @@ export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange }) => {
           rows={3}
           value={config.additionalDetails}
           onChange={(e) => onChange({ ...config, additionalDetails: e.target.value })}
-          placeholder="Comentarios sobre el tipo de tela, ubicación exacta de los logos o instrucciones específicas de producción..."
+          placeholder="Instrucciones adicionales para la producción de tu personalizado..."
         />
       </div>
     </div>
