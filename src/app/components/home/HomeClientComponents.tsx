@@ -16,9 +16,13 @@ export const SkeletonProductCard = () => (
   <div className="nk-carousel-card">
     <div className="nk-carousel-link" style={{ pointerEvents: 'none' }}>
       <div className="nk-carousel-img-wrapper nk-skeleton" style={{ boxShadow: 'var(--nk-manga-shadow)', border: 'var(--nk-manga-border)', aspectRatio: '3/4', borderRadius: '0' }}></div>
-      <div className="nk-carousel-info" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '14px', textAlign: 'left', padding: '0 5px' }}>
-        <div className="nk-skeleton" style={{ width: '90%', height: '18px', borderRadius: '0' }}></div>
-        <div className="nk-skeleton" style={{ width: '45%', height: '16px', borderRadius: '0' }}></div>
+      <div className="nk-carousel-info" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '120px', marginTop: '14px', textAlign: 'left', padding: '0 5px' }}>
+        <div>
+          <div className="nk-skeleton" style={{ width: '90%', height: '18px', borderRadius: '0' }}></div>
+        </div>
+        <div>
+          <div className="nk-skeleton" style={{ width: '45%', height: '16px', borderRadius: '0' }}></div>
+        </div>
       </div>
     </div>
   </div>
@@ -219,9 +223,16 @@ export const ScrollContainer = ({ products }: { products: Product[] }) => {
                     <span className="nk-overlay-btn">{t('product.view')}</span>
                   </div>
                 </div>
-                <div className="nk-carousel-info">
-                  <h3 className="nk-carousel-name">{p.name}</h3>
-                  <p className="nk-carousel-price">{displayPrice}</p>
+                <div className="nk-carousel-info" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '120px', marginTop: '14px', textAlign: 'left', padding: '0 5px' }}>
+                  <h3 className="nk-carousel-name" style={{ margin: 0 }}>{p.name}</h3>
+                  <div style={{ marginTop: 'auto', paddingTop: '8px' }}>
+                    <p className="nk-carousel-price" style={{ margin: 0, fontFamily: 'Teko', fontSize: '1.2rem', fontWeight: 800 }}>{displayPrice}</p>
+                    {p.salesCount !== undefined && p.salesCount > 0 && (
+                      <p className="nk-carousel-sales" style={{ fontSize: '0.8rem', color: 'var(--nk-text-sec)', margin: '4px 0 0 0', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
+                        {p.salesCount} {p.salesCount === 1 ? 'vendido' : 'vendidos'}
+                      </p>
+                    )}
+                  </div>
                 </div>
               </Link>
             </div>
