@@ -17,7 +17,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   }
 
   const productUrls = slugs.map((slug) => ({
-    url: `${baseUrl}/product/${slug}`,
+    url: `${baseUrl}/product?id=${slug}`,
     changeFrequency: 'weekly' as const,
     priority: 0.7,
   }))

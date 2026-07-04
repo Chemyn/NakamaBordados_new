@@ -10,14 +10,45 @@ import {
   ScrollContainer 
 } from './components/home/HomeClientComponents';
 import { Product } from '@/types/product';
+import { fetchProductsSearch } from './data/products';
 
 interface HeroSources {
   webm?: string;
   mp4?: string;
 }
 
-export default function HomeClientPage({ bestSellers, heroSources }: { bestSellers: Product[]; heroSources?: HeroSources }) {
+export default function HomeClientPage({ bestSellers: initialBestSellers, heroSources: initialHeroSources }: { bestSellers: Product[]; heroSources?: HeroSources }) {
   const { t } = useLanguage();
+  const [bestSellers, setBestSellers] = React.useState<Product[]>(initialBestSellers || []);
+  const [heroSources, setHeroSources] = React.useState<HeroSources | undefined>(initialHeroSources);
+
+  React.useEffect(() => {
+    // Cargar Best Sellers si vinieron vacíos (en dev o primera carga estática)
+    if (!bestSellers || bestSellers.length === 0) {
+      fetchProductsSearch({ category: 'lo-mas-vendido', limit: 12 })
+        .then(data => {
+          if (data && data.products) {
+            setBestSellers(data.products);
+          }
+        })
+        .catch(err => console.error("Error fetching best sellers:", err));
+    }
+
+    // Cargar config del hero si no está inicializada
+    if (!heroSources) {
+      fetch((process.env.NEXT_PUBLIC_WP_REST_URL || 'https://nakamabordados.com') + '/wp-json/nakama/v1/hero-config')
+        .then(res => {
+          if (res.ok) return res.json();
+          throw new Error('API failed');
+        })
+        .then(data => {
+          if (data && data.home) {
+            setHeroSources({ webm: data.home.webm, mp4: data.home.mp4 });
+          }
+        })
+        .catch(err => console.log("Using default hero config:", err));
+    }
+  }, []);
 
   return (
     <div className="nk-home-page">

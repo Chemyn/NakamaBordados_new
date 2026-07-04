@@ -22,7 +22,7 @@ export default function Navbar() {
   const { language, setLanguage, t } = useLanguage();
   const { currencyInfo, setCurrencyManual } = useCurrency();
 
-  const [theme, setTheme] = useState<'light' | 'dark'>('dark');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [menuOpen, setMenuOpen] = useState(false);
   const [subActive, setSubActive] = useState<string | null>(null);
   const [categories, setCategories] = useState<WPCategory[]>([]);
@@ -35,15 +35,15 @@ export default function Navbar() {
     return () => { mounted = false; };
   }, []);
 
-  // Initialize theme from storage if different from default
+  // Initialize theme from storage if different from default (light default)
   useEffect(() => {
     const savedTheme = localStorage.getItem('color-theme');
-    if (savedTheme === 'light') {
+    if (savedTheme === 'dark') {
+      setTheme('dark');
+      document.documentElement.classList.add('dark');
+    } else {
       setTheme('light');
       document.documentElement.classList.remove('dark');
-    } else {
-      // Already dark by default state, but ensure class is there
-      document.documentElement.classList.add('dark');
     }
   }, []);
 
@@ -62,6 +62,15 @@ export default function Navbar() {
   const toggleSubmenu = (category: string, e: React.MouseEvent) => {
     e.preventDefault();
     setSubActive(subActive === category ? null : category);
+  };
+
+  const handleDropdownLinkClick = (category: string, e: React.MouseEvent) => {
+    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+      e.preventDefault();
+      setSubActive(subActive === category ? null : category);
+    } else {
+      setMenuOpen(false);
+    }
   };
 
   const getSubcategories = (parentSlug: string) => {
@@ -128,7 +137,7 @@ export default function Navbar() {
                 <Link
                   href="/store?category=bordados"
                   className={`nk-nav-link ${isCategoryActive('bordados') ? 'active-menu-item' : ''}`}
-                  onClick={() => setMenuOpen(false)}
+                  onClick={(e) => handleDropdownLinkClick('bordados', e)}
                 >
                   {t('nav.embroidery')}
                 </Link>
@@ -172,7 +181,7 @@ export default function Navbar() {
                 <Link
                   href="/store?category=estampados"
                   className={`nk-nav-link ${isCategoryActive('estampados') ? 'active-menu-item' : ''}`}
-                  onClick={() => setMenuOpen(false)}
+                  onClick={(e) => handleDropdownLinkClick('estampados', e)}
                 >
                   {t('nav.prints')}
                 </Link>

@@ -11,11 +11,14 @@ import HeroBackground from '../components/HeroBackground';
 import { fetchProductsSearch } from '../data/products';
 
 const SkeletonProductCard = () => (
-  <div className="nk-store-card" style={{ opacity: 0.7 }}>
-    <div className="nk-store-card-img-wrapper nk-skeleton" style={{ aspectRatio: '3/4', borderRadius: '8px' }}></div>
-    <div className="nk-card-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginTop: '14px' }}>
-      <div className="nk-skeleton" style={{ width: '80%', height: '20px' }}></div>
-      <div className="nk-skeleton" style={{ width: '40%', height: '16px' }}></div>
+  <div 
+    className="nk-store-card" 
+    style={{ background: 'var(--nk-bg-card)', border: '2px solid var(--nk-border)', borderRadius: '0', padding: '0', boxShadow: 'var(--nk-manga-shadow)', pointerEvents: 'none' }}
+  >
+    <div className="nk-store-card-img-wrapper nk-skeleton" style={{ borderRadius: '0', overflow: 'hidden', position: 'relative', aspectRatio: '1/1', borderBottom: '2px solid var(--nk-border)' }}></div>
+    <div className="nk-card-info" style={{ textAlign: 'left', padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div className="nk-skeleton" style={{ width: '85%', height: '20px', borderRadius: '0' }}></div>
+      <div className="nk-skeleton" style={{ width: '40%', height: '24px', borderRadius: '0' }}></div>
     </div>
   </div>
 );
@@ -128,12 +131,12 @@ function StoreContent() {
 
         <div className="nk-container" style={{ marginTop: '60px', paddingBottom: '120px' }}>
         {loading && products.length === 0 ? (
-          <div className="nk-store-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '40px' }}>
+          <div className="nk-store-grid">
             {[1, 2, 3, 4, 5, 6, 7, 8].map(i => <SkeletonProductCard key={i} />)}
           </div>
         ) : products.length > 0 ? (
           <>
-            <div className="nk-store-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '40px' }}>
+            <div className="nk-store-grid">
               {products.map((p, idx) => {
                 const minPrice = p.type === 'variable' && p.variations && p.variations.length > 0
                   ? Math.min(...p.variations.map(v => v.price)) 
@@ -152,7 +155,7 @@ function StoreContent() {
                     style={{ background: 'var(--nk-bg-card)', border: '2px solid var(--nk-border)', borderRadius: '0', padding: '0', transition: 'transform 0.3s ease, box-shadow 0.3s ease', boxShadow: 'var(--nk-manga-shadow)' }}
                   >
                     <div className="nk-store-card-img-wrapper" style={{ borderRadius: '0', overflow: 'hidden', position: 'relative', aspectRatio: '1/1', borderBottom: '2px solid var(--nk-border)' }}>
-                      <Link href={`/product/${p.id}`} className="nk-card-img-link">
+                      <Link href={`/product?id=${p.id}`} className="nk-card-img-link">
                         <Image 
                           src={p.images[0]} 
                           alt={p.name} 
@@ -166,7 +169,7 @@ function StoreContent() {
                     </div>
                     <div className="nk-card-info" style={{ textAlign: 'left', padding: '20px' }}>
                       <h3 className="nk-card-title" style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0', lineHeight: 1.1 }}>
-                        <Link href={`/product/${p.id}`} style={{ color: 'var(--nk-text-main)', textDecoration: 'none' }}>{p.name}</Link>
+                        <Link href={`/product?id=${p.id}`} style={{ color: 'var(--nk-text-main)', textDecoration: 'none' }}>{p.name}</Link>
                       </h3>
                       <p className="nk-card-price" style={{ color: 'var(--nk-primary)', fontWeight: '800', marginTop: '10px', fontSize: '1.2rem', fontFamily: 'Teko' }}>{displayPrice}</p>
                     </div>
@@ -176,7 +179,7 @@ function StoreContent() {
             </div>
 
             {loadingMore && (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '40px', marginTop: '40px' }}>
+              <div className="nk-store-grid" style={{ marginTop: '40px' }}>
                 {[1, 2, 3, 4].map(i => <SkeletonProductCard key={`more-${i}`} />)}
               </div>
             )}

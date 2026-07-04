@@ -5,9 +5,9 @@ import Link from 'next/link';
 import Image from 'next/image';
 import DOMPurify from 'isomorphic-dompurify';
 import { Product, Variation } from '@/types/product';
-import { useCart } from '../../context/CartContext';
-import { useCurrency } from '../../context/CurrencyContext';
-import { useLanguage } from '../../context/LanguageContext';
+import { useCart } from '../context/CartContext';
+import { useCurrency } from '../context/CurrencyContext';
+import { useLanguage } from '../context/LanguageContext';
 
 interface ProductClientProps {
   initialProduct: Product;
@@ -397,25 +397,32 @@ export default function ProductClient({ initialProduct: product, relatedProducts
             const maxPrice = p.type === 'variable' && p.variations.length > 0 ? Math.max(...p.variations.map(v => v.price)) : p.price;
             const displayPrice = minPrice === maxPrice ? formatPrice(minPrice) : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
             return (
-              <div className="nk-store-card group" key={p.id}>
-                <div className="nk-store-card-img-wrapper nk-manga-border" style={{ boxShadow: 'var(--nk-manga-shadow)' }}>
-                  <Link href={`/product/${p.id}`} className="nk-card-img-link">
+              <div 
+                className="nk-store-card" 
+                key={p.id}
+                style={{ background: 'var(--nk-bg-card)', border: '2px solid var(--nk-border)', borderRadius: '0', padding: '0', transition: 'transform 0.3s ease, box-shadow 0.3s ease', boxShadow: 'var(--nk-manga-shadow)' }}
+              >
+                <div className="nk-store-card-img-wrapper" style={{ borderRadius: '0', overflow: 'hidden', position: 'relative', aspectRatio: '1/1', borderBottom: '2px solid var(--nk-border)' }}>
+                  <Link href={`/product?id=${p.id}`} className="nk-card-img-link">
                     <Image 
                       src={p.images[0]} 
                       alt={p.name} 
                       width={300} 
-                      height={400} 
+                      height={300} 
                       className="nk-card-img" 
-                      style={{ objectFit: 'cover' }}
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                      loading="lazy" 
                     />
                   </Link>
                   <div className="nk-card-overlay">
-                    <Link href={`/product/${p.id}`} className="nk-overlay-btn">{t('product.view')}</Link>
+                    <Link href={`/product?id=${p.id}`} className="nk-overlay-btn">{t('product.view')}</Link>
                   </div>
                 </div>
-                <div className="nk-card-info" style={{ marginTop: '15px' }}>
-                  <h3 className="nk-card-title" style={{ fontSize: '1.4rem' }}><Link href={`/product/${p.id}`}>{p.name}</Link></h3>
-                  <p className="nk-card-price" style={{ fontWeight: 800, color: 'var(--nk-primary)' }}>{displayPrice}</p>
+                <div className="nk-card-info" style={{ textAlign: 'left', padding: '20px' }}>
+                  <h3 className="nk-card-title" style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0', lineHeight: 1.1 }}>
+                    <Link href={`/product?id=${p.id}`} style={{ color: 'var(--nk-text-main)', textDecoration: 'none' }}>{p.name}</Link>
+                  </h3>
+                  <p className="nk-card-price" style={{ color: 'var(--nk-primary)', fontWeight: '800', marginTop: '10px', fontSize: '1.2rem', fontFamily: 'Teko' }}>{displayPrice}</p>
                 </div>
               </div>
             );
@@ -551,11 +558,11 @@ export default function ProductClient({ initialProduct: product, relatedProducts
 }
 
 const SkeletonProductCard = () => (
-  <div className="nk-store-card">
-    <div className="nk-store-card-img-wrapper nk-skeleton" style={{ aspectRatio: '3/4' }}></div>
-    <div className="nk-card-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', marginTop: '14px' }}>
-      <div className="nk-skeleton" style={{ width: '80%', height: '20px' }}></div>
-      <div className="nk-skeleton" style={{ width: '40%', height: '16px' }}></div>
+  <div className="nk-store-card" style={{ pointerEvents: 'none' }}>
+    <div className="nk-store-card-img-wrapper nk-skeleton nk-manga-border" style={{ aspectRatio: '3/4', boxShadow: 'var(--nk-manga-shadow)' }}></div>
+    <div className="nk-card-info" style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left' }}>
+      <div className="nk-skeleton" style={{ width: '85%', height: '18px', borderRadius: '0' }}></div>
+      <div className="nk-skeleton" style={{ width: '40%', height: '16px', borderRadius: '0' }}></div>
     </div>
   </div>
 );

@@ -178,7 +178,7 @@ html.dark .glass-panel {
   width: 40px;
   height: 40px;
   padding: 0;
-  display: flex;
+  display: none !important;
   align-items: center;
   justify-content: center;
   background: transparent;
@@ -289,14 +289,14 @@ html.dark .glass-panel {
 }
 
 .nk-skeleton {
-  background-color: var(--nk-border);
+  background-color: #e5e7eb;
   border-radius: 4px;
   position: relative;
   overflow: hidden;
 }
 
 html.dark .nk-skeleton {
-  background-color: #1a1a1a;
+  background-color: #1f2937;
 }
 
 .nk-skeleton::after {
@@ -309,21 +309,23 @@ html.dark .nk-skeleton {
   transform: translateX(-100%);
   background-image: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0) 0,
-    rgba(255, 255, 255, 0.1) 20%,
-    rgba(255, 255, 255, 0.2) 60%,
-    rgba(255, 255, 255, 0)
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.3) 25%,
+    rgba(255, 255, 255, 0.6) 50%,
+    rgba(255, 255, 255, 0.3) 75%,
+    rgba(255, 255, 255, 0) 100%
   );
-  animation: shimmer 2s infinite;
+  animation: shimmer 1.3s infinite linear;
 }
 
 html.dark .nk-skeleton::after {
   background-image: linear-gradient(
     90deg,
-    rgba(255, 255, 255, 0) 0,
-    rgba(255, 255, 255, 0.05) 20%,
-    rgba(255, 255, 255, 0.1) 60%,
-    rgba(255, 255, 255, 0)
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.15) 25%,
+    rgba(255, 255, 255, 0.35) 50%,
+    rgba(255, 255, 255, 0.15) 75%,
+    rgba(255, 255, 255, 0) 100%
   );
 }
 
@@ -850,8 +852,10 @@ html.dark .nk-detail-tabs-section .tab-content {
   z-index: 100;
 }
 
-.nk-nav-item-dropdown:hover .nk-submenu {
-  display: flex;
+@media (min-width: 1024px) {
+  .nk-nav-item-dropdown:hover .nk-submenu {
+    display: flex;
+  }
 }
 
 .nk-submenu-link {
@@ -868,9 +872,10 @@ html.dark .nk-detail-tabs-section .tab-content {
   color: var(--nk-primary);
 }
 
-/* Mega Menu (Desktop) */
-.nk-mega-trigger:hover .nk-mega-menu {
-  display: block;
+@media (min-width: 1024px) {
+  .nk-mega-trigger:hover .nk-mega-menu {
+    display: block;
+  }
 }
 
 .nk-mega-menu {
@@ -965,7 +970,7 @@ html.dark .nk-detail-tabs-section .tab-content {
 /* Responsive Navbar */
 @media (max-width: 1024px) {
   .nk-nav-toggle {
-    display: block;
+    display: flex !important;
   }
 
   .nk-theme-toggle-desktop {
@@ -5080,17 +5085,7 @@ html.dark .nk-mobile-search-overlay::before {
 
 html.dark .nk-action-btn { color: #fff !important; }
 
-/* --- Skeleton Animation --- */
-.nk-skeleton {
-  background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%) !important;
-  background-size: 200% 100% !important;
-  animation: nk-loading 1.5s infinite !important;
-}
 
-@keyframes nk-loading {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
 
 /* --- Final Polish Utilities --- */
 .nk-manga-input {
@@ -5116,4 +5111,20 @@ html.dark .nk-btn {
 
 html.dark .nk-manga-border {
   border-color: var(--nk-primary) !important;
+}
+
+/* Corrección para que los emojis de WordPress (twemoji/wp-smiley) no se rendericen gigantes */
+.nk-product-html-desc img.emoji,
+.nk-product-html-desc img.wp-smiley,
+img.emoji,
+img.wp-smiley {
+  display: inline !important;
+  border: none !important;
+  box-shadow: none !important;
+  height: 1.2em !important;
+  width: 1.2em !important;
+  margin: 0 0.07em !important;
+  vertical-align: -0.1em !important;
+  background: none !important;
+  padding: 0 !important;
 }

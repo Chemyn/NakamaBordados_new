@@ -14,10 +14,12 @@ import { fetchProductsSearch } from '../../data/products';
 
 export const SkeletonProductCard = () => (
   <div className="nk-carousel-card">
-    <div className="nk-carousel-img-wrapper nk-skeleton" style={{ aspectRatio: '3/4' }}></div>
-    <div className="nk-carousel-info" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-      <div className="nk-skeleton" style={{ width: '80%', height: '20px' }}></div>
-      <div className="nk-skeleton" style={{ width: '40%', height: '16px' }}></div>
+    <div className="nk-carousel-link" style={{ pointerEvents: 'none' }}>
+      <div className="nk-carousel-img-wrapper nk-skeleton" style={{ boxShadow: 'var(--nk-manga-shadow)', border: 'var(--nk-manga-border)', aspectRatio: '3/4', borderRadius: '0' }}></div>
+      <div className="nk-carousel-info" style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '14px', textAlign: 'left', padding: '0 5px' }}>
+        <div className="nk-skeleton" style={{ width: '90%', height: '18px', borderRadius: '0' }}></div>
+        <div className="nk-skeleton" style={{ width: '45%', height: '16px', borderRadius: '0' }}></div>
+      </div>
     </div>
   </div>
 );
@@ -32,6 +34,7 @@ export const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { 
   const { t } = useLanguage();
   const [products, setProducts] = useState<Product[]>([]);
   const [hasFetched, setHasFetched] = useState(false);
+  const [loading, setLoading] = useState(false);
   const sectionRef = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -39,6 +42,7 @@ export const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { 
       (entries) => {
         if (entries[0].isIntersecting && !hasFetched) {
           setHasFetched(true);
+          setLoading(true);
           fetchProductsSearch({ category: categorySlug, limit: 12 })
             .then(data => {
               if (data && data.products) {
@@ -47,7 +51,10 @@ export const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { 
                 setProducts(shuffled);
               }
             })
-            .catch(err => console.error(err));
+            .catch(err => console.error(err))
+            .finally(() => {
+              setLoading(false);
+            });
         }
       },
       { rootMargin: '200px' }
@@ -60,7 +67,8 @@ export const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { 
     return () => observer.disconnect();
   }, [categorySlug, hasFetched]);
 
-  if (hasFetched && products.length === 0) return null;
+  // Solo ocultar si la carga finalizó y la API retornó cero productos
+  if (hasFetched && !loading && products.length === 0) return null;
 
   return (
     <section ref={sectionRef} className="nk-home-section" style={{ borderTop: '1px solid var(--nk-border)', minHeight: '300px' }}>
@@ -71,7 +79,7 @@ export const LazyCategorySection = ({ title, categorySlug, href, isSpecial }: { 
             {t('nav.all')} <span className="material-icons-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
           </Link>
         </div>
-        {!hasFetched ? (
+        {loading || !hasFetched ? (
           <SkeletonScrollContainer />
         ) : (
           <ScrollContainer products={products} />
@@ -167,18 +175,18 @@ export const ScrollContainer = ({ products }: { products: Product[] }) => {
   const { formatPrice } = useCurrency();
   const dragProps = useDraggableScroll(true);
 
+  useEffect(() => {
+    if (dragProps.ref.current) {
+      dragProps.ref.current.scrollLeft = dragProps.ref.current.scrollWidth * 0.33;
+    }
+  }, [products]);
+
   if (products.length === 0) {
     return <SkeletonScrollContainer />;
   }
 
   // Triple duplicated items for infinite effect
   const displayProducts = [...products, ...products, ...products];
-
-  useEffect(() => {
-    if (dragProps.ref.current) {
-      dragProps.ref.current.scrollLeft = dragProps.ref.current.scrollWidth * 0.33;
-    }
-  }, []);
 
   return (
     <div className="nk-draggable-scroll-container" {...dragProps} style={{ cursor: 'grab', overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -196,7 +204,7 @@ export const ScrollContainer = ({ products }: { products: Product[] }) => {
 
           return (
             <div className="nk-carousel-card" key={`${p.id}-${idx}`}>
-              <Link href={`/product/${p.id}`} className="nk-carousel-link">
+              <Link href={`/product?id=${p.id}`} className="nk-carousel-link">
                 <div className="nk-carousel-img-wrapper" style={{ boxShadow: 'var(--nk-manga-shadow)', border: 'var(--nk-manga-border)' }}>
                   <Image 
                     src={p.images[0]} 
@@ -296,9 +304,7 @@ export const CategoriesExplore = () => {
                 key={idx} 
                 className="nk-explore-card nk-manga-border" 
                 style={{ 
-                  flex: '0 0 280px', 
-                  boxShadow: 'var(--nk-manga-shadow)',
-                  height: '350px'
+                  boxShadow: 'var(--nk-manga-shadow)'
                 }}
               >
                 <Image 
