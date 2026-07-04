@@ -1,0 +1,36 @@
+# ----------------------------------------------------------------------
+# NAKAMA - Next.js (Static Export) + WordPress (API Backend) Coexistence
+# ----------------------------------------------------------------------
+
+# 1. Priorizar index.html (Next.js) sobre index.php (WordPress) al acceder a la raíz
+DirectoryIndex index.html index.php
+
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteBase /
+
+# 2. Excluir rutas del núcleo, panel de administración y APIs de WordPress
+# Esto asegura que /wp-admin, /wp-json y /graphql siempre se dirijan a PHP de WordPress
+RewriteCond %{REQUEST_URI} ^/wp-admin/ [NC,OR]
+RewriteCond %{REQUEST_URI} ^/wp-includes/ [NC,OR]
+RewriteCond %{REQUEST_URI} ^/wp-content/ [NC,OR]
+RewriteCond %{REQUEST_URI} ^/wp-json/ [NC,OR]
+RewriteCond %{REQUEST_URI} ^/graphql/ [NC,OR]
+RewriteCond %{REQUEST_URI} ^/xmlrpc\.php$ [NC,OR]
+RewriteCond %{REQUEST_URI} ^/wp-login\.php$ [NC]
+RewriteRule ^ - [L]
+
+# 3. Servir archivos físicos si existen (imágenes, scripts en _next/static, etc.)
+RewriteCond %{REQUEST_FILENAME} -f
+RewriteRule ^ - [L]
+
+# 4. Enrutamiento de URLs Limpias de Next.js (ej. /store -> store.html)
+# Si se consulta /ruta y existe el archivo físico ruta.html en el servidor, lo sirve ocultando la extensión .html
+RewriteCond %{DOCUMENT_ROOT}/$1.html -f
+RewriteRule ^([^/]+)/?$ /$1.html [L]
+
+# 5. Redirección de respaldo para páginas dinámicas o consultas no encontradas de WordPress
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.php [L]
+</IfModule>
