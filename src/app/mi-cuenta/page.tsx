@@ -457,6 +457,15 @@ export default function MiCuentaPage() {
           box-shadow: var(--nk-manga-shadow-lg);
           border: var(--nk-manga-border);
           position: relative;
+          /* Ningún contenido interno debe provocar scroll horizontal en móvil */
+          overflow-x: clip;
+        }
+
+        /* Títulos del dashboard: el global fija 3rem !important y en pantallas
+           de ~360px desborda; aquí se escala al ancho disponible. */
+        .nk-account-card :global(.nk-section-title) {
+          font-size: clamp(1.9rem, 7vw, 3rem) !important;
+          overflow-wrap: anywhere;
         }
 
         .nk-dashboard-grid {
@@ -548,12 +557,12 @@ export default function MiCuentaPage() {
 
         .nk-dashboard-nav button {
           white-space: nowrap;
-          padding: 10px 20px;
+          padding: 8px 14px;
           border: 2px solid transparent;
           background: var(--nk-bg-wrapper);
           color: var(--nk-text-main);
           font-family: 'Teko', sans-serif;
-          font-size: 1.2rem;
+          font-size: 1.1rem;
           text-transform: uppercase;
           cursor: pointer;
           transition: 0.3s;
@@ -561,6 +570,7 @@ export default function MiCuentaPage() {
           align-items: center;
           gap: 8px;
           border-radius: 4px;
+          min-height: 44px; /* alto táctil mínimo recomendado */
         }
 
         @media (min-width: 992px) {
@@ -685,7 +695,10 @@ export default function MiCuentaPage() {
 
         .nk-dash-shortcuts {
           display: grid;
-          grid-template-columns: 1fr 1fr;
+          /* minmax(0,1fr): con 1fr a secas las columnas no pueden encogerse
+             por debajo del texto ("DIRECCIONES") y el grid desborda el card
+             en pantallas angostas. */
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 15px;
         }
 
@@ -712,8 +725,13 @@ export default function MiCuentaPage() {
         }
 
         .nk-shortcut-card h4 {
-          font-size: 1.1rem;
+          font-size: 1rem;
           margin: 0;
+          overflow-wrap: anywhere;
+        }
+
+        @media (min-width: 480px) {
+          .nk-shortcut-card h4 { font-size: 1.1rem; }
         }
 
         /* Forms */
@@ -839,15 +857,27 @@ export default function MiCuentaPage() {
 
         .nk-profile-grid {
           display: grid;
-          grid-template-columns: 1fr;
+          grid-template-columns: minmax(0, 1fr);
           gap: 20px;
         }
 
         @media (min-width: 600px) {
           .nk-profile-grid {
-            grid-template-columns: 1fr 1fr;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 30px;
           }
+        }
+
+        /* Emails/usuarios/guías largos no deben desbordar en móvil */
+        .nk-profile-item p,
+        .nk-track-code,
+        .nk-order-number {
+          overflow-wrap: anywhere;
+        }
+
+        .nk-order-details ul {
+          padding-left: 18px;
+          margin: 0 0 10px;
         }
 
         .nk-profile-actions {

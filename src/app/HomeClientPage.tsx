@@ -97,7 +97,7 @@ export default function HomeClientPage({ bestSellers: initialBestSellers, heroSo
         <div className="nk-container" style={{ position: 'relative', zIndex: 1 }}>
           <div style={{ textAlign: 'center', maxWidth: '800px', margin: '0 auto' }}>
             <span className="nk-store-hero-badge">{t('home.intro.badge')}</span>
-            <h1 className="nk-section-title" style={{ fontSize: '4rem', marginBottom: '20px' }}>{t('home.intro.title')}</h1>
+            <h1 className="nk-section-title" style={{ fontSize: 'clamp(2.4rem, 8vw, 4rem)', marginBottom: '20px' }}>{t('home.intro.title')}</h1>
             <p style={{ fontSize: '1.2rem', color: 'var(--nk-text-sec)', lineHeight: '1.6', marginBottom: '30px' }}>
               {t('home.intro.text')}
             </p>
