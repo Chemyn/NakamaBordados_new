@@ -157,6 +157,10 @@ DirectoryIndex index.html index.php
 RewriteEngine On
 RewriteBase /
 
+# 1.5 Redirigir consultas REST directas a WordPress (ej. ?rest_route=)
+RewriteCond %{QUERY_STRING} rest_route= [NC]
+RewriteRule ^ index.php [L]
+
 # 2. Excluir rutas del núcleo, panel de administración y APIs de WordPress
 # Esto asegura que /wp-admin, /wp-json y /graphql siempre se dirijan a PHP de WordPress
 RewriteCond %{REQUEST_URI} ^/wp-admin/ [NC,OR]
