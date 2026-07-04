@@ -3,7 +3,6 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { usePathname } from 'next/navigation';
-import Image from 'next/image';
 import Link from 'next/link';
 
 interface SocialLinks {
@@ -20,7 +19,6 @@ interface MaintenanceData {
 }
 
 // Recursos de la página de mantenimiento (mismos que usaba CMP Coming Soon)
-const MAINTENANCE_LOGO = 'https://nakamabordados.com/wp-content/uploads/2024/01/Nakama-PNG-300x300.png';
 const MAINTENANCE_BG = 'https://nakamabordados.com/wp-content/uploads/2026/07/Fondo-topaz-cgi-4x-1024x1024.png';
 const DEFAULT_MESSAGE = 'Nuestros nakamas están realizando cambios increíbles en el sitio. ¡Volvemos muy pronto!';
 
@@ -32,7 +30,7 @@ const SOCIALS = [
 ];
 
 export default function MaintenanceWrapper({ children }: { children: React.ReactNode }) {
-  const { isAdmin, isLoading: authLoading } = useAuth();
+  const { user, isAdmin, isLoading: authLoading } = useAuth();
   const pathname = usePathname();
   const [maintenance, setMaintenance] = useState<MaintenanceData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -69,12 +67,19 @@ export default function MaintenanceWrapper({ children }: { children: React.React
     );
   }
 
+  // Normalizar la ruta: con trailingSlash el navegador ve "/mi-cuenta/" y la
+  // comparación exacta con "/mi-cuenta" fallaba (el botón de admin "no hacía nada").
+  const normalizedPath = pathname.replace(/\/+$/, '') || '/';
+
   // Bypass de la pantalla de mantenimiento si:
   // 1. El modo mantenimiento está APAGADO
   // 2. El usuario es administrador (el toggle vive en Mi Cuenta > ADMIN TOOLS)
   // 3. La ruta es de administración/API
-  // 4. La ruta es "/mi-cuenta" (para que el admin pueda iniciar sesión)
-  const isBypassPath = pathname.startsWith('/admin') || pathname.startsWith('/api') || pathname === '/mi-cuenta';
+  // 4. La ruta es "/mi-cuenta" SOLO para visitantes sin sesión (formulario de
+  //    login del admin). Un usuario logueado que NO es admin sigue viendo la
+  //    pantalla de mantenimiento: el sitio es solo para administradores.
+  const isAdminLoginAccess = normalizedPath === '/mi-cuenta' && !user;
+  const isBypassPath = normalizedPath.startsWith('/admin') || normalizedPath.startsWith('/api') || isAdminLoginAccess;
 
   if (!maintenance?.maintenanceMode || isAdmin || isBypassPath) {
     return <>{children}</>;
@@ -120,15 +125,38 @@ export default function MaintenanceWrapper({ children }: { children: React.React
           boxShadow: 'var(--nk-manga-shadow-lg, 8px 8px 0 #000)',
         }}
       >
-        {/* Logo Nakama */}
-        <Image
-          src={MAINTENANCE_LOGO}
-          alt="Nakama Bordados"
-          width={190}
-          height={190}
-          style={{ objectFit: 'contain', width: '190px', height: 'auto', maxWidth: '60%' }}
-          priority
-        />
+        {/* Logo Nakama recreado en CSS (estilo manga de la marca) */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', lineHeight: 1 }}>
+          <span
+            style={{
+              fontFamily: 'Teko, sans-serif',
+              fontSize: 'clamp(2.6rem, 7vw, 3.6rem)',
+              fontWeight: 700,
+              color: '#111',
+              textTransform: 'uppercase',
+              letterSpacing: '4px',
+              lineHeight: 0.9,
+            }}
+          >
+            Nakama
+          </span>
+          <span
+            style={{
+              fontFamily: 'Teko, sans-serif',
+              fontSize: 'clamp(1.1rem, 3vw, 1.5rem)',
+              fontWeight: 600,
+              color: '#fff',
+              background: 'var(--nk-primary, #e82e1e)',
+              textTransform: 'uppercase',
+              letterSpacing: '8px',
+              padding: '2px 14px 0 22px',
+              marginTop: '6px',
+              boxShadow: '3px 3px 0 #000',
+            }}
+          >
+            Bordados
+          </span>
+        </div>
 
         {/* Título (clon del cmp-title) */}
         <h1
