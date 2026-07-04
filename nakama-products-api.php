@@ -533,9 +533,9 @@ function nakama_get_maintenance_status()
 
     $message = get_option('nakama_maintenance_message', 'Estamos preparando nuevos diseños increíbles para ti. ¡Volvemos muy pronto!');
     $image = get_option('nakama_maintenance_image', 'https://nakamabordados.com/wp-content/uploads/2026/05/OPCR05-1.avif');
-    $facebook = get_option('nakama_maintenance_fb', 'https://facebook.com/nakamabordados');
-    $instagram = get_option('nakama_maintenance_ig', 'https://instagram.com/nakama.bordados');
-    $tiktok = get_option('nakama_maintenance_tt', 'https://tiktok.com/@nakama.bordados');
+    $facebook = get_option('nakama_maintenance_fb', 'https://www.facebook.com/Nakamabordados');
+    $instagram = get_option('nakama_maintenance_ig', 'https://www.instagram.com/nakama_bordados/');
+    $tiktok = get_option('nakama_maintenance_tt', 'https://www.tiktok.com/@nakamabordados');
 
     return nakama_products_add_cors(rest_ensure_response(array(
         'maintenanceMode' => $enabled,

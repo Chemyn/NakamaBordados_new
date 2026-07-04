@@ -24,6 +24,13 @@ const MAINTENANCE_LOGO = 'https://nakamabordados.com/wp-content/uploads/2024/01/
 const MAINTENANCE_BG = 'https://nakamabordados.com/wp-content/uploads/2026/07/Fondo-topaz-cgi-4x-1024x1024.png';
 const DEFAULT_MESSAGE = 'Nuestros nakamas están realizando cambios increíbles en el sitio. ¡Volvemos muy pronto!';
 
+// Redes oficiales (fijas: los defaults del plugin en WP tenían URLs erróneas)
+const SOCIALS = [
+  { key: 'instagram', url: 'https://www.instagram.com/nakama_bordados/', icon: 'photo_camera', label: 'Instagram' },
+  { key: 'facebook', url: 'https://www.facebook.com/Nakamabordados', icon: 'thumb_up', label: 'Facebook' },
+  { key: 'tiktok', url: 'https://www.tiktok.com/@nakamabordados', icon: 'music_note', label: 'TikTok' },
+];
+
 export default function MaintenanceWrapper({ children }: { children: React.ReactNode }) {
   const { isAdmin, isLoading: authLoading } = useAuth();
   const pathname = usePathname();
@@ -73,12 +80,6 @@ export default function MaintenanceWrapper({ children }: { children: React.React
     return <>{children}</>;
   }
 
-  const socials = [
-    { key: 'instagram', url: maintenance.socialLinks?.instagram, icon: 'photo_camera', label: 'Instagram' },
-    { key: 'facebook', url: maintenance.socialLinks?.facebook, icon: 'thumb_up', label: 'Facebook' },
-    { key: 'tiktok', url: maintenance.socialLinks?.tiktok, icon: 'music_note', label: 'TikTok' },
-  ].filter(s => s.url);
-
   // Pantalla de mantenimiento: clon de la página CMP Coming Soon del sitio,
   // adaptada al sistema de diseño manga/nk de la aplicación.
   return (
@@ -102,10 +103,6 @@ export default function MaintenanceWrapper({ children }: { children: React.React
       {/* Overlay para legibilidad sobre el fondo */}
       <div style={{ position: 'absolute', inset: 0, background: 'rgba(255,255,255,0.55)', backdropFilter: 'blur(2px)' }}></div>
 
-      {/* Textos flotantes decorativos (mismo recurso visual del home) */}
-      <div className="op-floating-text" style={{ position: 'absolute', top: '5%', left: '-4%', fontSize: '11rem', transform: 'rotate(-14deg)', pointerEvents: 'none', opacity: 0.06, fontWeight: 900 }}>海賊</div>
-      <div className="op-floating-text" style={{ position: 'absolute', bottom: '4%', right: '-4%', fontSize: '9rem', transform: 'rotate(10deg)', pointerEvents: 'none', opacity: 0.06, fontWeight: 900 }}>仲間</div>
-
       <div
         className="nk-maintenance-card nk-manga-border"
         style={{
@@ -124,15 +121,14 @@ export default function MaintenanceWrapper({ children }: { children: React.React
         }}
       >
         {/* Logo Nakama */}
-        <div style={{ position: 'relative', width: '150px', height: '150px' }}>
-          <Image
-            src={MAINTENANCE_LOGO}
-            alt="Nakama Bordados"
-            fill
-            style={{ objectFit: 'contain' }}
-            priority
-          />
-        </div>
+        <Image
+          src={MAINTENANCE_LOGO}
+          alt="Nakama Bordados"
+          width={190}
+          height={190}
+          style={{ objectFit: 'contain', width: '190px', height: 'auto', maxWidth: '60%' }}
+          priority
+        />
 
         {/* Título (clon del cmp-title) */}
         <h1
@@ -147,7 +143,7 @@ export default function MaintenanceWrapper({ children }: { children: React.React
             textShadow: '3px 3px 0px #000',
           }}
         >
-          👷 En mantenimiento 🔧
+          En mantenimiento
         </h1>
 
         {/* Mensaje */}
@@ -157,13 +153,12 @@ export default function MaintenanceWrapper({ children }: { children: React.React
         <span style={{ color: 'var(--nk-primary, #e82e1e)', fontSize: '1.4rem', lineHeight: 1 }}>♥</span>
 
         {/* Redes sociales */}
-        {socials.length > 0 && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%', alignItems: 'center', borderTop: '2px dashed #ddd', paddingTop: '24px' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '14px', width: '100%', alignItems: 'center', borderTop: '2px dashed #ddd', paddingTop: '24px' }}>
             <h3 style={{ fontFamily: 'Teko, sans-serif', fontSize: '1.7rem', margin: 0, textTransform: 'uppercase', letterSpacing: '0.5px', color: '#111' }}>
               Síguenos para avisos
             </h3>
             <div style={{ display: 'flex', gap: '14px', flexWrap: 'wrap', justifyContent: 'center' }}>
-              {socials.map(s => (
+              {SOCIALS.map(s => (
                 <a
                   key={s.key}
                   href={s.url}
@@ -186,8 +181,7 @@ export default function MaintenanceWrapper({ children }: { children: React.React
                 </a>
               ))}
             </div>
-          </div>
-        )}
+        </div>
 
         {/* Acceso administrador */}
         <div style={{ marginTop: '6px', borderTop: '1px dashed #ddd', paddingTop: '18px', width: '100%' }}>
