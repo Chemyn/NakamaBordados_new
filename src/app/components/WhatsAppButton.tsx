@@ -14,8 +14,7 @@ export default function WhatsAppButton() {
   const router = useRouter();
   const { t } = useLanguage();
   const [isOpen, setIsOpen] = useState(false);
-  const [flow, setFlow] = useState<'main' | 'custom'>('main');
-  
+
   const [messages, setMessages] = useState<Message[]>([]);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -23,7 +22,6 @@ export default function WhatsAppButton() {
     // Reset or initialize welcome message when language changes
     setTimeout(() => {
       setMessages([{ role: 'bot', text: t('bot.welcome') }]);
-      setFlow('main'); 
     }, 0);
   }, [t]);
 
@@ -42,14 +40,6 @@ export default function WhatsAppButton() {
     { label: t('bot.btn.sizes'), action: 'sizes' },
     { label: t('bot.btn.tracking'), action: 'tracking' },
     { label: t('bot.btn.crew'), action: 'crew' }
-  ];
-
-  const customButtons: ActionButton[] = [
-    { label: '👕 SUDADERA/HOODIE', text: 'Hola! Me gustaría crear una sudadera con diseño personalizado.' },
-    { label: '👕 PLAYERA/T-SHIRT', text: 'Hola! Me gustaría crear una playera con diseño personalizado.' },
-    { label: 'Cap GORRA', text: 'Hola! Me gustaría crear una gorra con diseño personalizado.' },
-    { label: '❓ OTRO/ASESORÍA', text: 'Hola! Tengo una idea para un diseño personalizado y me gustaría asesoría.' },
-    { label: '⬅️ VOLVER AL MENÚ', action: 'go_main' }
   ];
 
   useEffect(() => {
@@ -72,13 +62,13 @@ export default function WhatsAppButton() {
 
     setTimeout(() => {
       switch(action) {
-        case 'go_custom': 
-          setFlow('custom');
-          setMessages(prev => [...prev, { role: 'bot', text: '¡Excelente elección! Cuéntame, ¿qué tipo de tesoro quieres que personalicemos hoy?' }]);
-          break;
-        case 'go_main':
-          setFlow('main');
-          setMessages(prev => [...prev, { role: 'bot', text: 'De vuelta al menú principal. ¿En qué más puedo ayudarte, Nakama?' }]);
+        case 'go_custom':
+          // Módulo cotizador: personaliza ropa/gorras/parches y genera cotización.
+          setMessages(prev => [...prev, { role: 'bot', text: '¡Excelente elección! Te llevo a nuestro cotizador para que armes tu diseño personalizado. 🏴‍☠️' }]);
+          setTimeout(() => {
+            router.push('/cotizador');
+            setIsOpen(false);
+          }, 900);
           break;
         case 'all': router.push('/store'); setIsOpen(false); break;
         case 'bordados': router.push('/store?category=bordados'); setIsOpen(false); break;
@@ -92,8 +82,6 @@ export default function WhatsAppButton() {
       }
     }, 600);
   };
-
-  const currentButtons = flow === 'main' ? mainButtons : customButtons;
 
   return (
     <>
@@ -160,9 +148,9 @@ export default function WhatsAppButton() {
           </div>
 
           <div className="nk-chatbot-navigation">
-            <p className="nk-nav-hint">{flow === 'main' ? t('bot.hint') : 'PERSONALIZACIÓN'}</p>
+            <p className="nk-nav-hint">{t('bot.hint')}</p>
             <div className="nk-chatbot-grid">
-              {currentButtons.map((btn, i) => (
+              {mainButtons.map((btn, i) => (
                 <button 
                   key={i} 
                   onClick={() => handleQuickAction(btn.label, (btn as any).action || '', (btn as any).text)}
