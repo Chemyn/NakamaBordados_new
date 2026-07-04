@@ -23,6 +23,8 @@ jobs:
 
       - name: Compilar export estático (genera ./out)
         run: npm run build
+        env:
+          NEXT_PUBLIC_DISCORD_WEBHOOK_URL: ${{ secrets.NEXT_PUBLIC_DISCORD_WEBHOOK_URL }}
 
       - name: Desplegar hacia cPanel vía FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5

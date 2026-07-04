@@ -1,0 +1,1149 @@
+"use client";
+
+import React, { useState, useEffect } from 'react';
+import type { ClientDetails, GarmentCustomization, PatchCustomization, CapCustomization, ProductType, GarmentPosition, CapPosition } from './types';
+import { RopaConfig } from './components/RopaConfig';
+import { ParchesConfig } from './components/ParchesConfig';
+import { GorrasConfig } from './components/GorrasConfig';
+import { Visualizer } from './components/Visualizer';
+import { Marquee } from './components/Marquee';
+import { generateQuotePDF } from './utils/pdfGenerator';
+import { getQuoteZIPBlob } from './utils/zipGenerator';
+
+const availableGarmentPositions = [
+  'Pecho Izquierdo',
+  'Pecho Derecho',
+  'Pecho en Medio',
+  'Enfrente',
+  'Espalda',
+  'Manga Izquierda',
+  'Manga Derecha'
+];
+
+export const App: React.FC = () => {
+  // Tab/Product Selection
+  const [activeProduct, setActiveProduct] = useState<ProductType>('ropa');
+  
+  // Loading state for webhook submission
+  const [isSending, setIsSending] = useState(false);
+
+  // Interactive UI slot mappings for clothing
+  const [area1Pos, setArea1Pos] = useState<string>('Pecho Izquierdo');
+  const [area2Pos, setArea2Pos] = useState<string | null>(null);
+
+  // Interactive UI slot mappings for caps
+  const [capArea1Pos, setCapArea1Pos] = useState<string>('Frontal');
+  const [capArea2Pos, setCapArea2Pos] = useState<string | null>(null);
+
+  // Selected position currently focused/highlighted in visualizer
+  const [selectedPosition, setSelectedPosition] = useState<string | null>('Pecho Izquierdo');
+
+  // Interactive slot selection: 1 (Area 1) or 2 (Area 2)
+  const [activeSlot, setActiveSlot] = useState<1 | 2>(1);
+
+  // Form errors validation state
+  const [formErrors, setFormErrors] = useState<{ name?: string; phone?: string; positions?: string }>({});
+
+  // Client Info State (Marca/Proyecto field is removed)
+  const [clientDetails, setClientDetails] = useState<ClientDetails>({
+    name: '',
+    phone: '',
+    email: ''
+  });
+
+  // State: Clothing (Ropa) - ALL 7 areas are fully initialized in the state to avoid undefined errors
+  const [ropaConfig, setRopaConfig] = useState<GarmentCustomization>({
+    model: 'Oversize',
+    color: 'Negro',
+    quantity: 10,
+    positions: {
+      'Pecho Izquierdo': { active: true, type: 'Bordado', size: '10x10', file: null, filePreview: '' },
+      'Pecho Derecho': { active: false, type: 'Bordado', size: '10x10', file: null, filePreview: '' },
+      'Pecho en Medio': { active: false, type: 'Bordado', size: '10x10', file: null, filePreview: '' },
+      'Enfrente': { active: false, type: 'DTF', size: '20x25', file: null, filePreview: '' },
+      'Espalda': { active: false, type: 'DTF', size: '28x32', file: null, filePreview: '' },
+      'Manga Izquierda': { active: false, type: 'DTF', size: '8x8', file: null, filePreview: '' },
+      'Manga Derecha': { active: false, type: 'DTF', size: '8x8', file: null, filePreview: '' }
+    },
+    additionalDetails: ''
+  });
+
+  // State: Patches (Parches)
+  const [patchConfig, setPatchConfig] = useState<PatchCustomization>({
+    shape: 'Rectangular',
+    width: '8.5',
+    height: '5.0',
+    quantity: 50,
+    file: null,
+    filePreview: '',
+    additionalDetails: ''
+  });
+
+  // State: Caps (Gorras) - Fully initialized
+  const [capConfig, setCapConfig] = useState<CapCustomization>({
+    option: 'Bordado Al frente',
+    model: 'Snapback (Visera plana)',
+    quantity: 20,
+    add3D: true,
+    positions: {
+      'Frontal': { active: true, type: 'Bordado', size: 'Regular', file: null, filePreview: '' },
+      'Lateral izquierdo': { active: false, type: 'Bordado', size: 'Regular', file: null, filePreview: '' },
+      'Lateral derecho': { active: false, type: 'Bordado', size: 'Regular', file: null, filePreview: '' },
+      'Parte trasera': { active: false, type: 'Bordado', size: 'Regular', file: null, filePreview: '' }
+    },
+    additionalDetails: ''
+  });
+
+  // Sync effect: automatically sync area1Pos and area2Pos into ropaConfig.positions active states
+  useEffect(() => {
+    if (activeProduct === 'ropa') {
+      const updatedPositions = { ...ropaConfig.positions };
+      let changed = false;
+
+      Object.keys(updatedPositions).forEach(key => {
+        const shouldBeActive = key === area1Pos || key === area2Pos;
+        if (updatedPositions[key].active !== shouldBeActive) {
+          updatedPositions[key] = {
+            ...updatedPositions[key],
+            active: shouldBeActive
+          };
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        setRopaConfig(prev => ({
+          ...prev,
+          positions: updatedPositions
+        }));
+      }
+    }
+  }, [area1Pos, area2Pos, activeProduct]);
+
+  // Sync effect: automatically sync capArea1Pos and capArea2Pos into capConfig.positions active states
+  useEffect(() => {
+    if (activeProduct === 'gorras') {
+      const updatedPositions = { ...capConfig.positions };
+      let changed = false;
+
+      Object.keys(updatedPositions).forEach(key => {
+        const shouldBeActive = key === capArea1Pos || key === capArea2Pos;
+        if (updatedPositions[key].active !== shouldBeActive) {
+          updatedPositions[key] = {
+            ...updatedPositions[key],
+            active: shouldBeActive
+          };
+          changed = true;
+        }
+      });
+
+      if (changed) {
+        setCapConfig(prev => ({
+          ...prev,
+          positions: updatedPositions
+        }));
+      }
+    }
+  }, [capArea1Pos, capArea2Pos, activeProduct]);
+
+  // Sync effect: automatically reset selectedPosition when switching tabs
+  useEffect(() => {
+    if (activeProduct === 'ropa') {
+      setSelectedPosition(area1Pos);
+    } else if (activeProduct === 'gorras') {
+      setSelectedPosition(capArea1Pos);
+    } else {
+      setSelectedPosition(null);
+    }
+  }, [activeProduct, area1Pos, capArea1Pos]);
+
+  // Shake effect for validation alerts
+  const [isSubmitShaking, setIsSubmitShaking] = useState(false);
+
+  // Form Validation
+  const validateForm = (): boolean => {
+    const errors: { name?: string; phone?: string; positions?: string } = {};
+
+    if (!clientDetails.name.trim()) {
+      errors.name = 'Por favor, ingresa tu nombre completo.';
+    }
+    if (!clientDetails.phone.trim()) {
+      errors.phone = 'Por favor, ingresa tu teléfono (WhatsApp).';
+    }
+
+    if (activeProduct === 'ropa') {
+      const activePositions = Object.values(ropaConfig.positions).filter(p => p.active);
+      if (activePositions.length === 0) {
+        errors.positions = 'Debes seleccionar al menos una posición de diseño para personalizar tu prenda (haz clic en la camiseta).';
+      }
+    } else if (activeProduct === 'gorras') {
+      const activePositions = Object.values(capConfig.positions).filter(p => p.active);
+      if (activePositions.length === 0) {
+        errors.positions = 'Debes seleccionar al menos una posición de diseño para tu gorra.';
+      }
+    }
+
+    setFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  // SVG Visualizer hotspots click handler
+  const handlePositionToggle = (position: string) => {
+    if (formErrors.positions) {
+      setFormErrors(prev => ({ ...prev, positions: undefined }));
+    }
+    if (activeProduct === 'ropa') {
+      if (activeSlot === 1) {
+        if (position === area2Pos) {
+          // Swap positions
+          setArea2Pos(area1Pos);
+        }
+        setArea1Pos(position);
+        setSelectedPosition(position);
+      } else {
+        if (position === area1Pos) {
+          // Swap positions
+          setArea1Pos(area2Pos || 'Pecho Izquierdo');
+        }
+        setArea2Pos(position);
+        setSelectedPosition(position);
+      }
+    } else if (activeProduct === 'gorras') {
+      if (activeSlot === 1) {
+        if (position === capArea2Pos) {
+          setCapArea2Pos(capArea1Pos);
+        }
+        setCapArea1Pos(position);
+        setSelectedPosition(position);
+      } else {
+        if (position === capArea1Pos) {
+          setCapArea1Pos(capArea2Pos || 'Frontal');
+        }
+        setCapArea2Pos(position);
+        setSelectedPosition(position);
+      }
+    }
+  };
+
+  // Helper updates for position parameters (supports batched partial updates)
+  const updateGarmentPositionFields = (posName: string, fields: Partial<GarmentPosition>) => {
+    setRopaConfig(prev => {
+      const updatedPositions = { ...prev.positions };
+      updatedPositions[posName] = {
+        ...updatedPositions[posName],
+        ...fields
+      };
+      return { ...prev, positions: updatedPositions };
+    });
+  };
+
+  const updateCapPositionFields = (posName: string, fields: Partial<CapPosition>) => {
+    setCapConfig(prev => {
+      const updatedPositions = { ...prev.positions };
+      updatedPositions[posName] = {
+        ...updatedPositions[posName],
+        ...fields
+      };
+      return { ...prev, positions: updatedPositions };
+    });
+  };
+
+  const updateGarmentPositionField = (posName: string, field: keyof GarmentPosition, value: any) => {
+    updateGarmentPositionFields(posName, { [field]: value });
+  };
+
+  const updateCapPositionField = (posName: string, field: keyof CapPosition, value: any) => {
+    updateCapPositionFields(posName, { [field]: value });
+  };
+
+  // File upload logic with validation
+  const handlePositionFileUpload = (posName: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const maxSize = 10 * 1024 * 1024;
+    if (file.size > maxSize) {
+      alert(`El archivo es demasiado grande. El límite es de 10 MB. Tu archivo pesa ${(file.size / (1024 * 1024)).toFixed(2)} MB.`);
+      e.target.value = '';
+      return;
+    }
+
+    const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Solo se permiten archivos de imagen en formato JPEG, JPG o PNG.');
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      if (activeProduct === 'ropa') {
+        updateGarmentPositionFields(posName, {
+          file,
+          filePreview: reader.result as string
+        });
+      } else if (activeProduct === 'gorras') {
+        updateCapPositionFields(posName, {
+          file,
+          filePreview: reader.result as string
+        });
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removePositionFile = (posName: string) => {
+    if (activeProduct === 'ropa') {
+      updateGarmentPositionFields(posName, { file: null, filePreview: '' });
+    } else if (activeProduct === 'gorras') {
+      updateCapPositionFields(posName, { file: null, filePreview: '' });
+    }
+  };
+
+
+
+  // Helper: send quote details and files (PDF & ZIP) to Discord Webhook
+  const sendQuoteToDiscord = async (pdfDoc: any, pdfFilename: string): Promise<boolean> => {
+    const webhookUrl = process.env.NEXT_PUBLIC_DISCORD_WEBHOOK_URL;
+    if (!webhookUrl || webhookUrl.includes('your-webhook-id')) {
+      console.warn("Discord Webhook URL not configured or has default placeholder.");
+      return false;
+    }
+
+    try {
+      // 1. Get PDF blob
+      const pdfBlob = pdfDoc.output('blob');
+
+      // 2. Get ZIP blob (includes original high-res designs)
+      const { blob: zipBlob, filename: zipFilename } = await getQuoteZIPBlob(
+        clientDetails.name,
+        pdfDoc,
+        activeProduct,
+        ropaConfig,
+        patchConfig,
+        capConfig
+      );
+
+      // 3. Build message text
+      let productDetailsText = '';
+      if (activeProduct === 'ropa') {
+        const activePositions = Object.keys(ropaConfig.positions)
+          .filter(k => ropaConfig.positions[k].active)
+          .map(k => `${k} (${ropaConfig.positions[k].type} - ${ropaConfig.positions[k].size})`)
+          .join(', ');
+        productDetailsText = `**Ropa:** ${ropaConfig.model}\n- Color: ${ropaConfig.color}\n- Cantidad: ${ropaConfig.quantity} pz\n- Áreas: ${activePositions}`;
+      } else if (activeProduct === 'parches') {
+        productDetailsText = `**Parches:** ${patchConfig.shape}\n- Medidas: ${patchConfig.width}x${patchConfig.height} cm\n- Cantidad: ${patchConfig.quantity} pz`;
+      } else if (activeProduct === 'gorras') {
+        const activePositions = Object.keys(capConfig.positions)
+          .filter(k => capConfig.positions[k].active)
+          .map(k => `${k} (${capConfig.positions[k].type} - ${capConfig.positions[k].size})`)
+          .join(', ');
+        productDetailsText = `**Gorras:** ${capConfig.model}\n- Cantidad: ${capConfig.quantity} pz\n- Áreas: ${activePositions}\n- Bordado 3D: ${capConfig.add3D ? 'Sí' : 'No'}`;
+      }
+
+      const discordMessage = `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📢 **NUEVA SOLICITUD DE COTIZACIÓN**
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+👤 **Cliente:** ${clientDetails.name}
+📱 **Teléfono (WhatsApp):** ${clientDetails.phone}
+📧 **Email:** ${clientDetails.email || 'No proporcionado'}
+📦 **Detalle del Producto:**
+${productDetailsText}
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+_Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas las imágenes de referencia cargadas por el cliente._`;
+
+      // 4. Create FormData
+      const formData = new FormData();
+      formData.append('content', discordMessage);
+      formData.append('files[0]', pdfBlob, pdfFilename);
+      formData.append('files[1]', zipBlob, zipFilename);
+
+      // 5. Send POST
+      const res = await fetch(webhookUrl, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error(`Discord returned status ${res.status}`);
+      }
+
+      return true;
+    } catch (error) {
+      console.error("Error sending quote to Discord Webhook:", error);
+      return false;
+    }
+  };
+
+  // Action: Send WhatsApp (Bypasses popup blocker by uploading files to Discord first and then opening WhatsApp!)
+  const handleWhatsAppQuote = async () => {
+    if (!validateForm() || isSending) {
+      triggerSubmitShake();
+      return;
+    }
+
+    setIsSending(true);
+    let sendSuccess = false;
+
+    const sanitizedClientName = clientDetails.name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/\s+/g, '-')
+      .replace(/[^a-z0-9_-]/g, '');
+    const pdfFilename = `cotizacion_nakama_${sanitizedClientName || 'cliente'}.pdf`;
+
+    try {
+      // 1. Generate PDF
+      const doc = generateQuotePDF(
+        clientDetails,
+        activeProduct,
+        ropaConfig,
+        patchConfig,
+        capConfig
+      );
+
+      // 2. Upload to Discord Webhook
+      sendSuccess = await sendQuoteToDiscord(doc, pdfFilename);
+
+      if (!sendSuccess) {
+        // Fallback: download locally if webhook is down or not configured
+        doc.save(pdfFilename);
+        alert('No pudimos cargar tus archivos automáticamente al servidor del taller. Se ha descargado el PDF en tu dispositivo. Por favor, adjúntalo manualmente en el chat de WhatsApp que se abrirá a continuación.');
+      }
+    } catch (err) {
+      console.error('Error in quote submission flow:', err);
+    } finally {
+      setIsSending(false);
+    }
+
+    const number = '526622455087';
+    
+    let summaryText = '';
+    if (activeProduct === 'ropa') {
+      summaryText = `Prendas Textiles (${ropaConfig.model} - ${ropaConfig.quantity}pz)`;
+    } else if (activeProduct === 'parches') {
+      summaryText = `Parches Bordados (${patchConfig.shape} - ${patchConfig.quantity}pz)`;
+    } else if (activeProduct === 'gorras') {
+      summaryText = `Gorras (${capConfig.model} - ${capConfig.quantity}pz)`;
+    }
+
+    const message = `¡Hola Nakama! Acabo de enviar mi solicitud de cotización formal para:\n` +
+      `*Producto:* ${summaryText}\n` +
+      `*Cliente:* ${clientDetails.name}\n` +
+      `*Teléfono:* ${clientDetails.phone}\n\n` +
+      (sendSuccess 
+        ? `_Los archivos de diseño y PDF formal ya se han cargado automáticamente en el sistema del taller. Quedo en espera de la confirmación de recepción._`
+        : `_Te adjunto a continuación la cotización en PDF que se acaba de descargar en mi dispositivo._`
+      );
+
+    const encoded = encodeURIComponent(message);
+    window.open(`https://wa.me/${number}?text=${encoded}`, '_blank');
+  };
+
+  const triggerSubmitShake = () => {
+    setIsSubmitShaking(true);
+    setTimeout(() => setIsSubmitShaking(false), 500);
+  };
+
+  // Helper panel inputs layout for Ropa positions
+  const renderRopaPositionForm = (posName: string, slotTitle: string, isOptional: boolean, slotIndex: 1 | 2, onRemove?: () => void) => {
+    const pos = ropaConfig.positions[posName];
+    if (!pos) return null;
+
+    const otherPos = posName === area1Pos ? area2Pos : area1Pos;
+    const selectOptions = availableGarmentPositions.filter(p => p !== otherPos);
+
+    const handleSelectPosition = (newPos: string) => {
+      if (posName === area1Pos) {
+        // Move current details to the new key in the state
+        const updated = { ...ropaConfig.positions };
+        updated[newPos] = {
+          ...updated[newPos],
+          type: pos.type,
+          size: pos.size,
+          file: pos.file,
+          filePreview: pos.filePreview,
+          active: true
+        };
+        if (newPos !== posName) {
+          updated[posName] = { ...updated[posName], active: false };
+        }
+        setRopaConfig({ ...ropaConfig, positions: updated });
+        setArea1Pos(newPos);
+        setSelectedPosition(newPos);
+        setActiveSlot(1);
+      } else {
+        const updated = { ...ropaConfig.positions };
+        updated[newPos] = {
+          ...updated[newPos],
+          type: pos.type,
+          size: pos.size,
+          file: pos.file,
+          filePreview: pos.filePreview,
+          active: true
+        };
+        if (newPos !== posName) {
+          updated[posName] = { ...updated[posName], active: false };
+        }
+        setRopaConfig({ ...ropaConfig, positions: updated });
+        setArea2Pos(newPos);
+        setSelectedPosition(newPos);
+        setActiveSlot(2);
+      }
+    };
+
+    const isSlotActive = activeSlot === slotIndex;
+
+    return (
+      <div 
+        onClick={() => {
+          setActiveSlot(slotIndex);
+          setSelectedPosition(posName);
+        }}
+        className={`p-3 mb-3 border rounded transition bg-white ${isSlotActive ? 'border-danger shadow' : 'border-light-subtle'}`}
+        style={{ cursor: 'pointer', borderWidth: isSlotActive ? '2px' : '1px' }}
+      >
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <span className={`badge ${isSlotActive ? 'bg-danger' : 'bg-secondary'} rounded-pill`}>
+            {slotTitle}: {posName}
+          </span>
+          {isOptional && onRemove && (
+            <button 
+              type="button" 
+              className="btn btn-link text-danger p-0 m-0 text-decoration-none small"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+            >
+              <i className="bi bi-x-circle-fill me-1"></i> Eliminar
+            </button>
+          )}
+        </div>
+
+        <div className="row g-3" onClick={(e) => e.stopPropagation()}>
+          {/* Cambiar Posición Select */}
+          <div className="col-12">
+            <label className="form-label text-muted small uppercase fw-bold">Cambiar Posición:</label>
+            <select
+              className="form-select"
+              value={posName}
+              onChange={(e) => handleSelectPosition(e.target.value)}
+            >
+              <option value={posName}>{posName}</option>
+              {selectOptions.map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+          </div>
+          {/* Técnica */}
+          <div className="col-12 col-sm-6">
+            <label className="form-label text-muted small uppercase fw-bold">Técnica:</label>
+            <select
+              className="form-select"
+              value={pos.type}
+              onChange={(e) => updateGarmentPositionField(posName, 'type', e.target.value as any)}
+            >
+              <option value="DTF">DTF (Estampado digital a todo color)</option>
+              <option value="Bordado">Bordado</option>
+            </select>
+          </div>
+
+          {/* Medidas */}
+          <div className="col-12 col-sm-6">
+            <label className="form-label text-muted small uppercase fw-bold">Medida aprox. en CM (Ej. 10x10):</label>
+            <input
+              type="text"
+              className="form-control"
+              value={pos.size}
+              onChange={(e) => updateGarmentPositionField(posName, 'size', e.target.value)}
+              placeholder="Ancho x Alto en CM"
+            />
+          </div>
+
+          {/* Archivos */}
+          <div className="col-12">
+            <label className="form-label text-muted small uppercase fw-bold">Diseño de Referencia (Máx. 10MB, JPEG/PNG):</label>
+            {!pos.filePreview ? (
+              <div className="border border-secondary border-dashed p-3 rounded text-center bg-light">
+                <input
+                  type="file"
+                  id={`file-ropa-${posName}`}
+                  className="d-none"
+                  accept=".jpeg,.jpg,.png"
+                  onChange={(e) => handlePositionFileUpload(posName, e)}
+                />
+                <label htmlFor={`file-ropa-${posName}`} className="m-0 cursor-pointer text-primary-brand font-display fs-5">
+                  <i className="bi bi-cloud-arrow-up-fill me-2 fs-4"></i>
+                  Subir Archivo
+                </label>
+              </div>
+            ) : (
+              <div className="d-flex align-items-center gap-3 p-2 bg-light rounded border border-light-subtle">
+                <img 
+                  src={pos.filePreview} 
+                  alt="preview" 
+                  className="object-fit-cover rounded border border-secondary bg-white"
+                  style={{ width: '60px', height: '60px' }}
+                />
+                <div className="flex-grow-1 overflow-hidden">
+                  <p className="small m-0 text-truncate text-dark fw-bold">{pos.file?.name}</p>
+                  <p className="small m-0 text-muted">{(pos.file!.size / (1024 * 1024)).toFixed(2)} MB</p>
+                </div>
+                <button 
+                  type="button" 
+                  className="btn btn-outline-danger btn-sm"
+                  onClick={() => removePositionFile(posName)}
+                >
+                  <i className="bi bi-trash"></i>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Helper panel inputs layout for Cap positions
+  const renderGorraPositionForm = (posName: string, slotTitle: string, isOptional: boolean, slotIndex: 1 | 2, onRemove?: () => void) => {
+    const pos = capConfig.positions[posName];
+    if (!pos) return null;
+
+    const otherPos = posName === capArea1Pos ? capArea2Pos : capArea1Pos;
+    const selectOptions = ['Frontal', 'Lateral izquierdo', 'Lateral derecho', 'Parte trasera'].filter(p => p !== otherPos);
+
+    const handleSelectPosition = (newPos: string) => {
+      if (posName === capArea1Pos) {
+        const updated = { ...capConfig.positions };
+        updated[newPos] = {
+          ...updated[newPos],
+          type: pos.type,
+          size: pos.size,
+          file: pos.file,
+          filePreview: pos.filePreview,
+          active: true
+        };
+        if (newPos !== posName) {
+          updated[posName] = { ...updated[posName], active: false };
+        }
+        setCapConfig({ ...capConfig, positions: updated });
+        setCapArea1Pos(newPos);
+        setSelectedPosition(newPos);
+        setActiveSlot(1);
+      } else {
+        const updated = { ...capConfig.positions };
+        updated[newPos] = {
+          ...updated[newPos],
+          type: pos.type,
+          size: pos.size,
+          file: pos.file,
+          filePreview: pos.filePreview,
+          active: true
+        };
+        if (newPos !== posName) {
+          updated[posName] = { ...updated[posName], active: false };
+        }
+        setCapConfig({ ...capConfig, positions: updated });
+        setCapArea2Pos(newPos);
+        setSelectedPosition(newPos);
+        setActiveSlot(2);
+      }
+    };
+
+    const isSlotActive = activeSlot === slotIndex;
+
+    return (
+      <div 
+        onClick={() => {
+          setSelectedPosition(posName);
+          setActiveSlot(slotIndex);
+        }}
+        className={`p-3 mb-3 border rounded transition bg-white ${isSlotActive ? 'border-danger shadow-sm' : 'border-light-subtle'}`}
+        style={{ cursor: 'pointer' }}
+      >
+        <div className="d-flex justify-content-between align-items-center mb-3">
+          <span className={`badge ${isSlotActive ? 'bg-danger' : 'bg-secondary'} rounded-pill`}>
+            {slotTitle}: {posName}
+          </span>
+          {isOptional && onRemove && (
+            <button 
+              type="button" 
+              className="btn btn-link text-danger p-0 m-0 text-decoration-none small"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove();
+              }}
+            >
+              <i className="bi bi-x-circle-fill me-1"></i> Eliminar
+            </button>
+          )}
+        </div>
+
+        <div className="row g-3" onClick={(e) => e.stopPropagation()}>
+          {/* Posición Select */}
+          <div className="col-12">
+            <label className="form-label text-muted small uppercase fw-bold">Cambiar Posición:</label>
+            <select
+              className="form-select"
+              value={posName}
+              onChange={(e) => handleSelectPosition(e.target.value)}
+            >
+              <option value={posName}>{posName}</option>
+              {selectOptions.map(opt => (
+                <option key={opt} value={opt}>{opt}</option>
+              ))}
+            </select>
+          </div>
+
+          {/* Técnica */}
+          <div className="col-12 col-sm-6">
+            <label className="form-label text-muted small uppercase fw-bold">Técnica:</label>
+            <select
+              className="form-select"
+              value={pos.type}
+              onChange={(e) => updateCapPositionField(posName, 'type', e.target.value as any)}
+            >
+              <option value="Bordado">Bordado</option>
+              <option value="TPU">TPU (Vinil Textil para detalles pequeños)</option>
+            </select>
+          </div>
+
+          {/* Tamaño Recomendado */}
+          <div className="col-12 col-sm-6">
+            <label className="form-label text-muted small uppercase fw-bold">Tamaño Recomendado:</label>
+            <select
+              className="form-select"
+              value={pos.size}
+              onChange={(e) => updateCapPositionField(posName, 'size', e.target.value as any)}
+            >
+              <option value="Pequeño">Pequeño (Discreto)</option>
+              <option value="Regular">Regular (Normal)</option>
+              <option value="Grande">Grande (Llamativo)</option>
+            </select>
+          </div>
+
+          {/* Subir archivo */}
+          <div className="col-12">
+            <label className="form-label text-muted small uppercase fw-bold">Diseño de Referencia (Máx. 10MB, JPEG/PNG):</label>
+            {!pos.filePreview ? (
+              <div className="border border-secondary border-dashed p-3 rounded text-center bg-light">
+                <input
+                  type="file"
+                  id={`file-cap-${posName}`}
+                  className="d-none"
+                  accept=".jpeg,.jpg,.png"
+                  onChange={(e) => handlePositionFileUpload(posName, e)}
+                />
+                <label htmlFor={`file-cap-${posName}`} className="m-0 cursor-pointer text-primary-brand font-display fs-5">
+                  <i className="bi bi-cloud-arrow-up-fill me-2 fs-4"></i>
+                  Subir Archivo
+                </label>
+              </div>
+            ) : (
+              <div className="d-flex align-items-center gap-3 p-2 bg-light rounded border border-light-subtle">
+                <img 
+                  src={pos.filePreview} 
+                  alt="preview" 
+                  className="object-fit-cover rounded border border-secondary bg-white"
+                  style={{ width: '60px', height: '60px' }}
+                />
+                <div className="flex-grow-1 overflow-hidden">
+                  <p className="small m-0 text-truncate text-dark fw-bold">{pos.file?.name}</p>
+                  <p className="small m-0 text-muted">{(pos.file!.size / (1024 * 1024)).toFixed(2)} MB</p>
+                </div>
+                <button 
+                  type="button" 
+                  className="btn btn-outline-danger btn-sm"
+                  onClick={() => removePositionFile(posName)}
+                >
+                  <i className="bi bi-trash"></i>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Main customizer section renderer
+  const renderActivePositionsPanel = () => {
+    if (activeProduct === 'parches') return null;
+
+    return (
+      <div className="custom-card mb-4 bg-white border border-light-subtle">
+        <h3 className="font-display text-primary-brand mb-1">
+          <i className="bi bi-gear-wide-connected me-2"></i>
+          Áreas de Personalización Activas
+        </h3>
+        <p className="text-muted small mb-4">
+          A continuación, configura las técnicas, medidas y diseños para las posiciones seleccionadas.
+        </p>
+
+        {formErrors.positions && (
+          <div className="alert alert-danger py-2 small mb-3 border-0 bg-danger bg-opacity-10 text-danger">
+            <i className="bi bi-exclamation-triangle-fill me-2"></i>
+            {formErrors.positions}
+          </div>
+        )}
+
+        {activeProduct === 'ropa' ? (
+          <div>
+            {/* AREA 1 (Primary Customization) */}
+            {renderRopaPositionForm(area1Pos, 'Área 1', false, 1)}
+
+            {/* AREA 2 (Secondary Optional Customization) */}
+            {area2Pos !== null ? (
+              renderRopaPositionForm(area2Pos, 'Área 2 (Opcional)', true, 2, () => {
+                setArea2Pos(null);
+                setSelectedPosition(area1Pos);
+                setActiveSlot(1);
+              })
+            ) : (
+              <div className="text-center py-2 mt-2 border border-dashed rounded bg-light border-secondary">
+                <button
+                  type="button"
+                  className="btn btn-outline-danger font-display px-4 py-2 border-primary-brand text-primary-brand bg-white"
+                  onClick={() => {
+                    const firstAvailable = availableGarmentPositions.find(p => p !== area1Pos) || 'Espalda';
+                    setArea2Pos(firstAvailable);
+                    setSelectedPosition(firstAvailable);
+                    setActiveSlot(2);
+                  }}
+                >
+                  <i className="bi bi-plus-circle-fill me-2"></i>
+                  Añadir una Segunda Área de Personalizado
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div>
+            {/* AREA 1 (Primary Customization) */}
+            {renderGorraPositionForm(capArea1Pos, 'Área 1', false, 1)}
+
+            {/* AREA 2 (Secondary Optional Customization) */}
+            {capArea2Pos !== null ? (
+              renderGorraPositionForm(capArea2Pos, 'Área 2 (Opcional)', true, 2, () => {
+                setCapArea2Pos(null);
+                setSelectedPosition(capArea1Pos);
+                setActiveSlot(1);
+              })
+            ) : (
+              <div className="text-center py-2 mt-2 border border-dashed rounded bg-light border-secondary">
+                <button
+                  type="button"
+                  className="btn btn-outline-danger font-display px-4 py-2 border-primary-brand text-primary-brand bg-white"
+                  onClick={() => {
+                    const firstAvailable = ['Frontal', 'Lateral izquierdo', 'Lateral derecho', 'Parte trasera'].find(p => p !== capArea1Pos) || 'Parte trasera';
+                    setCapArea2Pos(firstAvailable);
+                    setSelectedPosition(firstAvailable);
+                    setActiveSlot(2);
+                  }}
+                >
+                  <i className="bi bi-plus-circle-fill me-2"></i>
+                  Añadir una Segunda Área de Personalizado
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  const getActivePositionsArray = (): string[] => {
+    if (activeProduct === 'ropa') {
+      return Object.entries(ropaConfig.positions)
+        .filter(([_, p]) => p.active)
+        .map(([name]) => name);
+    } else if (activeProduct === 'gorras') {
+      return Object.entries(capConfig.positions)
+        .filter(([_, p]) => p.active)
+        .map(([name]) => name);
+    }
+    return [];
+  };
+
+  return (
+    <div className="min-h-screen bg-light text-dark pb-5">
+      {/* 1. Header */}
+      <header className="py-3 border-bottom border-light-subtle bg-white">
+        <div className="container d-flex justify-content-center justify-content-sm-between align-items-center">
+          <div className="d-flex flex-column flex-sm-row align-items-center gap-3 text-center text-sm-start">
+            <img 
+              id="nk-brand-logo" 
+              src="/logo.png" 
+              alt="Nakama Logo" 
+              className="img-fluid"
+              style={{ maxHeight: '55px', width: 'auto', objectFit: 'contain' }} 
+            />
+            <div>
+              <h1 className="text-muted small m-0 uppercase tracking-widest font-display fs-5 fs-sm-4 fw-bold">
+                LABORATORIO DE PRENDAS PERSONALIZADAS
+              </h1>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* 2. Marquee Ticker */}
+      <Marquee />
+
+      {/* 3. Main Container Workspace */}
+      <div className="container mt-5">
+        <div className="row g-4">
+          
+          {/* COLUMNA IZQUIERDA: CONFIGURADOR + VISUALIZADOR */}
+          <div className="col-12 col-lg-8">
+            
+            {/* TABS DE PRODUCTO */}
+            <div className="custom-card mb-4 bg-white border border-light-subtle">
+              <h5 className="text-muted small uppercase fw-bold mb-3">Paso 1: Selecciona el tipo de producto</h5>
+              <div className="d-flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  className={`custom-tab-btn flex-grow-1 flex-sm-grow-0 ${activeProduct === 'ropa' ? 'active' : ''}`}
+                  onClick={() => setActiveProduct('ropa')}
+                >
+                  <i className="bi bi-tag-fill me-2"></i> Ropa / Playeras / Hoodies
+                </button>
+                <button
+                  type="button"
+                  className={`custom-tab-btn flex-grow-1 flex-sm-grow-0 ${activeProduct === 'parches' ? 'active' : ''}`}
+                  onClick={() => setActiveProduct('parches')}
+                >
+                  <i className="bi bi-shield-fill me-2"></i> Parches Bordados
+                </button>
+                <button
+                  type="button"
+                  className={`custom-tab-btn flex-grow-1 flex-sm-grow-0 ${activeProduct === 'gorras' ? 'active' : ''}`}
+                  onClick={() => setActiveProduct('gorras')}
+                >
+                  <i className="bi bi-capslock-fill me-2"></i> Gorras
+                </button>
+              </div>
+            </div>
+
+            {/* VISUALIZADOR INTERACTIVO */}
+            <Visualizer
+              productType={activeProduct}
+              selectedPositions={getActivePositionsArray()}
+              onPositionToggle={handlePositionToggle}
+              selectedEditingPosition={selectedPosition}
+              onSelectPositionForEditing={setSelectedPosition}
+              patchShape={patchConfig.shape}
+            />
+
+            {/* AREAS DE PERSONALIZACION ACTIVAS EDITORES */}
+            {renderActivePositionsPanel()}
+
+            {/* CONFIGURACION GENERAL POR PRODUCTO */}
+            {activeProduct === 'ropa' && (
+              <RopaConfig config={ropaConfig} onChange={setRopaConfig} />
+            )}
+            {activeProduct === 'parches' && (
+              <ParchesConfig config={patchConfig} onChange={setPatchConfig} />
+            )}
+            {activeProduct === 'gorras' && (
+              <GorrasConfig config={capConfig} onChange={setCapConfig} />
+            )}
+
+          </div>
+
+          {/* COLUMNA DERECHA: DATOS DEL CLIENTE + RESUMEN STICKY */}
+          <div className="col-12 col-lg-4">
+            <div className="position-sticky" style={{ top: '24px' }}>
+              
+              {/* DATOS DEL CLIENTE */}
+              <div className="custom-card bg-white border border-light-subtle mb-4">
+                <h4 className="font-display text-primary-brand mb-3">
+                  <i className="bi bi-person-lines-fill me-2"></i>
+                  Datos del Cliente
+                </h4>
+                <div className="row g-3">
+                  <div className="col-12">
+                    <label className="form-label text-muted small uppercase fw-bold">Nombre Completo *</label>
+                    <input
+                      type="text"
+                      className={`form-control ${formErrors.name ? 'is-invalid border-danger' : ''}`}
+                      value={clientDetails.name}
+                      onChange={(e) => {
+                        setClientDetails({ ...clientDetails, name: e.target.value });
+                        if (formErrors.name) setFormErrors({ ...formErrors, name: undefined });
+                      }}
+                      placeholder="Tu nombre o contacto"
+                      required
+                    />
+                    {formErrors.name && (
+                      <div className="text-danger small mt-1">
+                        <i className="bi bi-exclamation-circle-fill me-1"></i>
+                        {formErrors.name}
+                      </div>
+                    )}
+                  </div>
+                  <div className="col-12">
+                    <label className="form-label text-muted small uppercase fw-bold">Teléfono de Contacto (WhatsApp) *</label>
+                    <input
+                      type="text"
+                      className={`form-control ${formErrors.phone ? 'is-invalid border-danger' : ''}`}
+                      value={clientDetails.phone}
+                      onChange={(e) => {
+                        setClientDetails({ ...clientDetails, phone: e.target.value });
+                        if (formErrors.phone) setFormErrors({ ...formErrors, phone: undefined });
+                      }}
+                      placeholder="Ej. +52 662 123 4567"
+                      required
+                    />
+                    {formErrors.phone && (
+                      <div className="text-danger small mt-1">
+                        <i className="bi bi-exclamation-circle-fill me-1"></i>
+                        {formErrors.phone}
+                      </div>
+                    )}
+                  </div>
+                  <div className="col-12">
+                    <label className="form-label text-muted small uppercase fw-bold">Correo Electrónico</label>
+                    <input
+                      type="email"
+                      className="form-control"
+                      value={clientDetails.email}
+                      onChange={(e) => setClientDetails({ ...clientDetails, email: e.target.value })}
+                      placeholder="ejemplo@correo.com"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* RESUMEN DE COTIZACIÓN */}
+              <div className="custom-card bg-white border border-light-subtle">
+                <h4 className="font-display text-primary-brand mb-3">
+                  <i className="bi bi-file-earmark-bar-graph-fill me-2"></i>
+                  Resumen del Pedido
+                </h4>
+                
+                {/* Detalles de resumen */}
+                <div className="mb-4">
+                  <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                    <span className="text-muted small">Producto:</span>
+                    <span className="fw-semibold text-dark uppercase">
+                      {activeProduct === 'ropa' ? 'Prendas Textiles' : activeProduct === 'parches' ? 'Parches Bordados' : 'Gorras'}
+                    </span>
+                  </div>
+
+                  {activeProduct === 'ropa' && (
+                    <>
+                      <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                        <span className="text-muted small">Modelo:</span>
+                        <span className="text-dark text-truncate" style={{ maxWidth: '200px' }}>{ropaConfig.model}</span>
+                      </div>
+                      <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                        <span className="text-muted small">Color de Prenda:</span>
+                        <span className="text-dark">{ropaConfig.color}</span>
+                      </div>
+                      <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                        <span className="text-muted small">Cantidad:</span>
+                        <span className="text-primary-brand fw-bold">{ropaConfig.quantity} pz(s)</span>
+                      </div>
+                      <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                        <span className="text-muted small">Áreas a personalizar:</span>
+                        <span className="text-dark fw-semibold">
+                          {Object.values(ropaConfig.positions).filter(p => p.active).length} área(s)
+                        </span>
+                      </div>
+                    </>
+                  )}
+
+                  {activeProduct === 'parches' && (
+                    <>
+                      <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                        <span className="text-muted small">Forma:</span>
+                        <span className="text-dark">{patchConfig.shape}</span>
+                      </div>
+                      <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                        <span className="text-muted small">Medidas:</span>
+                        <span className="text-dark">{patchConfig.width || '-'} x {patchConfig.height || '-'} cm</span>
+                      </div>
+                      <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                        <span className="text-muted small">Cantidad:</span>
+                        <span className="text-primary-brand fw-bold">{patchConfig.quantity} pz(s)</span>
+                      </div>
+                      <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                        <span className="text-muted small">Diseño cargado:</span>
+                        <span className={patchConfig.file ? "text-success fw-bold" : "text-warning"}>
+                          {patchConfig.file ? 'Sí' : 'No'}
+                        </span>
+                      </div>
+                    </>
+                  )}
+
+                  {activeProduct === 'gorras' && (
+                    <>
+                      <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                        <span className="text-muted small">Modelo:</span>
+                        <span className="text-dark">{capConfig.model}</span>
+                      </div>
+                      <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                        <span className="text-muted small">Cantidad:</span>
+                        <span className="text-primary-brand fw-bold">{capConfig.quantity} pz(s)</span>
+                      </div>
+                      <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                        <span className="text-muted small">Áreas a personalizar:</span>
+                        <span className="text-dark fw-semibold">
+                          {Object.values(capConfig.positions).filter(p => p.active).length} área(s)
+                        </span>
+                      </div>
+                      <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                        <span className="text-muted small">Bordado en 3D:</span>
+                        <span className="text-dark">{capConfig.add3D ? 'Sí' : 'No'}</span>
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                {/* WhatsApp Security Alert Note */}
+                <div className="alert alert-info py-2 small mb-3 border-0 bg-light text-dark">
+                  <i className="bi bi-info-circle-fill me-2 text-primary-brand"></i>
+                  <strong>Proceso Automatizado:</strong> Al hacer clic abajo, tus diseños y cotización en PDF se enviarán de forma automática al sistema de nuestro taller, y te redirigiremos a WhatsApp para confirmar con un asesor. ¡No tienes que descargar ni adjuntar nada!
+                </div>
+
+                {/* ACCIONES */}
+                <div className="d-grid gap-3">
+                  <button
+                    type="button"
+                    className={`btn btn-outline-success py-3 fs-5 font-display text-white border-success ${isSubmitShaking ? 'btn-shake' : ''}`}
+                    style={{ backgroundColor: '#25D366' }}
+                    onClick={handleWhatsAppQuote}
+                    disabled={isSending}
+                  >
+                    {isSending ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Cargando archivos al taller...
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-whatsapp me-2"></i>
+                        Confirmar y Enviar vía WhatsApp
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                <p className="text-muted small text-center m-0 mt-3 font-display tracking-wide uppercase">
+                  Revisamos y contestamos en menos de 2 horas hábiles
+                </p>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  );
+};
+export default App;
