@@ -15,6 +15,9 @@ import { fetchProductsSearch } from './data/products';
 interface HeroSources {
   webm?: string;
   mp4?: string;
+  /** Override global (all_pages) del Nakama Hero Manager */
+  video?: string;
+  image?: string;
 }
 
 export default function HomeClientPage({ bestSellers: initialBestSellers, heroSources: initialHeroSources }: { bestSellers: Product[]; heroSources?: HeroSources }) {
@@ -34,16 +37,28 @@ export default function HomeClientPage({ bestSellers: initialBestSellers, heroSo
         .catch(err => console.error("Error fetching best sellers:", err));
     }
 
-    // Cargar config del hero si no está inicializada
+    // Cargar config del hero si no está inicializada (nkcb evita respuestas
+    // cacheadas por LiteSpeed: el video debe reflejar el cambio al instante).
     if (!heroSources) {
-      fetch((process.env.NEXT_PUBLIC_WP_REST_URL || 'https://nakamabordados.com') + '/?rest_route=/nakama/v1/hero-config')
+      fetch((process.env.NEXT_PUBLIC_WP_REST_URL || 'https://nakamabordados.com') + `/?rest_route=/nakama/v1/hero-config&nkcb=${Date.now()}`)
         .then(res => {
           if (res.ok) return res.json();
           throw new Error('API failed');
         })
         .then(data => {
-          if (data && data.home) {
-            setHeroSources({ webm: data.home.webm, mp4: data.home.mp4 });
+          if (!data) return;
+          const home = data.home || {};
+          const all = data.all_pages || {};
+          const next: HeroSources = {
+            webm: home.webm || '',
+            mp4: home.mp4 || home.url || '',
+            // Override global: aplica cuando el home no tiene video propio
+            // (misma precedencia que HeroBackground: específico > all_pages).
+            video: all.video || '',
+            image: all.image || '',
+          };
+          if (next.webm || next.mp4 || next.video || next.image) {
+            setHeroSources(next);
           }
         })
         .catch(err => console.log("Using default hero config:", err));
