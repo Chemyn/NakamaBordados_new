@@ -92,6 +92,17 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
           fetchCurrency();
         } else {
           setCurrencyInfo(parsed);
+          // Refrescar el tipo de cambio en segundo plano: el rate guardado en
+          // localStorage se desactualiza (WP lo renueva cada 6 horas).
+          if (parsed.currency === 'USD') {
+            fetchUsdRate().then(usdRate => {
+              if (usdRate && usdRate !== parsed.rate) {
+                const refreshed = { ...parsed, rate: usdRate };
+                setCurrencyInfo(refreshed);
+                localStorage.setItem('user-currency', JSON.stringify(refreshed));
+              }
+            });
+          }
         }
       } catch (e) {
         console.error(e);
@@ -128,9 +139,11 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
 
   const formatPrice = (price: number) => {
     const converted = price * currencyInfo.rate;
+    // USD con 2 decimales (igual que el checkout de WooCommerce); MXN en enteros.
+    const decimals = currencyInfo.currency === 'USD' ? 2 : 0;
     return `${currencyInfo.symbol}${converted.toLocaleString('es-MX', {
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
+      minimumFractionDigits: decimals,
+      maximumFractionDigits: decimals,
     })} ${currencyInfo.currency}`;
   };
 

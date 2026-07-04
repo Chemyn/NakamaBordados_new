@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda y sincronización de base de datos local (Next.js).
- * Version: 1.1
+ * Version: 1.2
  * Author: Nakama
  */
 
@@ -18,9 +18,9 @@ add_action( 'rest_api_init', function () {
         'permission_callback' => '__return_true'
     ) );
 
-    // Info de moneda: expone el tipo de cambio MXN->USD que cachea el snippet
-    // "ImperioDev Currency Global V15" (transient id_rate_v15_6_USD) para que
-    // el frontend Next muestre exactamente los mismos montos que el checkout.
+    // Info de moneda: expone el tipo de cambio MXN->USD que usa el snippet
+    // "ImperioDev Currency Global V15.7" para que el frontend Next muestre
+    // exactamente los mismos montos que el checkout de WooCommerce.
     register_rest_route( 'nakama/v1', '/currency', array(
         'methods' => 'GET',
         'callback' => 'nakama_currency_info',
@@ -29,11 +29,39 @@ add_action( 'rest_api_init', function () {
 });
 
 function nakama_currency_info() {
-    $usd_rate = get_transient( 'id_rate_v15_6_USD' );
+    $base = get_option( 'woocommerce_currency', 'MXN' );
+
+    // Mismo transient que el snippet v15.7 (compatibilidad con v15.6 por si acaso).
+    $usd_rate = get_transient( 'id_rate_v15_7_USD' );
+    if ( false === $usd_rate ) {
+        $usd_rate = get_transient( 'id_rate_v15_6_USD' );
+    }
+
+    // Si el caché expiró, calcular EXACTAMENTE como el snippet (misma API,
+    // mismo margen de -2 pesos, mismo transient) para que checkout y app
+    // nunca diverjan.
+    if ( false === $usd_rate ) {
+        $response_api = wp_remote_get(
+            "https://v6.exchangerate-api.com/v6/0f6af8daed019b3b06c10383/pair/{$base}/USD",
+            array( 'timeout' => 10 )
+        );
+        if ( ! is_wp_error( $response_api ) ) {
+            $data = json_decode( wp_remote_retrieve_body( $response_api ), true );
+            $rate = (float) ( $data['conversion_rate'] ?? 0 );
+            if ( 'MXN' === $base && $rate > 0 ) {
+                $pesos_por_dolar = max( 1.0, ( 1 / $rate ) - 2 );
+                $rate            = 1 / $pesos_por_dolar;
+            }
+            if ( $rate > 0 ) {
+                set_transient( 'id_rate_v15_7_USD', $rate, 6 * HOUR_IN_SECONDS );
+                $usd_rate = $rate;
+            }
+        }
+    }
 
     $response = rest_ensure_response( array(
-        'baseCurrency' => get_option( 'woocommerce_currency', 'MXN' ),
-        // false => aún no cacheado por el snippet; el frontend usa su fallback.
+        'baseCurrency' => $base,
+        // null => sin caché y sin respuesta de la API; el frontend usa su fallback.
         'usdRate' => ( false === $usd_rate ) ? null : (float) $usd_rate,
     ) );
     $response->header( 'Access-Control-Allow-Origin', '*' );
