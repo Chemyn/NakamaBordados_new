@@ -10,6 +10,11 @@ if ( ! defined( 'ABSPATH' ) ) {
     exit; // Salir si se accede directamente.
 }
 
+// Evitar errores fatales si WooCommerce no está activo
+if ( ! class_exists( 'WooCommerce' ) && ! in_array( 'woocommerce/woocommerce.php', apply_filters( 'active_plugins', get_option( 'active_plugins' ) ) ) ) {
+    return;
+}
+
 /**
  * ATRIBUTOS DE VARIACIÓN DE ESTA TIENDA
  * WooCommerce guarda los atributos globales como taxonomías con prefijo `pa_`.
@@ -278,7 +283,7 @@ function nakama_products_build_product( $product ) {
 // ============================================================================
 // 1) HANDLER: LISTADO / BÚSQUEDA / PAGINACIÓN
 // ============================================================================
-function nakama_products_list( WP_REST_Request $request ) {
+function nakama_products_list( $request ) {
     // Sanitizar parámetros de entrada.
     $limit    = absint( $request->get_param( 'limit' ) );
     $offset   = absint( $request->get_param( 'offset' ) );
@@ -431,7 +436,7 @@ function nakama_products_search_tags( $search ) {
 // ============================================================================
 // 2) HANDLER: PRODUCTO ÚNICO POR SLUG
 // ============================================================================
-function nakama_products_single( WP_REST_Request $request ) {
+function nakama_products_single( $request ) {
     $slug = sanitize_title( (string) $request->get_param( 'slug' ) );
 
     if ( empty( $slug ) ) {
@@ -461,7 +466,7 @@ function nakama_products_single( WP_REST_Request $request ) {
 // ============================================================================
 // 3) HANDLER: LISTA DE SLUGS (rápida, $wpdb directo)
 // ============================================================================
-function nakama_products_slugs( WP_REST_Request $request ) {
+function nakama_products_slugs( $request ) {
     global $wpdb;
 
     // Una sola consulta directa a wp_posts por velocidad (se llama en build time).
