@@ -171,7 +171,14 @@ function StoreContent() {
                       <h3 className="nk-card-title" style={{ fontSize: '1.4rem', fontWeight: 800, margin: '0', lineHeight: 1.1 }}>
                         <Link href={`/product?id=${p.id}`} style={{ color: 'var(--nk-text-main)', textDecoration: 'none' }}>{p.name}</Link>
                       </h3>
-                      <p className="nk-card-price" style={{ color: 'var(--nk-primary)', fontWeight: '800', marginTop: '10px', fontSize: '1.2rem', fontFamily: 'Teko' }}>{displayPrice}</p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '10px' }}>
+                        <p className="nk-card-price" style={{ color: 'var(--nk-primary)', fontWeight: '800', margin: '0', fontSize: '1.2rem', fontFamily: 'Teko' }}>{displayPrice}</p>
+                        {p.salesCount !== undefined && p.salesCount > 0 && (
+                          <span className="nk-card-sales" style={{ fontSize: '0.85rem', color: 'var(--nk-text-sec)', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
+                            {p.salesCount} {p.salesCount === 1 ? 'vendido' : 'vendidos'}
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );

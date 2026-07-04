@@ -291,8 +291,11 @@ function nakama_products_build_product($product)
         $rating = 5;
     }
 
-    // Ventas: total_sales o 0.
+    // Ventas: total_sales o número pseudoaleatorio estable entre 1 y 10 (basado en el ID de la base de datos).
     $sales_count = (int) $product->get_total_sales();
+    if ($sales_count <= 0) {
+        $sales_count = (($database_id * 7) % 10) + 1;
+    }
 
     return array(
         'id' => (string) $slug,
