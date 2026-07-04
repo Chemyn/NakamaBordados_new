@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Products API
  * Description: API REST pública y RÁPIDA de productos (WooCommerce/$wpdb directo, sin WPGraphQL) para el frontend estático de Next.js.
- * Version: 1.1
+ * Version: 1.2
  * Author: Nakama
  */
 
@@ -131,7 +131,7 @@ add_action('rest_api_init', function () {
         array(
             'methods' => 'POST',
             'callback' => 'nakama_set_maintenance_status',
-            'permission_callback' => function() {
+            'permission_callback' => function () {
                 return current_user_can('manage_options');
             },
         ),
@@ -557,3 +557,13 @@ function nakama_set_maintenance_status($request)
         'maintenanceMode' => $enabled,
     )));
 }
+
+// Bypassear el chequeo de nonce de WordPress solo para el endpoint de mantenimiento
+add_filter('rest_authentication_errors', function ($result) {
+    if (is_wp_error($result) && $result->get_error_code() === 'rest_cookie_invalid_nonce') {
+        if (isset($_SERVER['REQUEST_URI']) && strpos($_SERVER['REQUEST_URI'], '/nakama/v1/maintenance') !== false) {
+            return null; // Bypassear error de nonce
+        }
+    }
+    return $result;
+}, 99);
