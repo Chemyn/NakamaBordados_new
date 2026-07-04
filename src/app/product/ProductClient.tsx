@@ -379,12 +379,14 @@ export default function ProductClient({ initialProduct: product, relatedProducts
       <div className="nk-marquee-bar" style={{ margin: '60px 0' }}>
         <div className="nk-marquee-wrapper">
           <div className="nk-marquee-content animate-marquee">
+            <span>• {t('marquee.welcome')}</span>
+            <span>• {t('marquee.shipping')}</span>
             <span>• {t('marquee.msi')}</span>
-            <span>• {t('marquee.quality')}</span>
-            <span>• {t('marquee.join')}</span>
+            <span>• {t('marquee.transfer')}</span>
+            <span>• {t('marquee.welcome')}</span>
+            <span>• {t('marquee.shipping')}</span>
             <span>• {t('marquee.msi')}</span>
-            <span>• {t('marquee.quality')}</span>
-            <span>• {t('marquee.join')}</span>
+            <span>• {t('marquee.transfer')}</span>
           </div>
         </div>
       </div>

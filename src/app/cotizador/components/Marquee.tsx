@@ -4,11 +4,10 @@ import React from 'react';
 
 export const Marquee: React.FC = () => {
   const announcements = [
-    "3 MSI A PARTIR DE $500 MXN",
-    "ENVÍO GRATIS EN 4PZ AL PAGAR POR TRANSFERENCIA",
-    "PIEZAS LIMITADAS",
-    "ENVÍOS A TODO MÉXICO",
-    "NAKAMA CUSTOMS LAB"
+    "DESCUENTO DE BIENVENIDA EN TU 1°, 2° Y 3° COMPRA",
+    "ENVÍO GRATIS A PARTIR DE $1,500",
+    "3 MSI A PARTIR DE $2,000",
+    "3% DE DESCUENTO POR TRANSFERENCIA"
   ];
 
   // Repeat twice to ensure seamless scrolling

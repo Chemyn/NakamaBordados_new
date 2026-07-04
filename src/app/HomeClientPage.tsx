@@ -74,14 +74,14 @@ export default function HomeClientPage({ bestSellers: initialBestSellers, heroSo
       <div className="nk-marquee-bar nk-manga-border" style={{ borderLeft: 'none', borderRight: 'none' }}>
         <div className="nk-marquee-wrapper">
           <div className="nk-marquee-content animate-marquee">
-            <span>• {t('marquee.join')} •</span>
+            <span>• {t('marquee.welcome')} •</span>
+            <span>• {t('marquee.shipping')} •</span>
             <span>• {t('marquee.msi')} •</span>
-            <span>• {t('marquee.quality')} •</span>
-            <span>• {t('marquee.limited')} •</span>
-            <span>• {t('marquee.high_density')} •</span>
-            <span>• {t('marquee.join')} •</span>
+            <span>• {t('marquee.transfer')} •</span>
+            <span>• {t('marquee.welcome')} •</span>
+            <span>• {t('marquee.shipping')} •</span>
             <span>• {t('marquee.msi')} •</span>
-            <span>• {t('marquee.quality')} •</span>
+            <span>• {t('marquee.transfer')} •</span>
           </div>
         </div>
       </div>
