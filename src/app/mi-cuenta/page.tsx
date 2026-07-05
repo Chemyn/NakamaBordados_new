@@ -7,7 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
 import MaintenanceToggle from '../components/MaintenanceToggle';
-import { openWpAdmin, WP_ADMIN_URL } from '@/lib/wp-sso';
+import { openWpAdmin, seedWpSession, WP_ADMIN_URL } from '@/lib/wp-sso';
 
 export default function MiCuentaPage() {
   const { user, login, logout, refreshUser, isLoading, isAdmin } = useAuth();
@@ -237,6 +237,30 @@ export default function MiCuentaPage() {
                                   TOTAL: ${(parseFloat(String(order.total || '0').replace(/[^0-9.-]/g, '')) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {order.currency || 'MXN'}
                                 </div>
                               </div>
+
+                              {/* Pedido pendiente de pago (p. ej. cotización con
+                                  precio ya asignado): botón directo a la página
+                                  de pago de WooCommerce (order-pay). */}
+                              {order.needsPayment && order.databaseId && order.orderKey && (
+                                <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px dashed var(--nk-border)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px' }}>
+                                  <button
+                                    className="nk-btn"
+                                    style={{ padding: '10px 24px', fontSize: '1.2rem' }}
+                                    onClick={async () => {
+                                      // Sembrar la sesión de WP para que la página
+                                      // de pago reconozca al cliente.
+                                      await seedWpSession();
+                                      window.location.href = `https://nakamabordados.com/finalizar-compra/order-pay/${order.databaseId}/?pay_for_order=true&key=${order.orderKey}`;
+                                    }}
+                                  >
+                                    <span className="material-icons-outlined" style={{ fontSize: '18px', verticalAlign: 'middle', marginRight: '6px' }}>payments</span>
+                                    PAGAR AHORA
+                                  </button>
+                                  <span style={{ fontSize: '0.8rem', color: 'var(--nk-text-sec)', fontWeight: 600 }}>
+                                    Tu cotización ya tiene precio: completa el pago para iniciar la producción.
+                                  </span>
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>
