@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO, pedidos de cotización y sincronización de base de datos local (Next.js).
- * Version: 1.6
+ * Version: 1.7
  * Author: Nakama
  */
 
@@ -229,7 +229,12 @@ function nakama_sso_set_cookie() {
     return $response;
 }
 
-function nakama_currency_info() {
+/**
+ * Tipo de cambio MXN->USD con el margen del snippet "ImperioDev Currency
+ * Global V15.7" (mismo transient, misma API, mismo -2 pesos). Devuelve
+ * false si no hay caché y la API no responde.
+ */
+function nakama_get_usd_rate() {
     $base = get_option( 'woocommerce_currency', 'MXN' );
 
     // Mismo transient que el snippet v15.7 (compatibilidad con v15.6 por si acaso).
@@ -238,9 +243,8 @@ function nakama_currency_info() {
         $usd_rate = get_transient( 'id_rate_v15_6_USD' );
     }
 
-    // Si el caché expiró, calcular EXACTAMENTE como el snippet (misma API,
-    // mismo margen de -2 pesos, mismo transient) para que checkout y app
-    // nunca diverjan.
+    // Si el caché expiró, calcular EXACTAMENTE como el snippet para que
+    // checkout y app nunca diverjan.
     if ( false === $usd_rate ) {
         $response_api = wp_remote_get(
             "https://v6.exchangerate-api.com/v6/0f6af8daed019b3b06c10383/pair/{$base}/USD",
@@ -259,6 +263,13 @@ function nakama_currency_info() {
             }
         }
     }
+
+    return ( false === $usd_rate ) ? false : (float) $usd_rate;
+}
+
+function nakama_currency_info() {
+    $base     = get_option( 'woocommerce_currency', 'MXN' );
+    $usd_rate = nakama_get_usd_rate();
 
     $response = rest_ensure_response( array(
         'baseCurrency' => $base,
@@ -482,6 +493,31 @@ function nakama_pay_quote_via_checkout( $debug = false ) {
         if ( $debug ) { echo 'La cotización aún no tiene precio asignado.'; exit; }
         wp_safe_redirect( home_url( '/mi-cuenta/' ) );
         exit;
+    }
+
+    // El precio del carrito debe ir en moneda BASE (MXN): el conversor de
+    // moneda del checkout multiplica por el tipo de cambio si el cliente ve
+    // USD. Si la cotización se creó/preció en USD (pedidos previos al fix de
+    // moneda base), convertir a MXN con el MISMO rate del snippet para que el
+    // viaje de ida y vuelta sea exacto (100 USD -> MXN -> 100 USD).
+    $base           = get_option( 'woocommerce_currency', 'MXN' );
+    $order_currency = $order->get_currency();
+    if ( $order_currency && $order_currency !== $base ) {
+        if ( 'USD' === $order_currency ) {
+            $rate = nakama_get_usd_rate();
+            if ( $rate && $rate > 0 ) {
+                $total = $total / $rate; // USD -> MXN
+                if ( $debug ) echo 'Total convertido de USD a base: ' . $total . '<br>';
+            } else {
+                if ( $debug ) { echo 'Error: no hay tipo de cambio disponible para convertir la cotización en USD.'; exit; }
+                wp_safe_redirect( home_url( '/mi-cuenta/' ) );
+                exit;
+            }
+        } else {
+            if ( $debug ) { echo 'Error: moneda de cotización no soportada: ' . esc_html( $order_currency ); exit; }
+            wp_safe_redirect( home_url( '/mi-cuenta/' ) );
+            exit;
+        }
     }
 
     WC()->cart->empty_cart();
