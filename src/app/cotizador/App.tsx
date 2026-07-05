@@ -9,6 +9,7 @@ import { Visualizer } from './components/Visualizer';
 import { Marquee } from './components/Marquee';
 import { generateQuotePDF } from './utils/pdfGenerator';
 import { getQuoteZIPBlob } from './utils/zipGenerator';
+import { compressImage } from './utils/imageCompressor';
 
 const availableGarmentPositions = [
   'Pecho Izquierdo',
@@ -20,6 +21,27 @@ const availableGarmentPositions = [
   'Manga Derecha'
 ];
 
+const getPositionSizeError = (type: string, sizeStr: string): string | null => {
+  const numbers = (sizeStr || '').match(/(\d+(?:\.\d+)?)/g);
+  if (numbers && numbers.length > 0) {
+    const w = parseFloat(numbers[0]);
+    const h = numbers[1] ? parseFloat(numbers[1]) : w;
+    const minDim = Math.min(w, h);
+    const maxDim = Math.max(w, h);
+    
+    if (type === 'Bordado') {
+      if (minDim > 40 || maxDim > 60) {
+        return 'La medida máxima para Bordado es 40x60 cm.';
+      }
+    } else { // DTF/Estampado
+      if (minDim > 36 || maxDim > 60) {
+        return 'La medida máxima para Estampado es 36x60 cm.';
+      }
+    }
+  }
+  return null;
+};
+
 export const App: React.FC = () => {
   // Tab/Product Selection
   const [activeProduct, setActiveProduct] = useState<ProductType>('ropa');
@@ -27,19 +49,8 @@ export const App: React.FC = () => {
   // Loading state for webhook submission
   const [isSending, setIsSending] = useState(false);
 
-  // Interactive UI slot mappings for clothing
-  const [area1Pos, setArea1Pos] = useState<string>('Pecho Izquierdo');
-  const [area2Pos, setArea2Pos] = useState<string | null>(null);
-
-  // Interactive UI slot mappings for caps
-  const [capArea1Pos, setCapArea1Pos] = useState<string>('Frontal');
-  const [capArea2Pos, setCapArea2Pos] = useState<string | null>(null);
-
   // Selected position currently focused/highlighted in visualizer
   const [selectedPosition, setSelectedPosition] = useState<string | null>('Pecho Izquierdo');
-
-  // Interactive slot selection: 1 (Area 1) or 2 (Area 2)
-  const [activeSlot, setActiveSlot] = useState<1 | 2>(1);
 
   // Form errors validation state
   const [formErrors, setFormErrors] = useState<{ name?: string; phone?: string; positions?: string }>({});
@@ -95,108 +106,58 @@ export const App: React.FC = () => {
     additionalDetails: ''
   });
 
-  // Sync effect: automatically sync area1Pos and area2Pos into ropaConfig.positions active states
+  // Sync effect: automatically select the first active position when switching product tabs
   useEffect(() => {
     if (activeProduct === 'ropa') {
-      const updatedPositions = { ...ropaConfig.positions };
-      let changed = false;
-
-      Object.keys(updatedPositions).forEach(key => {
-        const shouldBeActive = key === area1Pos || key === area2Pos;
-        if (updatedPositions[key].active !== shouldBeActive) {
-          updatedPositions[key] = {
-            ...updatedPositions[key],
-            active: shouldBeActive
-          };
-          changed = true;
-        }
-      });
-
-      if (changed) {
-        setRopaConfig(prev => ({
-          ...prev,
-          positions: updatedPositions
-        }));
-      }
+      const activeKeys = Object.keys(ropaConfig.positions).filter(k => ropaConfig.positions[k].active);
+      setSelectedPosition(activeKeys[0] || 'Pecho Izquierdo');
+    } else if (activeProduct === 'gorras') {
+      const activeKeys = Object.keys(capConfig.positions).filter(k => capConfig.positions[k].active);
+      setSelectedPosition(activeKeys[0] || 'Frontal');
+    } else {
+      setSelectedPosition(null);
     }
-  }, [area1Pos, area2Pos, activeProduct]);
+  }, [activeProduct]);
 
   // Sync effect: automatically reset sleeve positions if Tank Top is selected
   useEffect(() => {
     if (ropaConfig.model === 'Tank Top') {
       let resetNeeded = false;
-      let newArea1Pos = area1Pos;
-      let newArea2Pos = area2Pos;
-
-      if (area1Pos === 'Manga Izquierda' || area1Pos === 'Manga Derecha') {
-        newArea1Pos = 'Pecho Izquierdo';
+      const updatedPositions = { ...ropaConfig.positions };
+      
+      if (updatedPositions['Manga Izquierda'].active) {
+        updatedPositions['Manga Izquierda'] = {
+          ...updatedPositions['Manga Izquierda'],
+          active: false,
+          file: null,
+          filePreview: ''
+        };
         resetNeeded = true;
       }
-      if (area2Pos === 'Manga Izquierda' || area2Pos === 'Manga Derecha') {
-        newArea2Pos = null;
+      if (updatedPositions['Manga Derecha'].active) {
+        updatedPositions['Manga Derecha'] = {
+          ...updatedPositions['Manga Derecha'],
+          active: false,
+          file: null,
+          filePreview: ''
+        };
         resetNeeded = true;
       }
 
       if (resetNeeded) {
-        setArea1Pos(newArea1Pos);
-        setArea2Pos(newArea2Pos);
-        
-        const updatedPositions = { ...ropaConfig.positions };
-        Object.keys(updatedPositions).forEach(key => {
-          if (key === 'Manga Izquierda' || key === 'Manga Derecha') {
-            updatedPositions[key] = {
-              ...updatedPositions[key],
-              active: false,
-              file: null,
-              filePreview: ''
-            };
-          }
-        });
-        
         setRopaConfig(prev => ({
           ...prev,
           positions: updatedPositions
         }));
-      }
-    }
-  }, [ropaConfig.model, area1Pos, area2Pos]);
-
-  // Sync effect: automatically sync capArea1Pos and capArea2Pos into capConfig.positions active states
-  useEffect(() => {
-    if (activeProduct === 'gorras') {
-      const updatedPositions = { ...capConfig.positions };
-      let changed = false;
-
-      Object.keys(updatedPositions).forEach(key => {
-        const shouldBeActive = key === capArea1Pos || key === capArea2Pos;
-        if (updatedPositions[key].active !== shouldBeActive) {
-          updatedPositions[key] = {
-            ...updatedPositions[key],
-            active: shouldBeActive
-          };
-          changed = true;
+        
+        // Adjust selectedPosition if it was on a sleeve
+        if (selectedPosition === 'Manga Izquierda' || selectedPosition === 'Manga Derecha') {
+          const firstActive = Object.keys(updatedPositions).find(k => updatedPositions[k].active);
+          setSelectedPosition(firstActive || 'Pecho Izquierdo');
         }
-      });
-
-      if (changed) {
-        setCapConfig(prev => ({
-          ...prev,
-          positions: updatedPositions
-        }));
       }
     }
-  }, [capArea1Pos, capArea2Pos, activeProduct]);
-
-  // Sync effect: automatically reset selectedPosition when switching tabs
-  useEffect(() => {
-    if (activeProduct === 'ropa') {
-      setSelectedPosition(area1Pos);
-    } else if (activeProduct === 'gorras') {
-      setSelectedPosition(capArea1Pos);
-    } else {
-      setSelectedPosition(null);
-    }
-  }, [activeProduct, area1Pos, capArea1Pos]);
+  }, [ropaConfig.model, selectedPosition]);
 
   // Shake effect for validation alerts
   const [isSubmitShaking, setIsSubmitShaking] = useState(false);
@@ -213,9 +174,17 @@ export const App: React.FC = () => {
     }
 
     if (activeProduct === 'ropa') {
-      const activePositions = Object.values(ropaConfig.positions).filter(p => p.active);
+      const activePositions = Object.entries(ropaConfig.positions).filter(([_, p]) => p.active);
       if (activePositions.length === 0) {
         errors.positions = 'Debes seleccionar al menos una posición de diseño para personalizar tu prenda (haz clic en la camiseta).';
+      } else {
+        for (const [name, p] of activePositions) {
+          const err = getPositionSizeError(p.type, p.size);
+          if (err) {
+            errors.positions = `El área "${name}" excede la medida permitida. ${err}`;
+            break;
+          }
+        }
       }
     } else if (activeProduct === 'gorras') {
       const activePositions = Object.values(capConfig.positions).filter(p => p.active);
@@ -228,39 +197,57 @@ export const App: React.FC = () => {
     return Object.keys(errors).length === 0;
   };
 
+  // Active/Inactive state togglers
+  const activatePosition = (position: string) => {
+    if (activeProduct === 'ropa') {
+      const updated = { ...ropaConfig.positions };
+      updated[position] = { ...updated[position], active: true };
+      setRopaConfig({ ...ropaConfig, positions: updated });
+    } else if (activeProduct === 'gorras') {
+      const updated = { ...capConfig.positions };
+      updated[position] = { ...updated[position], active: true };
+      setCapConfig({ ...capConfig, positions: updated });
+    }
+  };
+
+  const deactivatePosition = (position: string) => {
+    if (activeProduct === 'ropa') {
+      const updated = { ...ropaConfig.positions };
+      updated[position] = { ...updated[position], active: false, file: null, filePreview: '' };
+      setRopaConfig({ ...ropaConfig, positions: updated });
+      if (selectedPosition === position) {
+        const firstActive = Object.keys(updated).find(k => updated[k].active);
+        setSelectedPosition(firstActive || null);
+      }
+    } else if (activeProduct === 'gorras') {
+      const updated = { ...capConfig.positions };
+      updated[position] = { ...updated[position], active: false, file: null, filePreview: '' };
+      setCapConfig({ ...capConfig, positions: updated });
+      if (selectedPosition === position) {
+        const firstActive = Object.keys(updated).find(k => updated[k].active);
+        setSelectedPosition(firstActive || null);
+      }
+    }
+  };
+
   // SVG Visualizer hotspots click handler
   const handlePositionToggle = (position: string) => {
     if (formErrors.positions) {
       setFormErrors(prev => ({ ...prev, positions: undefined }));
     }
+    
     if (activeProduct === 'ropa') {
-      if (activeSlot === 1) {
-        if (position === area2Pos) {
-          // Swap positions
-          setArea2Pos(area1Pos);
-        }
-        setArea1Pos(position);
+      if (ropaConfig.positions[position]?.active) {
         setSelectedPosition(position);
       } else {
-        if (position === area1Pos) {
-          // Swap positions
-          setArea1Pos(area2Pos || 'Pecho Izquierdo');
-        }
-        setArea2Pos(position);
+        activatePosition(position);
         setSelectedPosition(position);
       }
     } else if (activeProduct === 'gorras') {
-      if (activeSlot === 1) {
-        if (position === capArea2Pos) {
-          setCapArea2Pos(capArea1Pos);
-        }
-        setCapArea1Pos(position);
+      if (capConfig.positions[position]?.active) {
         setSelectedPosition(position);
       } else {
-        if (position === capArea1Pos) {
-          setCapArea1Pos(capArea2Pos || 'Frontal');
-        }
-        setCapArea2Pos(position);
+        activatePosition(position);
         setSelectedPosition(position);
       }
     }
@@ -298,7 +285,7 @@ export const App: React.FC = () => {
   };
 
   // File upload logic with validation
-  const handlePositionFileUpload = (posName: string, e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePositionFileUpload = async (posName: string, e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -316,21 +303,38 @@ export const App: React.FC = () => {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onloadend = () => {
+    try {
+      const compressed = await compressImage(file);
       if (activeProduct === 'ropa') {
         updateGarmentPositionFields(posName, {
-          file,
-          filePreview: reader.result as string
+          file: compressed.file,
+          filePreview: compressed.preview
         });
       } else if (activeProduct === 'gorras') {
         updateCapPositionFields(posName, {
-          file,
-          filePreview: reader.result as string
+          file: compressed.file,
+          filePreview: compressed.preview
         });
       }
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Error compressing file:", err);
+      // Fallback
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (activeProduct === 'ropa') {
+          updateGarmentPositionFields(posName, {
+            file,
+            filePreview: reader.result as string
+          });
+        } else if (activeProduct === 'gorras') {
+          updateCapPositionFields(posName, {
+            file,
+            filePreview: reader.result as string
+          });
+        }
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const removePositionFile = (posName: string) => {
@@ -358,7 +362,6 @@ export const App: React.FC = () => {
       // 2. Get ZIP blob (includes original high-res designs)
       const { blob: zipBlob, filename: zipFilename } = await getQuoteZIPBlob(
         clientDetails.name,
-        pdfDoc,
         activeProduct,
         ropaConfig,
         patchConfig,
@@ -539,65 +542,43 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
   };
 
   // Helper panel inputs layout for Ropa positions
-  const renderRopaPositionForm = (posName: string, slotTitle: string, isOptional: boolean, slotIndex: 1 | 2, onRemove?: () => void) => {
+  const renderRopaPositionForm = (posName: string, slotTitle: string, isOptional: boolean, slotIndex: number, onRemove?: () => void) => {
     const pos = ropaConfig.positions[posName];
     if (!pos) return null;
 
-    const otherPos = posName === area1Pos ? area2Pos : area1Pos;
     let allowedPositions = availableGarmentPositions;
     if (ropaConfig.model === 'Tank Top') {
       allowedPositions = availableGarmentPositions.filter(p => p !== 'Manga Izquierda' && p !== 'Manga Derecha');
     }
-    const selectOptions = allowedPositions.filter(p => p !== otherPos);
+    
+    const activeKeys = Object.keys(ropaConfig.positions).filter(k => ropaConfig.positions[k].active);
+    const selectOptions = allowedPositions.filter(p => p === posName || !activeKeys.includes(p));
 
     const handleSelectPosition = (newPos: string) => {
-      if (posName === area1Pos) {
-        // Move current details to the new key in the state
-        const updated = { ...ropaConfig.positions };
-        updated[newPos] = {
-          ...updated[newPos],
-          type: pos.type,
-          size: pos.size,
-          file: pos.file,
-          filePreview: pos.filePreview,
-          active: true
-        };
-        if (newPos !== posName) {
-          updated[posName] = { ...updated[posName], active: false };
-        }
-        setRopaConfig({ ...ropaConfig, positions: updated });
-        setArea1Pos(newPos);
-        setSelectedPosition(newPos);
-        setActiveSlot(1);
-      } else {
-        const updated = { ...ropaConfig.positions };
-        updated[newPos] = {
-          ...updated[newPos],
-          type: pos.type,
-          size: pos.size,
-          file: pos.file,
-          filePreview: pos.filePreview,
-          active: true
-        };
-        if (newPos !== posName) {
-          updated[posName] = { ...updated[posName], active: false };
-        }
-        setRopaConfig({ ...ropaConfig, positions: updated });
-        setArea2Pos(newPos);
-        setSelectedPosition(newPos);
-        setActiveSlot(2);
+      const updated = { ...ropaConfig.positions };
+      updated[newPos] = {
+        ...updated[newPos],
+        type: pos.type,
+        size: pos.size,
+        file: pos.file,
+        filePreview: pos.filePreview,
+        active: true
+      };
+      if (newPos !== posName) {
+        updated[posName] = { ...updated[posName], active: false, file: null, filePreview: '' };
       }
+      setRopaConfig({ ...ropaConfig, positions: updated });
+      setSelectedPosition(newPos);
     };
 
-    const isSlotActive = activeSlot === slotIndex;
+    const isSlotActive = selectedPosition === posName;
 
     return (
       <div 
         onClick={() => {
-          setActiveSlot(slotIndex);
           setSelectedPosition(posName);
         }}
-        className={`p-3 mb-3 border rounded transition bg-white ${isSlotActive ? 'border-danger shadow' : 'border-light-subtle'}`}
+        className={`p-3 mb-3 border rounded transition bg-white ${isSlotActive ? 'border-danger shadow-sm' : 'border-light-subtle'}`}
         style={{ cursor: 'pointer', borderWidth: isSlotActive ? '2px' : '1px' }}
       >
         <div className="d-flex justify-content-between align-items-center mb-3">
@@ -651,11 +632,16 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
             <label className="form-label text-muted small uppercase fw-bold">Medida aprox. en CM (Ej. 10x10):</label>
             <input
               type="text"
-              className="form-control"
+              className={`form-control ${getPositionSizeError(pos.type, pos.size) ? 'is-invalid' : ''}`}
               value={pos.size}
               onChange={(e) => updateGarmentPositionField(posName, 'size', e.target.value)}
               placeholder="Ancho x Alto en CM"
             />
+            {getPositionSizeError(pos.type, pos.size) && (
+              <div className="invalid-feedback d-block">
+                {getPositionSizeError(pos.type, pos.size)}
+              </div>
+            )}
           </div>
 
           {/* Archivos */}
@@ -703,61 +689,40 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
   };
 
   // Helper panel inputs layout for Cap positions
-  const renderGorraPositionForm = (posName: string, slotTitle: string, isOptional: boolean, slotIndex: 1 | 2, onRemove?: () => void) => {
+  const renderGorraPositionForm = (posName: string, slotTitle: string, isOptional: boolean, slotIndex: number, onRemove?: () => void) => {
     const pos = capConfig.positions[posName];
     if (!pos) return null;
 
-    const otherPos = posName === capArea1Pos ? capArea2Pos : capArea1Pos;
-    const selectOptions = ['Frontal', 'Lateral izquierdo', 'Lateral derecho', 'Parte trasera'].filter(p => p !== otherPos);
+    const allowed = ['Frontal', 'Lateral izquierdo', 'Lateral derecho', 'Parte trasera'];
+    const activeKeys = Object.keys(capConfig.positions).filter(k => capConfig.positions[k].active);
+    const selectOptions = allowed.filter(p => p === posName || !activeKeys.includes(p));
 
     const handleSelectPosition = (newPos: string) => {
-      if (posName === capArea1Pos) {
-        const updated = { ...capConfig.positions };
-        updated[newPos] = {
-          ...updated[newPos],
-          type: pos.type,
-          size: pos.size,
-          file: pos.file,
-          filePreview: pos.filePreview,
-          active: true
-        };
-        if (newPos !== posName) {
-          updated[posName] = { ...updated[posName], active: false };
-        }
-        setCapConfig({ ...capConfig, positions: updated });
-        setCapArea1Pos(newPos);
-        setSelectedPosition(newPos);
-        setActiveSlot(1);
-      } else {
-        const updated = { ...capConfig.positions };
-        updated[newPos] = {
-          ...updated[newPos],
-          type: pos.type,
-          size: pos.size,
-          file: pos.file,
-          filePreview: pos.filePreview,
-          active: true
-        };
-        if (newPos !== posName) {
-          updated[posName] = { ...updated[posName], active: false };
-        }
-        setCapConfig({ ...capConfig, positions: updated });
-        setCapArea2Pos(newPos);
-        setSelectedPosition(newPos);
-        setActiveSlot(2);
+      const updated = { ...capConfig.positions };
+      updated[newPos] = {
+        ...updated[newPos],
+        type: pos.type,
+        size: pos.size,
+        file: pos.file,
+        filePreview: pos.filePreview,
+        active: true
+      };
+      if (newPos !== posName) {
+        updated[posName] = { ...updated[posName], active: false, file: null, filePreview: '' };
       }
+      setCapConfig({ ...capConfig, positions: updated });
+      setSelectedPosition(newPos);
     };
 
-    const isSlotActive = activeSlot === slotIndex;
+    const isSlotActive = selectedPosition === posName;
 
     return (
       <div 
         onClick={() => {
           setSelectedPosition(posName);
-          setActiveSlot(slotIndex);
         }}
         className={`p-3 mb-3 border rounded transition bg-white ${isSlotActive ? 'border-danger shadow-sm' : 'border-light-subtle'}`}
-        style={{ cursor: 'pointer' }}
+        style={{ cursor: 'pointer', borderWidth: isSlotActive ? '2px' : '1px' }}
       >
         <div className="d-flex justify-content-between align-items-center mb-3">
           <span className={`badge ${isSlotActive ? 'bg-danger' : 'bg-secondary'} rounded-pill`}>
@@ -887,63 +852,88 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
 
         {activeProduct === 'ropa' ? (
           <div>
-            {/* AREA 1 (Primary Customization) */}
-            {renderRopaPositionForm(area1Pos, 'Área 1', false, 1)}
+            {(() => {
+              const activeKeys = Object.keys(ropaConfig.positions).filter(k => ropaConfig.positions[k].active);
+              let allowed = availableGarmentPositions;
+              if (ropaConfig.model === 'Tank Top') {
+                allowed = availableGarmentPositions.filter(p => p !== 'Manga Izquierda' && p !== 'Manga Derecha');
+              }
+              const inactiveKeys = allowed.filter(k => !activeKeys.includes(k));
 
-            {/* AREA 2 (Secondary Optional Customization) */}
-            {area2Pos !== null ? (
-              renderRopaPositionForm(area2Pos, 'Área 2 (Opcional)', true, 2, () => {
-                setArea2Pos(null);
-                setSelectedPosition(area1Pos);
-                setActiveSlot(1);
-              })
-            ) : (
-              <div className="text-center py-2 mt-2 border border-dashed rounded bg-light border-secondary">
-                <button
-                  type="button"
-                  className="btn btn-outline-danger font-display px-4 py-2 border-primary-brand text-primary-brand bg-white"
-                  onClick={() => {
-                    const firstAvailable = availableGarmentPositions.find(p => p !== area1Pos) || 'Espalda';
-                    setArea2Pos(firstAvailable);
-                    setSelectedPosition(firstAvailable);
-                    setActiveSlot(2);
-                  }}
-                >
-                  <i className="bi bi-plus-circle-fill me-2"></i>
-                  Añadir una Segunda Área de Personalizado
-                </button>
-              </div>
-            )}
+              return (
+                <>
+                  {activeKeys.map((posName, index) => (
+                    <div key={posName}>
+                      {renderRopaPositionForm(
+                        posName,
+                        index === 0 ? 'Área Principal' : `Área ${index + 1} (Opcional)`,
+                        activeKeys.length > 1,
+                        index + 1,
+                        () => deactivatePosition(posName)
+                      )}
+                    </div>
+                  ))}
+
+                  {inactiveKeys.length > 0 && (
+                    <div className="text-center py-2 mt-2 border border-dashed rounded bg-light border-secondary">
+                      <button
+                        type="button"
+                        className="btn btn-outline-danger font-display px-4 py-2 border-primary-brand text-primary-brand bg-white"
+                        onClick={() => {
+                          const nextToActivate = inactiveKeys[0];
+                          activatePosition(nextToActivate);
+                          setSelectedPosition(nextToActivate);
+                        }}
+                      >
+                        <i className="bi bi-plus-circle-fill me-2"></i>
+                        Añadir otra Área de Personalizado
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         ) : (
           <div>
-            {/* AREA 1 (Primary Customization) */}
-            {renderGorraPositionForm(capArea1Pos, 'Área 1', false, 1)}
+            {(() => {
+              const allowed = ['Frontal', 'Lateral izquierdo', 'Lateral derecho', 'Parte trasera'];
+              const activeKeys = Object.keys(capConfig.positions).filter(k => capConfig.positions[k].active);
+              const inactiveKeys = allowed.filter(k => !activeKeys.includes(k));
 
-            {/* AREA 2 (Secondary Optional Customization) */}
-            {capArea2Pos !== null ? (
-              renderGorraPositionForm(capArea2Pos, 'Área 2 (Opcional)', true, 2, () => {
-                setCapArea2Pos(null);
-                setSelectedPosition(capArea1Pos);
-                setActiveSlot(1);
-              })
-            ) : (
-              <div className="text-center py-2 mt-2 border border-dashed rounded bg-light border-secondary">
-                <button
-                  type="button"
-                  className="btn btn-outline-danger font-display px-4 py-2 border-primary-brand text-primary-brand bg-white"
-                  onClick={() => {
-                    const firstAvailable = ['Frontal', 'Lateral izquierdo', 'Lateral derecho', 'Parte trasera'].find(p => p !== capArea1Pos) || 'Parte trasera';
-                    setCapArea2Pos(firstAvailable);
-                    setSelectedPosition(firstAvailable);
-                    setActiveSlot(2);
-                  }}
-                >
-                  <i className="bi bi-plus-circle-fill me-2"></i>
-                  Añadir una Segunda Área de Personalizado
-                </button>
-              </div>
-            )}
+              return (
+                <>
+                  {activeKeys.map((posName, index) => (
+                    <div key={posName}>
+                      {renderGorraPositionForm(
+                        posName,
+                        index === 0 ? 'Área Principal' : `Área ${index + 1} (Opcional)`,
+                        activeKeys.length > 1,
+                        index + 1,
+                        () => deactivatePosition(posName)
+                      )}
+                    </div>
+                  ))}
+
+                  {inactiveKeys.length > 0 && (
+                    <div className="text-center py-2 mt-2 border border-dashed rounded bg-light border-secondary">
+                      <button
+                        type="button"
+                        className="btn btn-outline-danger font-display px-4 py-2 border-primary-brand text-primary-brand bg-white"
+                        onClick={() => {
+                          const nextToActivate = inactiveKeys[0];
+                          activatePosition(nextToActivate);
+                          setSelectedPosition(nextToActivate);
+                        }}
+                      >
+                        <i className="bi bi-plus-circle-fill me-2"></i>
+                        Añadir otra Área de Personalizado
+                      </button>
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
       </div>

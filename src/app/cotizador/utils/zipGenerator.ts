@@ -14,7 +14,6 @@ function normalizeFilename(str: string): string {
 
 export async function getQuoteZIPBlob(
   clientName: string,
-  pdfDoc: jsPDF,
   productType: 'ropa' | 'parches' | 'gorras',
   ropaConfig: GarmentCustomization,
   patchConfig: PatchCustomization,
@@ -23,14 +22,9 @@ export async function getQuoteZIPBlob(
   const zip = new JSZip();
   const folderName = `diseños_referencia`;
   const designFolder = zip.folder(folderName);
-
-  // 1. Add the PDF document
-  const pdfBlob = pdfDoc.output('blob');
   const sanitizedClientName = normalizeFilename(clientName || 'cliente');
-  const pdfFilename = `cotizacion_nakama_${sanitizedClientName}.pdf`;
-  zip.file(pdfFilename, pdfBlob);
 
-  // 2. Scan and add files
+  // 1. Scan and add files
   if (productType === 'ropa') {
     Object.entries(ropaConfig.positions).forEach(([posName, pos]) => {
       if (pos.active && pos.file) {
@@ -75,7 +69,6 @@ export async function getQuoteZIPBlob(
 
 export async function generateQuoteZIP(
   clientName: string,
-  pdfDoc: jsPDF,
   productType: 'ropa' | 'parches' | 'gorras',
   ropaConfig: GarmentCustomization,
   patchConfig: PatchCustomization,
@@ -83,7 +76,6 @@ export async function generateQuoteZIP(
 ): Promise<void> {
   const { blob, filename } = await getQuoteZIPBlob(
     clientName,
-    pdfDoc,
     productType,
     ropaConfig,
     patchConfig,

@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { PatchCustomization } from '../types';
+import { compressImage } from '../utils/imageCompressor';
 
 interface ParchesConfigProps {
   config: PatchCustomization;
@@ -35,7 +36,7 @@ export const ParchesConfig: React.FC<ParchesConfigProps> = ({ config, onChange }
     });
   };
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -55,16 +56,26 @@ export const ParchesConfig: React.FC<ParchesConfigProps> = ({ config, onChange }
       return;
     }
 
-    // Convert file to base64
-    const reader = new FileReader();
-    reader.onloadend = () => {
+    try {
+      const compressed = await compressImage(file);
       onChange({
         ...config,
-        file,
-        filePreview: reader.result as string
+        file: compressed.file,
+        filePreview: compressed.preview
       });
-    };
-    reader.readAsDataURL(file);
+    } catch (err) {
+      console.error("Error compressing file:", err);
+      // Fallback
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        onChange({
+          ...config,
+          file,
+          filePreview: reader.result as string
+        });
+      };
+      reader.readAsDataURL(file);
+    }
   };
 
   const removeFile = () => {

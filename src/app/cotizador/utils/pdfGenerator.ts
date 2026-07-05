@@ -433,161 +433,259 @@ export function generateQuotePDF(
 function drawTshirtSilhouette(doc: jsPDF, x: number, y: number, size: number, highlightedPos: string) {
   doc.setLineWidth(0.3);
   doc.setDrawColor(180, 180, 180);
-  doc.setFillColor(242, 242, 242);
+  doc.setFillColor(248, 250, 252); // #F8FAFC
 
-  const cx = x + size / 2;
-  const cy = y + size / 2;
+  const scale = size / 100;
+  const isBack = highlightedPos === 'Espalda';
+
+  // Draw main shirt path
+  doc.moveTo(x + 40 * scale, y + 16 * scale);
+  if (isBack) {
+    // Flat neck for back view
+    doc.curveTo(x + 45 * scale, y + 18 * scale, x + 55 * scale, y + 18 * scale, x + 60 * scale, y + 16 * scale);
+  } else {
+    // Normal curved neck for front view
+    doc.curveTo(x + 43.3 * scale, y + 21 * scale, x + 56.7 * scale, y + 21 * scale, x + 60 * scale, y + 16 * scale);
+  }
+  doc.lineTo(x + 74 * scale, y + 21 * scale);
+  doc.lineTo(x + 88 * scale, y + 36 * scale);
+  doc.lineTo(x + 80 * scale, y + 46 * scale);
+  doc.lineTo(x + 71 * scale, y + 38 * scale);
+  doc.lineTo(x + 71 * scale, y + 88 * scale);
+  doc.curveTo(x + 63 * scale, y + 91 * scale, x + 37 * scale, y + 91 * scale, x + 29 * scale, y + 88 * scale);
+  doc.lineTo(x + 29 * scale, y + 38 * scale);
+  doc.lineTo(x + 20 * scale, y + 46 * scale);
+  doc.lineTo(x + 12 * scale, y + 36 * scale);
+  doc.lineTo(x + 26 * scale, y + 21 * scale);
+  doc.lineTo(x + 40 * scale, y + 16 * scale);
+  doc.fillStroke();
+
+  // Stitching guidelines (dotted lines)
+  doc.setLineWidth(0.15);
+  doc.setDrawColor(160, 174, 192); // #94A3B8
   
-  const w = size * 0.45;
-  const h = size * 0.45;
-
-  // Draw main body box
-  doc.rect(cx - w * 0.5, cy - h * 0.4, w, h * 1.4, 'FD');
-
-  // Draw sleeves as triangles
-  // Left sleeve
-  doc.triangle(
-    cx - w * 0.5, cy - h * 0.4, // shoulder top
-    cx - w * 0.9, cy - h * 0.1, // sleeve tip
-    cx - w * 0.5, cy + h * 0.1, // armpit
-    'FD'
-  );
-  // Right sleeve
-  doc.triangle(
-    cx + w * 0.5, cy - h * 0.4,
-    cx + w * 0.9, cy - h * 0.1,
-    cx + w * 0.5, cy + h * 0.1,
-    'FD'
-  );
-
-  // Collar neck cut (small white triangle at top)
-  doc.setFillColor(248, 248, 248); // card background color
-  doc.setDrawColor(180, 180, 180);
-  doc.triangle(
-    cx - w * 0.18, cy - h * 0.4,
-    cx, cy - h * 0.25,
-    cx + w * 0.18, cy - h * 0.4,
-    'FD'
-  );
+  // Left sleeve stitch
+  doc.line(x + 29 * scale, y + 38 * scale, x + 20 * scale, y + 46 * scale);
+  // Right sleeve stitch
+  doc.line(x + 71 * scale, y + 38 * scale, x + 80 * scale, y + 46 * scale);
+  // Collar stitching curve
+  doc.moveTo(x + 40 * scale, y + 16 * scale);
+  doc.curveTo(x + 45 * scale, y + 22 * scale, x + 55 * scale, y + 22 * scale, x + 60 * scale, y + 16 * scale);
+  doc.stroke();
 
   // Position highlight spot
   doc.setFillColor(255, 51, 51);
   doc.setDrawColor(255, 51, 51);
   doc.setLineWidth(0.4);
 
-  let px = cx;
-  let py = cy;
-  let isBack = false;
+  let px = 50;
+  let py = 50;
 
   switch (highlightedPos) {
     case 'Pecho Izquierdo':
-      px = cx - w * 0.22;
-      py = cy - h * 0.18;
+      px = 38.5;
+      py = 32.5;
       break;
     case 'Pecho Derecho':
-      px = cx + w * 0.22;
-      py = cy - h * 0.18;
+      px = 61.5;
+      py = 32.5;
       break;
     case 'Pecho en Medio':
-      px = cx;
-      py = cy - h * 0.18;
+      px = 50;
+      py = 33.5;
       break;
     case 'Enfrente':
-      px = cx;
-      py = cy + h * 0.2;
+      px = 50;
+      py = 61;
       break;
     case 'Espalda':
-      px = cx;
-      py = cy + h * 0.2;
-      isBack = true;
+      px = 50;
+      py = 53;
       break;
     case 'Manga Izquierda':
-      px = cx - w * 0.7;
-      py = cy - h * 0.15;
+      px = 21.75;
+      py = 35.25;
       break;
     case 'Manga Derecha':
-      px = cx + w * 0.7;
-      py = cy - h * 0.15;
+      px = 78.25;
+      py = 35.25;
       break;
   }
 
-  doc.circle(px, py, 3, 'F');
-  doc.circle(px, py, 4.5, 'S');
+  const pdfX = x + px * scale;
+  const pdfY = y + py * scale;
+
+  doc.circle(pdfX, pdfY, 2.5, 'F');
+  doc.circle(pdfX, pdfY, 3.8, 'S');
 
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(255, 51, 51);
   if (isBack) {
-    doc.text('VISTA TRASERA (ESPALDA)', cx, cy + h + 4, { align: 'center' });
+    doc.text('VISTA TRASERA (ESPALDA)', x + 50 * scale, y + 98 * scale, { align: 'center' });
   } else {
-    doc.text('VISTA FRONTAL', cx, cy + h + 4, { align: 'center' });
+    doc.text('VISTA FRONTAL', x + 50 * scale, y + 98 * scale, { align: 'center' });
   }
 }
 
 function drawCapSilhouette(doc: jsPDF, x: number, y: number, size: number, highlightedPos: string) {
   doc.setLineWidth(0.3);
   doc.setDrawColor(180, 180, 180);
-  doc.setFillColor(242, 242, 242);
-
-  const cx = x + size / 2;
-  const cy = y + size / 2;
   
-  const w = size * 0.4;
-  const h = size * 0.35;
+  const scale = size / 100;
 
-  // Draw Cap Dome (Head section) as a circle
-  doc.circle(cx - w * 0.1, cy, w * 0.65, 'FD');
+  let px = 50;
+  let py = 50;
+  let viewText = 'VISTA DE REFERENCIA';
 
-  // Draw Cap Visor (flat snapback visor) as a triangle/polygon on the right
-  doc.triangle(
-    cx + w * 0.25, cy + h * 0.1, // middle visor connection
-    cx + w * 0.95, cy + h * 0.25, // visor tip
-    cx + w * 0.25, cy + h * 0.4, // bottom connection
-    'FD'
-  );
+  if (highlightedPos === 'Frontal') {
+    viewText = 'VISTA FRONTAL';
+    // Draw Front View Cap
+    doc.setFillColor(248, 250, 252); // #F8FAFC
+    doc.moveTo(x + 20 * scale, y + 70 * scale);
+    doc.curveTo(x + 15 * scale, y + 35 * scale, x + 30 * scale, y + 22 * scale, x + 50 * scale, y + 22 * scale);
+    doc.curveTo(x + 70 * scale, y + 22 * scale, x + 85 * scale, y + 35 * scale, x + 80 * scale, y + 70 * scale);
+    doc.lineTo(x + 20 * scale, y + 70 * scale);
+    doc.fillStroke();
 
-  // Draw adjustable snap back opening/strap
-  doc.setFillColor(248, 248, 248); // card background color
-  // Back cutout circle
-  doc.circle(cx - w * 0.65, cy + h * 0.1, w * 0.2, 'FD');
+    // Visor
+    doc.setFillColor(226, 232, 240); // #E2E8F0
+    doc.moveTo(x + 16 * scale, y + 71 * scale);
+    doc.curveTo(x + 25 * scale, y + 82 * scale, x + 75 * scale, y + 82 * scale, x + 84 * scale, y + 71 * scale);
+    doc.curveTo(x + 86 * scale, y + 69 * scale, x + 81 * scale, y + 67 * scale, x + 80 * scale, y + 67 * scale);
+    doc.curveTo(x + 70 * scale, y + 68 * scale, x + 30 * scale, y + 68 * scale, x + 20 * scale, y + 67 * scale);
+    doc.curveTo(x + 19 * scale, y + 67 * scale, x + 14 * scale, y + 69 * scale, x + 16 * scale, y + 71 * scale);
+    doc.fillStroke();
 
-  // Position highlight spot
+    // Stitching / Panel lines
+    doc.setLineWidth(0.15);
+    doc.setDrawColor(203, 213, 225); // #CBD5E1
+    doc.line(x + 50 * scale, y + 22 * scale, x + 50 * scale, y + 70 * scale);
+    doc.moveTo(x + 50 * scale, y + 22 * scale);
+    doc.curveTo(x + 38 * scale, y + 30 * scale, x + 24 * scale, y + 50 * scale, x + 20 * scale, y + 70 * scale);
+    doc.stroke();
+    doc.moveTo(x + 50 * scale, y + 22 * scale);
+    doc.curveTo(x + 62 * scale, y + 30 * scale, x + 76 * scale, y + 50 * scale, x + 80 * scale, y + 70 * scale);
+    doc.stroke();
+
+    // Button
+    doc.setFillColor(71, 85, 105);
+    doc.setDrawColor(51, 65, 85);
+    doc.circle(x + 50 * scale, y + 22 * scale, 3 * scale, 'FD');
+
+    px = 50;
+    py = 48;
+  } 
+  else if (highlightedPos === 'Lateral izquierdo') {
+    viewText = 'LADO IZQUIERDO';
+    // Draw Left Side View Cap
+    doc.setFillColor(248, 250, 252);
+    doc.moveTo(x + 25 * scale, y + 70 * scale);
+    doc.curveTo(x + 26 * scale, y + 48 * scale, x + 28 * scale, y + 38 * scale, x + 35 * scale, y + 34 * scale);
+    doc.curveTo(x + 55 * scale, y + 24 * scale, x + 80 * scale, y + 32 * scale, x + 82 * scale, y + 70 * scale);
+    doc.lineTo(x + 25 * scale, y + 70 * scale);
+    doc.fillStroke();
+
+    // Visor pointing left
+    doc.setFillColor(226, 232, 240);
+    doc.moveTo(x + 26 * scale, y + 68 * scale);
+    doc.curveTo(x + 16 * scale, y + 68 * scale, x + 6 * scale, y + 72 * scale, x + 4 * scale, y + 75 * scale);
+    doc.curveTo(x + 10 * scale, y + 79 * scale, x + 22 * scale, y + 76 * scale, x + 26 * scale, y + 71 * scale);
+    doc.lineTo(x + 26 * scale, y + 68 * scale);
+    doc.fillStroke();
+
+    // Adjuster strap
+    doc.setFillColor(71, 85, 105);
+    doc.setDrawColor(51, 65, 85);
+    doc.moveTo(x + 80 * scale, y + 68 * scale);
+    doc.curveTo(x + 85 * scale, y + 70 * scale, x + 88 * scale, y + 74 * scale, x + 88 * scale, y + 74 * scale);
+    doc.lineTo(x + 86 * scale, y + 78 * scale);
+    doc.curveTo(x + 83 * scale, y + 75 * scale, x + 80 * scale, y + 72 * scale, x + 80 * scale, y + 72 * scale);
+    doc.lineTo(x + 80 * scale, y + 68 * scale);
+    doc.fillStroke();
+
+    // Button
+    doc.circle(x + 58 * scale, y + 26 * scale, 2.5 * scale, 'FD');
+
+    px = 55;
+    py = 54;
+  } 
+  else if (highlightedPos === 'Lateral derecho') {
+    viewText = 'LADO DERECHO';
+    // Draw Right Side View Cap
+    doc.setFillColor(248, 250, 252);
+    doc.moveTo(x + 18 * scale, y + 70 * scale);
+    doc.curveTo(x + 20 * scale, y + 32 * scale, x + 45 * scale, y + 24 * scale, x + 65 * scale, y + 34 * scale);
+    doc.curveTo(x + 72 * scale, y + 38 * scale, x + 74 * scale, y + 48 * scale, x + 75 * scale, y + 70 * scale);
+    doc.lineTo(x + 18 * scale, y + 70 * scale);
+    doc.fillStroke();
+
+    // Visor pointing right
+    doc.setFillColor(226, 232, 240);
+    doc.moveTo(x + 74 * scale, y + 68 * scale);
+    doc.curveTo(x + 84 * scale, y + 68 * scale, x + 94 * scale, y + 72 * scale, x + 96 * scale, y + 75 * scale);
+    doc.curveTo(x + 90 * scale, y + 79 * scale, x + 78 * scale, y + 76 * scale, x + 74 * scale, y + 71 * scale);
+    doc.lineTo(x + 74 * scale, y + 68 * scale);
+    doc.fillStroke();
+
+    // Adjuster strap
+    doc.setFillColor(71, 85, 105);
+    doc.setDrawColor(51, 65, 85);
+    doc.moveTo(x + 20 * scale, y + 68 * scale);
+    doc.curveTo(x + 15 * scale, y + 70 * scale, x + 12 * scale, y + 74 * scale, x + 12 * scale, y + 74 * scale);
+    doc.lineTo(x + 14 * scale, y + 78 * scale);
+    doc.curveTo(x + 17 * scale, y + 75 * scale, x + 20 * scale, y + 72 * scale, x + 20 * scale, y + 72 * scale);
+    doc.lineTo(x + 20 * scale, y + 68 * scale);
+    doc.fillStroke();
+
+    // Button
+    doc.circle(x + 42 * scale, y + 26 * scale, 2.5 * scale, 'FD');
+
+    px = 45;
+    py = 54;
+  } 
+  else if (highlightedPos === 'Parte trasera') {
+    viewText = 'VISTA TRASERA';
+    // Draw Back View Cap
+    doc.setFillColor(248, 250, 252);
+    doc.moveTo(x + 20 * scale, y + 70 * scale);
+    doc.curveTo(x + 15 * scale, y + 35 * scale, x + 30 * scale, y + 22 * scale, x + 50 * scale, y + 22 * scale);
+    doc.curveTo(x + 70 * scale, y + 22 * scale, x + 85 * scale, y + 35 * scale, x + 80 * scale, y + 70 * scale);
+    doc.lineTo(x + 20 * scale, y + 70 * scale);
+    doc.fillStroke();
+
+    // Cutout opening at the back
+    doc.setFillColor(248, 248, 248);
+    doc.moveTo(x + 38 * scale, y + 70 * scale);
+    doc.curveTo(x + 38 * scale, y + 56 * scale, x + 62 * scale, y + 56 * scale, x + 62 * scale, y + 70 * scale);
+    doc.lineTo(x + 38 * scale, y + 70 * scale);
+    doc.fillStroke();
+
+    // Adjuster strap
+    doc.setFillColor(71, 85, 105);
+    doc.setDrawColor(51, 65, 85);
+    doc.rect(x + 36 * scale, y + 68 * scale, 28 * scale, 2.5 * scale, 'FD');
+
+    // Button
+    doc.circle(x + 50 * scale, y + 22 * scale, 3 * scale, 'FD');
+
+    px = 50;
+    py = 42;
+  }
+
+  // Draw the highlighted spot
   doc.setFillColor(255, 51, 51);
   doc.setDrawColor(255, 51, 51);
   doc.setLineWidth(0.4);
 
-  let px = cx;
-  let py = cy;
-  let viewText = 'VISTA LATERAL / FRONTAL';
+  const pdfX = x + px * scale;
+  const pdfY = y + py * scale;
 
-  switch (highlightedPos) {
-    case 'Frontal':
-      px = cx + w * 0.1;
-      py = cy - h * 0.15;
-      viewText = 'VISTA FRONTAL';
-      break;
-    case 'Lateral izquierdo':
-      px = cx - w * 0.1;
-      py = cy;
-      viewText = 'VISTA LATERAL IZQ.';
-      break;
-    case 'Lateral derecho':
-      px = cx - w * 0.1;
-      py = cy;
-      viewText = 'VISTA LATERAL DER.';
-      break;
-    case 'Parte trasera':
-      px = cx - w * 0.65;
-      py = cy + h * 0.05;
-      viewText = 'VISTA TRASERA';
-      break;
-  }
-
-  doc.circle(px, py, 3, 'F');
-  doc.circle(px, py, 4.5, 'S');
+  doc.circle(pdfX, pdfY, 2.5, 'F');
+  doc.circle(pdfX, pdfY, 3.8, 'S');
 
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(7);
   doc.setTextColor(255, 51, 51);
-  doc.text(viewText, cx, cy + h + 6, { align: 'center' });
+  doc.text(viewText, x + 50 * scale, y + 98 * scale, { align: 'center' });
 }

@@ -22,13 +22,24 @@ export const Visualizer: React.FC<VisualizerProps> = ({
   patchShape = 'Rectangular',
   garmentModel
 }) => {
+  const [pendingZone, setPendingZone] = React.useState<string | null>(null);
+
+  // Reset pending zone if product type changes
+  React.useEffect(() => {
+    setPendingZone(null);
+  }, [productType]);
+
   const isPositionActive = (pos: string) => selectedPositions.includes(pos);
   const isPositionEditing = (pos: string) => selectedEditingPosition === pos;
 
   const handleZoneClick = (pos: string, e: React.MouseEvent) => {
     e.stopPropagation();
-    onPositionToggle(pos);
-    onSelectPositionForEditing(pos);
+    if (isPositionActive(pos)) {
+      onSelectPositionForEditing(pos);
+      setPendingZone(null);
+    } else {
+      setPendingZone(pos);
+    }
   };
 
   const getZoneStyles = (pos: string) => {
@@ -263,7 +274,7 @@ export const Visualizer: React.FC<VisualizerProps> = ({
   };
 
   return (
-    <div className="custom-card mb-4 bg-white border border-light-subtle">
+    <div className="custom-card mb-4 bg-white border border-light-subtle position-relative">
       <h3 className="font-display text-primary-brand mb-3">
         <i className="bi bi-eye-fill me-2"></i>
         Visualizador Interactivo
@@ -277,6 +288,42 @@ export const Visualizer: React.FC<VisualizerProps> = ({
       {productType === 'ropa' && renderRopaVisualizer()}
       {productType === 'gorras' && renderGorrasVisualizer()}
       {productType === 'parches' && renderParchesVisualizer()}
+
+      {pendingZone && (
+        <div 
+          className="position-absolute top-50 start-50 translate-middle p-3 bg-white border border-light-subtle shadow-lg rounded-3 text-center"
+          style={{ zIndex: 100, width: '90%', maxWidth: '260px' }}
+        >
+          <div className="mb-3">
+            <i className="bi bi-question-circle-fill text-danger fs-3"></i>
+            <h6 className="text-dark mt-2 mb-1 fw-bold font-display uppercase tracking-wider small">
+              ¿Personalizar esta zona?
+            </h6>
+            <p className="text-muted small m-0 uppercase tracking-widest fw-semibold" style={{ fontSize: '10px' }}>
+              {pendingZone}
+            </p>
+          </div>
+          <div className="d-flex justify-content-center gap-2">
+            <button 
+              type="button" 
+              className="btn btn-danger btn-sm font-display px-3 py-1.5 shadow-sm"
+              onClick={() => {
+                onPositionToggle(pendingZone);
+                setPendingZone(null);
+              }}
+            >
+              Sí, Añadir
+            </button>
+            <button 
+              type="button" 
+              className="btn btn-outline-secondary btn-sm font-display px-3 py-1.5"
+              onClick={() => setPendingZone(null)}
+            >
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
