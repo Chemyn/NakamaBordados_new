@@ -66,7 +66,7 @@ export default function Navbar() {
   };
 
   const handleDropdownLinkClick = (category: string, e: React.MouseEvent) => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+    if (typeof window !== 'undefined' && window.innerWidth < 1180) {
       e.preventDefault();
       setSubActive(subActive === category ? null : category);
     } else {
