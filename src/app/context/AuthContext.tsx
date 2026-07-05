@@ -13,6 +13,8 @@ interface Order {
   orderNumber: string;
   status: string;
   total: string;
+  /** Moneda con la que se creó el pedido (MXN/USD) */
+  currency?: string;
   date: string;
   enviaTrackingCode?: string;
   enviaCarrier?: string;
@@ -110,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           shipping { address1 address2 city state postcode country }
           orders(first: 20) {
             nodes {
-              id orderNumber status total date
+              id orderNumber status total currency date
               lineItems { nodes { product { node { name } } quantity } }
             }
           }

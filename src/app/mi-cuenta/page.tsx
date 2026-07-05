@@ -223,7 +223,10 @@ export default function MiCuentaPage() {
                                   ))}
                                 </ul>
                                 <div className="nk-order-total">
-                                  TOTAL: {formatPrice(parseFloat(order.total))}
+                                  {/* Total tal como se cobró el pedido, en SU moneda
+                                      (formatPrice lo reconvertía con la tasa actual
+                                      y mostraba la moneda seleccionada, no la real). */}
+                                  TOTAL: ${(parseFloat(String(order.total || '0').replace(/[^0-9.-]/g, '')) || 0).toLocaleString('es-MX', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} {order.currency || 'MXN'}
                                 </div>
                               </div>
                             </div>

@@ -436,7 +436,9 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
 
     if (!isLocalhost) {
       try {
-        const folioRes = await fetch('https://nakamabordados.com/wp-json/nakama/v1/next-folio');
+        // ?rest_route=: la ruta /wp-json/ da 404 con el .htaccess del sitio
+        // (por eso los folios salían del fallback aleatorio y no del contador).
+        const folioRes = await fetch(`https://nakamabordados.com/?rest_route=/nakama/v1/next-folio&nkcb=${Date.now()}`);
         if (folioRes.ok) {
           const data = await folioRes.json();
           if (data && data.formatted) {
@@ -445,6 +447,41 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
         }
       } catch (e) {
         console.error("Error fetching next folio from WP REST API, using fallback ID:", e);
+      }
+    }
+
+    // Resumen del producto (se usa en el pedido de WooCommerce y en WhatsApp)
+    let summaryText = '';
+    if (activeProduct === 'ropa') {
+      summaryText = `Prendas Textiles (${ropaConfig.model} - ${ropaConfig.quantity}pz)`;
+    } else if (activeProduct === 'parches') {
+      summaryText = `Parches Bordados (${patchConfig.shape} - ${patchConfig.quantity}pz)`;
+    } else if (activeProduct === 'gorras') {
+      summaryText = `Gorras (${capConfig.model} - ${capConfig.quantity}pz)`;
+    }
+
+    // Crear el pedido de cotización en WooCommerce (estado "En espera") con el
+    // folio como número de pedido: el cliente lo verá en Mi Cuenta y podrá
+    // pagar cuando el taller le asigne precio. Si hay sesión (JWT) el pedido
+    // queda ligado a su cuenta; no es fatal si falla (el flujo sigue).
+    if (!isLocalhost) {
+      try {
+        const headers: HeadersInit = { 'Content-Type': 'application/json' };
+        const token = typeof window !== 'undefined' ? localStorage.getItem('wp-jwt') : null;
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+        await fetch(`https://nakamabordados.com/?rest_route=/nakama/v1/quote-order&nkcb=${Date.now()}`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify({
+            folio: folioStr,
+            name: clientDetails.name,
+            email: clientDetails.email,
+            phone: clientDetails.phone,
+            summary: summaryText,
+          }),
+        });
+      } catch (e) {
+        console.warn('No se pudo registrar el pedido de cotización en WooCommerce:', e);
       }
     }
 
@@ -482,15 +519,6 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
     }
 
     const number = '526622455087';
-    
-    let summaryText = '';
-    if (activeProduct === 'ropa') {
-      summaryText = `Prendas Textiles (${ropaConfig.model} - ${ropaConfig.quantity}pz)`;
-    } else if (activeProduct === 'parches') {
-      summaryText = `Parches Bordados (${patchConfig.shape} - ${patchConfig.quantity}pz)`;
-    } else if (activeProduct === 'gorras') {
-      summaryText = `Gorras (${capConfig.model} - ${capConfig.quantity}pz)`;
-    }
 
     const message = `¡Hola Nakama! Acabo de enviar mi solicitud de cotización formal (${folioStr}) para:\n` +
       `*Producto:* ${summaryText}\n` +

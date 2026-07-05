@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Nakama Checkout Tools
- * Description: Endpoints REST para validación de cupones, moneda, SSO al escritorio y sincronización de base de datos local (Next.js).
- * Version: 1.4
+ * Description: Endpoints REST para validación de cupones, moneda, SSO, pedidos de cotización y sincronización de base de datos local (Next.js).
+ * Version: 1.5
  * Author: Nakama
  */
 
@@ -29,6 +29,18 @@ add_action( 'rest_api_init', function () {
         'permission_callback' => 'is_user_logged_in'
     ) );
 
+    // Pedido de cotización: al terminar una cotización en el cotizador se crea
+    // un pedido "En espera" en WooCommerce con el folio (NK-xxxx) como número
+    // de pedido. El cliente lo ve en Mi Cuenta y, cuando el taller asigna el
+    // precio (editando el pedido y pasándolo a "Pendiente de pago"), puede pagar.
+    // Si llega un JWT válido el pedido se asocia a ese usuario; si no, queda
+    // como invitado con el email del formulario.
+    register_rest_route( 'nakama/v1', '/quote-order', array(
+        'methods' => 'POST',
+        'callback' => 'nakama_create_quote_order',
+        'permission_callback' => '__return_true'
+    ) );
+
     // Info de moneda: expone el tipo de cambio MXN->USD que usa el snippet
     // "ImperioDev Currency Global V15.7" para que el frontend Next muestre
     // exactamente los mismos montos que el checkout de WooCommerce.
@@ -38,6 +50,128 @@ add_action( 'rest_api_init', function () {
         'permission_callback' => '__return_true'
     ) );
 });
+
+function nakama_create_quote_order( WP_REST_Request $request ) {
+    if ( ! function_exists( 'wc_create_order' ) ) {
+        return new WP_Error( 'no_wc', 'WooCommerce no está activo', array( 'status' => 500 ) );
+    }
+
+    $params = $request->get_json_params();
+    $folio  = sanitize_text_field( $params['folio'] ?? '' );
+    $name   = sanitize_text_field( $params['name'] ?? '' );
+    $email  = sanitize_email( $params['email'] ?? '' );
+    $phone  = sanitize_text_field( $params['phone'] ?? '' );
+    $summary = sanitize_textarea_field( $params['summary'] ?? '' );
+    $details = sanitize_textarea_field( $params['details'] ?? '' );
+
+    // El folio debe tener el formato NK-<numero> y haber sido emitido por
+    // /next-folio (no mayor que el contador actual) — frena órdenes basura.
+    if ( ! preg_match( '/^NK-(\d{1,10})$/', $folio, $m ) ) {
+        return new WP_Error( 'bad_folio', 'Folio inválido', array( 'status' => 400 ) );
+    }
+    $counter = (int) get_option( 'nakama_quote_folio_counter', 0 );
+    $is_issued_folio = ( (int) $m[1] ) <= $counter;
+
+    if ( empty( $name ) ) {
+        return new WP_Error( 'bad_name', 'Falta el nombre del cliente', array( 'status' => 400 ) );
+    }
+
+    // Idempotente por folio: si ya existe un pedido con este folio, devolverlo
+    // (evita duplicados si el cliente reintenta el envío).
+    $existing = wc_get_orders( array(
+        'limit'      => 1,
+        'meta_key'   => '_nakama_quote_folio',
+        'meta_value' => $folio,
+    ) );
+    if ( ! empty( $existing ) ) {
+        $order = $existing[0];
+        return rest_ensure_response( array(
+            'success' => true,
+            'orderId' => $order->get_id(),
+            'folio'   => $folio,
+            'duplicated' => true,
+        ) );
+    }
+
+    $user_id = get_current_user_id(); // 0 si es invitado; JWT lo autentica si viene.
+
+    $order = wc_create_order( array( 'customer_id' => $user_id ) );
+    if ( is_wp_error( $order ) ) {
+        return new WP_Error( 'order_failed', 'No se pudo crear el pedido', array( 'status' => 500 ) );
+    }
+
+    // Concepto de la cotización con precio 0: el taller lo edita después
+    // para asignar el precio real.
+    $fee = new WC_Order_Item_Fee();
+    $fee->set_name( 'Cotización ' . $folio . ( $summary ? ' — ' . $summary : '' ) );
+    $fee->set_amount( 0 );
+    $fee->set_total( 0 );
+    $order->add_item( $fee );
+
+    // Datos del cliente.
+    $name_parts = explode( ' ', $name, 2 );
+    $order->set_billing_first_name( $name_parts[0] );
+    if ( ! empty( $name_parts[1] ) ) {
+        $order->set_billing_last_name( $name_parts[1] );
+    }
+    if ( $email ) {
+        $order->set_billing_email( $email );
+    }
+    if ( $phone ) {
+        $order->set_billing_phone( $phone );
+    }
+
+    $order->update_meta_data( '_nakama_quote_folio', $folio );
+    if ( ! $is_issued_folio ) {
+        // Folio generado con el fallback aleatorio del frontend: se acepta
+        // pero se marca para revisión.
+        $order->update_meta_data( '_nakama_quote_folio_unverified', 'yes' );
+    }
+
+    $note = "Solicitud de cotización {$folio} generada desde el cotizador web.";
+    if ( $summary ) {
+        $note .= "\nProducto: {$summary}";
+    }
+    if ( $details ) {
+        $note .= "\nDetalles: {$details}";
+    }
+    $note .= "\nCliente: {$name}" . ( $phone ? " | Tel: {$phone}" : '' ) . ( $email ? " | Email: {$email}" : '' );
+    $note .= "\n\nPara cobrar: asigna el precio en el concepto, recalcula totales y cambia el estado a 'Pendiente de pago'. El cliente podrá pagar desde Mi Cuenta.";
+    $order->add_order_note( $note );
+
+    $order->calculate_totals();
+    // 'on-hold' = En espera: visible para el cliente en Mi Cuenta, sin permitir
+    // pago hasta que el taller asigne precio y lo pase a 'pending'.
+    $order->set_status( 'on-hold', 'Cotización en revisión: pendiente de asignar precio.' );
+    $order->save();
+
+    $response = rest_ensure_response( array(
+        'success' => true,
+        'orderId' => $order->get_id(),
+        'folio'   => $folio,
+    ) );
+    $response->header( 'Access-Control-Allow-Origin', '*' );
+    $response->header( 'X-LiteSpeed-Cache-Control', 'no-cache' );
+    return $response;
+}
+
+// El folio de cotización reemplaza al número de pedido interno (NK-1001 en
+// lugar de #4382) en Mi Cuenta, el admin y los correos de WooCommerce.
+add_filter( 'woocommerce_order_number', function ( $number, $order ) {
+    $folio = $order->get_meta( '_nakama_quote_folio' );
+    return $folio ? $folio : $number;
+}, 10, 2 );
+
+// Mostrar SIEMPRE el código de moneda junto al total del pedido (admin,
+// Mi Cuenta y correos): MXN y USD comparten el símbolo "$" y no se
+// distinguía con qué moneda se pagó.
+add_filter( 'woocommerce_get_formatted_order_total', function ( $formatted, $order ) {
+    $currency = $order->get_currency();
+    if ( $currency && false === strpos( $formatted, $currency ) ) {
+        $formatted .= ' ' . $currency;
+    }
+    return $formatted;
+}, 10, 2 );
 
 function nakama_sso_set_cookie() {
     $user_id = get_current_user_id();
