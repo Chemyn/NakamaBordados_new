@@ -117,8 +117,11 @@ class Nakama_Settings {
 	}
 
 	/**
-	 * Convierte un monto en moneda base a la moneda activa con el MISMO tipo
-	 * de cambio (con margen) que cachea el snippet de moneda del sitio.
+	 * Convierte un monto en moneda base (MXN) a la moneda activa usando el
+	 * tipo de cambio REAL. El transient del snippet guarda el rate con margen
+	 * (-2 pesos, que encarece los precios de productos en USD); los montos
+	 * operativos (tope de envío, umbrales) deben convertirse al valor real:
+	 * pesos_reales = 1/rate + 2. Ej.: tope 140 MXN -> 140 / 17.47 = 8.01 USD.
 	 * Sin tipo de cambio disponible devuelve el monto sin convertir.
 	 */
 	public static function convert_from_base( $amount, $currency ) {
@@ -130,7 +133,8 @@ class Nakama_Settings {
 			$rate = get_transient( 'id_rate_v15_6_USD' );
 		}
 		if ( $rate && (float) $rate > 0 ) {
-			return round( (float) $amount * (float) $rate, 2 );
+			$pesos_reales = ( 1 / (float) $rate ) + 2;
+			return round( (float) $amount / $pesos_reales, 2 );
 		}
 		return (float) $amount;
 	}

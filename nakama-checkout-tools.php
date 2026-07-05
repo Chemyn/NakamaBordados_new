@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO, pedidos de cotización y sincronización de base de datos local (Next.js).
- * Version: 2.1
+ * Version: 2.2
  * Author: Nakama
  */
 
@@ -495,32 +495,11 @@ function nakama_pay_quote_via_checkout( $debug = false ) {
         exit;
     }
 
-    // El precio del carrito debe ir en moneda BASE (MXN). Si la cotización se
-    // preció en USD, convertir a pesos con el tipo de cambio REAL (el rate
-    // guardado trae el margen de -2 pesos que encarece los precios en USD;
-    // para pasar dólares a pesos se suma de vuelta: 1/rate + 2).
-    // Ej.: rate margen = 1/15.47 -> pesos reales = 17.47 -> 100 USD = 1,747 MXN.
-    $base           = get_option( 'woocommerce_currency', 'MXN' );
-    $order_currency = $order->get_currency();
-    if ( $order_currency && $order_currency !== $base ) {
-        if ( 'USD' === $order_currency ) {
-            $rate = nakama_get_usd_rate();
-            if ( $rate && $rate > 0 ) {
-                $pesos_por_dolar_real = ( 1 / $rate ) + 2;
-                $total = $total * $pesos_por_dolar_real; // USD -> MXN (rate real)
-                if ( $debug ) echo 'Total convertido de USD a base (rate real ' . $pesos_por_dolar_real . '): ' . $total . '<br>';
-            } else {
-                if ( $debug ) { echo 'Error: no hay tipo de cambio disponible para convertir la cotización en USD.'; exit; }
-                wp_safe_redirect( home_url( '/mi-cuenta/' ) );
-                exit;
-            }
-        } else {
-            if ( $debug ) { echo 'Error: moneda de cotización no soportada: ' . esc_html( $order_currency ); exit; }
-            wp_safe_redirect( home_url( '/mi-cuenta/' ) );
-            exit;
-        }
-    }
-
+    // El precio de la cotización es el precio FINAL acordado: se guarda junto
+    // con su moneda y el hook de precio (prioridad 1000, después del conversor
+    // de moneda del sitio) lo fija en la moneda que el cliente esté viendo,
+    // SIN el margen de productos: 100 USD se ven/pagan como 100 USD, y su
+    // equivalente en pesos usa el tipo de cambio real (100 x 17.47 = 1,747 MXN).
     WC()->cart->empty_cart();
     $added = WC()->cart->add_to_cart(
         nakama_quote_product_id(),
@@ -531,6 +510,7 @@ function nakama_pay_quote_via_checkout( $debug = false ) {
             'nakama_quote_order_id' => $order->get_id(),
             'nakama_quote_folio'    => (string) $order->get_meta( '_nakama_quote_folio' ),
             'nakama_quote_price'    => $total,
+            'nakama_quote_currency' => $order->get_currency() ? $order->get_currency() : get_option( 'woocommerce_currency', 'MXN' ),
         )
     );
 
@@ -544,18 +524,45 @@ function nakama_pay_quote_via_checkout( $debug = false ) {
     exit;
 }
 
-// Precio y nombre del artículo de cotización en el carrito. Prioridad 20:
-// corre ANTES que el conversor de moneda (999), que convierte a USD si aplica.
+// Precio y nombre del artículo de cotización en el carrito.
+// Prioridad 1000: corre DESPUÉS del conversor de moneda del sitio (999) y
+// fija el precio FINAL en la moneda que el cliente está viendo, exento del
+// margen de productos. Conversión cruzada con el tipo de cambio REAL
+// (pesos_reales = 1/rate + 2): cotización de 100 USD -> 100 USD en vista USD
+// y 1,747 MXN en vista MXN; cotización en MXN -> división inversa.
 add_action( 'woocommerce_before_calculate_totals', function ( $cart ) {
     foreach ( $cart->get_cart() as $cart_item ) {
-        if ( isset( $cart_item['nakama_quote_price'] ) ) {
-            $cart_item['data']->set_price( (float) $cart_item['nakama_quote_price'] );
-            if ( ! empty( $cart_item['nakama_quote_folio'] ) ) {
-                $cart_item['data']->set_name( 'Cotización ' . $cart_item['nakama_quote_folio'] );
+        if ( ! isset( $cart_item['nakama_quote_price'] ) ) {
+            continue;
+        }
+
+        $price          = (float) $cart_item['nakama_quote_price'];
+        $quote_currency = ! empty( $cart_item['nakama_quote_currency'] )
+            ? $cart_item['nakama_quote_currency']
+            : get_option( 'woocommerce_currency', 'MXN' );
+        // Moneda activa (el conversor del sitio filtra woocommerce_currency).
+        $display_currency = get_woocommerce_currency();
+
+        if ( $display_currency !== $quote_currency ) {
+            $rate = nakama_get_usd_rate();
+            if ( $rate && $rate > 0 ) {
+                $pesos_reales = ( 1 / $rate ) + 2;
+                if ( 'USD' === $quote_currency ) {
+                    $price = round( $price * $pesos_reales, 2 ); // USD -> MXN
+                } elseif ( 'USD' === $display_currency ) {
+                    $price = round( $price / $pesos_reales, 2 ); // MXN -> USD
+                }
             }
+            // Sin tipo de cambio disponible: se deja el precio tal cual
+            // (caso raro; el transient se renueva solo).
+        }
+
+        $cart_item['data']->set_price( $price );
+        if ( ! empty( $cart_item['nakama_quote_folio'] ) ) {
+            $cart_item['data']->set_name( 'Cotización ' . $cart_item['nakama_quote_folio'] );
         }
     }
-}, 20 );
+}, 1000 );
 
 // Copiar la referencia de la cotización al pedido nuevo que crea el checkout.
 add_action( 'woocommerce_checkout_create_order_line_item', function ( $item, $cart_item_key, $values, $order ) {

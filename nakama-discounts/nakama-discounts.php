@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Discounts Engine
  * Description: Motor de descuentos automáticos para WooCommerce (bienvenida/fidelidad, especiales por campaña, 3x2, envío gratis topado, descuento por transferencia y MSI).
- * Version:     1.0.1
+ * Version:     1.0.2
  * Author:      Nakama Bordados
  * Requires PHP: 7.4
  * Text Domain: nakama-discounts
@@ -33,7 +33,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'NAKAMA_DISC_VERSION', '1.0.1' );
+define( 'NAKAMA_DISC_VERSION', '1.0.2' );
 define( 'NAKAMA_DISC_FILE', __FILE__ );
 define( 'NAKAMA_DISC_PATH', plugin_dir_path( __FILE__ ) );
 define( 'NAKAMA_DISC_URL', plugin_dir_url( __FILE__ ) );
