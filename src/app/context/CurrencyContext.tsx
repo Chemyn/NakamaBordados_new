@@ -7,6 +7,8 @@ type CurrencyData = {
   rate: number;
   country: string;
   symbol: string;
+  /** true solo cuando el usuario eligió la moneda en el selector */
+  manual?: boolean;
 };
 
 interface CurrencyContextProps {
@@ -67,63 +69,36 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
   });
 
   useEffect(() => {
-    const fetchCurrency = async () => {
-      try {
-        const geoRes = await fetch('https://ipapi.co/json/');
-        const geoData = await geoRes.json();
-        const country = geoData.country_code || 'MX';
-        let targetCurrency = geoData.currency || 'MXN';
-        if (targetCurrency !== 'USD') {
-          targetCurrency = 'MXN';
-        }
-
-        let rate = 1;
-        const symbol = '$';
-
-        if (targetCurrency === 'USD') {
-          const usdRate = await fetchUsdRate();
-          if (usdRate) {
-            rate = usdRate;
-          } else {
-            targetCurrency = 'MXN';
-          }
-        }
-        
-        const newInfo = { currency: targetCurrency, rate, country, symbol };
-        setCurrencyInfo(newInfo);
-        localStorage.setItem('user-currency', JSON.stringify(newInfo));
-      } catch (e) {
-        console.error("Error fetching currency info", e);
-      }
-    };
-
+    // La moneda por defecto es SIEMPRE MXN. Antes se geo-detectaba por IP
+    // (ipapi.co) y a los visitantes de países con dólar se les activaba USD
+    // sin haberlo seleccionado — el checkout llegaba convertido "solo".
+    // USD únicamente cuando el usuario lo elige en el selector (persistido
+    // en localStorage como elección manual).
     const saved = localStorage.getItem('user-currency');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        if (parsed.currency !== 'MXN' && parsed.currency !== 'USD') {
-          fetchCurrency();
-        } else {
+        // manual: los guardados de la época de geo-detección no llevan el
+        // flag y se descartan — solo sobrevive el USD elegido por el usuario.
+        if (parsed.currency === 'USD' && parsed.manual === true) {
           setCurrencyInfo(parsed);
           // Refrescar el tipo de cambio en segundo plano: el rate guardado en
           // localStorage se desactualiza (WP lo renueva cada 6 horas).
-          if (parsed.currency === 'USD') {
-            fetchUsdRate().then(usdRate => {
-              if (usdRate && usdRate !== parsed.rate) {
-                const refreshed = { ...parsed, rate: usdRate };
-                setCurrencyInfo(refreshed);
-                localStorage.setItem('user-currency', JSON.stringify(refreshed));
-              }
-            });
-          }
+          fetchUsdRate().then(usdRate => {
+            if (usdRate && usdRate !== parsed.rate) {
+              const refreshed = { ...parsed, rate: usdRate };
+              setCurrencyInfo(refreshed);
+              localStorage.setItem('user-currency', JSON.stringify(refreshed));
+            }
+          });
+          return;
         }
       } catch (e) {
         console.error(e);
-        fetchCurrency();
       }
-    } else {
-      fetchCurrency();
     }
+    // Sin elección manual previa (o guardado corrupto): MXN, sin red.
+    setCurrencyInfo({ currency: 'MXN', rate: 1, country: 'MX', symbol: '$' });
   }, []);
 
   const setCurrencyManual = async (targetCurrency: string) => {
@@ -142,7 +117,7 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
           cleanCurrency = 'MXN';
         }
       }
-      const newInfo = { ...currencyInfo, currency: cleanCurrency, rate, symbol };
+      const newInfo = { ...currencyInfo, currency: cleanCurrency, rate, symbol, manual: true };
       setCurrencyInfo(newInfo);
       localStorage.setItem('user-currency', JSON.stringify(newInfo));
     } catch (e) {

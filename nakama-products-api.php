@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Products API
  * Description: API REST pública y RÁPIDA de productos (WooCommerce/$wpdb directo, sin WPGraphQL) para el frontend estático de Next.js.
- * Version: 1.6
+ * Version: 1.7
  * Author: Nakama
  */
 
@@ -73,6 +73,46 @@ function nakama_products_add_cors($response)
 function nakama_products_preflight()
 {
     return nakama_products_add_cors(rest_ensure_response(null));
+}
+
+// ============================================================================
+// CACHÉ DE RESPUESTAS (transients)
+// ============================================================================
+// Construir cada respuesta ejecuta cientos de consultas (términos, imágenes y
+// variaciones por producto) y las cabeceras no-cache — necesarias por el bug
+// de respuestas vacías cacheadas en LiteSpeed — hacen que CADA visita pague
+// ese costo completo: la carga de productos era muy lenta. El caché vive en
+// transients del servidor (la BD responde en ms) y se invalida al instante
+// cuando se guarda un producto, así que no reintroduce el problema de datos
+// viejos que tenía LiteSpeed.
+
+/** Sello de versión del caché: cambia cuando se edita/guarda un producto. */
+function nakama_products_cache_version()
+{
+    return (string) get_option('nakama_products_cache_ver', '1');
+}
+
+/** Invalida TODO el caché de productos (las claves viejas expiran solas). */
+function nakama_products_bump_cache()
+{
+    update_option('nakama_products_cache_ver', (string) microtime(true), false);
+}
+
+// Cualquier cambio relevante invalida: guardar/editar producto o stock,
+// registrar ventas (afecta el orden de "más vendidos") y aprobar reseñas.
+add_action('save_post_product', 'nakama_products_bump_cache');
+add_action('woocommerce_update_product', 'nakama_products_bump_cache');
+add_action('woocommerce_product_set_stock', 'nakama_products_bump_cache');
+add_action('woocommerce_variation_set_stock', 'nakama_products_bump_cache');
+add_action('woocommerce_recorded_sales', 'nakama_products_bump_cache');
+add_action('transition_comment_status', 'nakama_products_bump_cache');
+add_action('wp_insert_comment', 'nakama_products_bump_cache');
+
+/** Clave de transient estable para un conjunto de parámetros. */
+function nakama_products_cache_key($prefix, $parts)
+{
+    $parts[] = nakama_products_cache_version();
+    return $prefix . '_' . md5(wp_json_encode($parts));
 }
 
 // ============================================================================
@@ -304,8 +344,12 @@ function nakama_products_build_variation($variation)
 /**
  * Construye un objeto Product completo a partir de un WC_Product.
  * Coincide con el tipo `Product` de src/types/product.ts.
+ *
+ * $light = true (listados): omite descripción y reseñas — las tarjetas de la
+ * tienda/sliders no las usan y get_comments por producto encarecía cada
+ * listado. El detalle del producto (endpoint /product) siempre va completo.
  */
-function nakama_products_build_product($product)
+function nakama_products_build_product($product, $light = false)
 {
     if (!$product instanceof WC_Product) {
         return null;
@@ -380,9 +424,9 @@ function nakama_products_build_product($product)
         $sales_count = (($database_id * 7) % 10) + 1;
     }
 
-    // Obtener valoraciones reales de WooCommerce
+    // Obtener valoraciones reales de WooCommerce (solo en modo completo).
     $reviews = array();
-    $comments = get_comments(array(
+    $comments = $light ? array() : get_comments(array(
         'post_id' => $database_id,
         'status' => 'approve',
         'type' => 'review'
@@ -413,7 +457,7 @@ function nakama_products_build_product($product)
         'name' => wp_specialchars_decode($product->get_name()),
         'sku' => $sku,
         'price' => $price,
-        'description' => $product->get_description(), // HTML permitido.
+        'description' => $light ? '' : $product->get_description(), // HTML permitido.
         'categories' => array_values($categories),
         'tags' => array_values($tags),
         'images' => $images,
@@ -442,6 +486,14 @@ function nakama_products_list($request)
         $limit = 20; // Por defecto.
     }
     // offset ya es >= 0 gracias a absint().
+
+    // Caché servidor: la misma consulta se sirve desde transient hasta que un
+    // producto cambie (ver nakama_products_bump_cache).
+    $cache_key = nakama_products_cache_key('nkp_list', array($limit, $offset, $category, $tag, $search, $orderby));
+    $cached = get_transient($cache_key);
+    if (false !== $cached && is_array($cached)) {
+        return nakama_products_add_cors(rest_ensure_response($cached));
+    }
 
     // Construir argumentos para wc_get_products (devuelve precios/variaciones correctos).
     // Pedimos limit+1 para saber si hay página siguiente sin un COUNT extra.
@@ -491,10 +543,10 @@ function nakama_products_list($request)
         $wc_products = array_slice($wc_products, 0, $limit);
     }
 
-    // Mapear al shape del frontend.
+    // Mapear al shape del frontend (modo ligero: sin descripción ni reseñas).
     $products = array();
     foreach ($wc_products as $wc_product) {
-        $built = nakama_products_build_product($wc_product);
+        $built = nakama_products_build_product($wc_product, true);
         if ($built) {
             $products[] = $built;
         }
@@ -511,7 +563,7 @@ function nakama_products_list($request)
         $tags = nakama_products_search_tags($search);
     }
 
-    $response = rest_ensure_response(array(
+    $payload = array(
         'products' => $products,
         'pageInfo' => array(
             'hasNextPage' => (bool) $has_next_page,
@@ -519,9 +571,15 @@ function nakama_products_list($request)
         ),
         'categories' => $categories,
         'tags' => $tags,
-    ));
+    );
 
-    return nakama_products_add_cors($response);
+    // Solo cachear respuestas con productos: una vacía (fallo transitorio)
+    // dejaría una categoría "sin productos" hasta la siguiente invalidación.
+    if (!empty($products)) {
+        set_transient($cache_key, $payload, 15 * MINUTE_IN_SECONDS);
+    }
+
+    return nakama_products_add_cors(rest_ensure_response($payload));
 }
 
 /**
@@ -603,6 +661,13 @@ function nakama_products_single($request)
         return new WP_Error('missing_slug', 'El parámetro slug es requerido', array('status' => 400));
     }
 
+    // Caché servidor por slug (se invalida al guardar cualquier producto).
+    $cache_key = nakama_products_cache_key('nkp_single', array($slug));
+    $cached = get_transient($cache_key);
+    if (false !== $cached && is_array($cached)) {
+        return nakama_products_add_cors(rest_ensure_response($cached));
+    }
+
     // Buscar el post por su post_name (slug) dentro del tipo 'product'.
     $post = get_page_by_path($slug, OBJECT, 'product');
 
@@ -625,6 +690,8 @@ function nakama_products_single($request)
     if (!$built) {
         return new WP_Error('not_found', 'Producto no encontrado', array('status' => 404));
     }
+
+    set_transient($cache_key, $built, 15 * MINUTE_IN_SECONDS);
 
     return nakama_products_add_cors(rest_ensure_response($built));
 }

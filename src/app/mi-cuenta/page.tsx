@@ -11,7 +11,7 @@ import { openWpAdmin, seedWpSession, WP_ADMIN_URL } from '@/lib/wp-sso';
 
 export default function MiCuentaPage() {
   const { user, login, logout, refreshUser, isLoading, isAdmin } = useAuth();
-  const { formatPrice } = useCurrency();
+  const { formatPrice, currencyInfo } = useCurrency();
   const { t } = useLanguage();
   
   const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'profile' | 'addresses' | 'tracking' | 'commissions'>('dashboard');
@@ -253,8 +253,11 @@ export default function MiCuentaPage() {
                                       // reconozca al cliente, y pagar por el CHECKOUT
                                       // NORMAL (pide envío, calcula paquetería y acepta
                                       // cupones; order-pay de Woo no lo hace).
+                                      // currency: sin él, el snippet de moneda de WP
+                                      // decide solo (geo-IP) y convertía a USD sin
+                                      // que el cliente lo hubiera seleccionado.
                                       await seedWpSession();
-                                      window.location.href = `https://nakamabordados.com/index.php?nk_bridge=pay-quote&order=${order.databaseId}&key=${order.orderKey}`;
+                                      window.location.href = `https://nakamabordados.com/index.php?nk_bridge=pay-quote&order=${order.databaseId}&key=${order.orderKey}&currency=${currencyInfo.currency}`;
                                     }}
                                   >
                                     <span className="material-icons-outlined" style={{ fontSize: '18px', verticalAlign: 'middle', marginRight: '6px' }}>payments</span>

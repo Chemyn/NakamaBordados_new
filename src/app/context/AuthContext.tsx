@@ -132,7 +132,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     `;
 
     try {
-      const { data } = await fetchGraphQL(query, {}, { Authorization: `Bearer ${token}` });
+      const { data, errors } = await fetchGraphQL(query, {}, { Authorization: `Bearer ${token}` });
 
       if (data?.viewer) {
         const v = data.viewer;
@@ -187,8 +187,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         setUser(customer);
       } else {
-        console.warn("AuthProvider: viewer vacío; el token podría ser inválido/expirado.");
-        logout();
+        // NO cerrar sesión por fallas transitorias (deploy/build en curso,
+        // purga de LiteSpeed, timeout, 500 momentáneo de WP): antes cualquier
+        // respuesta sin viewer borraba el JWT y todos los usuarios quedaban
+        // deslogueados tras cada build. Solo se cierra la sesión cuando WP
+        // dice explícitamente que el token es inválido/expirado (la expiración
+        // real ya se detecta localmente arriba con payload.exp).
+        const errList = Array.isArray(errors) ? errors : [];
+        const isJwtInvalid = errList.some((e: unknown) => {
+          const msg = (e as { message?: string })?.message;
+          return typeof msg === 'string' && /jwt|expired|expirad|invalid.*token|token.*invalid|not.*logged|no.*autenticado/i.test(msg);
+        });
+        if (isJwtInvalid) {
+          console.warn('AuthProvider: WP marcó el token como inválido; cerrando sesión.');
+          logout();
+        } else {
+          console.warn('AuthProvider: viewer vacío por error transitorio; se conserva la sesión.');
+        }
       }
     } catch (err) {
       console.error('AuthProvider: Error al cargar datos', err);

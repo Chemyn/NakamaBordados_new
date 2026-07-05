@@ -56,7 +56,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
   const [activeImage, setActiveImage] = useState(product.images[0]);
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState<'desc' | 'care' | 'reviews'>('desc');
+  const [activeTab, setActiveTab] = useState<'desc' | 'care' | 'reviews' | 'sizes'>('desc');
   const [showAllThumbs, setShowAllThumbs] = useState(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
 
@@ -211,7 +211,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
     return 99;
   };
 
-  const attributeNames = product.type === 'variable' 
+  const attributeNames = product.type === 'variable'
     ? Array.from(new Set(validVariations.flatMap(v => Object.keys(v.attributes)))).sort((a, b) => {
         return getAttributeOrderValue(a) - getAttributeOrderValue(b);
       })
@@ -301,7 +301,9 @@ export default function ProductClient({ initialProduct: product, relatedProducts
   const visibleThumbs = showAllThumbs ? product.images : product.images.slice(0, 5);
 
   return (
-    <div className="nk-product-detail-page" style={{ paddingTop: '50px', background: 'var(--nk-bg-wrapper)' }}>
+    // paddingTop en función de --header-padding: en laptops el header pasa a
+    // dos filas (más alto) y un valor fijo quedaba tapado por el navbar.
+    <div className="nk-product-detail-page" style={{ paddingTop: 'calc(var(--header-padding) - 30px)', background: 'var(--nk-bg-wrapper)' }}>
       <div className="nk-container">
         <div className="nk-detail-grid">
           <div className="nk-detail-gallery">
@@ -454,9 +456,13 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                           );
                         })}
                       </div>
+                      {/* Sin overrides inline: el rediseño manga de
+                          .nk-size-guide-trigger (globals.css) trae su propio
+                          padding/alto; los 4px del diseño-enlace anterior lo
+                          dejaban apretado contra el borde. */}
                       {isSize && !isGorras && (
                         <div style={{ marginTop: '12px' }}>
-                          <button type="button" className="nk-size-guide-trigger" style={{ padding: '4px 0', minHeight: 'auto', display: 'inline-flex' }} onClick={() => setSizeGuideOpen(true)}>
+                          <button type="button" className="nk-size-guide-trigger" onClick={() => setSizeGuideOpen(true)}>
                             <span className="material-icons-outlined">straighten</span>
                             {t('product.size_guide')}
                           </button>
@@ -476,6 +482,24 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                 </button>
               </div>
             )}
+
+            {/* Promociones activas, junto a las variaciones (mismas del banner) */}
+            <div className="nk-detail-promos nk-manga-border">
+              <div className="nk-detail-promos-head">
+                <span className="material-icons-outlined">local_activity</span>
+                {t('product.promos_title')}
+              </div>
+              <ul className="nk-detail-promos-list">
+                <li>{t('marquee.welcome')}</li>
+                <li>{t('marquee.shipping')}</li>
+                <li>{t('marquee.msi')}</li>
+                <li>{t('marquee.transfer')}</li>
+              </ul>
+              <Link href="/promociones" className="nk-detail-promos-link">
+                {t('product.promos_link')}
+                <span className="material-icons-outlined" style={{ fontSize: '14px' }}>arrow_forward</span>
+              </Link>
+            </div>
 
             <div className="nk-detail-actions-section nk-manga-border" style={{ boxShadow: 'var(--nk-manga-shadow-lg)' }}>
               <div className="nk-action-row">
@@ -507,6 +531,9 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                 <li><button className={`tab-btn ${activeTab === 'desc' ? 'active' : ''}`} onClick={() => setActiveTab('desc')}>{t('product.desc_tab')}</button></li>
                 <li><button className={`tab-btn ${activeTab === 'care' ? 'active' : ''}`} onClick={() => setActiveTab('care')}>{t('product.care_tab')}</button></li>
                 <li><button className={`tab-btn ${activeTab === 'reviews' ? 'active' : ''}`} onClick={() => { setActiveTab('reviews'); if (dbReviews.length === 0) setShowReviewForm(true); }}>{t('product.reviews_tab')} ({reviewCount})</button></li>
+                {!isGorras && (
+                  <li><button className={`tab-btn ${activeTab === 'sizes' ? 'active' : ''}`} onClick={() => setActiveTab('sizes')}>{t('product.sizes_tab')}</button></li>
+                )}
               </ul>
               <div className="tab-content nk-manga-border" style={{ fontSize: '0.95rem', lineHeight: '1.6', background: 'var(--nk-bg-card)', padding: '20px' }}>
                 {activeTab === 'desc' && (
@@ -717,14 +744,14 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                           ></textarea>
                         </div>
 
-                        <button 
-                          type="submit" 
+                        <button
+                          type="submit"
                           disabled={submittingReview}
-                          className="nk-btn nk-manga-border w-100" 
-                          style={{ 
-                            background: 'var(--nk-primary)', 
-                            fontWeight: 800, 
-                            fontSize: '1rem', 
+                          className="nk-btn nk-manga-border w-100"
+                          style={{
+                            background: 'var(--nk-primary)',
+                            fontWeight: 800,
+                            fontSize: '1rem',
                             cursor: 'pointer',
                             padding: '12px 20px',
                             color: '#fff',
@@ -737,6 +764,26 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                         </button>
                       </form>
                     )}
+                  </div>
+                )}
+                {activeTab === 'sizes' && (
+                  <div>
+                    <p style={{ fontWeight: 700, marginBottom: '15px' }}>{t('product.sizes_tab_hint')}</p>
+                    {/* Mismas láminas que el modal de guía de tallas */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: '15px' }}>
+                      {[2,3,4,5,6,7,8].map(num => (
+                        <div key={num} onClick={() => setZoomImage(`https://nakamabordados.com/wp-content/uploads/2026/01/${num}.webp`)} style={{ cursor: 'zoom-in' }} className="nk-manga-border">
+                          <Image
+                            src={`https://nakamabordados.com/wp-content/uploads/2026/01/${num}.webp`}
+                            alt={`Guía de tallas ${num}`}
+                            width={600}
+                            height={800}
+                            className="nk-guide-img"
+                            style={{ width: '100%', height: 'auto', display: 'block' }}
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

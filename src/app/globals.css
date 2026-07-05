@@ -730,21 +730,9 @@ html.dark .nk-navbar {
   flex-shrink: 0;
 }
 
-@media (min-width: 1024px) {
-  /* Red de seguridad: si aun compactado no cabe, los enlaces envuelven a una
-     segunda línea en lugar de empujar los iconos fuera de la pantalla. */
-  .nk-nav-list {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-  }
-}
-
 /* Con 9 enlaces + selectores + 5 iconos el ancho natural del header ronda
-   los 1550px: en laptops hay que compactar tipografía y espacios o el toggle
-   de tema y el botón de escritorio WP quedan fuera de la pantalla.
-   Selectores compuestos: la base .nk-nav-link (1.35rem !important) está
-   declarada más abajo en este archivo y con la misma especificidad ganaría. */
-
+   los 1550px. La solución vigente vive más abajo (RESPONSIVE NAVBAR ADAPTIVE
+   SYSTEM): menú hamburguesa hasta 1389px y compactación en 1390–1550px. */
 
 /* --- ESTILO STREETWEAR ANIME BADGE (Home) --- */
 .nk-store-hero-badge {
@@ -808,9 +796,9 @@ html.dark .nk-detail-tabs-section .tab-content {
   border-color: var(--nk-border) !important;
 }
 
-.nk-size-guide-trigger {
-  color: var(--nk-text-main) !important;
-}
+/* (Los estilos de .nk-size-guide-trigger viven en la sección 17 — Product
+   Detail; el override de color !important que había aquí impedía el estado
+   hover del rediseño manga del botón.) */
 
 /* Descripción de producto inyectada desde WordPress (dangerouslySetInnerHTML):
    el editor puede pegar imágenes/tablas de 600-800px que desbordan en móvil. */
@@ -2590,22 +2578,113 @@ html.dark .nk-preloader-logo {
   margin-bottom: 40px;
 }
 
+/* Botón de guía de tallas: estilo manga (borde + sombra dura) en lugar del
+   antiguo enlace subrayado, alineado con el resto de botones de la app. */
 .nk-size-guide-trigger {
-  background: transparent;
-  border: none;
-  color: var(--nk-primary);
+  background: var(--nk-bg-card);
+  border: 2px solid var(--nk-border);
+  box-shadow: 3px 3px 0 var(--nk-border);
+  border-radius: 0;
+  color: var(--nk-text-main);
+  font-family: 'Teko', sans-serif;
+  font-size: 1.15rem;
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
   cursor: pointer;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.95rem;
-  padding: 12px 0;
+  gap: 8px;
+  padding: 8px 18px;
   min-height: 44px; /* target táctil mínimo */
+  transition: all 0.15s ease;
+}
+
+.nk-size-guide-trigger .material-icons-outlined {
+  color: var(--nk-primary);
+  font-size: 20px;
 }
 
 .nk-size-guide-trigger:hover {
-  text-decoration: underline;
+  background: var(--nk-primary);
+  color: #fff;
+  transform: translate(-2px, -2px);
+  box-shadow: 5px 5px 0 var(--nk-border);
+}
+
+.nk-size-guide-trigger:hover .material-icons-outlined {
+  color: #fff;
+}
+
+/* Promociones activas junto a las variaciones (página de producto) */
+.nk-detail-promos {
+  background: var(--nk-bg-card);
+  border: 2px solid var(--nk-border);
+  box-shadow: var(--nk-manga-shadow);
+  padding: 16px 18px;
+  margin-bottom: 25px;
+}
+
+.nk-detail-promos-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Teko', sans-serif;
+  font-size: 1.3rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--nk-text-main);
+  margin-bottom: 10px;
+}
+
+.nk-detail-promos-head .material-icons-outlined {
+  color: var(--nk-primary);
+}
+
+.nk-detail-promos-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.nk-detail-promos-list li {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--nk-text-sec);
+  padding-left: 20px;
+  position: relative;
+  letter-spacing: 0.3px;
+}
+
+.nk-detail-promos-list li::before {
+  content: '•';
+  position: absolute;
+  left: 6px;
+  color: var(--nk-primary);
+  font-weight: 900;
+}
+
+.nk-detail-promos-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--nk-primary);
+  text-decoration: none;
+  border-bottom: 2px solid var(--nk-primary);
+  padding-bottom: 1px;
+}
+
+.nk-detail-promos-link:hover {
+  color: var(--nk-primary-dark);
+  border-bottom-color: var(--nk-primary-dark);
 }
 
 .nk-action-row {
