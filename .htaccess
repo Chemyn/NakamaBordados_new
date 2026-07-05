@@ -171,16 +171,20 @@ RewriteCond %{QUERY_STRING} wc-ajax= [NC,OR]
 RewriteCond %{QUERY_STRING} wc-api= [NC]
 RewriteRule ^ index.php [E=Cache-Control:no-cache,L]
 
-# 2. Excluir rutas del núcleo, panel de administración y APIs de WordPress
-# Esto asegura que /wp-admin, /wp-json y /graphql siempre se dirijan a PHP de WordPress
-RewriteCond %{REQUEST_URI} ^/wp-admin/ [NC,OR]
+# 2. Rutas del núcleo de WordPress (archivos y directorios FÍSICOS): servir tal cual
+RewriteCond %{REQUEST_URI} ^/wp-admin(/|$) [NC,OR]
 RewriteCond %{REQUEST_URI} ^/wp-includes/ [NC,OR]
 RewriteCond %{REQUEST_URI} ^/wp-content/ [NC,OR]
-RewriteCond %{REQUEST_URI} ^/wp-json/ [NC,OR]
-RewriteCond %{REQUEST_URI} ^/graphql/ [NC,OR]
 RewriteCond %{REQUEST_URI} ^/xmlrpc\.php$ [NC,OR]
 RewriteCond %{REQUEST_URI} ^/wp-login\.php$ [NC]
 RewriteRule ^ - [L]
+
+# 2.5 APIs "bonitas" de WordPress: /wp-json y /graphql NO existen como archivos
+# físicos; deben enrutar al front controller. Un pass-through aquí los deja en
+# 404 y rompe el admin de WooCommerce (que consume /wp-json/): errores como
+# "Ha ocurrido un error al cargar las diversas recomendaciones", fallos al
+# cambiar estados de pedido, etc.
+RewriteRule ^(wp-json|graphql)(/|$) index.php [E=Cache-Control:no-cache,L]
 
 # 3. Servir archivos físicos si existen (imágenes, scripts en _next/static, etc.)
 RewriteCond %{REQUEST_FILENAME} -f

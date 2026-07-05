@@ -10,6 +10,12 @@ interface OrderMeta {
 
 interface Order {
   id: string;
+  /** ID numérico del pedido en WooCommerce (para la URL de pago) */
+  databaseId?: number;
+  /** Llave del pedido que exige la página order-pay de WooCommerce */
+  orderKey?: string;
+  /** true cuando el pedido está pendiente de pago (o el pago falló) */
+  needsPayment?: boolean;
   orderNumber: string;
   status: string;
   total: string;
@@ -114,7 +120,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           shipping { address1 address2 city state postcode country }
           orders(first: 20, where: { orderby: { field: DATE, order: DESC } }) {
             nodes {
-              id orderNumber status total currency date
+              id databaseId orderKey needsPayment orderNumber status total currency date
               lineItems { nodes { product { node { name } } quantity } }
             }
           }
