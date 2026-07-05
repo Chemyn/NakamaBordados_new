@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO, pedidos de cotización y sincronización de base de datos local (Next.js).
- * Version: 1.8
+ * Version: 1.9
  * Author: Nakama
  */
 
@@ -667,27 +667,8 @@ add_filter( 'woocommerce_coupon_validate_minimum_amount', function ( $invalid, $
     return ! ( nakama_cart_subtotal_in_base( $subtotal ) >= (float) $coupon->get_minimum_amount() );
 }, 10, 3 );
 
-/**
- * Descuento por TRANSFERENCIA BANCARIA (5%). Combinable con cupones: se
- * calcula sobre el subtotal neto (después de descuentos), sin incluir envío.
- * Se aplica automáticamente al elegir "Transferencia bancaria" (BACS) en el
- * checkout. IMPORTANTE: si existe un snippet previo en WPCode que aplicaba
- * el 3%, hay que desactivarlo para no duplicar el descuento.
- */
-add_action( 'woocommerce_cart_calculate_fees', function ( $cart ) {
-    if ( is_admin() && ! defined( 'DOING_AJAX' ) ) {
-        return;
-    }
-    $chosen = WC()->session ? WC()->session->get( 'chosen_payment_method' ) : '';
-    if ( 'bacs' !== $chosen ) {
-        return;
-    }
-    $neto = (float) $cart->get_subtotal() - (float) $cart->get_discount_total();
-    if ( $neto <= 0 ) {
-        return;
-    }
-    $cart->add_fee( 'Descuento por transferencia (5%)', -1 * round( $neto * 0.05, 2 ) );
-}, 30 );
+// Nota: el descuento por transferencia y los cupones se gestionan desde otro
+// plugin; aquí solo viven los ajustes de moneda (mínimos en MXN vs carrito USD).
 
 // Webhook para sincronizar Base de datos al actualizar/crear producto
 add_action( 'save_post_product', 'nakama_trigger_db_sync', 10, 3 );
