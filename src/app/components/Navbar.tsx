@@ -66,7 +66,7 @@ export default function Navbar() {
   };
 
   const handleDropdownLinkClick = (category: string, e: React.MouseEvent) => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1180) {
+    if (typeof window !== 'undefined' && window.innerWidth < 1390) {
       e.preventDefault();
       setSubActive(subActive === category ? null : category);
     } else {
@@ -92,6 +92,44 @@ export default function Navbar() {
 
   return (
     <nav className="nk-navbar nk-manga-border" style={{ borderLeft: 'none', borderRight: 'none', borderTop: 'none' }}>
+      <style dangerouslySetInnerHTML={{ __html: `
+        @media (min-width: 1390px) and (max-width: 1550px) {
+          .nk-nav-container { padding: 10px 16px !important; gap: 10px !important; }
+          .nk-nav-list { gap: 8px !important; flex-wrap: nowrap !important; }
+          .nk-nav-list .nk-nav-link { font-size: 1.1rem !important; }
+          .nk-nav-container .nk-nav-actions { gap: 6px !important; }
+          .nk-navbar .nk-logo-img { height: 30px !important; }
+        }
+        
+        @media (max-width: 1389px) {
+          .nk-nav-toggle { display: flex !important; }
+          .nk-desktop-only { display: none !important; }
+          .nk-mobile-only { display: flex !important; }
+          .nk-nav-menu {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            width: 100%;
+            background: var(--nk-bg-card);
+            border-bottom: 3px solid var(--nk-border);
+            box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+            display: none;
+            max-height: 85vh;
+            overflow-y: auto;
+          }
+          .nk-nav-menu.active { display: block; }
+          .nk-nav-list { flex-direction: column !important; align-items: stretch !important; padding: 16px 24px !important; gap: 0 !important; }
+          .nk-nav-list li { border-bottom: 1px solid var(--nk-border) !important; width: 100% !important; }
+          .nk-nav-link { display: block !important; padding: 12px 0 !important; width: 100% !important; }
+        }
+        
+        @media (min-width: 1390px) {
+          .nk-nav-toggle { display: none !important; }
+          .nk-desktop-only { display: flex !important; }
+          .nk-mobile-only { display: none !important; }
+          .nk-nav-menu { display: flex !important; }
+        }
+      `}} />
       <div className="nk-nav-container">
         {/* Mobile menu trigger */}
         <button

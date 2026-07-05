@@ -6,12 +6,12 @@
 /* --- Responsive Utilities (Custom) --- */
 .nk-hidden { display: none !important; }
 
-@media (min-width: 1024px) {
+@media (min-width: 1390px) {
   .nk-desktop-only { display: flex !important; }
   .nk-mobile-only { display: none !important; }
 }
 
-@media (max-width: 1023px) {
+@media (max-width: 1389px) {
   .nk-desktop-only { display: none !important; }
   .nk-mobile-only { display: flex !important; }
 }
@@ -744,18 +744,7 @@ html.dark .nk-navbar {
    de tema y el botón de escritorio WP quedan fuera de la pantalla.
    Selectores compuestos: la base .nk-nav-link (1.35rem !important) está
    declarada más abajo en este archivo y con la misma especificidad ganaría. */
-@media (min-width: 1024px) and (max-width: 1550px) {
-  .nk-nav-list { gap: 12px; }
-  .nk-nav-list .nk-nav-link { font-size: 1.15rem !important; }
-}
 
-@media (min-width: 1024px) and (max-width: 1320px) {
-  .nk-nav-container { gap: 10px; }
-  .nk-nav-list { gap: 8px; }
-  .nk-nav-list .nk-nav-link { font-size: 1rem !important; letter-spacing: 0.3px; }
-  .nk-nav-container .nk-nav-actions { gap: 4px; }
-  .nk-navbar .nk-logo-img { height: 30px; }
-}
 
 /* --- ESTILO STREETWEAR ANIME BADGE (Home) --- */
 .nk-store-hero-badge {
@@ -905,7 +894,7 @@ html.dark .nk-detail-tabs-section .tab-content {
   z-index: 100;
 }
 
-@media (min-width: 1180px) {
+@media (min-width: 1390px) {
   .nk-nav-item-dropdown:hover .nk-submenu {
     display: flex;
   }
@@ -925,7 +914,7 @@ html.dark .nk-detail-tabs-section .tab-content {
   color: var(--nk-primary);
 }
 
-@media (min-width: 1180px) {
+@media (min-width: 1390px) {
   .nk-mega-trigger:hover .nk-mega-menu {
     display: block;
   }
@@ -1028,25 +1017,18 @@ html.dark .nk-detail-tabs-section .tab-content {
   border: 2px solid var(--nk-bg-body);
 }
 
-/* Responsive Navbar Breakpoint Shift */
-@media (min-width: 1180px) and (max-width: 1350px) {
-  .nk-nav-list {
-    gap: 8px !important;
-  }
-  .nk-nav-link {
-    font-size: 1.15rem !important;
-    padding: 3px 5px !important;
-  }
-  .nk-nav-container {
-    padding: 10px 14px !important;
-    gap: 6px !important;
-  }
-  .nk-nav-actions {
-    gap: 6px !important;
-  }
+
+
+/* --- RESPONSIVE NAVBAR ADAPTIVE SYSTEM --- */
+@media (min-width: 1390px) and (max-width: 1550px) {
+  .nk-nav-container { padding: 10px 16px !important; gap: 10px !important; }
+  .nk-nav-list { gap: 8px !important; }
+  .nk-nav-list .nk-nav-link { font-size: 1.1rem !important; }
+  .nk-nav-container .nk-nav-actions { gap: 6px !important; }
+  .nk-navbar .nk-logo-img { height: 30px !important; }
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1389px) {
   .nk-nav-toggle {
     display: flex !important;
   }
@@ -2750,7 +2732,7 @@ html.dark .nk-preloader-logo {
   border: 1px solid var(--nk-border);
 }
 
-@media (max-width: 1180px) {
+@media (max-width: 1024px) {
   .nk-detail-grid {
     grid-template-columns: 1fr;
     gap: 40px;
