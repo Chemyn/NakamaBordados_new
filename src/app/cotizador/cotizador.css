@@ -184,6 +184,42 @@ html.dark {
   }
 }
 
+/* Icono de gorra dibujado en CSS (tab "Gorras"): copa + botón + visera.
+   Usa currentColor para heredar el color del botón (gris inactivo / rojo
+   activo) igual que los iconos bi de las otras pestañas. */
+.nk-cap-icon {
+  position: relative;
+  display: inline-block;
+  width: 24px;
+  height: 16px;
+  vertical-align: -2px;
+}
+
+.nk-cap-icon::before {
+  /* Copa: domo redondeado; el box-shadow dibuja el botón centrado encima */
+  content: '';
+  position: absolute;
+  left: 3px;
+  bottom: 4px;
+  width: 15px;
+  height: 11px;
+  background: currentColor;
+  border-radius: 9px 9px 1px 1px;
+  box-shadow: 0 -6px 0 -4px currentColor;
+}
+
+.nk-cap-icon::after {
+  /* Visera: barra que sobresale hacia adelante */
+  content: '';
+  position: absolute;
+  left: 3px;
+  bottom: 0;
+  width: 21px;
+  height: 4px;
+  background: currentColor;
+  border-radius: 1px 999px 999px 2px;
+}
+
 /* Color swatches */
 .swatch-option {
   width: 40px;

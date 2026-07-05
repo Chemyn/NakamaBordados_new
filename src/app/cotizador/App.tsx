@@ -1021,7 +1021,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
                   className={`custom-tab-btn flex-grow-1 flex-sm-grow-0 ${activeProduct === 'gorras' ? 'active' : ''}`}
                   onClick={() => setActiveProduct('gorras')}
                 >
-                  <i className="bi bi-capslock-fill me-2"></i> Gorras
+                  <span className="nk-cap-icon me-2" aria-hidden="true"></span> Gorras
                 </button>
               </div>
             </div>
