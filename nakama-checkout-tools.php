@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO, pedidos de cotización y sincronización de base de datos local (Next.js).
- * Version: 1.5
+ * Version: 1.6
  * Author: Nakama
  */
 
@@ -136,6 +136,10 @@ function nakama_create_quote_order( WP_REST_Request $request ) {
     if ( $phone ) {
         $order->set_billing_phone( $phone );
     }
+
+    // Moneda base SIEMPRE: el precio que asigna el taller es en MXN; la
+    // conversión a USD (si aplica) ocurre al pagar por el checkout normal.
+    $order->set_currency( get_option( 'woocommerce_currency', 'MXN' ) );
 
     $order->update_meta_data( '_nakama_quote_folio', $folio );
     if ( ! $is_issued_folio ) {
@@ -357,6 +361,14 @@ function nakama_cart_bridge_handler() {
 
     if ( $debug ) echo "Bridge iniciado. Cart cargado.<br>";
 
+    // MODO PAGO DE COTIZACIÓN: ?nk_bridge=pay-quote&order=<id>&key=<order_key>
+    // Lleva la cotización por el CHECKOUT NORMAL (dirección de envío,
+    // paqueterías y cupones) en lugar de la página order-pay, que no los pide.
+    if ( 'pay-quote' === $_GET['nk_bridge'] ) {
+        nakama_pay_quote_via_checkout( $debug );
+        return;
+    }
+
     // 1. Limpiar carrito actual
     WC()->cart->empty_cart();
     if ( $debug ) echo "Carrito limpiado.<br>";
@@ -414,6 +426,130 @@ function nakama_cart_bridge_handler() {
     wp_safe_redirect( $checkout_url );
     exit;
 }
+
+/**
+ * PAGO DE COTIZACIONES POR EL CHECKOUT NORMAL
+ * La página order-pay de WooCommerce no pide dirección de envío ni calcula
+ * paqueterías/cupones. Para cobrar una cotización con envío real, el pedido
+ * de cotización se convierte en un artículo de carrito (producto oculto con
+ * el precio asignado) y el cliente pasa por el checkout estándar. Al pagar,
+ * el folio NK-x se transfiere al pedido nuevo y la cotización original se
+ * cancela con una nota de referencia.
+ */
+
+/** Producto oculto reutilizable que representa una cotización en el carrito. */
+function nakama_quote_product_id() {
+    $id = (int) get_option( 'nakama_quote_product_id' );
+    if ( $id && 'publish' === get_post_status( $id ) ) {
+        return $id;
+    }
+    $p = new WC_Product_Simple();
+    $p->set_name( 'Cotización Personalizada Nakama' );
+    $p->set_status( 'publish' );
+    $p->set_catalog_visibility( 'hidden' );
+    $p->set_regular_price( '0' );
+    $p->set_price( '0' );
+    $p->set_virtual( false ); // físico: el checkout debe pedir envío
+    $p->set_sold_individually( true );
+    // Peso/dimensiones por defecto para que la paquetería cotice; el taller
+    // puede ajustarlos editando este producto (queda oculto del catálogo).
+    $p->set_weight( '1' );
+    $id = $p->save();
+    update_option( 'nakama_quote_product_id', $id );
+    return $id;
+}
+
+/** Valida el pedido de cotización y manda al cliente al checkout normal. */
+function nakama_pay_quote_via_checkout( $debug = false ) {
+    $order_id = absint( $_GET['order'] ?? 0 );
+    $key      = sanitize_text_field( $_GET['key'] ?? '' );
+
+    $order = $order_id ? wc_get_order( $order_id ) : false;
+    if ( ! $order || ! hash_equals( $order->get_order_key(), $key ) ) {
+        if ( $debug ) { echo 'Error: pedido o llave inválidos.'; exit; }
+        wp_safe_redirect( home_url( '/' ) );
+        exit;
+    }
+    if ( ! $order->needs_payment() ) {
+        if ( $debug ) { echo 'El pedido no requiere pago (estado: ' . $order->get_status() . ').'; exit; }
+        wp_safe_redirect( home_url( '/mi-cuenta/' ) );
+        exit;
+    }
+
+    $total = (float) $order->get_total();
+    if ( $total <= 0 ) {
+        // Aún sin precio asignado: no hay nada que cobrar.
+        if ( $debug ) { echo 'La cotización aún no tiene precio asignado.'; exit; }
+        wp_safe_redirect( home_url( '/mi-cuenta/' ) );
+        exit;
+    }
+
+    WC()->cart->empty_cart();
+    $added = WC()->cart->add_to_cart(
+        nakama_quote_product_id(),
+        1,
+        0,
+        array(),
+        array(
+            'nakama_quote_order_id' => $order->get_id(),
+            'nakama_quote_folio'    => (string) $order->get_meta( '_nakama_quote_folio' ),
+            'nakama_quote_price'    => $total,
+        )
+    );
+
+    if ( $debug ) {
+        echo 'Cotización ' . esc_html( $order->get_meta( '_nakama_quote_folio' ) ) . " al carrito: " . ( $added ? 'OK' : 'FAIL' ) . '<br>';
+        echo "<a href='" . esc_url( wc_get_checkout_url() ) . "'>Ir al checkout</a>";
+        exit;
+    }
+
+    wp_safe_redirect( wc_get_checkout_url() );
+    exit;
+}
+
+// Precio y nombre del artículo de cotización en el carrito. Prioridad 20:
+// corre ANTES que el conversor de moneda (999), que convierte a USD si aplica.
+add_action( 'woocommerce_before_calculate_totals', function ( $cart ) {
+    foreach ( $cart->get_cart() as $cart_item ) {
+        if ( isset( $cart_item['nakama_quote_price'] ) ) {
+            $cart_item['data']->set_price( (float) $cart_item['nakama_quote_price'] );
+            if ( ! empty( $cart_item['nakama_quote_folio'] ) ) {
+                $cart_item['data']->set_name( 'Cotización ' . $cart_item['nakama_quote_folio'] );
+            }
+        }
+    }
+}, 20 );
+
+// Copiar la referencia de la cotización al pedido nuevo que crea el checkout.
+add_action( 'woocommerce_checkout_create_order_line_item', function ( $item, $cart_item_key, $values, $order ) {
+    if ( isset( $values['nakama_quote_order_id'] ) ) {
+        $order->update_meta_data( '_nakama_quote_source_order', (int) $values['nakama_quote_order_id'] );
+        if ( ! empty( $values['nakama_quote_folio'] ) ) {
+            $order->update_meta_data( '_nakama_quote_folio', $values['nakama_quote_folio'] );
+            $item->add_meta_data( 'Folio', $values['nakama_quote_folio'], true );
+        }
+    }
+}, 10, 4 );
+
+// Al completarse el checkout: el folio vive ahora en el pedido nuevo (pagado,
+// con envío); la cotización original se cancela con nota de referencia.
+add_action( 'woocommerce_checkout_order_processed', function ( $order_id, $posted_data, $order ) {
+    $src_id = (int) $order->get_meta( '_nakama_quote_source_order' );
+    if ( ! $src_id ) {
+        return;
+    }
+    $src = wc_get_order( $src_id );
+    if ( ! $src ) {
+        return;
+    }
+    $folio = $src->get_meta( '_nakama_quote_folio' );
+    // Liberar el folio del original para que el número NK-x identifique al nuevo.
+    $src->delete_meta_data( '_nakama_quote_folio' );
+    $src->update_meta_data( '_nakama_quote_folio_ref', $folio );
+    $src->add_order_note( sprintf( 'Cotización %s pagada mediante el pedido #%d (checkout normal con envío).', $folio, $order_id ) );
+    $src->update_status( 'cancelled', 'Reemplazada por el pedido de pago con envío.' );
+    $src->save();
+}, 10, 3 );
 
 // Webhook para sincronizar Base de datos al actualizar/crear producto
 add_action( 'save_post_product', 'nakama_trigger_db_sync', 10, 3 );

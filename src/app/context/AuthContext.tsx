@@ -44,6 +44,8 @@ interface Customer {
   firstName: string;
   lastName: string;
   email: string;
+  /** Teléfono de facturación de WooCommerce (autollenado del cotizador) */
+  billingPhone?: string;
   role: string;
   orders: {
     nodes: Order[];
@@ -117,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           roles { nodes { name } }
         }
         customer {
+          billing { phone }
           shipping { address1 address2 city state postcode country }
           orders(first: 20, where: { orderby: { field: DATE, order: DESC } }) {
             nodes {
@@ -142,6 +145,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           firstName: v.firstName || '',
           lastName: v.lastName || '',
           email: v.email,
+          billingPhone: c.billing?.phone || '',
           role: v.roles?.nodes?.[0]?.name || 'customer',
           orders: c.orders || { nodes: [] },
           shipping: c.shipping || {

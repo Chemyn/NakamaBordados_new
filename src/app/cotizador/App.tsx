@@ -10,6 +10,7 @@ import { Marquee } from './components/Marquee';
 import { generateQuotePDF } from './utils/pdfGenerator';
 import { getQuoteZIPBlob } from './utils/zipGenerator';
 import { compressImage } from './utils/imageCompressor';
+import { useAuth } from '../context/AuthContext';
 
 const availableGarmentPositions = [
   'Pecho Izquierdo',
@@ -61,6 +62,18 @@ export const App: React.FC = () => {
     phone: '',
     email: ''
   });
+
+  // Sesión del cliente: autollenar nombre, teléfono y correo desde su cuenta
+  // (solo campos vacíos, para no pisar lo que el cliente ya escribió).
+  const { user } = useAuth();
+  useEffect(() => {
+    if (!user) return;
+    setClientDetails(prev => ({
+      name: prev.name || [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || '',
+      phone: prev.phone || user.billingPhone || '',
+      email: prev.email || user.email || '',
+    }));
+  }, [user]);
 
   // State: Clothing (Ropa) - ALL 7 areas are fully initialized in the state to avoid undefined errors
   const [ropaConfig, setRopaConfig] = useState<GarmentCustomization>({

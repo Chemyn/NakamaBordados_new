@@ -247,10 +247,12 @@ export default function MiCuentaPage() {
                                     className="nk-btn"
                                     style={{ padding: '10px 24px', fontSize: '1.2rem' }}
                                     onClick={async () => {
-                                      // Sembrar la sesión de WP para que la página
-                                      // de pago reconozca al cliente.
+                                      // Sembrar la sesión de WP para que el checkout
+                                      // reconozca al cliente, y pagar por el CHECKOUT
+                                      // NORMAL (pide envío, calcula paquetería y acepta
+                                      // cupones; order-pay de Woo no lo hace).
                                       await seedWpSession();
-                                      window.location.href = `https://nakamabordados.com/finalizar-compra/order-pay/${order.databaseId}/?pay_for_order=true&key=${order.orderKey}`;
+                                      window.location.href = `https://nakamabordados.com/index.php?nk_bridge=pay-quote&order=${order.databaseId}&key=${order.orderKey}`;
                                     }}
                                   >
                                     <span className="material-icons-outlined" style={{ fontSize: '18px', verticalAlign: 'middle', marginRight: '6px' }}>payments</span>
