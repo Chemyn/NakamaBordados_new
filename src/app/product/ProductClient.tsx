@@ -569,11 +569,14 @@ export default function ProductClient({ initialProduct: product, relatedProducts
 }
 
 const SkeletonProductCard = () => (
-  <div className="nk-store-card" style={{ pointerEvents: 'none' }}>
-    <div className="nk-store-card-img-wrapper nk-skeleton nk-manga-border" style={{ aspectRatio: '3/4', boxShadow: 'var(--nk-manga-shadow)' }}></div>
-    <div className="nk-card-info" style={{ marginTop: '15px', display: 'flex', flexDirection: 'column', gap: '8px', textAlign: 'left' }}>
-      <div className="nk-skeleton" style={{ width: '85%', height: '18px', borderRadius: '0' }}></div>
-      <div className="nk-skeleton" style={{ width: '40%', height: '16px', borderRadius: '0' }}></div>
+  <div 
+    className="nk-store-card" 
+    style={{ background: 'var(--nk-bg-card)', border: '2px solid var(--nk-border)', borderRadius: '0', padding: '0', boxShadow: 'var(--nk-manga-shadow)', pointerEvents: 'none' }}
+  >
+    <div className="nk-store-card-img-wrapper nk-skeleton nk-manga-border" style={{ borderRadius: '0', overflow: 'hidden', position: 'relative', aspectRatio: '1/1', borderBottom: '2px solid var(--nk-border)' }}></div>
+    <div className="nk-card-info" style={{ textAlign: 'left', padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+      <div className="nk-skeleton" style={{ width: '85%', height: '20px', borderRadius: '0' }}></div>
+      <div className="nk-skeleton" style={{ width: '40%', height: '24px', borderRadius: '0' }}></div>
     </div>
   </div>
 );

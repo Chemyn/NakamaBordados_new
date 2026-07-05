@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Product } from '@/types/product';
@@ -15,7 +15,7 @@ import { fetchProductsSearch } from '../../data/products';
 export const SkeletonProductCard = () => (
   <div className="nk-carousel-card">
     <div className="nk-carousel-link" style={{ pointerEvents: 'none' }}>
-      <div className="nk-carousel-img-wrapper nk-skeleton" style={{ boxShadow: 'var(--nk-manga-shadow)', border: 'var(--nk-manga-border)', aspectRatio: '3/4', borderRadius: '0' }}></div>
+      <div className="nk-carousel-img-wrapper nk-skeleton nk-manga-border" style={{ boxShadow: 'var(--nk-manga-shadow)', aspectRatio: '3/4', borderRadius: '0' }}></div>
       <div className="nk-carousel-info" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '120px', marginTop: '14px', textAlign: 'left', padding: '0 5px' }}>
         <div>
           <div className="nk-skeleton" style={{ width: '90%', height: '18px', borderRadius: '0' }}></div>
@@ -103,43 +103,67 @@ export const useDraggableScroll = (autoScroll: boolean = false) => {
   const [isHovered, setIsHovered] = useState(false);
   const [startX, setStartX] = useState(0);
   const [scrollLeft, setScrollLeft] = useState(0);
+  
+  const [isUserInteracting, setIsUserInteracting] = useState(false);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const resetInteractionTimer = useCallback(() => {
+    setIsUserInteracting(true);
+    if (timeoutRef.current) {
+      clearTimeout(timeoutRef.current);
+    }
+    timeoutRef.current = setTimeout(() => {
+      setIsUserInteracting(false);
+    }, 2500);
+  }, []);
 
   useEffect(() => {
-    if (!autoScroll || isDragging || isHovered) return;
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!autoScroll || isDragging || isHovered || isUserInteracting) return;
     
     const interval = setInterval(() => {
       if (ref.current) {
+        ref.current.style.scrollBehavior = 'auto';
         ref.current.scrollLeft += 1;
-        // Infinite loop reset
         if (ref.current.scrollLeft >= ref.current.scrollWidth * 0.66) {
           ref.current.scrollLeft = ref.current.scrollWidth * 0.33;
         }
       }
     }, 30);
     return () => clearInterval(interval);
-  }, [autoScroll, isDragging, isHovered]);
+  }, [autoScroll, isDragging, isHovered, isUserInteracting]);
 
   const onMouseDown = (e: React.MouseEvent) => {
     if (!ref.current) return;
     setIsDragging(true);
+    resetInteractionTimer();
     setStartX(e.pageX - ref.current.offsetLeft);
     setScrollLeft(ref.current.scrollLeft);
     ref.current.style.cursor = 'grabbing';
     ref.current.style.userSelect = 'none';
+    ref.current.style.scrollBehavior = 'auto';
   };
 
   const onMouseUp = () => {
     setIsDragging(false);
+    resetInteractionTimer();
     if (ref.current) {
       ref.current.style.cursor = 'grab';
       ref.current.style.removeProperty('user-select');
+      ref.current.style.scrollBehavior = 'auto';
     }
   };
 
   const onMouseMove = (e: React.MouseEvent) => {
     if (!isDragging || !ref.current) return;
     e.preventDefault();
-    ref.current.style.scrollBehavior = 'auto'; // Disable smooth scroll while dragging
+    resetInteractionTimer();
+    ref.current.style.scrollBehavior = 'auto';
     const x = e.pageX - ref.current.offsetLeft;
     const walk = (x - startX) * 2; 
     ref.current.scrollLeft = scrollLeft - walk;
@@ -148,6 +172,7 @@ export const useDraggableScroll = (autoScroll: boolean = false) => {
   const onTouchStart = (e: React.TouchEvent) => {
     if (!ref.current) return;
     setIsDragging(true);
+    resetInteractionTimer();
     setStartX(e.touches[0].pageX - ref.current.offsetLeft);
     setScrollLeft(ref.current.scrollLeft);
     ref.current.style.scrollBehavior = 'auto';
@@ -155,10 +180,19 @@ export const useDraggableScroll = (autoScroll: boolean = false) => {
 
   const onTouchMove = (e: React.TouchEvent) => {
     if (!isDragging || !ref.current) return;
-    // We don't preventDefault here to allow vertical page scroll
+    resetInteractionTimer();
+    ref.current.style.scrollBehavior = 'auto';
     const x = e.touches[0].pageX - ref.current.offsetLeft;
     const walk = (x - startX) * 1.5;
     ref.current.scrollLeft = scrollLeft - walk;
+  };
+
+  const onTouchEnd = () => {
+    setIsDragging(false);
+    resetInteractionTimer();
+    if (ref.current) {
+      ref.current.style.scrollBehavior = 'auto';
+    }
   };
 
   return { 
@@ -169,7 +203,7 @@ export const useDraggableScroll = (autoScroll: boolean = false) => {
     onMouseEnter: () => setIsHovered(true),
     onMouseMove,
     onTouchStart,
-    onTouchEnd: () => { setIsDragging(false); if(ref.current) ref.current.style.scrollBehavior = 'smooth'; },
+    onTouchEnd,
     onTouchMove
   };
 };

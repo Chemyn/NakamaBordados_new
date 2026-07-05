@@ -15,7 +15,7 @@ const SkeletonProductCard = () => (
     className="nk-store-card" 
     style={{ background: 'var(--nk-bg-card)', border: '2px solid var(--nk-border)', borderRadius: '0', padding: '0', boxShadow: 'var(--nk-manga-shadow)', pointerEvents: 'none' }}
   >
-    <div className="nk-store-card-img-wrapper nk-skeleton" style={{ borderRadius: '0', overflow: 'hidden', position: 'relative', aspectRatio: '1/1', borderBottom: '2px solid var(--nk-border)' }}></div>
+    <div className="nk-store-card-img-wrapper nk-skeleton nk-manga-border" style={{ borderRadius: '0', overflow: 'hidden', position: 'relative', aspectRatio: '1/1', borderBottom: '2px solid var(--nk-border)' }}></div>
     <div className="nk-card-info" style={{ textAlign: 'left', padding: '20px', display: 'flex', flexDirection: 'column', gap: '10px' }}>
       <div className="nk-skeleton" style={{ width: '85%', height: '20px', borderRadius: '0' }}></div>
       <div className="nk-skeleton" style={{ width: '40%', height: '24px', borderRadius: '0' }}></div>
