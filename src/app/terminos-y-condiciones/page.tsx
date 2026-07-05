@@ -86,7 +86,7 @@ export default function TermsPage() {
 
       <div className="nk-container" style={{ padding: '60px 24px' }}>
         <div style={{ maxWidth: '900px', margin: '0 auto', background: 'var(--nk-bg-card)', padding: 'clamp(20px, 5vw, 40px)', border: '2px solid #000', boxShadow: 'var(--nk-manga-shadow-lg)' }}>
-          <p style={{ marginBottom: '25px', fontStyle: 'italic', color: 'var(--nk-text-sec)' }}>Última actualización: 02 de julio de 2026</p>
+          <p style={{ marginBottom: '25px', fontStyle: 'italic', color: 'var(--nk-text-sec)' }}>Última actualización: 05 de julio de 2026</p>
 
           <Section n="1" title="Aceptación de los Términos y Dinámicas Comerciales">
             <p style={pStyle}>
@@ -182,9 +182,39 @@ export default function TermsPage() {
             </Callout>
           </Section>
 
-          <Section n="7" title="Propiedad Intelectual">
+          <Section n="7" title="Propiedad Intelectual, Diseños del Cliente y Deslinde de Responsabilidad">
+            <p style={pStyle}>
+              Todo el contenido propio de este sitio (logotipos, textos, código y maquetación) es propiedad de <strong style={leadStyle}>Nakama Bordados</strong>.
+            </p>
+            <p style={pStyle}>
+              En el caso de los servicios de personalización, digitalización, confección y custom apparel, <strong style={leadStyle}>el cliente es el único y total responsable</strong> de los diseños, logotipos, imágenes o marcas que solicita bordar o estampar. Al procesar su pedido, el cliente manifiesta bajo protesta de decir verdad que cuenta con los derechos de autor, licencias o autorizaciones necesarias para la reproducción de dicho material.
+            </p>
             <p style={{ ...pStyle, marginBottom: 0 }}>
-              Todos los diseños, logotipos y contenido visual son propiedad de Nakama Bordados o se utilizan bajo licencia. Queda estrictamente prohibida la reproducción parcial o total sin consentimiento previo.
+              Nakama Bordados actúa de buena fe como un mero <strong style={leadStyle}>maquilador y prestador de servicios de impresión/bordado bajo demanda</strong>, por lo que no se hace responsable de verificar la titularidad de los derechos de propiedad intelectual de los diseños ordenados por los usuarios.
+            </p>
+            <Callout label="Obligación de Indemnizar">
+              En caso de que cualquier tercero inicie un reclamo, demanda o acción legal contra Nakama Bordados por infracción de derechos de autor o propiedad industrial derivado de un pedido del usuario, <strong style={leadStyle}>el cliente se obliga a sacar en paz y a salvo a Nakama Bordados</strong>, cubriendo la totalidad de los gastos de defensa legal, indemnizaciones o multas que de ello deriven.
+            </Callout>
+          </Section>
+
+          <Section n="8" title="Limitación de Responsabilidad y Exención de Garantías">
+            <p style={pStyle}>
+              Nakama Bordados se esfuerza por ofrecer la máxima calidad en cada pieza artesanal e industrial; sin embargo, debido a la naturaleza de los textiles y las técnicas de bordado/sublimación, el cliente acepta que pueden existir <strong style={leadStyle}>variaciones mínimas de tono, color, escala o posición</strong> en el producto final en comparación con las imágenes digitales mostradas en pantalla.
+            </p>
+            <p style={{ ...pStyle, marginBottom: 0 }}>
+              En ningún caso Nakama Bordados, sus directores o empleados serán responsables por daños indirectos, incidentales o punitivos (incluyendo pérdida de ganancias o frustración de planes) derivados del uso de nuestros productos o del retraso en las entregas de las paqueterías.
+            </p>
+            <Callout label="Tope de Responsabilidad">
+              La responsabilidad total máxima de Nakama Bordados ante cualquier reclamación del cliente estará <strong style={leadStyle}>estrictamente limitada al monto total pagado por el cliente por el pedido en cuestión</strong>.
+            </Callout>
+          </Section>
+
+          <Section n="9" title="Modificaciones a los Términos y Jurisdicción">
+            <p style={pStyle}>
+              Nos reservamos el derecho de modificar, actualizar o cambiar cualquier parte de estos Términos y Condiciones en cualquier momento y sin previo aviso para adaptarnos a novedades legislativas o dinámicas comerciales. <strong style={leadStyle}>Es responsabilidad del usuario revisar esta página periódicamente.</strong>
+            </p>
+            <p style={{ ...pStyle, marginBottom: 0 }}>
+              Para la interpretación y cumplimiento de estos términos, así como para la resolución de cualquier controversia, las partes se someten expresamente a la legislación aplicable en los tribunales competentes de la ciudad de <strong style={leadStyle}>Hermosillo, Sonora</strong>, renunciando a cualquier otro fuero que pudiera corresponderles por razón de sus domicilios presentes o futuros.
             </p>
           </Section>
         </div>
