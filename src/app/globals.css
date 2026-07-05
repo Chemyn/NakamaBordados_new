@@ -712,6 +712,9 @@ html.dark .nk-navbar {
   align-items: center;
   flex-grow: 1;
   justify-content: flex-end;
+  /* Permite que el menú ceda espacio: sin esto el flex no puede encoger
+     por debajo de su contenido y empuja las acciones fuera de la pantalla. */
+  min-width: 0;
 }
 
 .nk-nav-list {
@@ -721,13 +724,37 @@ html.dark .nk-navbar {
   gap: 20px;
 }
 
-@media (max-width: 1080px) {
+/* Las acciones (tema, carrito, escritorio WP) nunca deben recortarse:
+   son lo último del flex y eran lo primero en desaparecer al desbordar. */
+.nk-nav-actions {
+  flex-shrink: 0;
+}
+
+@media (min-width: 1024px) {
+  /* Red de seguridad: si aun compactado no cabe, los enlaces envuelven a una
+     segunda línea en lugar de empujar los iconos fuera de la pantalla. */
   .nk-nav-list {
-    gap: 12px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
   }
-  .nk-nav-link {
-    font-size: 0.95rem !important;
-  }
+}
+
+/* Con 9 enlaces + selectores + 5 iconos el ancho natural del header ronda
+   los 1550px: en laptops hay que compactar tipografía y espacios o el toggle
+   de tema y el botón de escritorio WP quedan fuera de la pantalla.
+   Selectores compuestos: la base .nk-nav-link (1.35rem !important) está
+   declarada más abajo en este archivo y con la misma especificidad ganaría. */
+@media (min-width: 1024px) and (max-width: 1550px) {
+  .nk-nav-list { gap: 12px; }
+  .nk-nav-list .nk-nav-link { font-size: 1.15rem !important; }
+}
+
+@media (min-width: 1024px) and (max-width: 1320px) {
+  .nk-nav-container { gap: 10px; }
+  .nk-nav-list { gap: 8px; }
+  .nk-nav-list .nk-nav-link { font-size: 1rem !important; letter-spacing: 0.3px; }
+  .nk-nav-container .nk-nav-actions { gap: 4px; }
+  .nk-navbar .nk-logo-img { height: 30px; }
 }
 
 /* --- ESTILO STREETWEAR ANIME BADGE (Home) --- */
@@ -950,7 +977,9 @@ html.dark .nk-detail-tabs-section .tab-content {
 .nk-nav-actions {
   display: flex;
   align-items: center;
-  gap: 14px;
+  /* 8px: mismo valor que llevaba inline el div en Navbar.tsx (se retiró el
+     inline para que los media queries de laptop puedan compactarlo). */
+  gap: 8px;
 }
 
 .nk-action-btn {
@@ -1183,9 +1212,11 @@ html.dark .nk-footer-logo-img {
 }
 
 .nk-admin-btn {
-  padding: 10px 16px;
+  /* Móvil: chip de la fila deslizable, misma escala que los botones de
+     navegación del dashboard (1.1rem / 8px 14px). */
+  padding: 8px 14px;
   font-family: 'Teko', sans-serif;
-  font-size: 1.2rem;
+  font-size: 1.1rem;
   font-weight: 700;
   letter-spacing: 0.5px;
   text-transform: uppercase;
@@ -1193,15 +1224,22 @@ html.dark .nk-footer-logo-img {
   display: flex;
   align-items: center;
   justify-content: flex-start;
+  text-align: left;
   gap: 8px;
-  white-space: nowrap;
+  white-space: nowrap; /* en la fila deslizable el chip define su propio ancho */
   min-height: 44px;
+  line-height: 1.15;
   background: var(--nk-bg-wrapper);
   color: var(--nk-text-main);
   border: 2px solid var(--nk-border);
   box-shadow: 3px 3px 0px var(--nk-border);
   border-radius: 4px;
   transition: all 0.2s;
+}
+
+.nk-admin-btn .material-icons-outlined {
+  font-size: 20px;
+  flex-shrink: 0;
 }
 
 .nk-admin-btn:hover:not(:disabled) {
@@ -1220,6 +1258,10 @@ html.dark .nk-footer-logo-img {
     font-size: 1.3rem;
     padding: 12px 15px;
     border-radius: 0;
+    /* El sidebar mide 280px: las etiquetas largas del toggle de mantenimiento
+       ("sin conexión…") deben envolver, no desbordar la tarjeta. */
+    white-space: normal;
+    overflow-wrap: anywhere;
   }
 }
 

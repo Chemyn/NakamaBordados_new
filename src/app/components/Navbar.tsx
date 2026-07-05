@@ -299,8 +299,10 @@ export default function Navbar() {
           </ul>
         </div>
 
-        {/* Action icons (Search, Account, Cart, Theme Toggle, Selectors) */}
-        <div className="nk-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Action icons (Search, Account, Cart, Theme Toggle, Selectors).
+            Sin gap inline: los media queries de globals.css compactan el
+            espacio en laptops y el inline los pisaría. */}
+        <div className="nk-nav-actions">
           
           {/* Custom Selectors (Desktop only for brevity, handle mobile styles independently) */}
           <div className="nk-desktop-only" style={{ display: 'flex', gap: '5px' }}>
