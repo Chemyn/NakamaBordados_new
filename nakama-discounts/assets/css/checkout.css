@@ -1,0 +1,59 @@
+.nakama-promo-ui td { padding-top: 12px; padding-bottom: 12px; }
+.nakama-promos { margin-bottom: 10px; }
+.nakama-note { font-size: 12px; color: #b45309; margin: 4px 0 8px; }
+
+.nakama-promo-btn {
+	display: inline-block;
+	margin: 4px 6px 4px 0;
+	padding: 8px 12px;
+	border: 1px solid #111;
+	border-radius: 8px;
+	background: #fff;
+	color: #111;
+	font-size: 13px;
+	cursor: pointer;
+	transition: all .15s ease;
+}
+.nakama-promo-btn:hover { background: #111; color: #fff; }
+.nakama-promo-btn.is-active { background: #111; color: #fff; box-shadow: 0 0 0 2px rgba(0,0,0,.15); }
+
+.nakama-badges { margin-top: 8px; display: flex; flex-wrap: wrap; gap: 6px; }
+.nakama-badge {
+	display: inline-block;
+	padding: 4px 10px;
+	border-radius: 999px;
+	background: #ecfdf5;
+	color: #065f46;
+	font-size: 12px;
+}
+.nakama-badge--hint { background: #eff6ff; color: #1e40af; }
+
+.nakama-msi-hint { font-size: 13px; color: #065f46; margin-top: 6px; }
+
+/* Selector de una sola promoción (fidelidad / 10% / 3x2) */
+.nakama-promo-group {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 8px;
+}
+.nakama-promo-group .nakama-promo-btn {
+	flex: 1 1 140px;
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+	gap: 2px;
+	margin: 0;
+	padding: 10px 12px;
+	text-align: left;
+	position: relative;
+}
+.nakama-promo-name { font-size: 13px; font-weight: 600; }
+.nakama-promo-amount { font-size: 13px; opacity: .85; }
+.nakama-promo-group .nakama-promo-btn.is-active::after {
+	content: "✓";
+	position: absolute;
+	top: 8px;
+	right: 10px;
+	font-weight: 700;
+}
