@@ -183,8 +183,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // Calculate discount absolute value
   const discountAmount = discountType === 'percent' ? (subtotal * discount) : discount;
 
-  // Free shipping in 4 items (4pz) or if subtotal >= 1200 as per snippets!
-  const isFreeShipping = cartCount >= 4 || subtotal >= 1200;
+  // Envío gratis a partir de $1,500 MXN (promo vigente; el subtotal local
+  // siempre está en MXN base). Es solo la estimación del carrito local: el
+  // costo real de paquetería lo calcula el checkout de WooCommerce.
+  const isFreeShipping = subtotal >= 1500;
   const shipping = subtotal > 0 && !isFreeShipping ? 150 : 0; // Standard shipping 150 MXN
 
   const total = Math.max(0, subtotal - discountAmount + shipping);

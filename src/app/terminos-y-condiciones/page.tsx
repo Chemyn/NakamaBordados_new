@@ -143,7 +143,7 @@ export default function TermsPage() {
                 Beneficio <strong style={leadStyle}>exclusivo</strong> para campañas de Descuentos Especiales (Hot Sale, Buen Fin, Black Friday, etc.), válido únicamente en compras mínimas de <strong style={leadStyle}>$3,000.00 MXN</strong>.
               </Bullet>
               <Bullet lead="Descuento por Transferencia: ">
-                Se aplicará un <strong style={leadStyle}>3% de descuento adicional</strong> de forma automatizada en el checkout al seleccionar &ldquo;Transferencia Bancaria&rdquo; como método de pago. Este beneficio se aplica sobre el monto neto final y <strong style={leadStyle}>SÍ es combinable</strong> con cualquier otra promoción, descuento especial o cupón vigente en el sitio.
+                Se aplicará un <strong style={leadStyle}>5% de descuento adicional</strong> de forma automatizada en el checkout al seleccionar &ldquo;Transferencia Bancaria&rdquo; como método de pago. Este beneficio se aplica sobre el monto neto final y <strong style={leadStyle}>SÍ es combinable</strong> con cualquier otra promoción, descuento especial o cupón vigente en el sitio.
               </Bullet>
             </ul>
           </Section>
@@ -161,7 +161,7 @@ export default function TermsPage() {
               </Bullet>
             </ul>
             <Callout label="Candado de Combinación">
-              La <strong style={leadStyle}>Opción A (10%)</strong> y la <strong style={leadStyle}>Opción B (3x2) NO son combinables</strong> entre sí dentro de un mismo pedido; el usuario deberá elegir una sola dinámica por transacción. Ambas opciones sí admiten de forma simultánea el Envío Gratis (+$1,500 MXN), los 3 MSI (+$2,000 MXN), los 6 MSI (+$3,000 MXN) y el 3% de descuento por transferencia.
+              La <strong style={leadStyle}>Opción A (10%)</strong> y la <strong style={leadStyle}>Opción B (3x2) NO son combinables</strong> entre sí dentro de un mismo pedido; el usuario deberá elegir una sola dinámica por transacción. Ambas opciones sí admiten de forma simultánea el Envío Gratis (+$1,500 MXN), los 3 MSI (+$2,000 MXN), los 6 MSI (+$3,000 MXN) y el 5% de descuento por transferencia.
             </Callout>
           </Section>
 

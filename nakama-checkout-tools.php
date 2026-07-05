@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO, pedidos de cotización y sincronización de base de datos local (Next.js).
- * Version: 1.7
+ * Version: 1.8
  * Author: Nakama
  */
 
@@ -586,6 +586,108 @@ add_action( 'woocommerce_checkout_order_processed', function ( $order_id, $poste
     $src->update_status( 'cancelled', 'Reemplazada por el pedido de pago con envío.' );
     $src->save();
 }, 10, 3 );
+
+/**
+ * PROMOCIONES CONSCIENTES DE MONEDA + DESCUENTO POR TRANSFERENCIA
+ * Los mínimos de las promos están definidos en MXN (envío gratis desde
+ * $1,500, etc.), pero cuando el cliente navega en USD los totales del
+ * carrito quedan en dólares y las comparaciones fallan (100 USD < 1500).
+ * Estos filtros convierten el subtotal a moneda base antes de comparar.
+ */
+
+/** Moneda que está viendo el cliente (cookie del snippet de moneda). */
+function nakama_current_display_currency() {
+    if ( isset( $_COOKIE['nakama_currency'] ) ) {
+        $val = strtoupper( sanitize_text_field( $_COOKIE['nakama_currency'] ) );
+        if ( in_array( $val, array( 'MXN', 'USD' ), true ) ) {
+            return $val;
+        }
+    }
+    return get_option( 'woocommerce_currency', 'MXN' );
+}
+
+/** Subtotal mostrado del carrito convertido a moneda base (MXN). */
+function nakama_cart_subtotal_in_base( $subtotal_display ) {
+    $base     = get_option( 'woocommerce_currency', 'MXN' );
+    $currency = nakama_current_display_currency();
+    if ( $currency === $base ) {
+        return (float) $subtotal_display;
+    }
+    $rate = nakama_get_usd_rate();
+    if ( ! $rate || $rate <= 0 ) {
+        return (float) $subtotal_display; // sin rate: no tocar el comportamiento.
+    }
+    return (float) $subtotal_display / $rate; // USD -> MXN
+}
+
+// Método "Envío gratuito": re-evaluar el requisito de monto mínimo en MXN.
+add_filter( 'woocommerce_shipping_free_shipping_is_available', function ( $is_available, $package, $method ) {
+    if ( $is_available || ! WC()->cart ) {
+        return $is_available;
+    }
+    $requires = $method->get_option( 'requires' );
+    if ( ! in_array( $requires, array( 'min_amount', 'either', 'both' ), true ) ) {
+        return $is_available;
+    }
+    $min = (float) $method->get_option( 'min_amount' );
+    if ( $min <= 0 ) {
+        return $is_available;
+    }
+
+    // Mismo cálculo que hace WooCommerce, pero convertido a moneda base.
+    $subtotal = WC()->cart->get_displayed_subtotal();
+    if ( 'no' === $method->get_option( 'ignore_discounts', 'no' ) ) {
+        $subtotal -= WC()->cart->get_discount_total();
+        if ( WC()->cart->display_prices_including_tax() ) {
+            $subtotal -= WC()->cart->get_discount_tax();
+        }
+    }
+    $meets_min = nakama_cart_subtotal_in_base( $subtotal ) >= $min;
+
+    if ( 'both' === $requires ) {
+        $has_free_coupon = false;
+        foreach ( WC()->cart->get_coupons() as $coupon ) {
+            if ( $coupon->get_free_shipping() ) {
+                $has_free_coupon = true;
+                break;
+            }
+        }
+        return $meets_min && $has_free_coupon;
+    }
+
+    // min_amount o either: basta con cumplir el monto en base.
+    return $meets_min;
+}, 20, 3 );
+
+// Cupones con "gasto mínimo": validar el mínimo contra el subtotal en MXN.
+add_filter( 'woocommerce_coupon_validate_minimum_amount', function ( $invalid, $coupon, $subtotal ) {
+    if ( ! $invalid ) {
+        return $invalid;
+    }
+    return ! ( nakama_cart_subtotal_in_base( $subtotal ) >= (float) $coupon->get_minimum_amount() );
+}, 10, 3 );
+
+/**
+ * Descuento por TRANSFERENCIA BANCARIA (5%). Combinable con cupones: se
+ * calcula sobre el subtotal neto (después de descuentos), sin incluir envío.
+ * Se aplica automáticamente al elegir "Transferencia bancaria" (BACS) en el
+ * checkout. IMPORTANTE: si existe un snippet previo en WPCode que aplicaba
+ * el 3%, hay que desactivarlo para no duplicar el descuento.
+ */
+add_action( 'woocommerce_cart_calculate_fees', function ( $cart ) {
+    if ( is_admin() && ! defined( 'DOING_AJAX' ) ) {
+        return;
+    }
+    $chosen = WC()->session ? WC()->session->get( 'chosen_payment_method' ) : '';
+    if ( 'bacs' !== $chosen ) {
+        return;
+    }
+    $neto = (float) $cart->get_subtotal() - (float) $cart->get_discount_total();
+    if ( $neto <= 0 ) {
+        return;
+    }
+    $cart->add_fee( 'Descuento por transferencia (5%)', -1 * round( $neto * 0.05, 2 ) );
+}, 30 );
 
 // Webhook para sincronizar Base de datos al actualizar/crear producto
 add_action( 'save_post_product', 'nakama_trigger_db_sync', 10, 3 );
