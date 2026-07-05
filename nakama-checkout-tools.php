@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO, pedidos de cotización y sincronización de base de datos local (Next.js).
- * Version: 1.9
+ * Version: 2.0
  * Author: Nakama
  */
 
@@ -495,19 +495,20 @@ function nakama_pay_quote_via_checkout( $debug = false ) {
         exit;
     }
 
-    // El precio del carrito debe ir en moneda BASE (MXN): el conversor de
-    // moneda del checkout multiplica por el tipo de cambio si el cliente ve
-    // USD. Si la cotización se creó/preció en USD (pedidos previos al fix de
-    // moneda base), convertir a MXN con el MISMO rate del snippet para que el
-    // viaje de ida y vuelta sea exacto (100 USD -> MXN -> 100 USD).
+    // El precio del carrito debe ir en moneda BASE (MXN). Si la cotización se
+    // preció en USD, convertir a pesos con el tipo de cambio REAL (el rate
+    // guardado trae el margen de -2 pesos que encarece los precios en USD;
+    // para pasar dólares a pesos se suma de vuelta: 1/rate + 2).
+    // Ej.: rate margen = 1/15.47 -> pesos reales = 17.47 -> 100 USD = 1,747 MXN.
     $base           = get_option( 'woocommerce_currency', 'MXN' );
     $order_currency = $order->get_currency();
     if ( $order_currency && $order_currency !== $base ) {
         if ( 'USD' === $order_currency ) {
             $rate = nakama_get_usd_rate();
             if ( $rate && $rate > 0 ) {
-                $total = $total / $rate; // USD -> MXN
-                if ( $debug ) echo 'Total convertido de USD a base: ' . $total . '<br>';
+                $pesos_por_dolar_real = ( 1 / $rate ) + 2;
+                $total = $total * $pesos_por_dolar_real; // USD -> MXN (rate real)
+                if ( $debug ) echo 'Total convertido de USD a base (rate real ' . $pesos_por_dolar_real . '): ' . $total . '<br>';
             } else {
                 if ( $debug ) { echo 'Error: no hay tipo de cambio disponible para convertir la cotización en USD.'; exit; }
                 wp_safe_redirect( home_url( '/mi-cuenta/' ) );

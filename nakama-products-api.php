@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Products API
  * Description: API REST pública y RÁPIDA de productos (WooCommerce/$wpdb directo, sin WPGraphQL) para el frontend estático de Next.js.
- * Version: 1.5
+ * Version: 1.6
  * Author: Nakama
  */
 
@@ -362,8 +362,11 @@ function nakama_products_list($request)
 
     // Construir argumentos para wc_get_products (devuelve precios/variaciones correctos).
     // Pedimos limit+1 para saber si hay página siguiente sin un COUNT extra.
+    // visibility=visible: excluye productos ocultos del catálogo (p. ej. el
+    // producto interno "Cotización Personalizada Nakama").
     $args = array(
         'status' => 'publish',
+        'visibility' => 'visible',
         'limit' => $limit + 1,
         'offset' => $offset,
         'orderby' => 'date',
@@ -529,6 +532,12 @@ function nakama_products_single($request)
         return new WP_Error('not_found', 'Producto no encontrado', array('status' => 404));
     }
 
+    // Productos ocultos del catálogo (p. ej. el interno de cotizaciones):
+    // no exponerlos ni por slug directo.
+    if ('hidden' === $product->get_catalog_visibility()) {
+        return new WP_Error('not_found', 'Producto no encontrado', array('status' => 404));
+    }
+
     $built = nakama_products_build_product($product);
     if (!$built) {
         return new WP_Error('not_found', 'Producto no encontrado', array('status' => 404));
@@ -545,10 +554,20 @@ function nakama_products_slugs($request)
     global $wpdb;
 
     // Una sola consulta directa a wp_posts por velocidad (se llama en build time).
+    // El NOT IN excluye productos ocultos del catálogo/búsqueda (taxonomía
+    // product_visibility), como el producto interno de cotizaciones.
     $slugs = $wpdb->get_col(
         $wpdb->prepare(
-            "SELECT post_name FROM {$wpdb->posts}
-             WHERE post_type = %s AND post_status = %s AND post_name != ''",
+            "SELECT p.post_name FROM {$wpdb->posts} p
+             WHERE p.post_type = %s AND p.post_status = %s AND p.post_name != ''
+               AND p.ID NOT IN (
+                 SELECT tr.object_id
+                 FROM {$wpdb->term_relationships} tr
+                 INNER JOIN {$wpdb->term_taxonomy} tt ON tr.term_taxonomy_id = tt.term_taxonomy_id
+                 INNER JOIN {$wpdb->terms} t ON tt.term_id = t.term_id
+                 WHERE tt.taxonomy = 'product_visibility'
+                   AND t.slug IN ('exclude-from-catalog', 'exclude-from-search')
+               )",
             'product',
             'publish'
         )
