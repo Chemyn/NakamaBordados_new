@@ -96,8 +96,9 @@ export default function MaintenanceToggle() {
       }}
     >
       <span className="material-icons-outlined">{failed ? 'sync_problem' : 'construction'}</span>
+      {/* Etiqueta corta: el sidebar mide 280px y el detalle va en title */}
       {failed
-        ? 'Mantenimiento: sin conexión (reintentar)'
+        ? 'Mantenimiento: reintentar'
         : enabled === null
           ? 'Consultando estado…'
           : saving

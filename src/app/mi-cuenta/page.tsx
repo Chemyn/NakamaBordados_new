@@ -52,7 +52,9 @@ export default function MiCuentaPage() {
     if (!code) return;
     setTrackingLoading(code);
     try {
-      const res = await fetch(`https://nakamabordados.com/?rest_route=/nakama/v1/track-shipment&tracking=${code}&carrier=${carrier.toLowerCase()}`);
+      // nkcb: LiteSpeed cachea las respuestas de ?rest_route= y serviría un
+      // estado de rastreo viejo.
+      const res = await fetch(`https://nakamabordados.com/?rest_route=/nakama/v1/track-shipment&tracking=${encodeURIComponent(code)}&carrier=${encodeURIComponent(carrier.toLowerCase())}&nkcb=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
         setTrackingResults(prev => ({
@@ -592,7 +594,12 @@ export default function MiCuentaPage() {
           }
         }
 
-        .nk-dashboard-nav button {
+        /* :not(.nk-admin-btn): los botones de ADMIN TOOLS se visten SOLO con
+           .nk-admin-btn (globals.css). Este selector con hash de styled-jsx
+           tiene más especificidad y pisaba el fondo/tipografía del botón
+           "Escritorio WordPress" (el MaintenanceToggle, al ser otro componente,
+           no lleva el hash — quedaban dos botones vecinos con diseños distintos). */
+        .nk-dashboard-nav button:not(.nk-admin-btn) {
           white-space: nowrap;
           padding: 8px 14px;
           border: 2px solid transparent;
@@ -611,7 +618,7 @@ export default function MiCuentaPage() {
         }
 
         @media (min-width: 992px) {
-          .nk-dashboard-nav button {
+          .nk-dashboard-nav button:not(.nk-admin-btn) {
             width: 100%;
             background: transparent;
             border: none;

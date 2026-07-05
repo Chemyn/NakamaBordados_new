@@ -154,6 +154,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         };
 
+        // Rastreo Envia (plugin nakama-envia-tracking): query SEPARADA y
+        // tolerante. Si estos campos fueran parte del query principal y el
+        // plugin estuviera inactivo en WP, el schema los rechazaría, viewer
+        // llegaría null y se cerraría la sesión de TODOS los usuarios.
+        try {
+          const trackingQuery = `
+            query GetOrdersTracking {
+              customer {
+                orders(first: 20, where: { orderby: { field: DATE, order: DESC } }) {
+                  nodes { id enviaTrackingCode enviaCarrier }
+                }
+              }
+            }
+          `;
+          const trackingRes = await fetchGraphQL(trackingQuery, {}, { Authorization: `Bearer ${token}` });
+          const trackingNodes: { id: string; enviaTrackingCode?: string; enviaCarrier?: string }[] =
+            trackingRes?.data?.customer?.orders?.nodes || [];
+          if (trackingNodes.length > 0) {
+            const byId = new Map(trackingNodes.map(n => [n.id, n]));
+            customer.orders.nodes.forEach((order) => {
+              const t = byId.get(order.id);
+              if (t) {
+                order.enviaTrackingCode = t.enviaTrackingCode || undefined;
+                order.enviaCarrier = t.enviaCarrier || undefined;
+              }
+            });
+          }
+        } catch (trackErr) {
+          console.warn('AuthProvider: rastreo Envia no disponible (¿plugin activo en WP?)', trackErr);
+        }
+
         setUser(customer);
       } else {
         console.warn("AuthProvider: viewer vacío; el token podría ser inválido/expirado.");
