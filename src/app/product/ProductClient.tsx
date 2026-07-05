@@ -203,8 +203,18 @@ export default function ProductClient({ initialProduct: product, relatedProducts
     return optionsArray.sort();
   };
 
+  const getAttributeOrderValue = (name: string): number => {
+    const lower = name.toLowerCase();
+    if (lower.includes('estilo') || lower.includes('style')) return 1;
+    if (lower.includes('color')) return 2;
+    if (lower.includes('talla') || lower.includes('size')) return 3;
+    return 99;
+  };
+
   const attributeNames = product.type === 'variable' 
-    ? Array.from(new Set(validVariations.flatMap(v => Object.keys(v.attributes)))) 
+    ? Array.from(new Set(validVariations.flatMap(v => Object.keys(v.attributes)))).sort((a, b) => {
+        return getAttributeOrderValue(a) - getAttributeOrderValue(b);
+      })
     : [];
 
   const getSelectedVariation = (): Variation | null => {
@@ -408,6 +418,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                   const options = getAttributeOptions(name);
                   const selectedVal = selectedAttributes[name];
                   const isColor = name.toLowerCase().includes('color');
+                  const isSize = name.toLowerCase().includes('talla') || name.toLowerCase().includes('size');
                   return (
                     <div className="nk-swatch-group" key={name}>
                       <span className="nk-swatch-label" style={{ fontWeight: 800 }}>{name.toUpperCase()}: {(selectedVal || t('product.select')).toUpperCase()}</span>
@@ -443,21 +454,30 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                           );
                         })}
                       </div>
+                      {isSize && !isGorras && (
+                        <div style={{ marginTop: '12px' }}>
+                          <button type="button" className="nk-size-guide-trigger" style={{ padding: '4px 0', minHeight: 'auto', display: 'inline-flex' }} onClick={() => setSizeGuideOpen(true)}>
+                            <span className="material-icons-outlined">straighten</span>
+                            {t('product.size_guide')}
+                          </button>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
             )}
 
+            {product.type === 'simple' && !isGorras && (
+              <div style={{ marginBottom: '15px' }}>
+                <button type="button" className="nk-size-guide-trigger" onClick={() => setSizeGuideOpen(true)}>
+                  <span className="material-icons-outlined">straighten</span>
+                  {t('product.size_guide')}
+                </button>
+              </div>
+            )}
+
             <div className="nk-detail-actions-section nk-manga-border" style={{ boxShadow: 'var(--nk-manga-shadow-lg)' }}>
-              {!isGorras && (
-                <div style={{ marginBottom: '15px' }}>
-                  <button type="button" className="nk-size-guide-trigger" onClick={() => setSizeGuideOpen(true)}>
-                    <span className="material-icons-outlined">straighten</span>
-                    {t('product.size_guide')}
-                  </button>
-                </div>
-              )}
               <div className="nk-action-row">
                 <div className="nk-qty-selector nk-manga-border">
                   <button className="nk-qty-btn" onClick={() => setQuantity(Math.max(1, quantity - 1))}>-</button>
