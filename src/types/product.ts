@@ -13,6 +13,14 @@ export interface Variation {
   stock: number;
 }
 
+export interface Review {
+  id: string;
+  name: string;
+  rating: number;
+  comment: string;
+  date: string;
+}
+
 export interface Product {
   id: string;
   databaseId?: number;
@@ -27,6 +35,7 @@ export interface Product {
   variations: Variation[];
   rating: number;
   salesCount: number;
+  reviews?: Review[];
 }
 
 export interface Category {

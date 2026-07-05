@@ -631,6 +631,19 @@ html.dark .op-floating-text {
   padding: 0;
   margin-bottom: 20px;
   overflow-x: auto;
+  flex-wrap: nowrap;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (max-width: 480px) {
+  .tab-list {
+    gap: 5px;
+  }
+  .tab-btn {
+    font-size: 1.15rem !important;
+    padding: 8px 10px !important;
+    flex-shrink: 0;
+  }
 }
 
 .tab-btn {
@@ -2267,6 +2280,7 @@ html.dark .nk-preloader-logo {
   display: flex;
   flex-direction: column;
   gap: 16px;
+  min-width: 0;
 }
 
 .nk-main-image-wrapper {
@@ -2279,6 +2293,7 @@ html.dark .nk-preloader-logo {
   display: flex;
   align-items: center;
   justify-content: center;
+  max-width: 100%;
 }
 
 .nk-main-image {
@@ -2305,6 +2320,7 @@ html.dark .nk-preloader-logo {
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .nk-thumb-btn.active {
@@ -2318,9 +2334,25 @@ html.dark .nk-preloader-logo {
   border-radius: 4px;
 }
 
+@media (max-width: 480px) {
+  .nk-thumbnails-list {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    width: 100%;
+    padding-bottom: 8px;
+    gap: 8px;
+    -webkit-overflow-scrolling: touch;
+  }
+  .nk-thumb-btn {
+    width: 65px;
+    height: 65px;
+  }
+}
+
 .nk-detail-info {
   display: flex;
   flex-direction: column;
+  min-width: 0;
 }
 
 .nk-info-badge {

@@ -159,6 +159,20 @@ add_action('rest_api_init', function () {
             'permission_callback' => '__return_true',
         ),
     ));
+
+    // 6) Enviar valoración/reseña
+    register_rest_route('nakama/v1', '/submit-review', array(
+        array(
+            'methods' => 'POST',
+            'callback' => 'nakama_products_submit_review',
+            'permission_callback' => '__return_true',
+        ),
+        array(
+            'methods' => 'OPTIONS',
+            'callback' => 'nakama_products_preflight',
+            'permission_callback' => '__return_true',
+        ),
+    ));
 });
 
 function nakama_products_get_next_folio()
@@ -173,6 +187,47 @@ function nakama_products_get_next_folio()
         'formatted' => 'NK-' . $next_folio
     ));
     return nakama_products_add_cors($response);
+}
+
+function nakama_products_submit_review($request)
+{
+    $params = $request->get_json_params();
+    if (empty($params)) {
+        $params = $request->get_body_params();
+    }
+
+    $product_id = isset($params['product_id']) ? (int)$params['product_id'] : 0;
+    $author_name = isset($params['name']) ? sanitize_text_field($params['name']) : '';
+    $author_email = isset($params['email']) ? sanitize_email($params['email']) : '';
+    $comment = isset($params['comment']) ? sanitize_textarea_field($params['comment']) : '';
+    $rating = isset($params['rating']) ? (int)$params['rating'] : 5;
+
+    if ($product_id <= 0 || empty($author_name) || empty($author_email) || empty($comment)) {
+        $response = new WP_Error('missing_fields', 'Faltan campos obligatorios para la valoración.', array('status' => 400));
+        return nakama_products_add_cors(rest_ensure_response($response));
+    }
+
+    $commentdata = array(
+        'comment_post_ID' => $product_id,
+        'comment_author' => $author_name,
+        'comment_author_email' => $author_email,
+        'comment_content' => $comment,
+        'comment_type' => 'review',
+        'comment_approved' => 0, // Requiere aprobación manual
+    );
+
+    $comment_id = wp_insert_comment($commentdata);
+    if ($comment_id) {
+        update_comment_meta($comment_id, 'rating', $rating);
+        $response = rest_ensure_response(array(
+            'success' => true,
+            'message' => 'Valoración enviada correctamente. Será visible una vez aprobada.'
+        ));
+        return nakama_products_add_cors($response);
+    }
+
+    $response = new WP_Error('insert_failed', 'No se pudo guardar la valoración.', array('status' => 500));
+    return nakama_products_add_cors(rest_ensure_response($response));
 }
 
 // ============================================================================
@@ -325,6 +380,33 @@ function nakama_products_build_product($product)
         $sales_count = (($database_id * 7) % 10) + 1;
     }
 
+    // Obtener valoraciones reales de WooCommerce
+    $reviews = array();
+    $comments = get_comments(array(
+        'post_id' => $database_id,
+        'status' => 'approve',
+        'type' => 'review'
+    ));
+
+    if (!empty($comments) && !is_wp_error($comments)) {
+        foreach ($comments as $comment) {
+            $review_rating = (int) get_comment_meta($comment->comment_ID, 'rating', true);
+            if ($review_rating <= 0) {
+                $review_rating = 5;
+            }
+            
+            $review_date = human_time_diff(get_comment_date('U', $comment->comment_ID), current_time('timestamp'));
+            
+            $reviews[] = array(
+                'id' => (string) $comment->comment_ID,
+                'name' => esc_html($comment->comment_author),
+                'rating' => $review_rating,
+                'comment' => esc_html($comment->comment_content),
+                'date' => sprintf('Hace %s', $review_date)
+            );
+        }
+    }
+
     return array(
         'id' => (string) $slug,
         'databaseId' => (int) $database_id,
@@ -339,6 +421,7 @@ function nakama_products_build_product($product)
         'variations' => $variations,
         'rating' => $rating,
         'salesCount' => $sales_count,
+        'reviews' => $reviews,
     );
 }
 

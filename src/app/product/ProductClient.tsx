@@ -14,6 +14,39 @@ interface ProductClientProps {
   relatedProducts: Product[];
 }
 
+const getMockReviewsForProduct = (dbId: number, rating: number) => {
+  const names = ["Carlos M.", "Sofía R.", "Javier T.", "Daniela G.", "Miguel A.", "Andrea L.", "Fernando B.", "Valeria H.", "Alejandro C.", "Mariana P."];
+  const comments = [
+    "¡La calidad del bordado es increíble! El diseño de Luffy se ve genial. Definitivamente volveré a comprar.",
+    "Llegó súper rápido y el empaque premium de Nakama es genial. La prenda es muy cómoda y de excelente material.",
+    "El estampado DTF tiene excelente definición y los colores son muy vivos. Recomendado al 100%.",
+    "¡El diseño superó mis expectativas! La horma y costuras son perfectas, de calidad de exportación.",
+    "Excelente atención al cliente y la calidad de la tela es de primera. Se siente muy abrigadora y premium.",
+    "Me encantó el diseño de Zoro. El bordado es grueso y no se deforma tras las lavadas. ¡Muy pirata!",
+    "La playera es fresca y el estampado resiste súper bien. Ideal para el día a día. 10/10.",
+    "Espectacular. Compré la gorra con bordado 3D y la calidad del relieve es de otro nivel. Súper recomendados.",
+    "Nakama nunca falla. Tela gruesa, buen corte y el bordado está impecable. El paquete llegó antes de lo esperado.",
+    "Los detalles son brutales. Se nota el cariño en el empaque y las etiquetas. ¡Toda una joya nakama!"
+  ];
+
+  const count = ((dbId * 3) % 5) + 4;
+  const reviewsList = [];
+  for (let i = 0; i < count; i++) {
+    const nameIdx = (dbId + i * 7) % names.length;
+    const commentIdx = (dbId + i * 11) % comments.length;
+    const reviewRating = i === 0 ? Math.ceil(rating) : (i % 3 === 0 ? Math.floor(rating) : 5);
+    const daysAgo = ((dbId + i * 13) % 25) + 2;
+    reviewsList.push({
+      id: `rev-${i}`,
+      name: names[nameIdx],
+      rating: reviewRating,
+      comment: comments[commentIdx],
+      date: `Hace ${daysAgo} días`
+    });
+  }
+  return reviewsList;
+};
+
 export default function ProductClient({ initialProduct: product, relatedProducts }: ProductClientProps) {
   const { addToCart } = useCart();
   const { formatPrice } = useCurrency();
@@ -23,9 +56,71 @@ export default function ProductClient({ initialProduct: product, relatedProducts
   const [activeImage, setActiveImage] = useState(product.images[0]);
   const [selectedAttributes, setSelectedAttributes] = useState<Record<string, string>>({});
   const [quantity, setQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState<'desc' | 'care'>('desc');
+  const [activeTab, setActiveTab] = useState<'desc' | 'care' | 'reviews'>('desc');
   const [showAllThumbs, setShowAllThumbs] = useState(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+
+  const dbReviews = product.reviews || [];
+  const reviewCount = dbReviews.length;
+
+  const starsCount = [0, 0, 0, 0, 0];
+  dbReviews.forEach(r => {
+    const starIdx = Math.max(1, Math.min(5, Math.round(r.rating))) - 1;
+    starsCount[starIdx]++;
+  });
+
+  const getPercentage = (stars: number) => {
+    if (reviewCount === 0) return 0;
+    return Math.round((starsCount[stars - 1] / reviewCount) * 100);
+  };
+
+  // Review Form States
+  const [showReviewForm, setShowReviewForm] = useState(false);
+  const [reviewName, setReviewName] = useState('');
+  const [reviewEmail, setReviewEmail] = useState('');
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState('');
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [reviewMessage, setReviewMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
+
+  const handleReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reviewName || !reviewEmail || !reviewComment) {
+      setReviewMessage({ type: 'error', text: 'Por favor llena todos los campos.' });
+      return;
+    }
+    setSubmittingReview(true);
+    setReviewMessage(null);
+    try {
+      const apiHost = process.env.NEXT_PUBLIC_API_HOST || 'https://nakamabordados.com';
+      const res = await fetch(`${apiHost}/wp-json/nakama/v1/submit-review`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          product_id: product.databaseId,
+          name: reviewName,
+          email: reviewEmail,
+          rating: reviewRating,
+          comment: reviewComment
+        })
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setReviewMessage({ type: 'success', text: data.message });
+        setReviewName('');
+        setReviewEmail('');
+        setReviewRating(5);
+        setReviewComment('');
+      } else {
+        setReviewMessage({ type: 'error', text: data.message || 'Error al enviar la valoración.' });
+      }
+    } catch (err) {
+      console.error("Error submitting review:", err);
+      setReviewMessage({ type: 'error', text: 'Error de red al enviar la valoración.' });
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
   
   // Zoom logic
   const [zoomPos, setZoomPos] = useState({ x: 0, y: 0, show: false });
@@ -259,7 +354,47 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                 <span className="nk-info-badge nk-manga-border" style={{ background: 'var(--nk-accent)', color: 'var(--nk-bg-body)' }}>{t('product.official')}</span>
                 <span className="nk-info-badge nk-manga-border" style={{ background: 'var(--nk-text-main)', color: 'var(--nk-bg-body)' }}>{t('product.premium')}</span>
             </div>
-            <h1 className="nk-detail-title" style={{ textShadow: '2px 2px 0px var(--nk-accent)' }}>{product.name}</h1>
+             <h1 className="nk-detail-title" style={{ textShadow: '2px 2px 0px var(--nk-accent)', marginBottom: '5px' }}>{product.name}</h1>
+             
+             {/* Rating Stars Under Title */}
+             {dbReviews.length > 0 ? (
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
+                  <div style={{ display: 'flex', color: '#ffb400' }}>
+                    {Array.from({ length: 5 }).map((_, i) => {
+                      const ratingVal = product.rating || 5;
+                      const isFull = i < Math.floor(ratingVal);
+                      const isHalf = !isFull && (i < ratingVal);
+                      return (
+                        <span key={i} className="material-icons-outlined" style={{ fontSize: '1.2rem' }}>
+                          {isFull ? 'star' : isHalf ? 'star_half' : 'star_border'}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <span className="small text-muted font-display uppercase tracking-wider" style={{ fontWeight: 800, fontSize: '0.8rem', letterSpacing: '0.5px' }}>
+                    {product.rating ? product.rating.toFixed(1) : '5.0'} / 5.0 ({dbReviews.length} {t('product.reviews_label')})
+                  </span>
+                </div>
+              ) : (
+                <div 
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px', cursor: 'pointer' }} 
+                  onClick={() => {
+                    setActiveTab('reviews');
+                    setShowReviewForm(true);
+                    const el = document.querySelector('.nk-detail-tabs-section');
+                    if (el) el.scrollIntoView({ behavior: 'smooth' });
+                  }}
+                >
+                  <div style={{ display: 'flex', color: 'var(--nk-text-sec)', opacity: 0.4 }}>
+                    {Array.from({ length: 5 }).map((_, i) => (
+                      <span key={i} className="material-icons-outlined" style={{ fontSize: '1.2rem' }}>star_border</span>
+                    ))}
+                  </div>
+                  <span className="small text-muted font-display uppercase tracking-wider" style={{ fontWeight: 800, fontSize: '0.8rem', letterSpacing: '0.5px', textDecoration: 'underline' }}>
+                    Sé el primero en calificar
+                  </span>
+                </div>
+              )}
             
             <div style={{ display: 'flex', alignItems: 'baseline', gap: '15px' }}>
                 <p className="nk-detail-price" style={{ fontSize: 'clamp(1.8rem, 6.5vw, 2.5rem)' }}>{displayPrice}</p>
@@ -351,14 +486,16 @@ export default function ProductClient({ initialProduct: product, relatedProducts
               <ul className="tab-list">
                 <li><button className={`tab-btn ${activeTab === 'desc' ? 'active' : ''}`} onClick={() => setActiveTab('desc')}>{t('product.desc_tab')}</button></li>
                 <li><button className={`tab-btn ${activeTab === 'care' ? 'active' : ''}`} onClick={() => setActiveTab('care')}>{t('product.care_tab')}</button></li>
+                <li><button className={`tab-btn ${activeTab === 'reviews' ? 'active' : ''}`} onClick={() => { setActiveTab('reviews'); if (dbReviews.length === 0) setShowReviewForm(true); }}>{t('product.reviews_tab')} ({reviewCount})</button></li>
               </ul>
               <div className="tab-content nk-manga-border" style={{ fontSize: '0.95rem', lineHeight: '1.6', background: 'var(--nk-bg-card)', padding: '20px' }}>
-                {activeTab === 'desc' ? (
+                {activeTab === 'desc' && (
                   <div>
                     <div className="nk-product-html-desc" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.description || '') }} />
                     <p style={{ marginTop: '15px', fontWeight: 'bold', fontFamily: 'Courier New' }}>SKU: {currentVariation ? currentVariation.sku : product.sku}</p>
                   </div>
-                ) : (
+                )}
+                {activeTab === 'care' && (
                   <div>
                     <p style={{ fontWeight: 700, marginBottom: '10px' }}>{t('product.care_title')}</p>
                     <ul style={{ paddingLeft: '20px' }}>
@@ -368,6 +505,218 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                       <li>{t('product.care_4')}</li>
                       <li>{t('product.care_5')}</li>
                     </ul>
+                  </div>
+                )}
+                {activeTab === 'reviews' && (
+                  <div>
+                    {dbReviews.length === 0 ? (
+                      <div className="text-center py-4" style={{ borderBottom: '1px dashed var(--nk-border)', marginBottom: '20px' }}>
+                        <p className="text-muted" style={{ fontWeight: 600 }}>Aún no hay valoraciones para este producto. ¡Sé el primero en calificarlo!</p>
+                      </div>
+                    ) : (
+                      <>
+                        {/* Score Summary Block */}
+                        <div style={{ display: 'flex', gap: '30px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '25px', paddingBottom: '20px', borderBottom: '1px solid var(--nk-border)' }}>
+                          <div style={{ textAlign: 'center' }}>
+                            <div style={{ fontFamily: 'Teko', fontSize: '3rem', fontWeight: 800, lineHeight: 1, color: 'var(--nk-primary)' }}>
+                              {product.rating ? product.rating.toFixed(1) : '5.0'}
+                            </div>
+                            <div style={{ display: 'flex', color: '#ffb400', justifyContent: 'center', margin: '5px 0' }}>
+                              {Array.from({ length: 5 }).map((_, i) => (
+                                <span key={i} className="material-icons-outlined" style={{ fontSize: '1.2rem' }}>
+                                  {i < Math.floor(product.rating || 5) ? 'star' : 'star_border'}
+                                </span>
+                              ))}
+                            </div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--nk-text-sec)', fontWeight: 600 }}>
+                              {reviewCount} {t('product.reviews_label')}
+                            </div>
+                          </div>
+                          <div style={{ flex: 1, minWidth: '180px', display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.8rem' }}>
+                              <span style={{ width: '80px', fontWeight: 700 }}>5 estrellas</span>
+                              <div style={{ flex: 1, height: '8px', background: 'var(--nk-border)', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ width: `${getPercentage(5)}%`, height: '100%', background: '#ffb400' }}></div>
+                              </div>
+                              <span style={{ width: '30px', textAlign: 'right', fontWeight: 700 }}>{getPercentage(5)}%</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.8rem' }}>
+                              <span style={{ width: '80px', fontWeight: 700 }}>4 estrellas</span>
+                              <div style={{ flex: 1, height: '8px', background: 'var(--nk-border)', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ width: `${getPercentage(4)}%`, height: '100%', background: '#ffb400' }}></div>
+                              </div>
+                              <span style={{ width: '30px', textAlign: 'right', fontWeight: 700 }}>{getPercentage(4)}%</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.8rem' }}>
+                              <span style={{ width: '80px', fontWeight: 700 }}>3 estrellas</span>
+                              <div style={{ flex: 1, height: '8px', background: 'var(--nk-border)', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ width: `${getPercentage(3)}%`, height: '100%', background: '#ffb400' }}></div>
+                              </div>
+                              <span style={{ width: '30px', textAlign: 'right', fontWeight: 700 }}>{getPercentage(3)}%</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.8rem' }}>
+                              <span style={{ width: '80px', fontWeight: 700 }}>2 estrellas</span>
+                              <div style={{ flex: 1, height: '8px', background: 'var(--nk-border)', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ width: `${getPercentage(2)}%`, height: '100%', background: '#ffb400' }}></div>
+                              </div>
+                              <span style={{ width: '30px', textAlign: 'right', fontWeight: 700 }}>{getPercentage(2)}%</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.8rem' }}>
+                              <span style={{ width: '80px', fontWeight: 700 }}>1 estrella</span>
+                              <div style={{ flex: 1, height: '8px', background: 'var(--nk-border)', borderRadius: '4px', overflow: 'hidden' }}>
+                                <div style={{ width: `${getPercentage(1)}%`, height: '100%', background: '#ffb400' }}></div>
+                              </div>
+                              <span style={{ width: '30px', textAlign: 'right', fontWeight: 700 }}>{getPercentage(1)}%</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Toggle Review Form Button */}
+                        <div className="mb-4">
+                          <button 
+                            type="button" 
+                            onClick={() => setShowReviewForm(!showReviewForm)} 
+                            className="nk-btn nk-manga-border py-2 px-4 font-display" 
+                            style={{ background: 'var(--nk-accent)', color: 'var(--nk-bg-body)', fontWeight: 800, fontSize: '0.85rem' }}
+                          >
+                            {showReviewForm ? 'CANCELAR VALORACIÓN' : 'ESCRIBIR VALORACIÓN'}
+                          </button>
+                        </div>
+
+                        {/* Review List */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '30px' }}>
+                          {dbReviews.map((rev) => (
+                            <div key={rev.id} style={{ paddingBottom: '15px', borderBottom: '1px dashed var(--nk-border)' }}>
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: '10px', marginBottom: '5px' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                  <span style={{ fontWeight: 800, color: 'var(--nk-text-main)' }}>{rev.name}</span>
+                                  <div style={{ display: 'flex', color: '#ffb400' }}>
+                                    {Array.from({ length: 5 }).map((_, i) => (
+                                      <span key={i} className="material-icons-outlined" style={{ fontSize: '0.85rem' }}>
+                                        {i < rev.rating ? 'star' : 'star_border'}
+                                      </span>
+                                    ))}
+                                  </div>
+                                </div>
+                                <span style={{ fontSize: '0.75rem', color: 'var(--nk-text-sec)', fontWeight: 600 }}>{rev.date}</span>
+                              </div>
+                              <p style={{ margin: 0, fontSize: '0.9rem', color: 'var(--nk-text-sec)' }}>{rev.comment}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </>
+                    )}
+
+                    {/* FORMULARIO DE VALORACIÓN */}
+                    {(dbReviews.length === 0 || showReviewForm) && (
+                      <form onSubmit={handleReviewSubmit} className="nk-manga-border mt-4" style={{ background: 'var(--nk-bg-card)', padding: '20px', boxShadow: 'var(--nk-manga-shadow)', border: '2px solid var(--nk-border)' }}>
+                        <h4 className="font-display text-primary-brand mb-4" style={{ fontSize: '1.4rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.5px', color: 'var(--nk-primary)' }}>ESCRIBIR VALORACIÓN</h4>
+                        
+                        {reviewMessage && (
+                          <div className={`alert ${reviewMessage.type === 'success' ? 'alert-success border-success text-success bg-success bg-opacity-10' : 'alert-danger border-danger text-danger bg-danger bg-opacity-10'} p-3 mb-4 nk-manga-border`} style={{ fontSize: '0.9rem', fontWeight: 600 }}>
+                            {reviewMessage.text}
+                          </div>
+                        )}
+                        
+                        <div className="mb-4">
+                          <label className="form-label font-display small tracking-wider" style={{ fontWeight: 800, color: 'var(--nk-text-main)', marginBottom: '8px', display: 'block' }}>CALIFICACIÓN</label>
+                          <div style={{ display: 'flex', gap: '8px', color: '#ffb400', cursor: 'pointer' }}>
+                            {[1, 2, 3, 4, 5].map((star) => (
+                              <span 
+                                key={star} 
+                                className="material-icons-outlined" 
+                                onClick={() => setReviewRating(star)}
+                                style={{ fontSize: '2rem' }}
+                              >
+                                {star <= reviewRating ? 'star' : 'star_border'}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Responsive columns layout using Flexbox wrap instead of grid */}
+                        <div style={{ display: 'flex', flexDirection: 'row', flexWrap: 'wrap', gap: '15px', marginBottom: '15px' }}>
+                          <div style={{ flex: '1 1 250px' }}>
+                            <label className="form-label font-display small tracking-wider" style={{ fontWeight: 800, color: 'var(--nk-text-main)', marginBottom: '6px', display: 'block' }}>TU NOMBRE</label>
+                            <input 
+                              type="text" 
+                              className="form-control nk-manga-border" 
+                              style={{ 
+                                width: '100%', 
+                                outline: 'none', 
+                                padding: '10px 12px', 
+                                background: 'var(--nk-bg-body)', 
+                                color: 'var(--nk-text-main)',
+                                border: '2px solid var(--nk-border)',
+                                fontSize: '0.9rem'
+                              }}
+                              value={reviewName} 
+                              onChange={(e) => setReviewName(e.target.value)} 
+                              required 
+                            />
+                          </div>
+                          <div style={{ flex: '1 1 250px' }}>
+                            <label className="form-label font-display small tracking-wider" style={{ fontWeight: 800, color: 'var(--nk-text-main)', marginBottom: '6px', display: 'block' }}>TU CORREO ELECTRÓNICO</label>
+                            <input 
+                              type="email" 
+                              className="form-control nk-manga-border" 
+                              style={{ 
+                                width: '100%', 
+                                outline: 'none', 
+                                padding: '10px 12px', 
+                                background: 'var(--nk-bg-body)', 
+                                color: 'var(--nk-text-main)',
+                                border: '2px solid var(--nk-border)',
+                                fontSize: '0.9rem'
+                              }}
+                              value={reviewEmail} 
+                              onChange={(e) => setReviewEmail(e.target.value)} 
+                              required 
+                            />
+                          </div>
+                        </div>
+
+                        <div className="mb-4">
+                          <label className="form-label font-display small tracking-wider" style={{ fontWeight: 800, color: 'var(--nk-text-main)', marginBottom: '6px', display: 'block' }}>TU OPINIÓN</label>
+                          <textarea 
+                            className="form-control nk-manga-border" 
+                            rows={4} 
+                            style={{ 
+                              width: '100%', 
+                              outline: 'none', 
+                              padding: '10px 12px', 
+                              background: 'var(--nk-bg-body)', 
+                              color: 'var(--nk-text-main)',
+                              border: '2px solid var(--nk-border)',
+                              fontSize: '0.9rem',
+                              resize: 'vertical'
+                            }}
+                            value={reviewComment} 
+                            onChange={(e) => setReviewComment(e.target.value)} 
+                            required
+                          ></textarea>
+                        </div>
+
+                        <button 
+                          type="submit" 
+                          disabled={submittingReview}
+                          className="nk-btn nk-manga-border w-100" 
+                          style={{ 
+                            background: 'var(--nk-primary)', 
+                            fontWeight: 800, 
+                            fontSize: '1rem', 
+                            cursor: 'pointer',
+                            padding: '12px 20px',
+                            color: '#fff',
+                            boxShadow: 'var(--nk-manga-shadow)',
+                            textTransform: 'uppercase',
+                            transition: 'transform 0.1s'
+                          }}
+                        >
+                          {submittingReview ? 'ENVIANDO...' : 'ENVIAR VALORACIÓN'}
+                        </button>
+                      </form>
+                    )}
                   </div>
                 )}
               </div>
