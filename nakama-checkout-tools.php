@@ -77,11 +77,17 @@ function nakama_create_quote_order( WP_REST_Request $request ) {
     }
 
     // Idempotente por folio: si ya existe un pedido con este folio, devolverlo
-    // (evita duplicados si el cliente reintenta el envío).
+    // (evita duplicados si el cliente reintenta el envío). meta_query es el
+    // formato que soporta el almacenamiento HPOS de WooCommerce; en el
+    // almacenamiento clásico el chequeo es best-effort.
     $existing = wc_get_orders( array(
         'limit'      => 1,
-        'meta_key'   => '_nakama_quote_folio',
-        'meta_value' => $folio,
+        'meta_query' => array(
+            array(
+                'key'   => '_nakama_quote_folio',
+                'value' => $folio,
+            ),
+        ),
     ) );
     if ( ! empty( $existing ) ) {
         $order = $existing[0];
@@ -94,6 +100,16 @@ function nakama_create_quote_order( WP_REST_Request $request ) {
     }
 
     $user_id = get_current_user_id(); // 0 si es invitado; JWT lo autentica si viene.
+
+    // Sin sesión pero con email de un cliente registrado: asociar el pedido a
+    // esa cuenta para que la cotización aparezca en su Mi Cuenta (los pedidos
+    // de invitado no son visibles ahí aunque el email coincida).
+    if ( ! $user_id && $email ) {
+        $user = get_user_by( 'email', $email );
+        if ( $user ) {
+            $user_id = (int) $user->ID;
+        }
+    }
 
     $order = wc_create_order( array( 'customer_id' => $user_id ) );
     if ( is_wp_error( $order ) ) {
@@ -157,7 +173,13 @@ function nakama_create_quote_order( WP_REST_Request $request ) {
 
 // El folio de cotización reemplaza al número de pedido interno (NK-1001 en
 // lugar de #4382) en Mi Cuenta, el admin y los correos de WooCommerce.
-add_filter( 'woocommerce_order_number', function ( $number, $order ) {
+// Guardas defensivas: algunos plugins aplican estos filtros con menos
+// argumentos o con un objeto inesperado y sin ellas se produce un fatal
+// (p. ej. al cambiar el estado del pedido en el admin).
+add_filter( 'woocommerce_order_number', function ( $number, $order = null ) {
+    if ( ! $order instanceof WC_Abstract_Order ) {
+        return $number;
+    }
     $folio = $order->get_meta( '_nakama_quote_folio' );
     return $folio ? $folio : $number;
 }, 10, 2 );
@@ -165,13 +187,23 @@ add_filter( 'woocommerce_order_number', function ( $number, $order ) {
 // Mostrar SIEMPRE el código de moneda junto al total del pedido (admin,
 // Mi Cuenta y correos): MXN y USD comparten el símbolo "$" y no se
 // distinguía con qué moneda se pagó.
-add_filter( 'woocommerce_get_formatted_order_total', function ( $formatted, $order ) {
+add_filter( 'woocommerce_get_formatted_order_total', function ( $formatted, $order = null ) {
+    if ( ! $order instanceof WC_Abstract_Order || ! is_string( $formatted ) ) {
+        return $formatted;
+    }
     $currency = $order->get_currency();
     if ( $currency && false === strpos( $formatted, $currency ) ) {
         $formatted .= ' ' . $currency;
     }
     return $formatted;
 }, 10, 2 );
+
+// Compatibilidad con el almacenamiento de pedidos HPOS de WooCommerce.
+add_action( 'before_woocommerce_init', function () {
+    if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
+        \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
+    }
+} );
 
 function nakama_sso_set_cookie() {
     $user_id = get_current_user_id();

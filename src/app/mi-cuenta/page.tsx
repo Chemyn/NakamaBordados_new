@@ -10,7 +10,7 @@ import MaintenanceToggle from '../components/MaintenanceToggle';
 import { openWpAdmin, WP_ADMIN_URL } from '@/lib/wp-sso';
 
 export default function MiCuentaPage() {
-  const { user, login, logout, isLoading, isAdmin } = useAuth();
+  const { user, login, logout, refreshUser, isLoading, isAdmin } = useAuth();
   const { formatPrice } = useCurrency();
   const { t } = useLanguage();
   
@@ -22,6 +22,14 @@ export default function MiCuentaPage() {
   // Tracking state - indexed by tracking code to avoid conflicts
   const [trackingLoading, setTrackingLoading] = useState<string | null>(null);
   const [trackingResults, setTrackingResults] = useState<Record<string, any>>({});
+
+  // Al entrar a Mi Cuenta, refrescar los pedidos: sin esto una cotización
+  // recién creada no aparece hasta recargar toda la página (el contexto solo
+  // consultaba pedidos al iniciar sesión/montar la app).
+  useEffect(() => {
+    refreshUser();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setUserCredentials({ ...userCredentials, [e.target.name]: e.target.value });

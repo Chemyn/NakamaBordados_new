@@ -58,6 +58,8 @@ interface AuthContextType {
   authToken: string | null;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
+  /** Vuelve a consultar viewer/pedidos con el token vigente (p. ej. al entrar a Mi Cuenta). */
+  refreshUser: () => void;
   isLoading: boolean;
   isAdmin: boolean;
 }
@@ -110,7 +112,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
         customer {
           shipping { address1 address2 city state postcode country }
-          orders(first: 20) {
+          orders(first: 20, where: { orderby: { field: DATE, order: DESC } }) {
             nodes {
               id orderNumber status total currency date
               lineItems { nodes { product { node { name } } quantity } }
@@ -197,8 +199,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const refreshUser = React.useCallback(() => {
+    const token = localStorage.getItem('wp-jwt');
+    if (token) {
+      fetchCustomerData(token);
+    }
+  }, [fetchCustomerData]);
+
   return (
-    <AuthContext.Provider value={{ user, authToken, login, logout, isLoading, isAdmin }}>
+    <AuthContext.Provider value={{ user, authToken, login, logout, refreshUser, isLoading, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );
