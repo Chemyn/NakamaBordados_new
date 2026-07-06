@@ -1061,6 +1061,10 @@ html.dark .nk-detail-tabs-section .tab-content {
 
 /* 4. Mobile / Toggle View (under 1200px) */
 @media (max-width: 1199px) {
+  .nk-logo-img {
+    height: 40px !important;
+  }
+
   .nk-nav-toggle {
     display: flex !important;
   }

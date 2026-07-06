@@ -147,6 +147,7 @@ export default function Navbar() {
         
         /* 4. Mobile / Toggle View (under 1200px) */
         @media (max-width: 1199px) {
+          .nk-logo-img { height: 40px !important; }
           .nk-nav-toggle { display: flex !important; }
           .nk-desktop-only { display: none !important; }
           .nk-mobile-only { display: flex !important; }

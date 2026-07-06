@@ -104,7 +104,7 @@ export default function ScrollytellingHero({ heroSources }: { heroSources?: Hero
           </div>
           {/* Fila propia para que siempre quede DEBAJO de Personalizados */}
           <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
-            <Link href="/promociones" className="nk-btn nk-btn-hero nk-manga-border" style={{ background: '#ffffff', color: 'var(--nk-primary)', boxShadow: 'var(--nk-manga-shadow-lg)', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
+            <Link href="/promociones" className="nk-btn nk-btn-hero nk-manga-border" style={{ background: '#ffffff', color: 'var(--nk-primary)', boxShadow: 'var(--nk-manga-shadow-lg)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
                <span className="material-icons-outlined" style={{ fontSize: '20px' }}>local_activity</span>
                {t('hero.promos_btn')}
             </Link>
