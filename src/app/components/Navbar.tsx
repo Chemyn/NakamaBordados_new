@@ -436,18 +436,6 @@ export default function Navbar() {
               {theme === 'light' ? 'dark_mode' : 'light_mode'}
             </span>
           </button>
-
-          {isAdmin && (
-            <a
-              href={WP_ADMIN_URL}
-              onClick={(e) => { e.preventDefault(); openWpAdmin(); }}
-              className="nk-action-btn nk-suite-btn"
-              style={{ background: 'transparent', boxShadow: 'none', border: 'none', color: 'inherit' }}
-              title="Escritorio WordPress (Admin)"
-            >
-              <span className="material-icons-outlined">dashboard</span>
-            </a>
-          )}
         </div>
       </div>
     </nav>
