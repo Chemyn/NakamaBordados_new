@@ -386,26 +386,75 @@ export default function CartPage() {
 
         @media (max-width: 768px) {
           .nk-cart-row {
-            /* minmax(0,1fr) + auto: con "80px 1fr 40px" el total ($1,299 MXN)
-               caía en un track fijo de 40px y se derramaba fuera de la tarjeta */
-            grid-template-columns: 64px minmax(0, 1fr) auto;
+            position: relative !important;
+            grid-template-columns: 80px 1fr !important;
             grid-template-areas:
-              "img info remove"
-              "img qty total";
-            gap: 12px;
-            padding: 20px 0;
+              "img info"
+              "img qty"
+              "img total" !important;
+            gap: 12px 16px !important;
+            padding: 20px 0 !important;
+            align-items: start !important;
           }
 
           .nk-cart-items { padding: 16px !important; }
 
-          .nk-cart-item-img { grid-area: img; }
-          .nk-cart-item-info { grid-area: info; }
-          .nk-cart-item-qty-col { grid-area: qty; justify-self: flex-start; }
-          .nk-cart-item-total-col { grid-area: total; align-self: center; justify-self: end; white-space: nowrap; }
-          .nk-cart-item-remove-col { grid-area: remove; align-self: flex-start; }
+          .nk-cart-item-img {
+            grid-area: img !important;
+            width: 100% !important;
+            height: auto !important;
+            aspect-ratio: 3/4 !important;
+          }
 
-          .nk-cart-item-title { font-size: 1.1rem; }
-          .nk-cart-item-price-mobile { font-size: 0.9rem; font-weight: 700; color: var(--nk-primary); margin-top: 4px; }
+          .nk-cart-item-info {
+            grid-area: info !important;
+            padding-right: 40px !important; /* Evitar colisión con el botón de eliminar absoluto */
+          }
+
+          .nk-cart-item-qty-col {
+            grid-area: qty !important;
+            justify-self: flex-start !important;
+            margin-top: 2px !important;
+          }
+
+          .nk-cart-item-total-col {
+            grid-area: total !important;
+            align-self: center !important;
+            justify-self: start !important;
+            text-align: left !important;
+            font-size: 1.25rem !important;
+            font-weight: 800 !important;
+            color: var(--nk-primary) !important;
+            margin-top: 4px !important;
+          }
+
+          .nk-cart-item-total-col::before {
+            content: "Subtotal: " !important;
+            font-size: 0.85rem !important;
+            color: var(--nk-text-sec) !important;
+            font-weight: 700 !important;
+            text-transform: uppercase !important;
+          }
+
+          .nk-cart-item-remove-col {
+            grid-area: unset !important;
+            position: absolute !important;
+            top: 16px !important;
+            right: 0 !important;
+            z-index: 10 !important;
+          }
+
+          .nk-cart-item-title {
+            font-size: 1.1rem !important;
+            margin-bottom: 2px !important;
+          }
+
+          .nk-cart-item-price-mobile {
+            font-size: 0.9rem !important;
+            font-weight: 700 !important;
+            color: var(--nk-primary) !important;
+            margin-top: 4px !important;
+          }
 
           .nk-cart-table-header { display: none !important; }
         }
