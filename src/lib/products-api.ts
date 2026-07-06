@@ -5,11 +5,41 @@
  * Se usa en el navegador (carga en runtime): cambiar un producto en WordPress
  * se refleja al instante, sin rebuild del sitio estático.
  */
-import { Product } from '@/types/product';
+import { Product, Variation } from '@/types/product';
 import type { WPCategory, WPTag } from '@/lib/queries';
 
 const API_BASE =
   process.env.NEXT_PUBLIC_WP_REST_URL || 'https://nakamabordados.com';
+
+/**
+ * Colores ocultos al cliente: sus variaciones se filtran de todo el catálogo
+ * (tienda, buscador, relacionados y página de producto) sin tocar WordPress.
+ */
+const HIDDEN_COLORS = ['rosa'];
+
+const normalizeColor = (value: string) =>
+  value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
+const isHiddenVariation = (variation: Variation): boolean =>
+  Object.entries(variation.attributes || {}).some(
+    ([name, value]) =>
+      name.toLowerCase().includes('color') &&
+      typeof value === 'string' &&
+      HIDDEN_COLORS.includes(normalizeColor(value))
+  );
+
+function sanitizeProduct(product: Product): Product {
+  if (!product || !Array.isArray(product.variations) || product.variations.length === 0) {
+    return product;
+  }
+  const visible = product.variations.filter(v => !isHiddenVariation(v));
+  if (visible.length === product.variations.length) return product;
+  return { ...product, variations: visible };
+}
+
+/** Un producto variable cuyas variaciones quedaron todas ocultas no se lista. */
+const isSellable = (product: Product): boolean =>
+  product.type !== 'variable' || product.variations.length > 0;
 
 export interface ProductsSearchResult {
   products: Product[];
@@ -51,7 +81,7 @@ export async function apiFetchProducts(opts: {
     if (!res.ok) return EMPTY_RESULT;
     const data = await res.json();
     return {
-      products: data.products || [],
+      products: ((data.products || []) as Product[]).map(sanitizeProduct).filter(isSellable),
       pageInfo: data.pageInfo || { hasNextPage: false, endCursor: null },
       categories: data.categories || [],
       tags: data.tags || [],
@@ -69,7 +99,8 @@ export async function apiFetchProductBySlug(slug: string): Promise<Product | nul
     if (!res.ok) return null;
     const data = await res.json();
     // El endpoint puede devolver el producto directo o { product: {...} }.
-    return (data && data.id ? data : data?.product) || null;
+    const product = (data && data.id ? data : data?.product) || null;
+    return product ? sanitizeProduct(product) : null;
   } catch (err) {
     console.error('apiFetchProductBySlug error:', err);
     return null;
