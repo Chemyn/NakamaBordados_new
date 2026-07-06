@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useEffect } from 'react';
-import type { GarmentCustomization } from '../types';
+import type { GarmentCustomization, GarmentListItem } from '../types';
 
 const getGarmentPreviewPath = (model: string, color: string): string => {
   if (!model || !color) return '';
@@ -53,46 +53,68 @@ const getGarmentPreviewPath = (model: string, color: string): string => {
 interface RopaConfigProps {
   config: GarmentCustomization;
   onChange: (newConfig: GarmentCustomization) => void;
+  /** Lista de combinaciones prenda+color+talla agregadas a la cotización */
+  garmentList: GarmentListItem[];
+  onAddToList: () => void;
+  onRemoveFromList: (id: number) => void;
 }
 
-// Data from PDF and assets folder filenames
+// Data from PDF and assets folder filenames.
+// sizes: tallas disponibles por modelo (gorras y parches no manejan tallas).
 const modelsData = [
   {
     name: 'Oversize',
-    colors: ['Negro', 'Blanco', 'Verde', 'Café Chocolate', 'Arena', 'Acero (plomo)', 'Azul Marino', 'Rojo', 'Azul Celeste', 'Hueso', 'Rosa']
+    colors: ['Negro', 'Blanco', 'Verde', 'Café Chocolate', 'Arena', 'Acero (plomo)', 'Azul Marino', 'Rojo', 'Azul Celeste', 'Hueso', 'Rosa'],
+    sizes: ['S', 'M', 'L', 'XL']
   },
   {
     name: 'T-shirt 100% Algodón Peinado',
-    colors: ['Blanco', 'Negro']
+    colors: ['Blanco', 'Negro'],
+    sizes: ['S', 'M', 'L', 'XL', '2XL']
   },
   {
     name: 'T-shirt 100% Algodón (Regular)',
-    colors: ['Azul Marino', 'Azul Rey', 'Rojo', 'Cherry', 'Kaki', 'Verde Botella', 'Morado Intenso', 'Salmón', 'Café Tabaco', 'Jaspe', 'Hueso']
+    colors: ['Azul Marino', 'Azul Rey', 'Rojo', 'Cherry', 'Kaki', 'Verde Botella', 'Morado Intenso', 'Salmón', 'Café Tabaco', 'Jaspe', 'Hueso'],
+    sizes: ['S', 'M', 'L', 'XL', '2XL']
   },
   {
     name: 'Tank Top',
-    colors: ['Blanco', 'Negro', 'Jaspe', 'Azul Marino', 'Azul Rey', 'Rojo']
+    colors: ['Blanco', 'Negro', 'Jaspe', 'Azul Marino', 'Azul Rey', 'Rojo'],
+    sizes: ['S', 'M', 'L', 'XL']
   },
   {
     name: 'Hoodie',
-    colors: ['Jaspe', 'Blanco', 'Kaki', 'Azul Marino', 'Negro', 'Azul Rey', 'Rojo']
+    colors: ['Jaspe', 'Blanco', 'Kaki', 'Azul Marino', 'Negro', 'Azul Rey', 'Rojo'],
+    sizes: ['S', 'M', 'L', 'XL', '2XL']
   },
   {
     name: 'Sudadera Cuello Redondo',
-    colors: ['Jaspe', 'Blanco', 'Kaki', 'Azul Marino', 'Negro', 'Azul Rey', 'Rojo']
+    colors: ['Jaspe', 'Blanco', 'Kaki', 'Azul Marino', 'Negro', 'Azul Rey', 'Rojo'],
+    sizes: ['S', 'M', 'L', 'XL', '2XL']
   }
 ];
 
-export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange }) => {
-  // Auto-select first color when model changes
+/** Tallas válidas para un modelo (fallback estándar si el modelo no existe). */
+export const getModelSizes = (model: string): string[] =>
+  modelsData.find(m => m.name === model)?.sizes || ['S', 'M', 'L', 'XL'];
+
+export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange, garmentList, onAddToList, onRemoveFromList }) => {
+  // Auto-select first color and a valid size when model changes
   useEffect(() => {
     const selectedModelData = modelsData.find(m => m.name === config.model);
-    if (selectedModelData && !selectedModelData.colors.includes(config.color)) {
-      onChange({
-        ...config,
-        color: selectedModelData.colors[0]
-      });
+    if (!selectedModelData) return;
+    const next = { ...config };
+    let changed = false;
+    if (!selectedModelData.colors.includes(config.color)) {
+      next.color = selectedModelData.colors[0];
+      changed = true;
     }
+    if (!selectedModelData.sizes.includes(config.talla)) {
+      // 'M' como preferencia si el modelo la maneja
+      next.talla = selectedModelData.sizes.includes('M') ? 'M' : selectedModelData.sizes[0];
+      changed = true;
+    }
+    if (changed) onChange(next);
   }, [config.model]);
 
   const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -118,6 +140,8 @@ export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange }) => {
   };
 
   const selectedModelColors = modelsData.find(m => m.name === config.model)?.colors || [];
+  const selectedModelSizes = getModelSizes(config.model);
+  const totalListPieces = garmentList.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
     <div className="custom-card bg-white border border-light-subtle mb-4">
@@ -172,27 +196,44 @@ export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange }) => {
         )}
       </div>
 
-      {/* 3. Cantidad */}
+      {/* 3. Talla (las opciones dependen del modelo; gorras y parches no llevan) */}
+      <div className="mb-4">
+        <label className="form-label text-muted small uppercase fw-bold d-block">Talla:</label>
+        <div className="d-flex flex-wrap gap-2 mt-1">
+          {selectedModelSizes.map(size => (
+            <button
+              key={size}
+              type="button"
+              className={`btn btn-sm btn-outline-secondary px-3 ${config.talla === size ? 'bg-primary text-white border-primary' : 'text-dark'}`}
+              onClick={() => onChange({ ...config, talla: size })}
+            >
+              {size}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* 4. Cantidad */}
       <div className="mb-4">
         <label className="form-label text-muted small uppercase fw-bold">Cantidad de prendas (Mínimo 1pz):</label>
         <div className="input-group" style={{ maxWidth: '180px' }}>
-          <button 
-            type="button" 
-            className="btn btn-outline-secondary" 
+          <button
+            type="button"
+            className="btn btn-outline-secondary"
             onClick={() => handleQuantityChange({ target: { value: String(config.quantity - 1) } } as any)}
           >
             -
           </button>
-          <input 
-            type="number" 
-            className="form-control text-center" 
-            value={config.quantity} 
+          <input
+            type="number"
+            className="form-control text-center"
+            value={config.quantity}
             onChange={handleQuantityChange}
             min="1"
           />
-          <button 
-            type="button" 
-            className="btn btn-outline-secondary" 
+          <button
+            type="button"
+            className="btn btn-outline-secondary"
             onClick={() => handleQuantityChange({ target: { value: String(config.quantity + 1) } } as any)}
           >
             +
@@ -200,7 +241,59 @@ export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange }) => {
         </div>
       </div>
 
-      {/* 4. Detalles Adicionales */}
+      {/* 5. Lista de combinaciones: permite cotizar varias prendas/colores/
+             tallas en un mismo folio. Los diseños aplican a toda la lista. */}
+      <div className="mb-4 p-3 rounded border border-light-subtle bg-light">
+        <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
+          <span className="text-muted small uppercase fw-bold">
+            <i className="bi bi-list-check me-1"></i>
+            Lista de prendas de tu cotización
+          </span>
+          <button
+            type="button"
+            className="btn btn-sm btn-dark"
+            onClick={onAddToList}
+          >
+            <i className="bi bi-plus-circle-fill me-1"></i>
+            Agregar a la lista
+          </button>
+        </div>
+
+        {garmentList.length === 0 ? (
+          <p className="text-muted small m-0">
+            ¿Quieres combinar prendas, colores o tallas distintas? Configura arriba la combinación y presiona
+            {' '}<strong>&ldquo;Agregar a la lista&rdquo;</strong>; repite por cada variante que necesites.
+          </p>
+        ) : (
+          <>
+            <ul className="list-group list-group-flush mb-2">
+              {garmentList.map(item => (
+                <li key={item.id} className="list-group-item bg-transparent d-flex justify-content-between align-items-center px-0 py-2">
+                  <span className="small">
+                    <strong>{item.model}</strong>
+                    {' '}&middot; {item.color} &middot; Talla {item.talla} &middot;{' '}
+                    <span className="text-primary-brand fw-bold">{item.quantity} pz</span>
+                  </span>
+                  <button
+                    type="button"
+                    className="btn btn-link text-danger p-0 m-0 text-decoration-none small"
+                    onClick={() => onRemoveFromList(item.id)}
+                    aria-label={`Eliminar ${item.model} ${item.color} talla ${item.talla}`}
+                  >
+                    <i className="bi bi-x-circle-fill"></i>
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div className="d-flex justify-content-between align-items-center">
+              <span className="text-muted small">Los diseños configurados aplican a todas las prendas.</span>
+              <span className="badge bg-dark">{totalListPieces} pz en total</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* 6. Detalles Adicionales */}
       <div className="mb-2">
         <label className="form-label text-muted small uppercase fw-bold">Detalles adicionales para tu personalizado:</label>
         <textarea

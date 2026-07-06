@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import type { ClientDetails, GarmentCustomization, PatchCustomization, CapCustomization, ProductType, GarmentPosition, CapPosition } from './types';
+import type { ClientDetails, GarmentCustomization, GarmentListItem, PatchCustomization, CapCustomization, ProductType, GarmentPosition, CapPosition } from './types';
 import { RopaConfig } from './components/RopaConfig';
 import { ParchesConfig } from './components/ParchesConfig';
 import { GorrasConfig } from './components/GorrasConfig';
@@ -79,6 +79,7 @@ export const App: React.FC = () => {
   const [ropaConfig, setRopaConfig] = useState<GarmentCustomization>({
     model: 'Oversize',
     color: 'Negro',
+    talla: 'M',
     quantity: 10,
     positions: {
       'Pecho Izquierdo': { active: true, type: 'Bordado', size: '10x10', file: null, filePreview: '' },
@@ -118,6 +119,53 @@ export const App: React.FC = () => {
     },
     additionalDetails: ''
   });
+
+  // Lista de combinaciones prenda+color+talla (solo ropa): un mismo folio
+  // puede cotizar varias variantes; los diseños configurados aplican a todas.
+  const [garmentList, setGarmentList] = useState<GarmentListItem[]>([]);
+
+  const addGarmentToList = () => {
+    setGarmentList(prev => {
+      const existing = prev.find(i =>
+        i.model === ropaConfig.model && i.color === ropaConfig.color && i.talla === ropaConfig.talla
+      );
+      if (existing) {
+        // Misma combinación: se suman las cantidades en lugar de duplicar filas.
+        return prev.map(i => (i.id === existing.id ? { ...i, quantity: i.quantity + ropaConfig.quantity } : i));
+      }
+      return [...prev, {
+        id: Date.now(),
+        model: ropaConfig.model,
+        color: ropaConfig.color,
+        talla: ropaConfig.talla,
+        quantity: ropaConfig.quantity,
+      }];
+    });
+  };
+
+  const removeGarmentFromList = (id: number) => {
+    setGarmentList(prev => prev.filter(i => i.id !== id));
+  };
+
+  const garmentListTotal = garmentList.reduce((sum, i) => sum + i.quantity, 0);
+  const garmentListLines = garmentList
+    .map(i => `- ${i.model} | ${i.color} | Talla ${i.talla} | ${i.quantity} pz`)
+    .join('\n');
+
+  // Config de ropa "enriquecida" para los documentos: el PDF y el ZIP imprimen
+  // additionalDetails tal cual (multilínea), así la lista de prendas —o la
+  // talla única— viaja en la cotización sin tocar los generadores.
+  const getRopaConfigForDocs = (): GarmentCustomization => {
+    const header = garmentList.length > 0
+      ? `LISTA DE PRENDAS (${garmentListTotal} pz en total):\n${garmentListLines}`
+      : `Talla: ${ropaConfig.talla}`;
+    return {
+      ...ropaConfig,
+      additionalDetails: ropaConfig.additionalDetails
+        ? `${header}\n\n${ropaConfig.additionalDetails}`
+        : header,
+    };
+  };
 
   // Sync effect: automatically select the first active position when switching product tabs
   useEffect(() => {
@@ -376,7 +424,7 @@ export const App: React.FC = () => {
       const { blob: zipBlob, filename: zipFilename } = await getQuoteZIPBlob(
         clientDetails.name,
         activeProduct,
-        ropaConfig,
+        getRopaConfigForDocs(),
         patchConfig,
         capConfig
       );
@@ -388,7 +436,11 @@ export const App: React.FC = () => {
           .filter(k => ropaConfig.positions[k].active)
           .map(k => `${k} (${ropaConfig.positions[k].type} - ${ropaConfig.positions[k].size})`)
           .join(', ');
-        productDetailsText = `**Ropa:** ${ropaConfig.model}\n- Color: ${ropaConfig.color}\n- Cantidad: ${ropaConfig.quantity} pz\n- Áreas: ${activePositions}`;
+        if (garmentList.length > 0) {
+          productDetailsText = `**Ropa (${garmentListTotal} pz en ${garmentList.length} combinación(es)):**\n${garmentListLines}\n- Áreas: ${activePositions}`;
+        } else {
+          productDetailsText = `**Ropa:** ${ropaConfig.model}\n- Color: ${ropaConfig.color}\n- Talla: ${ropaConfig.talla}\n- Cantidad: ${ropaConfig.quantity} pz\n- Áreas: ${activePositions}`;
+        }
       } else if (activeProduct === 'parches') {
         productDetailsText = `**Parches:** ${patchConfig.shape}\n- Medidas: ${patchConfig.width}x${patchConfig.height} cm\n- Cantidad: ${patchConfig.quantity} pz`;
       } else if (activeProduct === 'gorras') {
@@ -469,7 +521,9 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
     // Resumen del producto (se usa en el pedido de WooCommerce y en WhatsApp)
     let summaryText = '';
     if (activeProduct === 'ropa') {
-      summaryText = `Prendas Textiles (${ropaConfig.model} - ${ropaConfig.quantity}pz)`;
+      summaryText = garmentList.length > 0
+        ? `Prendas Textiles (${garmentList.length} combinación(es) - ${garmentListTotal}pz)`
+        : `Prendas Textiles (${ropaConfig.model} ${ropaConfig.talla} - ${ropaConfig.quantity}pz)`;
     } else if (activeProduct === 'parches') {
       summaryText = `Parches Bordados (${patchConfig.shape} - ${patchConfig.quantity}pz)`;
     } else if (activeProduct === 'gorras') {
@@ -510,11 +564,12 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
     const pdfFilename = `cotizacion_nakama_${folioStr.toLowerCase()}_${sanitizedClientName || 'cliente'}.pdf`;
 
     try {
-      // 1. Generate PDF with dynamic folio counter
+      // 1. Generate PDF with dynamic folio counter (config enriquecida:
+      // incluye la lista de prendas o la talla única en los detalles)
       const doc = generateQuotePDF(
         clientDetails,
         activeProduct,
-        ropaConfig,
+        getRopaConfigForDocs(),
         patchConfig,
         capConfig,
         folioStr
@@ -1042,7 +1097,13 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
 
             {/* CONFIGURACION GENERAL POR PRODUCTO */}
             {activeProduct === 'ropa' && (
-              <RopaConfig config={ropaConfig} onChange={setRopaConfig} />
+              <RopaConfig
+                config={ropaConfig}
+                onChange={setRopaConfig}
+                garmentList={garmentList}
+                onAddToList={addGarmentToList}
+                onRemoveFromList={removeGarmentFromList}
+              />
             )}
             {activeProduct === 'parches' && (
               <ParchesConfig config={patchConfig} onChange={setPatchConfig} />
@@ -1133,7 +1194,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
                     </span>
                   </div>
 
-                  {activeProduct === 'ropa' && (
+                  {activeProduct === 'ropa' && garmentList.length === 0 && (
                     <>
                       <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
                         <span className="text-muted small">Modelo:</span>
@@ -1144,8 +1205,36 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
                         <span className="text-dark">{ropaConfig.color}</span>
                       </div>
                       <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                        <span className="text-muted small">Talla:</span>
+                        <span className="text-dark">{ropaConfig.talla}</span>
+                      </div>
+                      <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
                         <span className="text-muted small">Cantidad:</span>
                         <span className="text-primary-brand fw-bold">{ropaConfig.quantity} pz(s)</span>
+                      </div>
+                      <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                        <span className="text-muted small">Áreas a personalizar:</span>
+                        <span className="text-dark fw-semibold">
+                          {Object.values(ropaConfig.positions).filter(p => p.active).length} área(s)
+                        </span>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Con lista: el resumen enumera cada combinación agregada */}
+                  {activeProduct === 'ropa' && garmentList.length > 0 && (
+                    <>
+                      {garmentList.map(item => (
+                        <div key={item.id} className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                          <span className="text-muted small text-truncate" style={{ maxWidth: '200px' }}>
+                            {item.model} &middot; {item.color} &middot; {item.talla}
+                          </span>
+                          <span className="text-dark fw-semibold">{item.quantity} pz</span>
+                        </div>
+                      ))}
+                      <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
+                        <span className="text-muted small">Total de prendas:</span>
+                        <span className="text-primary-brand fw-bold">{garmentListTotal} pz(s)</span>
                       </div>
                       <div className="d-flex justify-content-between border-bottom border-light-subtle py-2">
                         <span className="text-muted small">Áreas a personalizar:</span>

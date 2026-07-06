@@ -15,11 +15,26 @@ export interface GarmentPosition {
 export interface GarmentCustomization {
   model: string;
   color: string;
+  /** Talla seleccionada; las opciones dependen del modelo (solo ropa) */
+  talla: string;
   quantity: number;
   positions: {
     [positionKey: string]: GarmentPosition;
   };
   additionalDetails: string;
+}
+
+/**
+ * Combinación prenda+color+talla+cantidad agregada a la lista de la
+ * cotización (el cliente puede pedir varias en un mismo folio). Los diseños
+ * (posiciones) aplican a todas las prendas de la lista.
+ */
+export interface GarmentListItem {
+  id: number;
+  model: string;
+  color: string;
+  talla: string;
+  quantity: number;
 }
 
 export interface PatchCustomization {
