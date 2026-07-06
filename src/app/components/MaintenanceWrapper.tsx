@@ -79,7 +79,8 @@ export default function MaintenanceWrapper({ children }: { children: React.React
   //    login del admin). Un usuario logueado que NO es admin sigue viendo la
   //    pantalla de mantenimiento: el sitio es solo para administradores.
   const isAdminLoginAccess = normalizedPath === '/mi-cuenta' && !user;
-  const isBypassPath = normalizedPath.startsWith('/admin') || normalizedPath.startsWith('/api') || isAdminLoginAccess;
+  const isDev = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+  const isBypassPath = normalizedPath.startsWith('/admin') || normalizedPath.startsWith('/api') || isAdminLoginAccess || isDev;
 
   if (!maintenance?.maintenanceMode || isAdmin || isBypassPath) {
     return <>{children}</>;

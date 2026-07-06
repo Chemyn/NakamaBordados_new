@@ -66,7 +66,7 @@ export default function Navbar() {
   };
 
   const handleDropdownLinkClick = (category: string, e: React.MouseEvent) => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1390) {
+    if (typeof window !== 'undefined' && window.innerWidth < 1200) {
       e.preventDefault();
       setSubActive(subActive === category ? null : category);
     } else {
@@ -93,15 +93,60 @@ export default function Navbar() {
   return (
     <nav className="nk-navbar nk-manga-border" style={{ borderLeft: 'none', borderRight: 'none', borderTop: 'none' }}>
       <style dangerouslySetInnerHTML={{ __html: `
-        @media (min-width: 1390px) and (max-width: 1550px) {
-          .nk-nav-container { padding: 10px 16px !important; gap: 10px !important; }
-          .nk-nav-list { gap: 8px !important; flex-wrap: nowrap !important; }
-          .nk-nav-list .nk-nav-link { font-size: 1.1rem !important; }
-          .nk-nav-container .nk-nav-actions { gap: 6px !important; }
-          .nk-navbar .nk-logo-img { height: 30px !important; }
+        /* --- ULTRA RESPONSIVE DESKTOP NAVBAR SYSTEM --- */
+
+        :root {
+          --nk-nav-gap: clamp(8px, 1.2vw, 20px) !important;
+          --nk-nav-font-size: clamp(1rem, 1.1vw, 1.35rem) !important;
+          --nk-logo-height: clamp(24px, 2.5vw, 36px) !important;
+          --nk-nav-padding: 10px clamp(12px, 1.8vw, 24px) !important;
+        }
+
+        /* Limitar escalado en pantallas de alta resolución para que quepa en el max-width de 1400px del contenedor */
+        @media (min-width: 1440px) {
+          :root {
+            --nk-nav-gap: 15px !important;
+            --nk-nav-font-size: 1.15rem !important;
+            --nk-logo-height: 36px !important;
+            --nk-nav-padding: 10px 24px !important;
+          }
+        }
+
+        .nk-nav-container {
+          padding: var(--nk-nav-padding) !important;
+          gap: var(--nk-nav-gap) !important;
+        }
+
+        .nk-logo-img {
+          height: var(--nk-logo-height) !important;
+          width: auto !important;
+          object-fit: contain !important;
+        }
+
+        .nk-nav-list {
+          gap: var(--nk-nav-gap) !important;
+          flex-wrap: nowrap !important;
+        }
+
+        .nk-nav-link {
+          font-size: var(--nk-nav-font-size) !important;
+          padding: 4px clamp(2px, 0.4vw, 6px) !important;
+          white-space: nowrap !important;
+        }
+
+        .nk-nav-actions {
+          gap: clamp(6px, 0.8vw, 12px) !important;
+        }
+
+        /* Ocultar selectores de idioma/moneda por debajo de 1450px (especificidad corregida) */
+        @media (max-width: 1449px) {
+          .nk-desktop-only.nk-nav-selectors {
+            display: none !important;
+          }
         }
         
-        @media (max-width: 1389px) {
+        /* 4. Mobile / Toggle View (under 1200px) */
+        @media (max-width: 1199px) {
           .nk-nav-toggle { display: flex !important; }
           .nk-desktop-only { display: none !important; }
           .nk-mobile-only { display: flex !important; }
@@ -120,14 +165,22 @@ export default function Navbar() {
           .nk-nav-menu.active { display: block; }
           .nk-nav-list { flex-direction: column !important; align-items: stretch !important; padding: 16px 24px !important; gap: 0 !important; }
           .nk-nav-list li { border-bottom: 1px solid var(--nk-border) !important; width: 100% !important; }
-          .nk-nav-link { display: block !important; padding: 12px 0 !important; width: 100% !important; }
+          .nk-nav-link { display: block !important; padding: 12px 0 !important; width: 100% !important; font-size: 1.35rem !important; }
+          .nk-dropdown-trigger-wrapper { justify-content: space-between !important; width: 100% !important; }
+          .nk-dropdown-toggle-btn { padding: 12px !important; }
+          .nk-submenu { position: static !important; display: none !important; box-shadow: none !important; border: none !important; background: var(--nk-bg-wrapper) !important; padding-left: 16px !important; width: 100% !important; }
+          .nk-mega-menu { position: static !important; transform: none !important; width: 100% !important; box-shadow: none !important; border-top: none !important; padding: 0 16px 16px !important; background: var(--nk-bg-wrapper) !important; }
+          .nk-mega-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
         }
         
-        @media (min-width: 1390px) {
+        @media (min-width: 1200px) {
           .nk-nav-toggle { display: none !important; }
           .nk-desktop-only { display: flex !important; }
           .nk-mobile-only { display: none !important; }
           .nk-nav-menu { display: flex !important; }
+          .nk-nav-menu.active { display: flex !important; }
+          .nk-nav-item-dropdown:hover .nk-submenu { display: flex !important; }
+          .nk-mega-trigger:hover .nk-mega-menu { display: block !important; }
         }
       `}} />
       <div className="nk-nav-container">
@@ -343,7 +396,7 @@ export default function Navbar() {
         <div className="nk-nav-actions">
           
           {/* Custom Selectors (Desktop only for brevity, handle mobile styles independently) */}
-          <div className="nk-desktop-only" style={{ display: 'flex', gap: '5px' }}>
+          <div className="nk-desktop-only nk-nav-selectors" style={{ display: 'flex', gap: '5px' }}>
             <select 
               value={language} 
               onChange={(e) => setLanguage(e.target.value as Language)}

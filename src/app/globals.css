@@ -6,12 +6,12 @@
 /* --- Responsive Utilities (Custom) --- */
 .nk-hidden { display: none !important; }
 
-@media (min-width: 1390px) {
+@media (min-width: 1200px) {
   .nk-desktop-only { display: flex !important; }
   .nk-mobile-only { display: none !important; }
 }
 
-@media (max-width: 1389px) {
+@media (max-width: 1199px) {
   .nk-desktop-only { display: none !important; }
   .nk-mobile-only { display: flex !important; }
 }
@@ -882,7 +882,7 @@ html.dark .nk-detail-tabs-section .tab-content {
   z-index: 100;
 }
 
-@media (min-width: 1390px) {
+@media (min-width: 1200px) {
   .nk-nav-item-dropdown:hover .nk-submenu {
     display: flex;
   }
@@ -902,7 +902,7 @@ html.dark .nk-detail-tabs-section .tab-content {
   color: var(--nk-primary);
 }
 
-@media (min-width: 1390px) {
+@media (min-width: 1200px) {
   .nk-mega-trigger:hover .nk-mega-menu {
     display: block;
   }
@@ -1008,15 +1008,59 @@ html.dark .nk-detail-tabs-section .tab-content {
 
 
 /* --- RESPONSIVE NAVBAR ADAPTIVE SYSTEM --- */
-@media (min-width: 1390px) and (max-width: 1550px) {
-  .nk-nav-container { padding: 10px 16px !important; gap: 10px !important; }
-  .nk-nav-list { gap: 8px !important; }
-  .nk-nav-list .nk-nav-link { font-size: 1.1rem !important; }
-  .nk-nav-container .nk-nav-actions { gap: 6px !important; }
-  .nk-navbar .nk-logo-img { height: 30px !important; }
+
+:root {
+  --nk-nav-gap: clamp(8px, 1.2vw, 20px);
+  --nk-nav-font-size: clamp(1rem, 1.1vw, 1.35rem);
+  --nk-logo-height: clamp(24px, 2.5vw, 36px);
+  --nk-nav-padding: 10px clamp(12px, 1.8vw, 24px);
 }
 
-@media (max-width: 1389px) {
+/* Limitar escalado en pantallas de alta resolución para que quepa en el max-width de 1400px del contenedor */
+@media (min-width: 1440px) {
+  :root {
+    --nk-nav-gap: 15px;
+    --nk-nav-font-size: 1.15rem;
+    --nk-logo-height: 36px;
+    --nk-nav-padding: 10px 24px;
+  }
+}
+
+.nk-nav-container {
+  padding: var(--nk-nav-padding);
+  gap: var(--nk-nav-gap);
+}
+
+.nk-logo-img {
+  height: var(--nk-logo-height);
+  width: auto;
+  object-fit: contain;
+}
+
+.nk-nav-list {
+  gap: var(--nk-nav-gap);
+  flex-wrap: nowrap;
+}
+
+.nk-nav-link {
+  font-size: var(--nk-nav-font-size) !important;
+  padding: 4px clamp(2px, 0.4vw, 6px);
+  white-space: nowrap;
+}
+
+.nk-nav-actions {
+  gap: clamp(6px, 0.8vw, 12px);
+}
+
+/* Ocultar selectores de idioma/moneda por debajo de 1450px (especificidad corregida) */
+@media (max-width: 1449px) {
+  .nk-desktop-only.nk-nav-selectors {
+    display: none !important;
+  }
+}
+
+/* 4. Mobile / Toggle View (under 1200px) */
+@media (max-width: 1199px) {
   .nk-nav-toggle {
     display: flex !important;
   }
@@ -1059,6 +1103,7 @@ html.dark .nk-detail-tabs-section .tab-content {
     display: block;
     padding: 12px 0;
     width: 100%;
+    font-size: 1.35rem !important;
   }
 
   .nk-dropdown-trigger-wrapper {
