@@ -157,6 +157,15 @@ DirectoryIndex index.html index.php
 RewriteEngine On
 RewriteBase /
 
+# 1.2 Redirigir URLs antiguas de WooCommerce (Campañas de marketing) hacia Next.js
+#     QSA (Query String Append): Preserva parámetros de tracking como gclid, fbclid, utm_*, etc.
+#     NC (No Case): Ignora mayúsculas/minúsculas.
+#     R=301: Redirección permanente para conservar SEO y conversiones.
+RewriteRule ^producto/([^/]+)/?$ /product/?slug=$1 [R=301,L,NC,QSA]
+RewriteRule ^categoria-producto/([^/]+)/?$ /store/?category=$1 [R=301,L,NC,QSA]
+RewriteRule ^tienda/?$ /store/ [R=301,L,NC,QSA]
+RewriteRule ^carrito/?$ /cart/ [R=301,L,NC,QSA]
+
 # 1.5 Redirigir a WordPress las consultas por query string en la raíz:
 #   ?rest_route=  -> API REST (productos, hero, mantenimiento...)
 #   ?nk_bridge=   -> bridge de carrito headless -> WooCommerce
@@ -176,7 +185,8 @@ RewriteCond %{REQUEST_URI} ^/wp-admin(/|$) [NC,OR]
 RewriteCond %{REQUEST_URI} ^/wp-includes/ [NC,OR]
 RewriteCond %{REQUEST_URI} ^/wp-content/ [NC,OR]
 RewriteCond %{REQUEST_URI} ^/xmlrpc\.php$ [NC,OR]
-RewriteCond %{REQUEST_URI} ^/wp-login\.php$ [NC]
+RewriteCond %{REQUEST_URI} ^/wp-login\.php$ [NC,OR]
+RewriteCond %{REQUEST_URI} ^/finalizar-compra(/|$) [NC]
 RewriteRule ^ - [L]
 
 # 2.5 APIs "bonitas" de WordPress: /wp-json y /graphql NO existen como archivos
