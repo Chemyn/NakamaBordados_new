@@ -80,7 +80,7 @@ const modelsData = [
   {
     name: 'Tank Top',
     colors: ['Blanco', 'Negro', 'Jaspe', 'Azul Marino', 'Azul Rey', 'Rojo'],
-    sizes: ['S', 'M', 'L', 'XL']
+    sizes: ['S', 'M', 'L', 'XL', '2XL']
   },
   {
     name: 'Hoodie',
@@ -94,12 +94,23 @@ const modelsData = [
   }
 ];
 
-/** Tallas válidas para un modelo (fallback estándar si el modelo no existe). */
-export const getModelSizes = (model: string): string[] =>
-  modelsData.find(m => m.name === model)?.sizes || ['S', 'M', 'L', 'XL'];
+/**
+ * Tallas válidas para un modelo (fallback estándar si el modelo no existe).
+ * En Oversize la disponibilidad depende del COLOR: solo Negro, Blanco y
+ * Hueso se surten hasta 3XL; los demás colores llegan hasta XL.
+ */
+export const getModelSizes = (model: string, color?: string): string[] => {
+  const base = modelsData.find(m => m.name === model)?.sizes || ['S', 'M', 'L', 'XL'];
+  if (model === 'Oversize' && color && ['negro', 'blanco', 'hueso'].includes(color.trim().toLowerCase())) {
+    return [...base, '2XL', '3XL'];
+  }
+  return base;
+};
 
 export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange, garmentList, onAddToList, onRemoveFromList }) => {
-  // Auto-select first color and a valid size when model changes
+  // Auto-corrige color y talla al cambiar modelo o color: en Oversize las
+  // tallas 2XL/3XL solo existen en Negro/Blanco/Hueso, así que al pasar a
+  // otro color la talla seleccionada puede dejar de estar disponible.
   useEffect(() => {
     const selectedModelData = modelsData.find(m => m.name === config.model);
     if (!selectedModelData) return;
@@ -109,13 +120,14 @@ export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange, garmen
       next.color = selectedModelData.colors[0];
       changed = true;
     }
-    if (!selectedModelData.sizes.includes(config.talla)) {
+    const validSizes = getModelSizes(config.model, next.color);
+    if (!validSizes.includes(config.talla)) {
       // 'M' como preferencia si el modelo la maneja
-      next.talla = selectedModelData.sizes.includes('M') ? 'M' : selectedModelData.sizes[0];
+      next.talla = validSizes.includes('M') ? 'M' : validSizes[0];
       changed = true;
     }
     if (changed) onChange(next);
-  }, [config.model]);
+  }, [config.model, config.color]);
 
   const handleModelChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     onChange({
@@ -140,7 +152,7 @@ export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange, garmen
   };
 
   const selectedModelColors = modelsData.find(m => m.name === config.model)?.colors || [];
-  const selectedModelSizes = getModelSizes(config.model);
+  const selectedModelSizes = getModelSizes(config.model, config.color);
   const totalListPieces = garmentList.reduce((sum, item) => sum + item.quantity, 0);
 
   return (
