@@ -185,8 +185,7 @@ RewriteCond %{REQUEST_URI} ^/wp-admin(/|$) [NC,OR]
 RewriteCond %{REQUEST_URI} ^/wp-includes/ [NC,OR]
 RewriteCond %{REQUEST_URI} ^/wp-content/ [NC,OR]
 RewriteCond %{REQUEST_URI} ^/xmlrpc\.php$ [NC,OR]
-RewriteCond %{REQUEST_URI} ^/wp-login\.php$ [NC,OR]
-RewriteCond %{REQUEST_URI} ^/finalizar-compra(/|$) [NC]
+RewriteCond %{REQUEST_URI} ^/wp-login\.php$ [NC]
 RewriteRule ^ - [L]
 
 # 2.5 APIs "bonitas" de WordPress: /wp-json y /graphql NO existen como archivos
@@ -195,6 +194,10 @@ RewriteRule ^ - [L]
 # "Ha ocurrido un error al cargar las diversas recomendaciones", fallos al
 # cambiar estados de pedido, etc.
 RewriteRule ^(wp-json|graphql)(/|$) index.php [E=Cache-Control:no-cache,L]
+
+# 2.6 Enrutar el Checkout de WooCommerce directamente a WordPress (index.php) sin cachear
+RewriteCond %{REQUEST_URI} ^/finalizar-compra(/|$) [NC]
+RewriteRule ^ index.php [E=Cache-Control:no-cache,L]
 
 # 3. Servir archivos físicos si existen (imágenes, scripts en _next/static, etc.)
 RewriteCond %{REQUEST_FILENAME} -f

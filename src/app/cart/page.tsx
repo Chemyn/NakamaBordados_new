@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -14,6 +15,8 @@ export default function CartPage() {
   const { formatPrice, currencyInfo } = useCurrency();
   const { t } = useLanguage();
   const [showEmptyModal, setShowEmptyModal] = React.useState(false);
+  const [isRedirecting, setIsRedirecting] = React.useState(false);
+  const [loadingMessage, setLoadingMessage] = React.useState('Levantando el ancla...');
   const router = useRouter();
 
   React.useEffect(() => {
@@ -22,6 +25,38 @@ export default function CartPage() {
       return () => clearTimeout(timer);
     }
   }, [cart.length]);
+
+  React.useEffect(() => {
+    if (!isRedirecting) return;
+    
+    const messages = [
+      'Levantando el ancla y soltando amarras...',
+      'Cargando tus tesoros en la bodega del barco...',
+      'Navegando a través del Grand Line hacia el barco principal...',
+      'Preparando la pasarela de pago segura de WooCommerce...',
+      'Abriendo el cofre de pago...'
+    ];
+    
+    let index = 0;
+    const interval = setInterval(() => {
+      index = (index + 1) % messages.length;
+      setLoadingMessage(messages[index]);
+    }, 1500);
+
+    return () => clearInterval(interval);
+  }, [isRedirecting]);
+
+  React.useEffect(() => {
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted) {
+        setIsRedirecting(false);
+      }
+    };
+    window.addEventListener('pageshow', handlePageShow);
+    return () => {
+      window.removeEventListener('pageshow', handlePageShow);
+    };
+  }, []);
 
   const handleRedirect = () => {
     setShowEmptyModal(false);
@@ -175,6 +210,7 @@ export default function CartPage() {
                         // WooCommerce trata al usuario como invitado y le pide
                         // iniciar sesión / recapturar sus datos de envío.
                         e.preventDefault();
+                        setIsRedirecting(true);
                         await seedWpSession();
                         window.location.href = checkoutUrl;
                       }}
@@ -374,6 +410,112 @@ export default function CartPage() {
           .nk-cart-table-header { display: none !important; }
         }
       `}</style>
+      
+      <style jsx global>{`
+        /* Loading Overlay Styles (Global to style React Portal elements) */
+        .nk-loading-overlay {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          background: rgba(10, 10, 10, 0.85) !important;
+          backdrop-filter: blur(8px) !important;
+          z-index: 999999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          animation: fadeIn 0.3s ease-out;
+        }
+
+        .nk-loading-content {
+          background: var(--nk-bg-card);
+          padding: 40px;
+          max-width: 420px;
+          width: 90%;
+          text-align: center;
+          box-shadow: var(--nk-manga-shadow-lg);
+          border: 3px solid #000;
+          position: relative;
+        }
+
+        .nk-loading-title {
+          font-family: 'Teko', sans-serif;
+          font-size: 2.5rem;
+          font-weight: 900;
+          margin-top: 10px;
+          margin-bottom: 5px;
+          letter-spacing: 1px;
+          color: var(--nk-text-main);
+          text-transform: uppercase;
+        }
+
+        .nk-loading-subtitle {
+          font-size: 1rem;
+          font-weight: 700;
+          color: var(--nk-text-sec);
+          margin-bottom: 25px;
+          min-height: 48px;
+        }
+
+        .nk-loading-bar-wrapper {
+          height: 8px;
+          width: 100%;
+          background: var(--nk-border);
+          border: 2px solid #000;
+          overflow: hidden;
+          position: relative;
+        }
+
+        .nk-loading-bar-fill {
+          height: 100%;
+          width: 50%;
+          background: var(--nk-primary);
+          position: absolute;
+          left: 0;
+          animation: loadingProgress 2s infinite ease-in-out;
+        }
+
+        @keyframes loadingProgress {
+          0% { left: -50%; }
+          100% { left: 100%; }
+        }
+
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+
+        .nk-spin-animation {
+          animation: wobbleHat 3s infinite ease-in-out;
+        }
+
+        @keyframes wobbleHat {
+          0%, 100% { transform: scale(0.8) rotate(0deg); }
+          25% { transform: scale(0.85) rotate(-5deg); }
+          75% { transform: scale(0.85) rotate(5deg); }
+        }
+      `}</style>
+      
+      {isRedirecting && typeof document !== 'undefined' && createPortal(
+        <div className="nk-loading-overlay">
+          <div className="nk-loading-content nk-manga-border">
+            <div className="nk-loading-spinner-container">
+              <div className="nk-skull-art crew-luffy nk-spin-animation" style={{ transform: 'scale(0.8)', margin: '0 auto 20px' }}>
+                <div className="skull-hat"><div className="straw-crown"><div className="straw-band"></div></div><div className="straw-brim"></div></div>
+                <div className="skull-base"><div className="skull-eyes"><div className="skull-eye left"></div><div className="skull-eye right"></div></div><div className="skull-nose"></div></div>
+                <div className="skull-jaw"></div>
+              </div>
+            </div>
+            <h2 className="nk-loading-title">LEVANTA EL ANCLA</h2>
+            <p className="nk-loading-subtitle">{loadingMessage}</p>
+            <div className="nk-loading-bar-wrapper">
+              <div className="nk-loading-bar-fill"></div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </div>
   );
 }
