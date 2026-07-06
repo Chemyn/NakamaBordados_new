@@ -191,12 +191,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // purga de LiteSpeed, timeout, 500 momentáneo de WP): antes cualquier
         // respuesta sin viewer borraba el JWT y todos los usuarios quedaban
         // deslogueados tras cada build. Solo se cierra la sesión cuando WP
-        // dice explícitamente que el token es inválido/expirado (la expiración
-        // real ya se detecta localmente arriba con payload.exp).
+        // rechaza el token (la expiración real ya se detecta arriba con
+        // payload.exp). Un token rechazado llega como respuesta GraphQL
+        // ESTRUCTURADA (HTTP 200) con error en el path "viewer" — WPGraphQL
+        // enmascara la causa como "Internal server error" (se comprobó tras
+        // el restore de BD: los JWT viejos daban exactamente eso y la sesión
+        // zombie dejaba fallar todo lo autenticado, p. ej. el toggle de
+        // mantenimiento). Las fallas de red/deploy NO traen ese shape.
         const errList = Array.isArray(errors) ? errors : [];
         const isJwtInvalid = errList.some((e: unknown) => {
-          const msg = (e as { message?: string })?.message;
-          return typeof msg === 'string' && /jwt|expired|expirad|invalid.*token|token.*invalid|not.*logged|no.*autenticado/i.test(msg);
+          const err = e as { message?: string; path?: unknown[] };
+          const msg = typeof err?.message === 'string' ? err.message : '';
+          if (/jwt|expired|expirad|invalid.*token|token.*invalid|not.*logged|no.*autenticado/i.test(msg)) {
+            return true;
+          }
+          // Error enmascarado de WPGraphQL sobre viewer = token rechazado.
+          return /internal server error/i.test(msg) && Array.isArray(err.path) && err.path.includes('viewer');
         });
         if (isJwtInvalid) {
           console.warn('AuthProvider: WP marcó el token como inválido; cerrando sesión.');
