@@ -5,9 +5,10 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useSearchParams } from 'next/navigation';
 import { Product } from '@/types/product';
-import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
 import HeroBackground from '../components/HeroBackground';
+import ProductPrice from '../components/ProductPrice';
+import FreeShippingBadge from '../components/FreeShippingBadge';
 import { fetchProductsSearch } from '../data/products';
 
 const SkeletonProductCard = () => (
@@ -36,8 +37,6 @@ function StoreContent() {
   const [after, setAfter] = useState<string | null>(null);
   const [hasNextPage, setHasNextPage] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  
-  const { formatPrice } = useCurrency();
 
   const fetchProducts = useCallback(async (isInitial = false) => {
     if (loadingMore || (!hasNextPage && !isInitial)) return;
@@ -138,16 +137,6 @@ function StoreContent() {
           <>
             <div className="nk-store-grid">
               {products.map((p, idx) => {
-                const minPrice = p.type === 'variable' && p.variations && p.variations.length > 0
-                  ? Math.min(...p.variations.map(v => v.price)) 
-                  : p.price;
-                const maxPrice = p.type === 'variable' && p.variations && p.variations.length > 0
-                  ? Math.max(...p.variations.map(v => v.price)) 
-                  : p.price;
-                const displayPrice = minPrice === maxPrice 
-                  ? formatPrice(minPrice) 
-                  : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
-
                 return (
                   <div 
                     className="nk-store-card" 
@@ -172,7 +161,8 @@ function StoreContent() {
                         <Link href={`/product?id=${p.id}`} style={{ color: 'var(--nk-text-main)', textDecoration: 'none' }}>{p.name}</Link>
                       </h3>
                       <div style={{ marginTop: 'auto', paddingTop: '10px' }}>
-                        <p className="nk-card-price" style={{ color: 'var(--nk-primary)', fontWeight: '800', margin: '0', fontSize: '1.2rem', fontFamily: 'Teko' }}>{displayPrice}</p>
+                        <p className="nk-card-price" style={{ color: 'var(--nk-primary)', fontWeight: '800', margin: '0', fontSize: '1.2rem', fontFamily: 'Teko' }}><ProductPrice product={p} /></p>
+                        <FreeShippingBadge style={{ marginTop: '4px' }} />
                         {p.salesCount !== undefined && p.salesCount > 0 && (
                           <p className="nk-card-sales" style={{ fontSize: '0.8rem', color: 'var(--nk-text-sec)', margin: '4px 0 0 0', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
                             {p.salesCount} {p.salesCount === 1 ? 'vendido' : 'vendidos'}

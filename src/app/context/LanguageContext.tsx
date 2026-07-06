@@ -89,7 +89,8 @@ const translations: Record<Language, Record<string, string>> = {
     // Product
     'product.official': 'Colección Oficial Nakama',
     'product.premium': 'Calidad Premium Grand Line',
-    'product.free_shipping_badge': '¡ENVÍO GRATIS!*',
+    'product.free_shipping_badge': 'Envío Gratis*',
+    'product.free_shipping_tip': '*Envío gratis en compras a partir de $1,500 MXN (después de descuentos). La tienda cubre hasta $140 MXN del costo de la guía; si la paquetería cobra más, solo pagas la diferencia.',
     'product.select': 'Seleccionar',
     'product.size_guide': 'Ver Guía de Tallas',
     'product.add_to_cart': '¡Lo Quiero!',
@@ -319,7 +320,8 @@ const translations: Record<Language, Record<string, string>> = {
     // Product
     'product.official': 'Official Nakama Collection',
     'product.premium': 'Grand Line Premium Quality',
-    'product.free_shipping_badge': 'FREE SHIPPING!*',
+    'product.free_shipping_badge': 'Free Shipping*',
+    'product.free_shipping_tip': '*Free shipping on orders from $1,500 MXN (after discounts). The store covers up to $140 MXN of the shipping label; if the carrier charges more, you only pay the difference.',
     'product.select': 'Select',
     'product.size_guide': 'View Size Guide',
     'product.add_to_cart': 'I Want It!',

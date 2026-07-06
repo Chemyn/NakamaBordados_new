@@ -2687,6 +2687,92 @@ html.dark .nk-preloader-logo {
   border-bottom-color: var(--nk-primary-dark);
 }
 
+/* Badge "ENVÍO GRATIS*" con tooltip (hover en PC, tap en móvil) */
+.nk-fs-badge-wrap {
+  position: relative;
+  display: inline-flex;
+  cursor: pointer;
+}
+
+.nk-fs-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--nk-primary);
+  border-bottom: 1px dashed var(--nk-primary);
+  padding-bottom: 1px;
+  font-family: 'Inter', sans-serif;
+  white-space: nowrap;
+}
+
+.nk-fs-badge .material-icons-outlined {
+  font-size: 15px;
+}
+
+.nk-fs-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  width: min(240px, 72vw);
+  background: var(--nk-bg-card);
+  color: var(--nk-text-main);
+  border: 2px solid var(--nk-border);
+  box-shadow: var(--nk-manga-shadow);
+  padding: 10px 12px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.5;
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+  z-index: 60;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(4px);
+  transition: opacity 0.15s ease, transform 0.15s ease, visibility 0.15s;
+  pointer-events: none;
+}
+
+.nk-fs-badge-wrap:hover .nk-fs-tooltip,
+.nk-fs-badge-wrap.open .nk-fs-tooltip {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* Precios con descuento (tarjetas y detalle) */
+.nk-price-line {
+  display: inline-flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.nk-price-regular {
+  font-size: 0.78em;
+  color: var(--nk-text-sec);
+  opacity: 0.75;
+  text-decoration: line-through;
+  font-weight: 600;
+}
+
+.nk-price-off {
+  background: var(--nk-primary);
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.62em;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  padding: 2px 6px;
+  border: 1px solid var(--nk-border);
+  align-self: center;
+  line-height: 1.2;
+}
+
 .nk-action-row {
   display: flex;
   gap: 16px;

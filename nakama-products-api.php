@@ -2,13 +2,18 @@
 /**
  * Plugin Name: Nakama Products API
  * Description: API REST pública y RÁPIDA de productos (WooCommerce/$wpdb directo, sin WPGraphQL) para el frontend estático de Next.js.
- * Version: 1.7
+ * Version: 1.8
  * Author: Nakama
  */
 
 if (!defined('ABSPATH')) {
     exit; // Salir si se accede directamente.
 }
+
+// Se incluye en las claves de caché: al actualizar el plugin (nuevo shape de
+// respuesta, p. ej. regularPrice en 1.8) los transients viejos quedan huérfanos
+// en lugar de servirse 15 minutos con el formato anterior.
+define('NAKAMA_PRODUCTS_API_VER', '1.8');
 
 // Evitar errores fatales si WooCommerce no está activo
 if (!class_exists('WooCommerce') && !in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
@@ -112,6 +117,7 @@ add_action('wp_insert_comment', 'nakama_products_bump_cache');
 function nakama_products_cache_key($prefix, $parts)
 {
     $parts[] = nakama_products_cache_version();
+    $parts[] = NAKAMA_PRODUCTS_API_VER;
     return $prefix . '_' . md5(wp_json_encode($parts));
 }
 
@@ -292,8 +298,10 @@ function nakama_products_build_variation($variation)
         $sku = 'WP-VAR-' . $variation_id;
     }
 
-    // Precio numérico actual (WC ya resuelve oferta vs regular en get_price()).
+    // Precio numérico actual (WC ya resuelve oferta vs regular en get_price())
+    // y precio regular para poder mostrar el descuento tachado en el frontend.
     $price = (float) $variation->get_price();
+    $regular_price = (float) $variation->get_regular_price();
 
     // Imagen específica de la variación (si tiene), si no [].
     $images = array();
@@ -335,6 +343,7 @@ function nakama_products_build_variation($variation)
         'databaseId' => (int) $variation_id,
         'sku' => $sku,
         'price' => $price,
+        'regularPrice' => $regular_price,
         'images' => $images,
         'attributes' => (object) $attributes, // objeto JSON, no array, incluso vacío.
         'stock' => $stock,
@@ -366,8 +375,15 @@ function nakama_products_build_product($product, $light = false)
         $sku = 'WP-' . $database_id;
     }
 
-    // Precio numérico actual (oferta si aplica, si no regular).
+    // Precio numérico actual (oferta si aplica, si no regular) y precio
+    // regular para el tachado de descuentos. En variables, el regular del
+    // rango más barato (las tarjetas muestran "desde" el precio mínimo).
     $price = (float) $product->get_price();
+    if ($product->is_type('variable') && method_exists($product, 'get_variation_regular_price')) {
+        $regular_price = (float) $product->get_variation_regular_price('min');
+    } else {
+        $regular_price = (float) $product->get_regular_price();
+    }
 
     // Categorías -> array de SLUGS.
     $categories = wp_get_post_terms($database_id, 'product_cat', array('fields' => 'slugs'));
@@ -457,6 +473,7 @@ function nakama_products_build_product($product, $light = false)
         'name' => wp_specialchars_decode($product->get_name()),
         'sku' => $sku,
         'price' => $price,
+        'regularPrice' => $regular_price,
         'description' => $light ? '' : $product->get_description(), // HTML permitido.
         'categories' => array_values($categories),
         'tags' => array_values($tags),

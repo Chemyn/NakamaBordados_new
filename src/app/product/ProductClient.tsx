@@ -8,6 +8,8 @@ import { Product, Variation } from '@/types/product';
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
+import ProductPrice from '../components/ProductPrice';
+import FreeShippingBadge from '../components/FreeShippingBadge';
 
 interface ProductClientProps {
   initialProduct: Product;
@@ -286,6 +288,10 @@ export default function ProductClient({ initialProduct: product, relatedProducts
   const isGorras = product.categories.includes('gorras') || product.name.toLowerCase().includes('gorra');
 
   let displayPrice = formatPrice(product.price);
+  // Descuento visible: precio regular tachado + % de rebaja, calculado sobre
+  // la variación más barata del subconjunto que coincide con la selección.
+  let displayRegular: string | null = null;
+  let displayPct = 0;
   if (product.type === 'variable' && validVariations.length > 0) {
     const matchingVariations = validVariations.filter(v => {
       return Object.entries(selectedAttributes).every(([name, value]) => {
@@ -296,6 +302,16 @@ export default function ProductClient({ initialProduct: product, relatedProducts
     const minPrice = Math.min(...varsToConsider.map(v => v.price));
     const maxPrice = Math.max(...varsToConsider.map(v => v.price));
     displayPrice = minPrice === maxPrice ? formatPrice(minPrice) : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
+
+    const cheapest = varsToConsider.reduce((a, b) => (b.price < a.price ? b : a));
+    const cheapestRegular = cheapest.regularPrice || 0;
+    if (cheapestRegular > cheapest.price && cheapest.price > 0) {
+      displayRegular = formatPrice(cheapestRegular);
+      displayPct = Math.round((1 - cheapest.price / cheapestRegular) * 100);
+    }
+  } else if ((product.regularPrice || 0) > product.price && product.price > 0) {
+    displayRegular = formatPrice(product.regularPrice as number);
+    displayPct = Math.round((1 - product.price / (product.regularPrice as number)) * 100);
   }
 
   const visibleThumbs = showAllThumbs ? product.images : product.images.slice(0, 5);
@@ -408,8 +424,15 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                 </div>
               )}
             
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: '15px' }}>
-                <p className="nk-detail-price" style={{ fontSize: 'clamp(1.8rem, 6.5vw, 2.5rem)' }}>{displayPrice}</p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+                <p className="nk-detail-price" style={{ fontSize: 'clamp(1.8rem, 6.5vw, 2.5rem)', margin: 0 }}>
+                  <span className="nk-price-line">
+                    {displayRegular && <s className="nk-price-regular">{displayRegular}</s>}
+                    <span className="nk-price-current">{displayPrice}</span>
+                    {displayRegular && displayPct > 0 && <span className="nk-price-off">-{displayPct}%</span>}
+                  </span>
+                </p>
+                <FreeShippingBadge />
             </div>
 
             <div className="nk-detail-divider" style={{ background: 'var(--nk-border)', height: '2px' }}></div>
@@ -433,6 +456,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                               'rojo': '#ff0000', 'red': '#ff0000', 'azul': '#0000ff', 'blue': '#0000ff',
                               'gris': '#808080', 'gray': '#808080', 'marino': '#000080', 'navy': '#000080',
                               'carbon': '#333333', 'hueso': '#f5f5dc', 'arena': '#d2b48c', 'militar': '#4b5320',
+                              'kaki': '#D5C58A', 'khaki': '#D5C58A',
                               'acid-wash': 'url(https://nakamabordados.com/wp-content/uploads/2024/01/acid-wash-pattern.jpg)',
                               'rosa': '#ffc0cb', 'pink': '#ffc0cb'
                             };
@@ -811,9 +835,6 @@ export default function ProductClient({ initialProduct: product, relatedProducts
         <h2 className="nk-section-title text-center" style={{ marginBottom: '40px' }}>{t('product.related')}</h2>
         <div className="nk-store-grid">
           {relatedProducts.length > 0 ? relatedProducts.map(p => {
-            const minPrice = p.type === 'variable' && p.variations.length > 0 ? Math.min(...p.variations.map(v => v.price)) : p.price;
-            const maxPrice = p.type === 'variable' && p.variations.length > 0 ? Math.max(...p.variations.map(v => v.price)) : p.price;
-            const displayPrice = minPrice === maxPrice ? formatPrice(minPrice) : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
             return (
               <div 
                 className="nk-store-card" 
@@ -841,7 +862,8 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                     <Link href={`/product?id=${p.id}`} style={{ color: 'var(--nk-text-main)', textDecoration: 'none' }}>{p.name}</Link>
                   </h3>
                   <div style={{ marginTop: 'auto', paddingTop: '10px' }}>
-                    <p className="nk-card-price" style={{ color: 'var(--nk-primary)', fontWeight: '800', margin: '0', fontSize: '1.2rem', fontFamily: 'Teko' }}>{displayPrice}</p>
+                    <p className="nk-card-price" style={{ color: 'var(--nk-primary)', fontWeight: '800', margin: '0', fontSize: '1.2rem', fontFamily: 'Teko' }}><ProductPrice product={p} /></p>
+                    <FreeShippingBadge style={{ marginTop: '4px' }} />
                     {p.salesCount !== undefined && p.salesCount > 0 && (
                       <p className="nk-card-sales" style={{ fontSize: '0.8rem', color: 'var(--nk-text-sec)', margin: '4px 0 0 0', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
                         {p.salesCount} {p.salesCount === 1 ? 'vendido' : 'vendidos'}

@@ -4,9 +4,10 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Product } from '@/types/product';
-import { useCurrency } from '../../context/CurrencyContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { fetchProductsSearch } from '../../data/products';
+import ProductPrice from '../ProductPrice';
+import FreeShippingBadge from '../FreeShippingBadge';
 
 // ---------------------------------------------------------
 // Helper Components
@@ -210,7 +211,6 @@ export const useDraggableScroll = (autoScroll: boolean = false) => {
 
 export const ScrollContainer = ({ products }: { products: Product[] }) => {
   const { t } = useLanguage();
-  const { formatPrice } = useCurrency();
   const dragProps = useDraggableScroll(true);
 
   useEffect(() => {
@@ -230,16 +230,6 @@ export const ScrollContainer = ({ products }: { products: Product[] }) => {
     <div className="nk-draggable-scroll-container" {...dragProps} style={{ cursor: 'grab', overflowX: 'auto', scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
       <div className="nk-product-carousel-inner">
         {displayProducts.map((p, idx) => {
-          const minPrice = p.type === 'variable' && p.variations.length > 0
-            ? Math.min(...p.variations.map(v => v.price)) 
-            : p.price;
-          const maxPrice = p.type === 'variable' && p.variations.length > 0
-            ? Math.max(...p.variations.map(v => v.price)) 
-            : p.price;
-          const displayPrice = minPrice === maxPrice 
-            ? formatPrice(minPrice)
-            : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
-
           return (
             <div className="nk-carousel-card" key={`${p.id}-${idx}`}>
               <Link href={`/product?id=${p.id}`} className="nk-carousel-link">
@@ -260,7 +250,8 @@ export const ScrollContainer = ({ products }: { products: Product[] }) => {
                 <div className="nk-carousel-info" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', minHeight: '120px', marginTop: '14px', textAlign: 'left', padding: '0 5px' }}>
                   <h3 className="nk-carousel-name" style={{ margin: 0 }}>{p.name}</h3>
                   <div style={{ marginTop: 'auto', paddingTop: '8px' }}>
-                    <p className="nk-carousel-price" style={{ margin: 0, fontFamily: 'Teko', fontSize: '1.2rem', fontWeight: 800 }}>{displayPrice}</p>
+                    <p className="nk-carousel-price" style={{ margin: 0, fontFamily: 'Teko', fontSize: '1.2rem', fontWeight: 800 }}><ProductPrice product={p} /></p>
+                    <FreeShippingBadge style={{ marginTop: '4px' }} />
                     {p.salesCount !== undefined && p.salesCount > 0 && (
                       <p className="nk-carousel-sales" style={{ fontSize: '0.8rem', color: 'var(--nk-text-sec)', margin: '4px 0 0 0', fontWeight: 600, fontFamily: 'Inter, sans-serif' }}>
                         {p.salesCount} {p.salesCount === 1 ? 'vendido' : 'vendidos'}

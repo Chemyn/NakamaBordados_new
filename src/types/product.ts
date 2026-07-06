@@ -3,6 +3,8 @@ export interface Variation {
   databaseId?: number;
   sku: string;
   price: number;
+  /** Precio regular (sin oferta); si > price hay descuento activo */
+  regularPrice?: number;
   images?: string[];
   attributes: {
     Color?: string;
@@ -27,6 +29,8 @@ export interface Product {
   name: string;
   sku: string;
   price: number;
+  /** Precio regular (sin oferta); en variables, el del rango más barato */
+  regularPrice?: number;
   description: string;
   categories: string[];
   tags: string[];
