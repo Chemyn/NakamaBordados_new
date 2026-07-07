@@ -2,13 +2,24 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO, pedidos de cotización y sincronización de base de datos local (Next.js).
- * Version: 2.2
+ * Version: 2.3
  * Author: Nakama
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
     exit;
 }
+
+// Duración de la sesión: el plugin "WPGraphQL JWT Authentication" (el que
+// emite el authToken que usa el frontend, ver nakama_sso_set_cookie abajo)
+// expira el token a los 300 segundos (5 minutos) por defecto vía este
+// filtro. Se extiende a 2 horas para que el cliente no tenga que
+// reloguearse a cada rato en Mi Cuenta/checkout. Solo aplica a tokens
+// emitidos DESPUÉS de activar este cambio; las sesiones ya iniciadas
+// conservan la expiración con la que se emitieron.
+add_filter( 'graphql_jwt_auth_expire', function ( $expiration ) {
+    return 2 * HOUR_IN_SECONDS;
+} );
 
 add_action( 'rest_api_init', function () {
     // Endpoint para checar el valor de un cupón
