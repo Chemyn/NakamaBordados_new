@@ -12,27 +12,55 @@ const API_BASE =
   process.env.NEXT_PUBLIC_WP_REST_URL || 'https://nakamabordados.com';
 
 /**
- * Colores ocultos al cliente: sus variaciones se filtran de todo el catálogo
- * (tienda, buscador, relacionados y página de producto) sin tocar WordPress.
+ * Reglas para ocultar variaciones al cliente en todo el catálogo (tienda,
+ * buscador, relacionados y página de producto) sin tocar WordPress. Una
+ * variación se oculta si CUALQUIER regla aplica; una regla aplica si TODAS
+ * sus condiciones se cumplen. Los valores van normalizados (minúsculas, sin
+ * acentos). El cotizador no consume este API, así que no le afecta.
  */
-const HIDDEN_COLORS = ['rosa'];
+const HIDDEN_RULES: Array<Partial<Record<'color' | 'estilo' | 'talla', string[]>>> = [
+  { color: ['rosa'] },
+  { estilo: ['t-shirt'], color: ['kaki', 'khaki'] },
+  { estilo: ['oversize'], talla: ['2xl', '3xl'] },
+];
 
-const normalizeColor = (value: string) =>
+const normalizeValue = (value: string) =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
-const isHiddenVariation = (variation: Variation): boolean =>
-  Object.entries(variation.attributes || {}).some(
-    ([name, value]) =>
-      name.toLowerCase().includes('color') &&
-      typeof value === 'string' &&
-      HIDDEN_COLORS.includes(normalizeColor(value))
+/** WooCommerce nombra los atributos Color / Estilo / Size (o Talla). */
+const canonicalAttr = (name: string): 'color' | 'estilo' | 'talla' | null => {
+  const n = normalizeValue(name);
+  if (n.includes('color')) return 'color';
+  if (n.includes('estilo') || n.includes('style')) return 'estilo';
+  if (n.includes('talla') || n.includes('size')) return 'talla';
+  return null;
+};
+
+const isHiddenVariation = (variation: Variation, productName: string): boolean => {
+  const attrs: Partial<Record<'color' | 'estilo' | 'talla', string>> = {};
+  for (const [name, value] of Object.entries(variation.attributes || {})) {
+    const key = canonicalAttr(name);
+    if (key && typeof value === 'string') attrs[key] = normalizeValue(value);
+  }
+  const nameNorm = normalizeValue(productName);
+  return HIDDEN_RULES.some(rule =>
+    (Object.keys(rule) as Array<'color' | 'estilo' | 'talla'>).every(key => {
+      const values = rule[key] as string[];
+      const attr = attrs[key];
+      if (attr !== undefined) return values.includes(attr);
+      // Productos de un solo estilo no lo llevan como atributo de variación
+      // (p.ej. "T-shirt de Algodón", "Oversize Premium"): se infiere del nombre.
+      if (key === 'estilo') return values.some(v => nameNorm.includes(v));
+      return false;
+    })
   );
+};
 
 function sanitizeProduct(product: Product): Product {
   if (!product || !Array.isArray(product.variations) || product.variations.length === 0) {
     return product;
   }
-  const visible = product.variations.filter(v => !isHiddenVariation(v));
+  const visible = product.variations.filter(v => !isHiddenVariation(v, product.name || ''));
   if (visible.length === product.variations.length) return product;
   return { ...product, variations: visible };
 }
