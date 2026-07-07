@@ -18,10 +18,16 @@ const API_BASE =
  * sus condiciones se cumplen. Los valores van normalizados (minúsculas, sin
  * acentos). El cotizador no consume este API, así que no le afecta.
  */
-const HIDDEN_RULES: Array<Partial<Record<'color' | 'estilo' | 'talla', string[]>>> = [
+type HiddenRule = Partial<Record<'color' | 'estilo' | 'talla', string[]>> & {
+  /** Slugs de producto; si se omite, la regla aplica a todo el catálogo. */
+  producto?: string[];
+};
+
+const HIDDEN_RULES: HiddenRule[] = [
   { color: ['rosa'] },
   { estilo: ['t-shirt'], color: ['kaki', 'khaki'] },
-  { estilo: ['oversize'], talla: ['2xl', '3xl'] },
+  { estilo: ['tank top'], talla: ['3xl'] },
+  { estilo: ['oversize'], talla: ['2xl', '3xl'], producto: ['roronoa-zoro-king-of-hell-edition'] },
 ];
 
 const normalizeValue = (value: string) =>
@@ -36,31 +42,34 @@ const canonicalAttr = (name: string): 'color' | 'estilo' | 'talla' | null => {
   return null;
 };
 
-const isHiddenVariation = (variation: Variation, productName: string): boolean => {
+const isHiddenVariation = (variation: Variation, product: Product): boolean => {
   const attrs: Partial<Record<'color' | 'estilo' | 'talla', string>> = {};
   for (const [name, value] of Object.entries(variation.attributes || {})) {
     const key = canonicalAttr(name);
     if (key && typeof value === 'string') attrs[key] = normalizeValue(value);
   }
-  const nameNorm = normalizeValue(productName);
-  return HIDDEN_RULES.some(rule =>
-    (Object.keys(rule) as Array<'color' | 'estilo' | 'talla'>).every(key => {
-      const values = rule[key] as string[];
+  const nameNorm = normalizeValue(product.name || '');
+  const slug = normalizeValue(String(product.id || ''));
+  return HIDDEN_RULES.some(rule => {
+    if (rule.producto && !rule.producto.includes(slug)) return false;
+    return (['color', 'estilo', 'talla'] as const).every(key => {
+      const values = rule[key];
+      if (!values) return true;
       const attr = attrs[key];
       if (attr !== undefined) return values.includes(attr);
       // Productos de un solo estilo no lo llevan como atributo de variación
-      // (p.ej. "T-shirt de Algodón", "Oversize Premium"): se infiere del nombre.
+      // (p.ej. "T-shirt de Algodón", el producto "Tank Top"): se infiere del nombre.
       if (key === 'estilo') return values.some(v => nameNorm.includes(v));
       return false;
-    })
-  );
+    });
+  });
 };
 
 function sanitizeProduct(product: Product): Product {
   if (!product || !Array.isArray(product.variations) || product.variations.length === 0) {
     return product;
   }
-  const visible = product.variations.filter(v => !isHiddenVariation(v, product.name || ''));
+  const visible = product.variations.filter(v => !isHiddenVariation(v, product));
   if (visible.length === product.variations.length) return product;
   return { ...product, variations: visible };
 }
