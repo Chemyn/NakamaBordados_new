@@ -10,16 +10,24 @@ export const metadata: Metadata = {
     description: 'Bordados de alta densidad y diseños exclusivos de anime. ¡Únete a la tripulación!',
     url: 'https://nakamabordados.com',
     siteName: 'Nakama Bordados',
+    // PNG en lugar del .avif anterior: WhatsApp/Facebook/Twitter no muestran
+    // preview con AVIF. Banner servido desde public/ (og-banner.png).
     images: [
       {
-        url: 'https://nakamabordados.com/wp-content/uploads/2026/05/hsale1.avif',
-        width: 1200,
-        height: 630,
+        url: 'https://nakamabordados.com/og-banner.png',
+        width: 1280,
+        height: 720,
         alt: 'Nakama Bordados - Streetwear Anime',
       },
     ],
     locale: 'es_MX',
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Nakama Bordados - Streetwear Anime Premium',
+    description: 'Bordados de alta densidad y diseños exclusivos de anime. ¡Únete a la tripulación!',
+    images: ['https://nakamabordados.com/og-banner.png'],
   },
   alternates: {
     canonical: 'https://nakamabordados.com',

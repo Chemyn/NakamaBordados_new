@@ -61,10 +61,20 @@ interface Customer {
   comisiones?: string[];
 }
 
+interface RegisterInput {
+  email: string;
+  password: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+}
+
 interface AuthContextType {
   user: Customer | null;
   authToken: string | null;
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  /** Crea una cuenta de cliente en WooCommerce y luego inicia sesión con ella. */
+  register: (input: RegisterInput) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   /** Vuelve a consultar viewer/pedidos con el token vigente (p. ej. al entrar a Mi Cuenta). */
   refreshUser: () => void;
@@ -265,6 +275,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const register = async (input: RegisterInput) => {
+    // El registro no pasa por WPGraphQL: usa el endpoint REST del plugin
+    // nakama-checkout-tools (wc_create_new_customer). Al crear la cuenta se
+    // inicia sesión de inmediato reutilizando el flujo de login (que ya
+    // guarda el JWT y carga los datos del cliente). El login acepta el email
+    // como usuario (wp_authenticate lo resuelve).
+    try {
+      const res = await fetch(
+        `https://nakamabordados.com/?rest_route=/nakama/v1/register&nkcb=${Date.now()}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(input),
+        }
+      );
+
+      let data: { success?: boolean; error?: string; message?: string } = {};
+      try {
+        data = await res.json();
+      } catch {
+        // respuesta sin cuerpo JSON (p. ej. 500 de PHP)
+      }
+
+      if (!res.ok || !data.success) {
+        return {
+          success: false,
+          error: data.error || data.message || 'No se pudo crear la cuenta',
+        };
+      }
+
+      // Cuenta creada: iniciar sesión con el email y la contraseña recién dados.
+      return await login(input.email, input.password);
+    } catch (err) {
+      console.error('Register error', err);
+      return { success: false, error: 'Error de red al crear la cuenta' };
+    }
+  };
+
   const refreshUser = React.useCallback(() => {
     const token = localStorage.getItem('wp-jwt');
     if (token) {
@@ -273,7 +321,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [fetchCustomerData]);
 
   return (
-    <AuthContext.Provider value={{ user, authToken, login, logout, refreshUser, isLoading, isAdmin }}>
+    <AuthContext.Provider value={{ user, authToken, login, register, logout, refreshUser, isLoading, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );

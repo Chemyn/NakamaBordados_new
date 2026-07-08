@@ -10,14 +10,18 @@ import MaintenanceToggle from '../components/MaintenanceToggle';
 import { openWpAdmin, seedWpSession, WP_ADMIN_URL } from '@/lib/wp-sso';
 
 export default function MiCuentaPage() {
-  const { user, login, logout, refreshUser, isLoading, isAdmin } = useAuth();
+  const { user, login, register, logout, refreshUser, isLoading, isAdmin } = useAuth();
   const { formatPrice, currencyInfo } = useCurrency();
   const { t } = useLanguage();
-  
+
   const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'profile' | 'addresses' | 'tracking' | 'commissions'>('dashboard');
   const [userCredentials, setUserCredentials] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  // Alterna el formulario desconectado entre iniciar sesión y crear cuenta.
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [registerData, setRegisterData] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '' });
+  const [isRegistering, setIsRegistering] = useState(false);
   
   // Tracking state - indexed by tracking code to avoid conflicts
   const [trackingLoading, setTrackingLoading] = useState<string | null>(null);
@@ -46,6 +50,34 @@ export default function MiCuentaPage() {
       setError(result.error || t('account.login.error'));
     }
     setIsLoggingIn(false);
+  };
+
+  const handleRegisterChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setRegisterData({ ...registerData, [e.target.name]: e.target.value });
+  };
+
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError('');
+    setIsRegistering(true);
+    const result = await register({
+      email: registerData.email.trim(),
+      password: registerData.password,
+      firstName: registerData.firstName.trim(),
+      lastName: registerData.lastName.trim(),
+      phone: registerData.phone.trim(),
+    });
+    if (!result.success) {
+      setError(result.error || t('account.register.error'));
+    }
+    // En éxito, `register` ya inició sesión: `user` deja de ser null y este
+    // formulario se reemplaza por el dashboard.
+    setIsRegistering(false);
+  };
+
+  const switchAuthMode = (mode: 'login' | 'register') => {
+    setError('');
+    setAuthMode(mode);
   };
 
   const fetchTracking = async (code: string, carrier: string) => {
@@ -424,47 +456,134 @@ export default function MiCuentaPage() {
             <div className="nk-login-form-wrapper">
               <div className="nk-login-header">
                 <Image src="https://nakamabordados.com/wp-content/uploads/2025/11/LOGO-NAKAMA-scaled-2048x926.png" alt="Nakama" width={150} height={70} style={{ objectFit: 'contain' }} className="nk-logo-img" />
-                <h2 className="nk-section-title">{t('account.login.title')}</h2>
+                <h2 className="nk-section-title">
+                  {authMode === 'login' ? t('account.login.title') : t('account.register.title')}
+                </h2>
               </div>
 
-              <form onSubmit={handleLogin} className="nk-login-form">
-                <div className="nk-form-group">
-                  <label>{t('account.login.user')}</label>
-                  {/* autoCapitalize/autoCorrect off: los teclados móviles capitalizan
-                      la primera letra o autocorrigen el usuario y el login falla. */}
-                  <input
-                    type="text"
-                    name="username"
-                    value={userCredentials.username}
-                    onChange={handleInputChange}
-                    required
-                    className="nk-manga-input"
-                    autoCapitalize="none"
-                    autoCorrect="off"
-                    spellCheck={false}
-                    autoComplete="username"
-                  />
-                </div>
-                <div className="nk-form-group">
-                  <label>{t('account.login.pass')}</label>
-                  <input
-                    type="password"
-                    name="password"
-                    value={userCredentials.password}
-                    onChange={handleInputChange}
-                    required
-                    className="nk-manga-input"
-                    autoComplete="current-password"
-                  />
-                </div>
+              {authMode === 'login' ? (
+                <>
+                  <form onSubmit={handleLogin} className="nk-login-form">
+                    <div className="nk-form-group">
+                      <label>{t('account.login.user')}</label>
+                      {/* autoCapitalize/autoCorrect off: los teclados móviles capitalizan
+                          la primera letra o autocorrigen el usuario y el login falla. */}
+                      <input
+                        type="text"
+                        name="username"
+                        value={userCredentials.username}
+                        onChange={handleInputChange}
+                        required
+                        className="nk-manga-input"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        autoComplete="username"
+                      />
+                    </div>
+                    <div className="nk-form-group">
+                      <label>{t('account.login.pass')}</label>
+                      <input
+                        type="password"
+                        name="password"
+                        value={userCredentials.password}
+                        onChange={handleInputChange}
+                        required
+                        className="nk-manga-input"
+                        autoComplete="current-password"
+                      />
+                    </div>
 
-                {error && <p className="nk-error-msg">{error}</p>}
+                    {error && <p className="nk-error-msg">{error}</p>}
 
-                <button type="submit" disabled={isLoggingIn} className="nk-btn nk-btn-block">
-                  {isLoggingIn ? '...' : t('account.login.btn')}
-                </button>
-              </form>
-              
+                    <button type="submit" disabled={isLoggingIn} className="nk-btn nk-btn-block">
+                      {isLoggingIn ? '...' : t('account.login.btn')}
+                    </button>
+                  </form>
+
+                  <button type="button" className="nk-auth-switch" onClick={() => switchAuthMode('register')}>
+                    {t('account.login.no_account')}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <form onSubmit={handleRegister} className="nk-login-form">
+                    <div className="nk-form-group">
+                      <label>{t('account.register.first')}</label>
+                      <input
+                        type="text"
+                        name="firstName"
+                        value={registerData.firstName}
+                        onChange={handleRegisterChange}
+                        required
+                        className="nk-manga-input"
+                        autoComplete="given-name"
+                      />
+                    </div>
+                    <div className="nk-form-group">
+                      <label>{t('account.register.last')}</label>
+                      <input
+                        type="text"
+                        name="lastName"
+                        value={registerData.lastName}
+                        onChange={handleRegisterChange}
+                        className="nk-manga-input"
+                        autoComplete="family-name"
+                      />
+                    </div>
+                    <div className="nk-form-group">
+                      <label>{t('account.register.email')}</label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={registerData.email}
+                        onChange={handleRegisterChange}
+                        required
+                        className="nk-manga-input"
+                        autoCapitalize="none"
+                        autoCorrect="off"
+                        spellCheck={false}
+                        autoComplete="email"
+                      />
+                    </div>
+                    <div className="nk-form-group">
+                      <label>{t('account.register.phone')}</label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={registerData.phone}
+                        onChange={handleRegisterChange}
+                        className="nk-manga-input"
+                        autoComplete="tel"
+                      />
+                    </div>
+                    <div className="nk-form-group">
+                      <label>{t('account.register.pass')}</label>
+                      <input
+                        type="password"
+                        name="password"
+                        value={registerData.password}
+                        onChange={handleRegisterChange}
+                        required
+                        minLength={6}
+                        className="nk-manga-input"
+                        autoComplete="new-password"
+                      />
+                    </div>
+
+                    {error && <p className="nk-error-msg">{error}</p>}
+
+                    <button type="submit" disabled={isRegistering} className="nk-btn nk-btn-block">
+                      {isRegistering ? '...' : t('account.register.btn')}
+                    </button>
+                  </form>
+
+                  <button type="button" className="nk-auth-switch" onClick={() => switchAuthMode('login')}>
+                    {t('account.register.have_account')}
+                  </button>
+                </>
+              )}
+
               <div className="nk-login-footer">
                 <Link href="/" className="nk-btn-sec">{t('nav.home')}</Link>
               </div>
@@ -761,6 +880,26 @@ export default function MiCuentaPage() {
           width: 100%;
           padding: 15px;
           font-size: 1.4rem;
+        }
+
+        .nk-auth-switch {
+          display: block;
+          width: 100%;
+          margin-top: 16px;
+          padding: 6px;
+          background: none;
+          border: none;
+          color: var(--nk-primary, #e11d2a);
+          font-weight: 700;
+          text-transform: uppercase;
+          font-size: 0.9rem;
+          letter-spacing: 0.03em;
+          cursor: pointer;
+          text-decoration: underline;
+        }
+
+        .nk-auth-switch:hover {
+          opacity: 0.8;
         }
 
         /* Orders */

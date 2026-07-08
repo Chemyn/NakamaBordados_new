@@ -7,6 +7,7 @@ import { ParchesConfig } from './components/ParchesConfig';
 import { GorrasConfig } from './components/GorrasConfig';
 import { Visualizer } from './components/Visualizer';
 import { Marquee } from './components/Marquee';
+import { AuthGateModal } from './components/AuthGateModal';
 import { generateQuotePDF } from './utils/pdfGenerator';
 import { getQuoteZIPBlob } from './utils/zipGenerator';
 import { compressImage } from './utils/imageCompressor';
@@ -65,7 +66,10 @@ export const App: React.FC = () => {
 
   // Sesión del cliente: autollenar nombre, teléfono y correo desde su cuenta
   // (solo campos vacíos, para no pisar lo que el cliente ya escribió).
-  const { user } = useAuth();
+  const { user, isLoading: authLoading } = useAuth();
+  // Gate de login: sin sesión el cliente puede armar/ver la cotización, pero
+  // para ENVIARLA debe iniciar sesión (o crear cuenta) desde este modal.
+  const [showAuthGate, setShowAuthGate] = useState(false);
   useEffect(() => {
     if (!user) return;
     setClientDetails(prev => ({
@@ -487,6 +491,14 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
 
   // Action: Send WhatsApp (Bypasses popup blocker by uploading files to Discord first and then opening WhatsApp!)
   const handleWhatsAppQuote = async () => {
+    // Gate de sesión: enviar una cotización requiere cuenta iniciada. Sin
+    // sesión se abre el modal de login/registro sin perder el avance del
+    // formulario (todo el estado vive en memoria en este componente).
+    if (!user) {
+      setShowAuthGate(true);
+      return;
+    }
+
     if (!validateForm() || isSending) {
       triggerSubmitShake();
       return;
@@ -1304,29 +1316,45 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
 
                 {/* ACCIONES */}
                 <div className="d-grid gap-3">
-                  <button
-                    type="button"
-                    className={`btn btn-outline-success py-3 fs-5 font-display text-white border-success ${isSubmitShaking ? 'btn-shake' : ''}`}
-                    style={{ backgroundColor: '#25D366' }}
-                    onClick={handleWhatsAppQuote}
-                    disabled={isSending}
-                  >
-                    {isSending ? (
-                      <>
-                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                        Cargando archivos al taller...
-                      </>
-                    ) : (
-                      <>
-                        <i className="bi bi-whatsapp me-2"></i>
-                        Confirmar y Enviar vía WhatsApp
-                      </>
-                    )}
-                  </button>
+                  {!authLoading && !user ? (
+                    // Sin sesión: el botón invita a iniciar sesión/registrarse.
+                    // El cliente ya pudo armar toda su cotización (solo observar);
+                    // el envío queda detrás del gate.
+                    <button
+                      type="button"
+                      className="btn btn-dark py-3 fs-5 font-display border-0"
+                      onClick={() => setShowAuthGate(true)}
+                    >
+                      <i className="bi bi-lock-fill me-2"></i>
+                      Inicia sesión para enviar tu cotización
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className={`btn btn-outline-success py-3 fs-5 font-display text-white border-success ${isSubmitShaking ? 'btn-shake' : ''}`}
+                      style={{ backgroundColor: '#25D366' }}
+                      onClick={handleWhatsAppQuote}
+                      disabled={isSending || authLoading}
+                    >
+                      {isSending ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                          Cargando archivos al taller...
+                        </>
+                      ) : (
+                        <>
+                          <i className="bi bi-whatsapp me-2"></i>
+                          Confirmar y Enviar vía WhatsApp
+                        </>
+                      )}
+                    </button>
+                  )}
                 </div>
 
                 <p className="text-muted small text-center m-0 mt-3 font-display tracking-wide uppercase">
-                  Revisamos y contestamos en menos de 2 horas hábiles
+                  {!authLoading && !user
+                    ? 'Crea tu cuenta o inicia sesión para enviar tu cotización'
+                    : 'Revisamos y contestamos en menos de 2 horas hábiles'}
                 </p>
               </div>
 
@@ -1335,6 +1363,13 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
 
         </div>
       </div>
+
+      {showAuthGate && (
+        <AuthGateModal
+          onClose={() => setShowAuthGate(false)}
+          onSuccess={() => setShowAuthGate(false)}
+        />
+      )}
     </div>
   );
 };

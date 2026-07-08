@@ -172,7 +172,17 @@ const translations: Record<Language, Record<string, string>> = {
     'account.login.pass': 'Contraseña',
     'account.login.btn': 'Entrar al Barco',
     'account.login.error': 'Credenciales piratas inválidas',
-    
+    'account.login.no_account': '¿No tienes cuenta? Únete a la tripulación',
+    'account.register.title': 'Únete a la Tripulación',
+    'account.register.first': 'Nombre',
+    'account.register.last': 'Apellido',
+    'account.register.email': 'Email',
+    'account.register.phone': 'Teléfono (WhatsApp)',
+    'account.register.pass': 'Contraseña (mínimo 6 caracteres)',
+    'account.register.btn': 'Crear mi cuenta',
+    'account.register.error': 'No se pudo crear la cuenta',
+    'account.register.have_account': '¿Ya tienes cuenta? Inicia sesión',
+
     // FAQ
     'faq.title': 'Preguntas Frecuentes',
     'faq.subtitle': 'Todo lo que necesitas saber para tu próxima misión.',
@@ -396,7 +406,17 @@ const translations: Record<Language, Record<string, string>> = {
     'account.login.pass': 'Password',
     'account.login.btn': 'Enter Ship',
     'account.login.error': 'Invalid pirate credentials',
-    
+    'account.login.no_account': "Don't have an account? Join the crew",
+    'account.register.title': 'Join the Crew',
+    'account.register.first': 'First name',
+    'account.register.last': 'Last name',
+    'account.register.email': 'Email',
+    'account.register.phone': 'Phone (WhatsApp)',
+    'account.register.pass': 'Password (min. 6 characters)',
+    'account.register.btn': 'Create my account',
+    'account.register.error': 'Could not create the account',
+    'account.register.have_account': 'Already have an account? Sign in',
+
     // FAQ
     'faq.title': 'Frequently Asked Questions',
     'faq.subtitle': 'Everything you need to know for your next mission.',

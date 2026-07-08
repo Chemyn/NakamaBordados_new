@@ -19,6 +19,10 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
+  // metadataBase: sin esto, las imágenes relativas de Open Graph no se
+  // resuelven a URL absoluta y los crawlers (WhatsApp/Facebook/Twitter) las
+  // rechazan. Fija el dominio de producción del sitio estático.
+  metadataBase: new URL("https://nakamabordados.com"),
   title: "Nakama Bordados - Streetwear Anime Premium",
   description: "El puente entre la cultura anime y el streetwear de alta gama. Bordados de alta densidad y estampados exclusivos.",
   // Favicons generados a partir del logo del header (public/)
@@ -30,6 +34,30 @@ export const metadata: Metadata = {
       { url: "/icon-512.png", type: "image/png", sizes: "512x512" },
     ],
     apple: "/apple-touch-icon.png",
+  },
+  // Preview al compartir el link (por defecto para TODO el sitio; las páginas
+  // que definan su propio openGraph lo sobrescriben, p. ej. el home).
+  openGraph: {
+    title: "Nakama Bordados - Streetwear Anime Premium",
+    description: "El puente entre la cultura anime y el streetwear de alta gama. Bordados de alta densidad y estampados exclusivos.",
+    url: "https://nakamabordados.com",
+    siteName: "Nakama Bordados",
+    images: [
+      {
+        url: "https://nakamabordados.com/og-banner.png",
+        width: 1280,
+        height: 720,
+        alt: "Nakama Bordados - Bordados, Estampados, Personalizados, Gorras y Parches",
+      },
+    ],
+    locale: "es_MX",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Nakama Bordados - Streetwear Anime Premium",
+    description: "El puente entre la cultura anime y el streetwear de alta gama. Bordados de alta densidad y estampados exclusivos.",
+    images: ["https://nakamabordados.com/og-banner.png"],
   },
 };
 

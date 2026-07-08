@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Nakama Checkout Tools
- * Description: Endpoints REST para validación de cupones, moneda, SSO, pedidos de cotización y sincronización de base de datos local (Next.js).
- * Version: 2.3
+ * Description: Endpoints REST para validación de cupones, moneda, SSO, pedidos de cotización, registro de clientes y sincronización de base de datos local (Next.js).
+ * Version: 2.4
  * Author: Nakama
  */
 
@@ -60,7 +60,81 @@ add_action( 'rest_api_init', function () {
         'callback' => 'nakama_currency_info',
         'permission_callback' => '__return_true'
     ) );
+
+    // Registro de clientes: crea una cuenta de cliente de WooCommerce desde el
+    // frontend estático (Next.js export). El sitio headless no expone el
+    // registro nativo de WooCommerce, así que este endpoint lo suple creando
+    // un cliente real (rol 'customer', correo de bienvenida). El frontend
+    // inicia sesión enseguida con las mismas credenciales para obtener el JWT.
+    register_rest_route( 'nakama/v1', '/register', array(
+        'methods' => 'POST',
+        'callback' => 'nakama_register_customer',
+        'permission_callback' => '__return_true'
+    ) );
 });
+
+/**
+ * Alta de cliente de WooCommerce. Devuelve { success, username, email } o un
+ * WP_Error con status 4xx/5xx. No requiere activar "Cualquiera puede
+ * registrarse" en WP: wc_create_new_customer crea la cuenta de forma
+ * programática con el rol 'customer'.
+ */
+function nakama_register_customer( WP_REST_Request $request ) {
+    if ( ! function_exists( 'wc_create_new_customer' ) ) {
+        return new WP_Error( 'no_wc', 'WooCommerce no está activo', array( 'status' => 500 ) );
+    }
+
+    $params   = $request->get_json_params();
+    $email    = sanitize_email( $params['email'] ?? '' );
+    $password = (string) ( $params['password'] ?? '' );
+    $first    = sanitize_text_field( $params['firstName'] ?? '' );
+    $last     = sanitize_text_field( $params['lastName'] ?? '' );
+    $phone    = sanitize_text_field( $params['phone'] ?? '' );
+
+    if ( ! is_email( $email ) ) {
+        return new WP_Error( 'bad_email', 'Correo electrónico inválido', array( 'status' => 400 ) );
+    }
+    if ( email_exists( $email ) ) {
+        // 409: el frontend lo traduce a "ya existe una cuenta con este correo".
+        return new WP_Error( 'email_exists', 'Ya existe una cuenta con este correo', array( 'status' => 409 ) );
+    }
+    if ( strlen( $password ) < 6 ) {
+        return new WP_Error( 'weak_password', 'La contraseña debe tener al menos 6 caracteres', array( 'status' => 400 ) );
+    }
+
+    // Username vacío => WooCommerce lo genera a partir del correo.
+    $user_id = wc_create_new_customer( $email, '', $password, array(
+        'first_name' => $first,
+        'last_name'  => $last,
+    ) );
+
+    if ( is_wp_error( $user_id ) ) {
+        return new WP_Error(
+            'register_failed',
+            $user_id->get_error_message(),
+            array( 'status' => 400 )
+        );
+    }
+
+    // Meta de facturación para que el prellenado del cotizador y Mi Cuenta
+    // tengan datos desde el primer inicio de sesión.
+    if ( $first ) { update_user_meta( $user_id, 'billing_first_name', $first ); }
+    if ( $last )  { update_user_meta( $user_id, 'billing_last_name', $last ); }
+    if ( $phone ) { update_user_meta( $user_id, 'billing_phone', $phone ); }
+    update_user_meta( $user_id, 'billing_email', $email );
+
+    $user = get_user_by( 'id', $user_id );
+
+    $response = rest_ensure_response( array(
+        'success'  => true,
+        'username' => $user ? $user->user_login : '',
+        'email'    => $email,
+    ) );
+    $response->header( 'Access-Control-Allow-Origin', '*' );
+    $response->header( 'X-LiteSpeed-Cache-Control', 'no-cache' );
+    $response->header( 'Cache-Control', 'no-store' );
+    return $response;
+}
 
 function nakama_create_quote_order( WP_REST_Request $request ) {
     if ( ! function_exists( 'wc_create_order' ) ) {
