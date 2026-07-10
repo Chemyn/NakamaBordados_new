@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO, pedidos de cotización, registro de clientes y sincronización de base de datos local (Next.js).
- * Version: 2.4
+ * Version: 2.5
  * Author: Nakama
  */
 
@@ -292,6 +292,39 @@ add_action( 'before_woocommerce_init', function () {
     if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
         \Automattic\WooCommerce\Utilities\FeaturesUtil::declare_compatibility( 'custom_order_tables', __FILE__, true );
     }
+} );
+
+// ------------------------------------------------------------------
+// Enlace "Pagar" en los CORREOS -> /mi-cuenta/
+// El correo de cotización (factura al asignar precio) traía el enlace
+// directo a order-pay, que no pide dirección de envío ni paqueterías.
+// En Mi Cuenta el cliente paga por el flujo correcto (pay-quote via
+// checkout normal). Solo aplica DENTRO de los correos: la flag se
+// enciende en el header del email y se apaga en el footer, así los
+// botones de pago del sitio (order-pay web) no cambian.
+// ------------------------------------------------------------------
+$GLOBALS['nakama_in_email'] = false;
+add_action( 'woocommerce_email_header', function () {
+    $GLOBALS['nakama_in_email'] = true;
+}, 1 );
+add_action( 'woocommerce_email_footer', function () {
+    $GLOBALS['nakama_in_email'] = false;
+}, 999 );
+add_filter( 'woocommerce_get_checkout_payment_url', function ( $url ) {
+    if ( ! empty( $GLOBALS['nakama_in_email'] ) ) {
+        return home_url( '/mi-cuenta/' );
+    }
+    return $url;
+} );
+
+// ------------------------------------------------------------------
+// Vaciar el carrito del frontend tras una compra exitosa.
+// El carrito del sitio Next vive en localStorage y la compra termina en
+// la página de gracias de WooCommerce; como AMBOS comparten el origen
+// nakamabordados.com, este script limpia las llaves directamente.
+// ------------------------------------------------------------------
+add_action( 'woocommerce_thankyou', function () {
+    echo '<script>try{["nakama_cart","nakama_coupon","nakama_discount","nakama_discount_type"].forEach(function(k){window.localStorage.removeItem(k);});}catch(e){}</script>';
 } );
 
 function nakama_sso_set_cookie() {

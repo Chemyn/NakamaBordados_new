@@ -2329,6 +2329,14 @@ html.dark .nk-preloader-logo {
   .nk-store-grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 16px;
+    /* La columna derecha baja (cascada): compensar para que la última
+       tarjeta desplazada no se corte contra el final del grid. */
+    padding-bottom: 110px;
+  }
+  /* Efecto cascada/masonry: la columna derecha (tarjetas pares) arranca
+     más abajo que la izquierda. Solo aplica donde el grid es de 2 columnas. */
+  .nk-store-grid > .nk-store-card:nth-child(even) {
+    transform: translateY(32px);
   }
   .nk-store-search {
     width: 100%;
@@ -2341,7 +2349,10 @@ html.dark .nk-preloader-logo {
 
 @media (max-width: 480px) {
   .nk-store-grid {
-    grid-template-columns: 1fr;
+    /* Antes 1 columna: en teléfonos también se muestran 2 columnas
+       escalonadas (mismo layout que 768px con separación más compacta). */
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
 }
 
@@ -2946,10 +2957,24 @@ html.dark .nk-preloader-logo {
   border: 1px solid var(--nk-border);
 }
 
+/* Título del producto en móvil: duplicado que vive como primer hijo del grid
+   para renderizarse ANTES de la galería. Oculto en desktop; en <=1024px (donde
+   el grid colapsa a 1 columna) se muestra y se oculta el título original. */
+.nk-detail-title-mobile {
+  display: none;
+}
+
 @media (max-width: 1024px) {
   .nk-detail-grid {
     grid-template-columns: 1fr;
     gap: 40px;
+  }
+  .nk-detail-title-mobile {
+    display: block;
+    margin-bottom: 0;
+  }
+  .nk-detail-title-desktop {
+    display: none;
   }
 }
 

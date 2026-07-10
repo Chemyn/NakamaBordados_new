@@ -5,15 +5,17 @@ import { createPortal } from 'react-dom';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import { useCart } from '../context/CartContext';
+import { useCart, getVariationAttr } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import { seedWpSession } from '@/lib/wp-sso';
 
 export default function CartPage() {
   const { cart, subtotal, shipping, discount, total, removeFromCart, updateQuantity, couponCode } = useCart();
   const { formatPrice, currencyInfo } = useCurrency();
   const { t } = useLanguage();
+  const { user, isLoading: authLoading } = useAuth();
   const [showEmptyModal, setShowEmptyModal] = React.useState(false);
   const [isRedirecting, setIsRedirecting] = React.useState(false);
   const [loadingMessage, setLoadingMessage] = React.useState('Levantando el ancla...');
@@ -112,7 +114,14 @@ export default function CartPage() {
               <div style={{ width: '30px' }}></div>
             </div>
 
-            {cart.map((item, idx) => (
+            {cart.map((item, idx) => {
+              // Fallback a los atributos de la variación: carritos guardados
+              // antes del fix de talla ("Size" vs "Talla") no traen
+              // selectedTalla/selectedEstilo en localStorage.
+              const talla = item.selectedTalla || getVariationAttr(item.variation, 'talla');
+              const estilo = item.selectedEstilo || getVariationAttr(item.variation, 'estilo');
+              const color = item.selectedColor || getVariationAttr(item.variation, 'color');
+              return (
               <div key={idx} className="nk-cart-row">
                 <div className="nk-cart-item-img nk-manga-border">
                   <Image src={item.variation?.images?.[0] || item.product.images[0]} alt={item.product.name} width={80} height={100} style={{ objectFit: 'cover', width: '100%', height: '100%' }} />
@@ -120,8 +129,9 @@ export default function CartPage() {
                 <div className="nk-cart-item-info">
                   <h4 className="nk-cart-item-title">{item.product.name}</h4>
                   <div className="nk-cart-item-meta">
-                    {item.selectedTalla && <span className="nk-meta-pill">{item.selectedTalla.toUpperCase()}</span>}
-                    {item.selectedColor && <span className="nk-meta-text">{item.selectedColor.toUpperCase()}</span>}
+                    {talla && <span className="nk-meta-pill">{talla.toUpperCase()}</span>}
+                    {estilo && <span className="nk-meta-text">{estilo.toUpperCase()}</span>}
+                    {color && <span className="nk-meta-text">{color.toUpperCase()}</span>}
                   </div>
                   <div className="nk-mobile-only nk-cart-item-price-mobile">
                     {formatPrice(item.variation?.price || item.product.price)}
@@ -145,8 +155,8 @@ export default function CartPage() {
                   {formatPrice((item.variation?.price || item.product.price) * item.quantity)}
                 </div>
                 <div className="nk-cart-item-remove-col">
-                  <button 
-                    onClick={() => removeFromCart(idx)} 
+                  <button
+                    onClick={() => removeFromCart(idx)}
                     className="nk-cart-remove-btn"
                     title="Eliminar"
                   >
@@ -154,7 +164,8 @@ export default function CartPage() {
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
 
             <div style={{ marginTop: '30px' }}>
               <Link href="/store" className="nk-btn-sec" style={{ textDecoration: 'none', fontSize: '0.9rem', fontWeight: 800 }}>
@@ -205,17 +216,26 @@ export default function CartPage() {
                     <a
                       href={checkoutUrl}
                       className="nk-btn nk-btn-block nk-btn-cart-finalize"
+                      style={authLoading ? { opacity: 0.6, pointerEvents: 'none' } : undefined}
                       onClick={async (e) => {
+                        e.preventDefault();
+                        // Compra con cuenta obligatoria: sin sesión se manda al
+                        // login/registro y ?return= lo regresa aquí al terminar.
+                        // (Retiene los descuentos de segundas compras por cliente.)
+                        if (authLoading) return;
+                        if (!user) {
+                          router.push('/mi-cuenta/?return=/cart/');
+                          return;
+                        }
                         // Sembrar la sesión de WordPress ANTES del bridge: sin esto
                         // WooCommerce trata al usuario como invitado y le pide
                         // iniciar sesión / recapturar sus datos de envío.
-                        e.preventDefault();
                         setIsRedirecting(true);
                         await seedWpSession();
                         window.location.href = checkoutUrl;
                       }}
                     >
-                      {t('cart.finalize_btn')}
+                      {!authLoading && !user ? 'Inicia sesión para finalizar' : t('cart.finalize_btn')}
                     </a>
                   );
                 })()}

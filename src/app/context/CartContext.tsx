@@ -31,6 +31,30 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+/**
+ * Lee un atributo de la variación tolerando los nombres reales de WooCommerce:
+ * la talla llega como "Size" (no "Talla"), y las claves pueden variar de
+ * mayúsculas. Sin esto la talla nunca aparecía en el carrito.
+ */
+export function getVariationAttr(
+  variation: Variation | null,
+  kind: 'color' | 'estilo' | 'talla'
+): string | undefined {
+  if (!variation?.attributes) return undefined;
+  const wanted: Record<typeof kind, string[]> = {
+    color: ['color'],
+    estilo: ['estilo', 'style'],
+    talla: ['talla', 'size'],
+  };
+  for (const [name, value] of Object.entries(variation.attributes)) {
+    const n = name.toLowerCase();
+    if (wanted[kind].some(w => n.includes(w)) && typeof value === 'string' && value) {
+      return value;
+    }
+  }
+  return undefined;
+}
+
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [couponCode, setCouponCode] = useState<string>('');
@@ -82,9 +106,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         product,
         variation,
         quantity: qty,
-        selectedColor: variation?.attributes.Color,
-        selectedEstilo: variation?.attributes.Estilo,
-        selectedTalla: variation?.attributes.Talla
+        selectedColor: getVariationAttr(variation, 'color'),
+        selectedEstilo: getVariationAttr(variation, 'estilo'),
+        selectedTalla: getVariationAttr(variation, 'talla')
       });
     }
     saveCart(newCart);

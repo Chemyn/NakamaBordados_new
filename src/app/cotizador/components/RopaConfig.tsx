@@ -164,7 +164,7 @@ export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange, garmen
 
       {/* 1. Seleccionar Modelo */}
       <div className="mb-4">
-        <label className="form-label text-muted small uppercase fw-bold">Modelo de Prenda:</label>
+        <label className="form-label nk-step-label small uppercase fw-bold">Modelo de Prenda:</label>
         <select 
           className="form-select"
           value={config.model}
@@ -178,7 +178,7 @@ export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange, garmen
 
       {/* 2. Seleccionar Color */}
       <div className="mb-4">
-        <label className="form-label text-muted small uppercase fw-bold d-block">Color de Prenda:</label>
+        <label className="form-label nk-step-label small uppercase fw-bold d-block">Color de Prenda:</label>
         <div className="d-flex flex-wrap gap-2 mt-1 mb-3">
           {selectedModelColors.map(color => (
             <button
@@ -195,7 +195,7 @@ export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange, garmen
         {/* Vista previa de la prenda */}
         {getGarmentPreviewPath(config.model, config.color) && (
           <div className="text-center p-3 rounded border border-light-subtle bg-light mt-2" style={{ position: 'relative', overflow: 'hidden' }}>
-            <span className="text-muted small uppercase fw-bold d-block mb-2">Vista Previa de Prenda ({config.color}):</span>
+            <span className="nk-step-label small uppercase fw-bold d-block mb-2">Vista Previa de Prenda ({config.color}):</span>
             <div style={{ maxWidth: '200px', margin: '0 auto', position: 'relative', aspectRatio: '1/1' }}>
               <img 
                 src={getGarmentPreviewPath(config.model, config.color)} 
@@ -210,7 +210,7 @@ export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange, garmen
 
       {/* 3. Talla (las opciones dependen del modelo; gorras y parches no llevan) */}
       <div className="mb-4">
-        <label className="form-label text-muted small uppercase fw-bold d-block">Talla:</label>
+        <label className="form-label nk-step-label small uppercase fw-bold d-block">Talla:</label>
         <div className="d-flex flex-wrap gap-2 mt-1">
           {selectedModelSizes.map(size => (
             <button
@@ -227,7 +227,7 @@ export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange, garmen
 
       {/* 4. Cantidad */}
       <div className="mb-4">
-        <label className="form-label text-muted small uppercase fw-bold">Cantidad de prendas (Mínimo 1pz):</label>
+        <label className="form-label nk-step-label small uppercase fw-bold">Cantidad de prendas (Mínimo 1pz):</label>
         <div className="input-group" style={{ maxWidth: '180px' }}>
           <button
             type="button"
@@ -257,7 +257,7 @@ export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange, garmen
              tallas en un mismo folio. Los diseños aplican a toda la lista. */}
       <div className="mb-4 p-3 rounded border border-light-subtle bg-light">
         <div className="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-2">
-          <span className="text-muted small uppercase fw-bold">
+          <span className="nk-step-label small uppercase fw-bold">
             <i className="bi bi-list-check me-1"></i>
             Lista de prendas de tu cotización
           </span>
@@ -307,7 +307,7 @@ export const RopaConfig: React.FC<RopaConfigProps> = ({ config, onChange, garmen
 
       {/* 6. Detalles Adicionales */}
       <div className="mb-2">
-        <label className="form-label text-muted small uppercase fw-bold">Detalles adicionales para tu personalizado:</label>
+        <label className="form-label nk-step-label small uppercase fw-bold">Detalles adicionales para tu personalizado:</label>
         <textarea
           className="form-control"
           rows={3}

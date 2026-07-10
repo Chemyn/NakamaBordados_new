@@ -57,3 +57,24 @@
 	right: 10px;
 	font-weight: 700;
 }
+
+/* --- Descuentos resaltados en carrito y checkout ---
+   Los descuentos de Nakama son fees negativos (tr.fee) y el descuento del
+   envío va en la etiqueta del método; en negritas y color de marca para que
+   el cliente los identifique de inmediato. */
+.woocommerce table.shop_table tr.fee th,
+.woocommerce table.shop_table tr.fee td,
+.woocommerce-checkout-review-order-table tr.fee th,
+.woocommerce-checkout-review-order-table tr.fee td,
+.cart_totals tr.fee th,
+.cart_totals tr.fee td {
+	font-weight: 800 !important;
+	color: #E3000F !important;
+}
+
+/* Fila de cupones de WooCommerce, si aplica. */
+.woocommerce table.shop_table tr.cart-discount th,
+.woocommerce table.shop_table tr.cart-discount td {
+	font-weight: 800 !important;
+	color: #E3000F !important;
+}

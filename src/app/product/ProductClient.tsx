@@ -323,6 +323,10 @@ export default function ProductClient({ initialProduct: product, relatedProducts
       <div className="nk-container">
         <div className="nk-detail-grid">
           <div className="nk-detail-gallery">
+            {/* Título solo móvil: en <=1024px el grid es 1 columna y la galería
+                quedaba antes que el título; este duplicado lo pone arriba y el
+                original (dentro de .nk-detail-info) se oculta vía CSS. */}
+            <h1 className="nk-detail-title nk-detail-title-mobile" style={{ textShadow: '2px 2px 0px var(--nk-accent)' }}>{product.name}</h1>
             <div 
               ref={imgRef}
               className="nk-main-image-wrapper nk-manga-border" 
@@ -382,7 +386,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                 <span className="nk-info-badge nk-manga-border" style={{ background: 'var(--nk-accent)', color: 'var(--nk-bg-body)' }}>{t('product.official')}</span>
                 <span className="nk-info-badge nk-manga-border" style={{ background: 'var(--nk-text-main)', color: 'var(--nk-bg-body)' }}>{t('product.premium')}</span>
             </div>
-             <h1 className="nk-detail-title" style={{ textShadow: '2px 2px 0px var(--nk-accent)', marginBottom: '5px' }}>{product.name}</h1>
+             <h1 className="nk-detail-title nk-detail-title-desktop" style={{ textShadow: '2px 2px 0px var(--nk-accent)', marginBottom: '5px' }}>{product.name}</h1>
              
              {/* Rating Stars Under Title */}
              {dbReviews.length > 0 ? (

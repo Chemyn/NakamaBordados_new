@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -22,6 +23,24 @@ export default function MiCuentaPage() {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [registerData, setRegisterData] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '' });
   const [isRegistering, setIsRegistering] = useState(false);
+  const router = useRouter();
+
+  // ?return=/cart/ — el gate de compra manda aquí a autenticarse y al terminar
+  // se regresa a esa ruta. Se lee de window.location (useSearchParams exigiría
+  // un límite de Suspense en el export estático) y solo se aceptan rutas internas.
+  const [returnTo, setReturnTo] = useState<string | null>(null);
+  useEffect(() => {
+    const r = new URLSearchParams(window.location.search).get('return');
+    if (r && r.startsWith('/') && !r.startsWith('//')) {
+      setReturnTo(r);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (user && returnTo) {
+      router.replace(returnTo);
+    }
+  }, [user, returnTo, router]);
   
   // Tracking state - indexed by tracking code to avoid conflicts
   const [trackingLoading, setTrackingLoading] = useState<string | null>(null);
@@ -461,6 +480,12 @@ export default function MiCuentaPage() {
                 </h2>
               </div>
 
+              {returnTo && (
+                <p className="nk-return-notice">
+                  Inicia sesión o crea tu cuenta para completar tu compra. Al terminar te regresamos a donde estabas.
+                </p>
+              )}
+
               {authMode === 'login' ? (
                 <>
                   <form onSubmit={handleLogin} className="nk-login-form">
@@ -880,6 +905,16 @@ export default function MiCuentaPage() {
           width: 100%;
           padding: 15px;
           font-size: 1.4rem;
+        }
+
+        .nk-return-notice {
+          background: var(--nk-bg-wrapper);
+          border: 2px dashed var(--nk-primary, #e11d2a);
+          padding: 10px 14px;
+          margin-bottom: 20px;
+          font-weight: 700;
+          font-size: 0.9rem;
+          text-align: center;
         }
 
         .nk-auth-switch {

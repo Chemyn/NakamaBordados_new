@@ -62,6 +62,10 @@ class Nakama_Shipping {
 				$rate->set_cost( 0 );
 				$rate->set_taxes( array() );
 				$rate->set_label( $rate->get_label() . ' — ' . __( 'Envío gratis', 'nakama-discounts' ) );
+				// Monto cubierto por la tienda: WooCommerce copia la meta del
+				// rate al shipping line item del pedido, y el desglose de
+				// totales lo muestra como fila "Descuento del envío".
+				$rate->add_meta_data( '_nakama_ship_covered', (string) round( $cost, 2 ) );
 			} else {
 				// El cliente paga solo la diferencia.
 				$diff = round( $cost - $cap, 2 );
@@ -79,6 +83,7 @@ class Nakama_Shipping {
 						wp_strip_all_tags( wc_price( $cap ) )
 					)
 				);
+				$rate->add_meta_data( '_nakama_ship_covered', (string) round( $cap, 2 ) );
 			}
 		}
 

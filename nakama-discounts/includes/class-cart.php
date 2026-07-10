@@ -33,6 +33,10 @@ class Nakama_Cart {
 
 		// Persistir metadatos del descuento en el pedido (útil para CFDI/reportes).
 		add_action( 'woocommerce_checkout_create_order', array( __CLASS__, 'save_order_meta' ), 10, 2 );
+
+		// Desglose de totales del pedido (confirmación, correos, order-pay) en
+		// orden estricto: Subtotal, Envío, Descuentos, Descuento del envío, Total.
+		add_filter( 'woocommerce_get_order_item_totals', array( __CLASS__, 'reorder_order_totals' ), 50, 2 );
 	}
 
 	/** Obtiene (y cachea) el plan para el request actual. */
@@ -185,6 +189,79 @@ class Nakama_Cart {
 		WC()->session->set( 'nakama_selected_promo', $promo );
 		self::flush_plan();
 		wp_send_json_success( array( 'promo' => $promo ) );
+	}
+
+	/**
+	 * Reordena las filas del desglose de totales del pedido:
+	 * 1. Subtotal — 2. Envío (costo original de la paquetería) — 3. Descuentos
+	 * (fees negativos con su etiqueta real y cupones) — 4. Descuento del envío
+	 * (lo que la tienda cubre, como fila propia) — 5. impuestos/método de pago
+	 * — 6. Total. Antes el descuento del envío iba escondido en la etiqueta
+	 * del método y el orden no cuadraba visualmente con la aritmética.
+	 */
+	public static function reorder_order_totals( $rows, $order ) {
+		if ( ! is_array( $rows ) || ! $order instanceof WC_Abstract_Order ) {
+			return $rows;
+		}
+
+		// Monto del envío cubierto por la tienda: meta que el rate copia al
+		// shipping item del pedido (ver Nakama_Shipping::apply_cap). Pedidos
+		// anteriores a esta versión no la traen: se omite la fila.
+		$covered = 0.0;
+		foreach ( $order->get_items( 'shipping' ) as $item ) {
+			$covered += (float) $item->get_meta( '_nakama_ship_covered' );
+		}
+
+		$currency = array( 'currency' => $order->get_currency() );
+
+		$ordered = array();
+		$take    = function ( $key ) use ( &$ordered, &$rows ) {
+			if ( isset( $rows[ $key ] ) ) {
+				$ordered[ $key ] = $rows[ $key ];
+				unset( $rows[ $key ] );
+			}
+		};
+
+		$take( 'cart_subtotal' );
+
+		if ( isset( $rows['shipping'] ) ) {
+			$take( 'shipping' );
+			if ( $covered > 0 ) {
+				// Mostrar el costo ORIGINAL de la paquetería; lo cubierto por
+				// la tienda aparece como su propia fila de descuento abajo.
+				$original = (float) $order->get_shipping_total() + $covered;
+				$method   = preg_replace( '/\s*—\s*(Envío gratis|la tienda cubre).*/u', '', (string) $order->get_shipping_method() );
+				$ordered['shipping']['value'] = wc_price( $original, $currency )
+					. ( $method ? '&nbsp;<small class="shipping_method">via ' . esc_html( $method ) . '</small>' : '' );
+			}
+		}
+
+		// Descuentos: fees (negativos, cada uno con su etiqueta real) y cupones.
+		foreach ( array_keys( $rows ) as $key ) {
+			if ( 0 === strpos( $key, 'fee_' ) ) {
+				$ordered[ $key ] = $rows[ $key ];
+				unset( $rows[ $key ] );
+			}
+		}
+		$take( 'discount' );
+
+		if ( $covered > 0 ) {
+			$ordered['nakama_ship_discount'] = array(
+				'label' => __( 'Descuento del envío:', 'nakama-discounts' ),
+				'value' => wc_price( - $covered, $currency ),
+			);
+		}
+
+		// Resto (impuestos, método de pago) en su orden original y Total al final.
+		foreach ( array_keys( $rows ) as $key ) {
+			if ( 'order_total' !== $key ) {
+				$ordered[ $key ] = $rows[ $key ];
+				unset( $rows[ $key ] );
+			}
+		}
+		$take( 'order_total' );
+
+		return $ordered;
 	}
 
 	/** Guarda el resumen del descuento en el pedido. */

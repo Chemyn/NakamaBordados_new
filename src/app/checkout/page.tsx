@@ -7,12 +7,14 @@ import { useRouter } from 'next/navigation';
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
 import { seedWpSession } from '@/lib/wp-sso';
 
 export default function CheckoutPage() {
   const { cart, subtotal, shipping, discount, total, couponCode, applyCoupon, removeCoupon, clearCart } = useCart();
   const { formatPrice, currencyInfo } = useCurrency();
   const { t } = useLanguage();
+  const { user, isLoading: authLoading } = useAuth();
   const router = useRouter();
 
   const [formData, setLocalFormData] = useState({
@@ -34,13 +36,20 @@ export default function CheckoutPage() {
   const [redirecting, setRedirecting] = useState(false);
 
   useEffect(() => {
+    // Compra con cuenta obligatoria: esperar a que la sesión resuelva y, si
+    // no hay usuario, mandar al login/registro con retorno a este flujo.
+    if (authLoading) return;
+    if (cart.length > 0 && !user) {
+      router.replace('/mi-cuenta/?return=/checkout/');
+      return;
+    }
     if (cart.length > 0) {
       setRedirecting(true);
       const itemsStr = cart.map(item => {
         const id = item.variation?.databaseId || item.product.databaseId;
         return `${id}:${item.quantity}`;
       }).join(',');
-      
+
       // index.php explícito: la raíz "/" con query string sirve el index.html
       // estático (DirectoryIndex) y el bridge nunca llega a WordPress.
       // currency: el bridge fija la cookie nakama_currency para que el
@@ -52,7 +61,7 @@ export default function CheckoutPage() {
         window.location.href = checkoutUrl;
       });
     }
-  }, [cart, couponCode, currencyInfo.currency]);
+  }, [cart, couponCode, currencyInfo.currency, user, authLoading, router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setLocalFormData({ ...formData, [e.target.name]: e.target.value });

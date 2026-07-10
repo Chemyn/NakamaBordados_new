@@ -311,6 +311,19 @@ html.dark {
   color: var(--primary-color);
 }
 
+/* Etiquetas de pasos/secciones del configurador: en color de marca con una
+   barra de acento para que la navegación entre pasos destaque de inmediato
+   (antes eran text-muted gris y se perdían entre los controles). */
+.nk-step-label {
+  color: var(--primary-color) !important;
+  font-weight: 800 !important;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-left: 4px solid var(--primary-color);
+  padding-left: 8px;
+  line-height: 1.2;
+}
+
 /* Custom Animation shake */
 @keyframes shake-btn {
   0%, 100% { transform: translateX(0); }

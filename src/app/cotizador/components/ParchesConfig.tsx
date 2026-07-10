@@ -97,7 +97,7 @@ export const ParchesConfig: React.FC<ParchesConfigProps> = ({ config, onChange }
 
       {/* 1. Forma del Parche */}
       <div className="mb-4">
-        <label className="form-label text-muted small uppercase fw-bold">Forma del Parche:</label>
+        <label className="form-label nk-step-label small uppercase fw-bold">Forma del Parche:</label>
         <div className="row g-2">
           {shapesList.map(s => (
             <div key={s} className="col-6 col-sm-3">
@@ -118,7 +118,7 @@ export const ParchesConfig: React.FC<ParchesConfigProps> = ({ config, onChange }
 
       {/* 2. Medidas (Ancho y Alto) */}
       <div className="mb-4">
-        <label className="form-label text-muted small uppercase fw-bold">Medidas del Parche (en CM):</label>
+        <label className="form-label nk-step-label small uppercase fw-bold">Medidas del Parche (en CM):</label>
         <div className="row g-3">
           <div className="col-6">
             <label className="form-label text-muted small mb-1">Ancho (cm):</label>
@@ -145,7 +145,7 @@ export const ParchesConfig: React.FC<ParchesConfigProps> = ({ config, onChange }
 
       {/* 3. Cantidad */}
       <div className="mb-4">
-        <label className="form-label text-muted small uppercase fw-bold">Cantidad de piezas (Mínimo 1pz):</label>
+        <label className="form-label nk-step-label small uppercase fw-bold">Cantidad de piezas (Mínimo 1pz):</label>
         <div className="input-group" style={{ maxWidth: '180px' }}>
           <button 
             type="button" 
@@ -173,7 +173,7 @@ export const ParchesConfig: React.FC<ParchesConfigProps> = ({ config, onChange }
 
       {/* 4. Subida del Diseño */}
       <div className="mb-4">
-        <label className="form-label text-muted small uppercase fw-bold">Subir Diseño del Parche:</label>
+        <label className="form-label nk-step-label small uppercase fw-bold">Subir Diseño del Parche:</label>
         <p className="text-muted small mb-2">Sube la imagen para bordar o estampar en tu parche (JPEG/PNG, máx. 10MB):</p>
         
         {!config.filePreview ? (
@@ -216,7 +216,7 @@ export const ParchesConfig: React.FC<ParchesConfigProps> = ({ config, onChange }
 
       {/* 5. Detalles Adicionales */}
       <div className="mb-2">
-        <label className="form-label text-muted small uppercase fw-bold">Detalles adicionales para tu parche:</label>
+        <label className="form-label nk-step-label small uppercase fw-bold">Detalles adicionales para tu parche:</label>
         <textarea
           className="form-control"
           rows={3}

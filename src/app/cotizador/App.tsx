@@ -156,15 +156,20 @@ export const App: React.FC = () => {
     .map(i => `- ${i.model} | ${i.color} | Talla ${i.talla} | ${i.quantity} pz`)
     .join('\n');
 
-  // Config de ropa "enriquecida" para los documentos: el PDF y el ZIP imprimen
-  // additionalDetails tal cual (multilínea), así la lista de prendas —o la
-  // talla única— viaja en la cotización sin tocar los generadores.
+  // Config de ropa "enriquecida" para los documentos. La talla única ya se
+  // imprime en el PDF junto a color/cantidad (pdfGenerator), así que solo la
+  // lista de combinaciones viaja en additionalDetails (el PDF imprime una
+  // sola tripleta modelo/color/cantidad y la lista necesita el detalle).
   const getRopaConfigForDocs = (): GarmentCustomization => {
-    const header = garmentList.length > 0
-      ? `LISTA DE PRENDAS (${garmentListTotal} pz en total):\n${garmentListLines}`
-      : `Talla: ${ropaConfig.talla}`;
+    if (garmentList.length === 0) {
+      return ropaConfig;
+    }
+    const header = `LISTA DE PRENDAS (${garmentListTotal} pz en total):\n${garmentListLines}`;
     return {
       ...ropaConfig,
+      // Con lista de combinaciones la talla del selector no representa el
+      // pedido: el PDF muestra "Ver lista" y el detalle vive en el header.
+      talla: 'Ver lista',
       additionalDetails: ropaConfig.additionalDetails
         ? `${header}\n\n${ropaConfig.additionalDetails}`
         : header,
@@ -533,9 +538,11 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
     // Resumen del producto (se usa en el pedido de WooCommerce y en WhatsApp)
     let summaryText = '';
     if (activeProduct === 'ropa') {
+      // Formato con color: "Prendas Textiles (Oversize, Negro, L - 1pz)" — así
+      // se lee en el pedido de WooCommerce, Mi Cuenta y el correo del taller.
       summaryText = garmentList.length > 0
         ? `Prendas Textiles (${garmentList.length} combinación(es) - ${garmentListTotal}pz)`
-        : `Prendas Textiles (${ropaConfig.model} ${ropaConfig.talla} - ${ropaConfig.quantity}pz)`;
+        : `Prendas Textiles (${ropaConfig.model}, ${ropaConfig.color}, ${ropaConfig.talla} - ${ropaConfig.quantity}pz)`;
     } else if (activeProduct === 'parches') {
       summaryText = `Parches Bordados (${patchConfig.shape} - ${patchConfig.quantity}pz)`;
     } else if (activeProduct === 'gorras') {
@@ -682,7 +689,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
         <div className="row g-3" onClick={(e) => e.stopPropagation()}>
           {/* Cambiar Posición Select */}
           <div className="col-12">
-            <label className="form-label text-muted small uppercase fw-bold">Cambiar Posición:</label>
+            <label className="form-label nk-step-label small uppercase fw-bold">Cambiar Posición:</label>
             <select
               className="form-select"
               value={posName}
@@ -696,7 +703,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
           </div>
           {/* Técnica */}
           <div className="col-12 col-sm-6">
-            <label className="form-label text-muted small uppercase fw-bold">Técnica:</label>
+            <label className="form-label nk-step-label small uppercase fw-bold">Técnica:</label>
             <select
               className="form-select"
               value={pos.type}
@@ -709,7 +716,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
 
           {/* Medidas */}
           <div className="col-12 col-sm-6">
-            <label className="form-label text-muted small uppercase fw-bold">Medida aprox. en CM (Ej. 10x10):</label>
+            <label className="form-label nk-step-label small uppercase fw-bold">Medida aprox. en CM (Ej. 10x10):</label>
             <input
               type="text"
               className={`form-control ${getPositionSizeError(pos.type, pos.size) ? 'is-invalid' : ''}`}
@@ -726,7 +733,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
 
           {/* Archivos */}
           <div className="col-12">
-            <label className="form-label text-muted small uppercase fw-bold">Diseño de Referencia (Máx. 10MB, JPEG/PNG):</label>
+            <label className="form-label nk-step-label small uppercase fw-bold">Diseño de Referencia (Máx. 10MB, JPEG/PNG):</label>
             {!pos.filePreview ? (
               <div className="border border-secondary border-dashed p-3 rounded text-center bg-light">
                 <input
@@ -825,7 +832,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
         <div className="row g-3" onClick={(e) => e.stopPropagation()}>
           {/* Posición Select */}
           <div className="col-12">
-            <label className="form-label text-muted small uppercase fw-bold">Cambiar Posición:</label>
+            <label className="form-label nk-step-label small uppercase fw-bold">Cambiar Posición:</label>
             <select
               className="form-select"
               value={posName}
@@ -840,7 +847,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
 
           {/* Técnica */}
           <div className="col-12 col-sm-6">
-            <label className="form-label text-muted small uppercase fw-bold">Técnica:</label>
+            <label className="form-label nk-step-label small uppercase fw-bold">Técnica:</label>
             <select
               className="form-select"
               value={pos.type}
@@ -853,7 +860,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
 
           {/* Tamaño Recomendado */}
           <div className="col-12 col-sm-6">
-            <label className="form-label text-muted small uppercase fw-bold">Tamaño Recomendado:</label>
+            <label className="form-label nk-step-label small uppercase fw-bold">Tamaño Recomendado:</label>
             <select
               className="form-select"
               value={pos.size}
@@ -867,7 +874,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
 
           {/* Subir archivo */}
           <div className="col-12">
-            <label className="form-label text-muted small uppercase fw-bold">Diseño de Referencia (Máx. 10MB, JPEG/PNG):</label>
+            <label className="form-label nk-step-label small uppercase fw-bold">Diseño de Referencia (Máx. 10MB, JPEG/PNG):</label>
             {!pos.filePreview ? (
               <div className="border border-secondary border-dashed p-3 rounded text-center bg-light">
                 <input
@@ -1067,7 +1074,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
             
             {/* TABS DE PRODUCTO */}
             <div className="custom-card mb-4 bg-white border border-light-subtle">
-              <h5 className="text-muted small uppercase fw-bold mb-3">Paso 1: Selecciona el tipo de producto</h5>
+              <h5 className="nk-step-label small mb-3">Paso 1: Selecciona el tipo de producto</h5>
               <div className="d-flex flex-wrap gap-2">
                 <button
                   type="button"
@@ -1138,7 +1145,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
                 </h4>
                 <div className="row g-3">
                   <div className="col-12">
-                    <label className="form-label text-muted small uppercase fw-bold">Nombre Completo *</label>
+                    <label className="form-label nk-step-label small uppercase fw-bold">Nombre Completo *</label>
                     <input
                       type="text"
                       className={`form-control ${formErrors.name ? 'is-invalid border-danger' : ''}`}
@@ -1158,7 +1165,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
                     )}
                   </div>
                   <div className="col-12">
-                    <label className="form-label text-muted small uppercase fw-bold">Teléfono de Contacto (WhatsApp) *</label>
+                    <label className="form-label nk-step-label small uppercase fw-bold">Teléfono de Contacto (WhatsApp) *</label>
                     <input
                       type="text"
                       className={`form-control ${formErrors.phone ? 'is-invalid border-danger' : ''}`}
@@ -1178,7 +1185,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
                     )}
                   </div>
                   <div className="col-12">
-                    <label className="form-label text-muted small uppercase fw-bold">Correo Electrónico</label>
+                    <label className="form-label nk-step-label small uppercase fw-bold">Correo Electrónico</label>
                     <input
                       type="email"
                       className="form-control"

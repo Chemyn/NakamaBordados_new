@@ -129,8 +129,11 @@ export function generateQuotePDF(
     doc.text(`Prenda Seleccionada: ${ropaConfig.model}`, 15, currentY);
     currentY += 5;
     doc.setFont('Helvetica', 'normal');
+    // Color, talla y cantidad agrupados en la misma línea (la talla antes
+    // viajaba suelta dentro de "Detalles Adicionales").
     doc.text(`Color de Prenda: ${ropaConfig.color}`, 15, currentY);
-    doc.text(`Cantidad: ${ropaConfig.quantity} pz(s)`, 100, currentY);
+    doc.text(`Talla: ${ropaConfig.talla}`, 90, currentY);
+    doc.text(`Cantidad: ${ropaConfig.quantity} pz(s)`, 130, currentY);
     currentY += 8;
 
     // Header of Table

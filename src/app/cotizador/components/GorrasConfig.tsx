@@ -103,7 +103,7 @@ export const GorrasConfig: React.FC<GorrasConfigProps> = ({ config, onChange }) 
 
       {/* 1. Modelo de Gorra */}
       <div className="mb-4">
-        <label className="form-label text-muted small uppercase fw-bold">Modelo de Gorra:</label>
+        <label className="form-label nk-step-label small uppercase fw-bold">Modelo de Gorra:</label>
         <select 
           className="form-select"
           value={config.model}
@@ -130,7 +130,7 @@ export const GorrasConfig: React.FC<GorrasConfigProps> = ({ config, onChange }) 
 
       {/* 2. Seleccionar Color de Gorra */}
       <div className="mb-4">
-        <label className="form-label text-muted small uppercase fw-bold d-block">Color de Gorra:</label>
+        <label className="form-label nk-step-label small uppercase fw-bold d-block">Color de Gorra:</label>
         <div className="d-flex flex-wrap gap-2 mt-1">
           {(capModelColors[config.model] || []).map(color => (
             <button
@@ -147,7 +147,7 @@ export const GorrasConfig: React.FC<GorrasConfigProps> = ({ config, onChange }) 
 
       {/* 3. Bordado 3D */}
       <div className="mb-4">
-        <label className="form-label text-muted small uppercase fw-bold d-block">¿Agregar 3D (Bordado en Relieve)?:</label>
+        <label className="form-label nk-step-label small uppercase fw-bold d-block">¿Agregar 3D (Bordado en Relieve)?:</label>
         <p className="text-muted small mb-2">Añade relieve tridimensional a las letras o trazos gruesos (si es factible).</p>
         <div className="btn-group" role="group" aria-label="Bordado 3D Toggle">
           <button 
@@ -169,7 +169,7 @@ export const GorrasConfig: React.FC<GorrasConfigProps> = ({ config, onChange }) 
 
       {/* 4. Cantidad */}
       <div className="mb-4">
-        <label className="form-label text-muted small uppercase fw-bold">Cantidad de piezas (Mínimo 1pz):</label>
+        <label className="form-label nk-step-label small uppercase fw-bold">Cantidad de piezas (Mínimo 1pz):</label>
         <div className="input-group" style={{ maxWidth: '180px' }}>
           <button 
             type="button" 
@@ -197,7 +197,7 @@ export const GorrasConfig: React.FC<GorrasConfigProps> = ({ config, onChange }) 
 
       {/* 5. Detalles Adicionales */}
       <div className="mb-2">
-        <label className="form-label text-muted small uppercase fw-bold">Detalles adicionales para tu gorra:</label>
+        <label className="form-label nk-step-label small uppercase fw-bold">Detalles adicionales para tu gorra:</label>
         <textarea
           className="form-control"
           rows={3}
