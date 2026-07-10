@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Products API
  * Description: API REST pública y RÁPIDA de productos (WooCommerce/$wpdb directo, sin WPGraphQL) para el frontend estático de Next.js.
- * Version: 1.8
+ * Version: 1.9
  * Author: Nakama
  */
 
@@ -13,7 +13,20 @@ if (!defined('ABSPATH')) {
 // Se incluye en las claves de caché: al actualizar el plugin (nuevo shape de
 // respuesta, p. ej. regularPrice en 1.8) los transients viejos quedan huérfanos
 // en lugar de servirse 15 minutos con el formato anterior.
-define('NAKAMA_PRODUCTS_API_VER', '1.8');
+define('NAKAMA_PRODUCTS_API_VER', '1.9');
+
+// Semilla one-time del contador de folios: deja el contador en 11 para que el
+// PRIMER folio emitido por /next-folio sea NK-12. Va protegida por un flag para
+// que se ejecute UNA sola vez y NO se repita en cada request ni en cada
+// despliegue (el contador es una opción de WordPress y persiste por sí solo;
+// los builds del frontend no lo tocan). No retrocede folios ya emitidos porque
+// tras la semilla el flag impide volver a correr.
+add_action('init', function () {
+    if (get_option('nakama_folio_seed_v12') !== 'done') {
+        update_option('nakama_quote_folio_counter', 11);
+        update_option('nakama_folio_seed_v12', 'done');
+    }
+});
 
 // Evitar errores fatales si WooCommerce no está activo
 if (!class_exists('WooCommerce') && !in_array('woocommerce/woocommerce.php', apply_filters('active_plugins', get_option('active_plugins')))) {
@@ -223,7 +236,9 @@ add_action('rest_api_init', function () {
 
 function nakama_products_get_next_folio()
 {
-    $current_folio = get_option('nakama_quote_folio_counter', 1000);
+    // Default 11 => el primer folio es NK-12 (coincide con la semilla de arriba
+    // para instalaciones nuevas donde la opción aún no existe).
+    $current_folio = (int) get_option('nakama_quote_folio_counter', 11);
     $next_folio = $current_folio + 1;
     update_option('nakama_quote_folio_counter', $next_folio);
     
