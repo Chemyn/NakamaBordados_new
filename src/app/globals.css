@@ -2358,6 +2358,15 @@ html.dark .nk-preloader-logo {
        la tarjeta en flex + altura 100%, ambas columnas quedan parejas. */
     grid-auto-rows: 1fr;
     gap: 16px 12px;
+    /* Espacio inferior para que la última tarjeta de la columna derecha
+       (desplazada 28px por la cascada) y su sombra se vean completas. */
+    padding-bottom: 48px;
+  }
+  /* Efecto cascada: la columna derecha (tarjetas pares) baja 28px respecto a
+     la izquierda. Es un transform, así que NO altera el tamaño de la tarjeta;
+     todas siguen midiendo lo mismo (imagen cuadrada + info uniforme). */
+  .nk-store-grid > .nk-store-card:nth-child(even) {
+    transform: translateY(28px);
   }
   /* En 2 columnas el nombre grande (1.6rem) desbordaba; se reduce para que
      entre en 2 líneas y las tarjetas queden compactas y completas. */
