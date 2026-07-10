@@ -2209,6 +2209,24 @@ html.dark .nk-preloader-logo {
 
 .nk-store-card {
   background: transparent;
+  /* Altura uniforme: la tarjeta llena su celda del grid y su contenido se
+     reparte, así todas las tarjetas de una fila miden lo mismo sin importar
+     el largo del nombre del producto. */
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* La info ocupa la altura restante bajo la imagen (cuadrada), de modo que el
+   bloque de precio quede alineado abajo en todas las tarjetas. */
+.nk-store-card .nk-card-info {
+  flex: 1 1 auto;
+}
+
+/* La imagen mantiene su proporción (no se comprime) aunque la tarjeta se
+   estire para igualar la altura de la fila. */
+.nk-store-card .nk-store-card-img-wrapper {
+  flex-shrink: 0;
 }
 
 .nk-store-card-img-wrapper {
@@ -2253,6 +2271,14 @@ html.dark .nk-preloader-logo {
   color: var(--nk-text-main);
   line-height: 1.1 !important;
   overflow-wrap: break-word;
+  /* Máximo 2 líneas (con puntos suspensivos): evita que un nombre largo
+     alargue una tarjeta más que sus vecinas. Reserva la altura de 2 líneas
+     para que las tarjetas de nombre corto no queden más bajas. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  min-height: 2.2em;
 }
 
 .nk-card-title a {
@@ -2328,15 +2354,19 @@ html.dark .nk-preloader-logo {
 @media (max-width: 768px) {
   .nk-store-grid {
     grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-    /* La columna derecha baja (cascada): compensar para que la última
-       tarjeta desplazada no se corte contra el final del grid. */
-    padding-bottom: 110px;
+    /* Filas iguales: cada fila toma la altura de su tarjeta más alta y, con
+       la tarjeta en flex + altura 100%, ambas columnas quedan parejas. */
+    grid-auto-rows: 1fr;
+    gap: 16px 12px;
   }
-  /* Efecto cascada/masonry: la columna derecha (tarjetas pares) arranca
-     más abajo que la izquierda. Solo aplica donde el grid es de 2 columnas. */
-  .nk-store-grid > .nk-store-card:nth-child(even) {
-    transform: translateY(32px);
+  /* En 2 columnas el nombre grande (1.6rem) desbordaba; se reduce para que
+     entre en 2 líneas y las tarjetas queden compactas y completas. */
+  .nk-card-title {
+    font-size: 1.15rem !important;
+  }
+  .nk-store-card .nk-card-info {
+    padding: 14px !important;
+    min-height: 0 !important;
   }
   .nk-store-search {
     width: 100%;
@@ -2349,10 +2379,15 @@ html.dark .nk-preloader-logo {
 
 @media (max-width: 480px) {
   .nk-store-grid {
-    /* Antes 1 columna: en teléfonos también se muestran 2 columnas
-       escalonadas (mismo layout que 768px con separación más compacta). */
+    /* Dos columnas también en teléfonos (antes 1), con separación compacta. */
     grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
+    gap: 14px 10px;
+  }
+  .nk-store-card .nk-card-info {
+    padding: 12px !important;
+  }
+  .nk-card-price {
+    font-size: 1.1rem !important;
   }
 }
 
