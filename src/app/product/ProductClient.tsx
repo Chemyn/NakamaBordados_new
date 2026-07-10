@@ -382,7 +382,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
           </div>
 
           <div className="nk-detail-info">
-            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
+            <div className="nk-info-badges" style={{ display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '10px' }}>
                 <span className="nk-info-badge nk-manga-border" style={{ background: 'var(--nk-accent)', color: 'var(--nk-bg-body)' }}>{t('product.official')}</span>
                 <span className="nk-info-badge nk-manga-border" style={{ background: 'var(--nk-text-main)', color: 'var(--nk-bg-body)' }}>{t('product.premium')}</span>
             </div>
@@ -390,7 +390,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
              
              {/* Rating Stars Under Title */}
              {dbReviews.length > 0 ? (
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
+                <div className="nk-info-rating" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px' }}>
                   <div style={{ display: 'flex', color: '#ffb400' }}>
                     {Array.from({ length: 5 }).map((_, i) => {
                       const ratingVal = product.rating || 5;
@@ -408,8 +408,9 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                   </span>
                 </div>
               ) : (
-                <div 
-                  style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px', cursor: 'pointer' }} 
+                <div
+                  className="nk-info-rating"
+                  style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '15px', cursor: 'pointer' }}
                   onClick={() => {
                     setActiveTab('reviews');
                     setShowReviewForm(true);
@@ -428,7 +429,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                 </div>
               )}
             
-            <div style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
+            <div className="nk-info-price" style={{ display: 'flex', alignItems: 'center', gap: '15px', flexWrap: 'wrap' }}>
                 <p className="nk-detail-price" style={{ fontSize: 'clamp(1.8rem, 6.5vw, 2.5rem)', margin: 0 }}>
                   <span className="nk-price-line">
                     {displayRegular && <s className="nk-price-regular">{displayRegular}</s>}

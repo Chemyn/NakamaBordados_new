@@ -3020,6 +3020,31 @@ html.dark .nk-preloader-logo {
   .nk-detail-title-desktop {
     display: none;
   }
+  /* Reordenado SOLO en movil (grid a 1 columna): la estructura pedida es
+     titulo > imagenes > estilo/color/talla > valoraciones > precio+envio >
+     insignias (Coleccion Oficial / Calidad Premium). El titulo e imagenes ya
+     van arriba (galeria); aqui reacomodamos los bloques dentro de .nk-detail-info.
+     Todo lo demas (divisor, promos, agregar al carrito, tabs) mantiene su flujo
+     despues, via el order:5 por defecto. En desktop este bloque no aplica. */
+  .nk-detail-info {
+    display: flex;
+    flex-direction: column;
+  }
+  .nk-detail-info > * {
+    order: 5;
+  }
+  .nk-detail-info > .nk-detail-swatches-section {
+    order: 1;
+  }
+  .nk-detail-info > .nk-info-rating {
+    order: 2;
+  }
+  .nk-detail-info > .nk-info-price {
+    order: 3;
+  }
+  .nk-detail-info > .nk-info-badges {
+    order: 4;
+  }
 }
 
 @media (max-width: 640px) {
