@@ -647,8 +647,9 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                           </div>
                         </div>
 
-                        {/* Toggle Review Form Button */}
-                        <div className="mb-4">
+                        {/* Toggle Review Form Button: separado de la lista de
+                            reseñas con aire + divisor (en móvil quedaba pegado) */}
+                        <div style={{ margin: '5px 0 30px', paddingBottom: '20px', borderBottom: '1px dashed var(--nk-border)' }}>
                           <button 
                             type="button" 
                             onClick={() => setShowReviewForm(!showReviewForm)} 
@@ -990,7 +991,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
             <div style={{ display: 'flex', gap: '15px', justifyContent: 'center', flexWrap: 'wrap' }}>
               <button
                 type="button"
-                className="nk-btn"
+                className="nk-btn nk-btn-ghost"
                 style={{ flex: 1, padding: '12px', fontSize: '1.1rem', background: 'transparent', border: '3px solid var(--nk-border)', color: 'var(--nk-text-main)', boxShadow: 'none' }}
                 onClick={() => setSuccessModalOpen(false)}
               >

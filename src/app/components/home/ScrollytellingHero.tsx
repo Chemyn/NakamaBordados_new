@@ -98,7 +98,9 @@ export default function ScrollytellingHero({ heroSources }: { heroSources?: Hero
             <Link href="/store" className="nk-btn nk-btn-hero nk-manga-border" style={{ boxShadow: 'var(--nk-manga-shadow-lg)' }}>
                EXPLORAR TIENDA
             </Link>
-            <Link href="/cotizador" className="nk-btn nk-btn-hero nk-manga-border" style={{ background: '#000000', color: '#ffffff', boxShadow: 'var(--nk-manga-shadow-lg)' }}>
+            {/* nk-btn-darkfill: fondo negro fijo; en dark el texto sigue blanco
+                (exento del override ámbar→texto oscuro de globals.css) */}
+            <Link href="/cotizador" className="nk-btn nk-btn-hero nk-btn-darkfill nk-manga-border" style={{ background: '#000000', color: '#ffffff', boxShadow: 'var(--nk-manga-shadow-lg)' }}>
                PERSONALIZADOS / COTIZAR
             </Link>
           </div>

@@ -610,7 +610,10 @@ export default function MiCuentaPage() {
               )}
 
               <div className="nk-login-footer">
-                <Link href="/" className="nk-btn-sec">{t('nav.home')}</Link>
+                <Link href="/" className="nk-home-link">
+                  <span className="material-icons-outlined">home</span>
+                  {t('nav.home')}
+                </Link>
               </div>
             </div>
           )}
@@ -621,11 +624,15 @@ export default function MiCuentaPage() {
 
       <style jsx>{`
         .nk-account-page {
-          padding: 60px 15px;
+          /* El navbar es fixed: hay que despejar --header-padding (80px).
+             El 60px fijo anterior metía la tarjeta bajo el header en móvil,
+             y el centrado vertical (align-items:center con 90vh) la subía
+             aún más en pantallas cortas; en móvil se alinea arriba. */
+          padding: calc(var(--header-padding) + 20px) 15px 60px;
           background: var(--nk-bg-body);
           min-height: 90vh;
           display: flex;
-          align-items: center;
+          align-items: flex-start;
           justify-content: center;
         }
 
@@ -673,7 +680,10 @@ export default function MiCuentaPage() {
           }
           
           .nk-account-page {
+            /* En desktop 100px ya libra el header (80px) y se recupera el
+               centrado vertical original. */
             padding: 100px 20px;
+            align-items: center;
           }
         }
 
@@ -935,6 +945,48 @@ export default function MiCuentaPage() {
 
         .nk-auth-switch:hover {
           opacity: 0.8;
+        }
+
+        /* Volver al inicio: centrado bajo el switch de login/registro y
+           separado con línea punteada, como botón outline del sistema manga
+           (la clase global nk-btn-sec no existe; el estilo vive aquí). */
+        .nk-login-footer {
+          margin-top: 25px;
+          padding-top: 20px;
+          border-top: 2px dashed var(--nk-border);
+          text-align: center;
+        }
+
+        /* :global(): styled-jsx solo escopa elementos nativos y <Link> es un
+           componente — sin esto el selector .nk-home-link.jsx-* nunca
+           coincide con el <a> renderizado. Se ancla en .nk-login-footer. */
+        .nk-login-footer :global(.nk-home-link) {
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          padding: 10px 28px;
+          background: var(--nk-bg-card);
+          border: 2px solid var(--nk-border);
+          box-shadow: var(--nk-manga-shadow);
+          color: var(--nk-text-main);
+          font-family: 'Teko', sans-serif;
+          font-size: 1.2rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.05em;
+          text-decoration: none;
+          transition: transform 0.15s ease, box-shadow 0.15s ease;
+        }
+
+        .nk-login-footer :global(.nk-home-link .material-icons-outlined) {
+          font-size: 18px;
+          color: var(--nk-primary);
+        }
+
+        .nk-login-footer :global(.nk-home-link:hover) {
+          transform: translate(-2px, -2px);
+          box-shadow: 6px 6px 0px var(--nk-border);
         }
 
         /* Orders */

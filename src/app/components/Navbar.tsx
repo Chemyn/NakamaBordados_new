@@ -36,27 +36,22 @@ export default function Navbar() {
     return () => { mounted = false; };
   }, []);
 
-  // Initialize theme from storage if different from default (light default)
+  // El modo claro es el predeterminado SIEMPRE: cada visita abre en claro y
+  // el toggle solo dura la sesión (no se persiste). Se limpia la clave vieja
+  // 'color-theme' para que visitantes que guardaron 'dark' vuelvan a claro.
   useEffect(() => {
-    const savedTheme = localStorage.getItem('color-theme');
-    if (savedTheme === 'dark') {
-      setTheme('dark');
-      document.documentElement.classList.add('dark');
-    } else {
-      setTheme('light');
-      document.documentElement.classList.remove('dark');
-    }
+    localStorage.removeItem('color-theme');
+    setTheme('light');
+    document.documentElement.classList.remove('dark');
   }, []);
 
   const toggleTheme = () => {
     if (theme === 'light') {
       setTheme('dark');
       document.documentElement.classList.add('dark');
-      localStorage.setItem('color-theme', 'dark');
     } else {
       setTheme('light');
       document.documentElement.classList.remove('dark');
-      localStorage.setItem('color-theme', 'light');
     }
   };
 

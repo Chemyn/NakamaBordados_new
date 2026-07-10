@@ -46,20 +46,51 @@
   --z-max: 999;
 }
 
+/* Paleta oscura "azul marino apagado": fondo grisáceo-azulado, títulos crema,
+   texto blanco roto azulado, ámbar reservado a CTAs/precios/destacados y
+   azul grisáceo medio para bordes/acentos secundarios no intrusivos. */
 html.dark {
-  --nk-bg-body: #050505;
-  --nk-bg-wrapper: #121212;
-  --nk-bg-card: #1A1A1A;
-  --nk-text-main: #F2F2F2;
-  --nk-text-sec: #BDBDBD; /* Lighter for better contrast in dark mode */
-  --nk-border: #FFFFFF;
-  --nk-input-bg: #1A1A1A;
-  --nk-input-border: #444444;
-  --nk-primary: #FF4D4D;
-  --nk-accent: #FFFFFF;
-  --nk-navy: #000000;
-  --nk-manga-shadow: 4px 4px 0px var(--nk-primary);
-  --nk-manga-shadow-lg: 8px 8px 0px var(--nk-primary);
+  --nk-bg-body: #1A1F2B;
+  --nk-bg-wrapper: #151923;
+  --nk-bg-card: #232936;
+  --nk-text-main: #F5EFEB;   /* crema: títulos y texto fuerte */
+  --nk-text-sec: #E0E6ED;    /* blanco roto azulado: texto regular */
+  --nk-border: #4B5563;
+  --nk-input-bg: #232936;
+  --nk-input-border: #4B5563;
+  --nk-primary: #FBBF24;     /* ámbar: CTAs, enlaces, precios */
+  --nk-primary-dark: #D97706;
+  --nk-accent: #4B5563;
+  --nk-navy: #11151F;
+  --nk-manga-shadow: 4px 4px 0px #4B5563;
+  --nk-manga-shadow-lg: 8px 8px 0px #4B5563;
+}
+
+/* En dark el primario es ámbar y el texto blanco fijo de los CTAs/badges no
+   contrasta (blanco sobre #FBBF24 ≈ 1.7:1): se fuerza texto azul marino en
+   todo elemento con fondo --nk-primary. El !important es necesario porque
+   varios botones traen color:#fff inline. Excepciones con clase marcador:
+   .nk-btn-ghost (outline transparente) y .nk-btn-darkfill (fondo negro). */
+html.dark .nk-btn:not(.nk-btn-ghost):not(.nk-btn-darkfill),
+html.dark .nk-modal-close,
+html.dark .nk-warning-close-btn,
+html.dark .nk-hero-badge,
+html.dark .nk-marquee-content span,
+html.dark .nk-price-off,
+html.dark .nk-cart-badge,
+html.dark .nk-sale-badge,
+html.dark .nk-store-tab-btn:hover,
+html.dark .nk-store-tab-btn.active,
+html.dark .nk-arrow-btn:hover,
+html.dark .nk-size-guide-trigger:hover,
+html.dark .nk-social-link:hover,
+html.dark .nk-search-pill:hover,
+html.dark .nk-admin-btn.gold,
+html.dark .nk-btn-view-order,
+html.dark .nk-suite-btn-primary,
+html.dark .nk-suite-launcher,
+html.dark .nk-suite-finalize-btn {
+  color: #1A1F2B !important;
 }
 
 /* --- Card Overlay Polish --- */
@@ -2376,6 +2407,22 @@ html.dark .nk-preloader-logo {
   .nk-store-card .nk-card-info {
     padding: 14px !important;
     min-height: 0 !important;
+  }
+  /* Altura de contenido DETERMINÍSTICA: el catálogo mezcla precios simples,
+     rangos y ofertas con tachado + "-%", más la línea opcional "X vendidos";
+     eso hacía que el bloque de info variara de 1 a 3 líneas y las tarjetas
+     salieran de tamaños distintos. En móvil se oculta lo variable y se
+     reserva espacio fijo para el precio. */
+  .nk-store-card .nk-card-sales {
+    display: none;
+  }
+  .nk-store-card .nk-price-regular {
+    display: none;
+  }
+  .nk-store-card .nk-card-price {
+    /* 2 líneas reservadas: los rangos ($539 - $719 MXN) envuelven a 2 y los
+       precios simples quedan en 1; con la reserva todas miden igual. */
+    min-height: 2.2em;
   }
   .nk-store-search {
     width: 100%;
