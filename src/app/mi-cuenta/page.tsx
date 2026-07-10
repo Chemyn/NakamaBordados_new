@@ -482,7 +482,7 @@ export default function MiCuentaPage() {
 
               {returnTo && (
                 <p className="nk-return-notice">
-                  Inicia sesión o crea tu cuenta para completar tu compra. Al terminar te regresamos a donde estabas.
+                  Inicia sesión o crea tu cuenta para completar tu compra. Al crear tu cuenta obtienes descuentos y beneficios exclusivos, y al terminar te regresamos a donde estabas.
                 </p>
               )}
 
