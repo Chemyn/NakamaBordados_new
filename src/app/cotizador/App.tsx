@@ -1138,6 +1138,29 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
           <div className="col-12 col-lg-4">
             <div className="position-sticky" style={{ top: '24px' }}>
               
+              {/* ¿SIN DISEÑO? CONTACTO CON DISEÑADOR */}
+              <div className="custom-card bg-white border border-light-subtle mb-4">
+                <h4 className="font-display text-primary-brand mb-2">
+                  <i className="bi bi-palette-fill me-2"></i>
+                  ¿Tienes la idea pero no el diseño? 🎨
+                </h4>
+                <p className="text-muted small mb-3">
+                  ¡No te preocupes! Si quieres empezar desde cero o no tienes una imagen lista,
+                  te conectamos con un diseñador de confianza para darle vida a tu idea. Haz
+                  clic aquí y platica con él por WhatsApp para crear tu diseño personalizado.
+                </p>
+                <a
+                  href={`https://wa.me/526621438401?text=${encodeURIComponent('Hola 👋 Vengo del cotizador de Nakama Bordados. Tengo una idea pero aún no tengo el diseño, ¿me ayudas a crearlo?')}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="btn btn-outline-success py-2 font-display text-white border-success w-100"
+                  style={{ backgroundColor: '#25D366' }}
+                >
+                  <i className="bi bi-whatsapp me-2"></i>
+                  Platicar con el diseñador
+                </a>
+              </div>
+
               {/* DATOS DEL CLIENTE */}
               <div className="custom-card bg-white border border-light-subtle mb-4">
                 <h4 className="font-display text-primary-brand mb-3">
