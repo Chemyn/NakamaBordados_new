@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import type { ClientDetails, GarmentCustomization, GarmentListItem, PatchCustomization, CapCustomization, ProductType, GarmentPosition, CapPosition } from './types';
 import { RopaConfig } from './components/RopaConfig';
 import { ParchesConfig } from './components/ParchesConfig';
@@ -67,6 +68,7 @@ export const App: React.FC = () => {
   // Sesión del cliente: autollenar nombre, teléfono y correo desde su cuenta
   // (solo campos vacíos, para no pisar lo que el cliente ya escribió).
   const { user, isLoading: authLoading } = useAuth();
+  const router = useRouter();
   // Gate de login: sin sesión el cliente puede armar/ver la cotización, pero
   // para ENVIARLA debe iniciar sesión (o crear cuenta) desde este modal.
   const [showAuthGate, setShowAuthGate] = useState(false);
@@ -621,6 +623,20 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
 
     const encoded = encodeURIComponent(message);
     window.open(`https://wa.me/${number}?text=${encoded}`, '_blank');
+
+    // Página de agradecimiento: WhatsApp abre en pestaña nueva y esta pestaña
+    // navega a /cotizador/gracias, que lee los datos desde sessionStorage
+    // (se pierde al cerrar la pestaña, suficiente para una confirmación).
+    try {
+      sessionStorage.setItem('nakama_last_quote', JSON.stringify({
+        folio: folioStr,
+        name: clientDetails.name,
+        email: clientDetails.email,
+        summary: summaryText,
+        date: new Date().toISOString(),
+      }));
+    } catch { /* sessionStorage bloqueado: la página de gracias muestra la versión genérica */ }
+    router.push('/cotizador/gracias');
   };
 
   const triggerSubmitShake = () => {
@@ -1150,7 +1166,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
                   clic aquí y platica con él por WhatsApp para crear tu diseño personalizado.
                 </p>
                 <a
-                  href={`https://wa.me/526621438401?text=${encodeURIComponent('Hola 👋 Vengo del cotizador de Nakama Bordados. Tengo una idea pero aún no tengo el diseño, ¿me ayudas a crearlo?')}`}
+                  href={`https://wa.me/526621438401?text=${encodeURIComponent('Hola, vengo del cotizador de Nakama Bordados. Tengo una idea pero aún no tengo el diseño, ¿me ayudas a crearlo?')}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="btn btn-outline-success py-2 font-display text-white border-success w-100"

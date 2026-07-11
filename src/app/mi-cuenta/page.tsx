@@ -10,6 +10,25 @@ import { useLanguage } from '../context/LanguageContext';
 import MaintenanceToggle from '../components/MaintenanceToggle';
 import { openWpAdmin, seedWpSession, WP_ADMIN_URL } from '@/lib/wp-sso';
 
+/* Estados de pedido de WooCommerce en español. GraphQL los entrega como enum
+   (ON_HOLD) y REST como slug (on-hold); se canonicaliza a slug antes de mapear. */
+const ORDER_STATUS_ES: Record<string, string> = {
+  'pending': 'Pendiente de pago',
+  'processing': 'Procesando',
+  'on-hold': 'En espera',
+  'completed': 'Completado',
+  'cancelled': 'Cancelado',
+  'refunded': 'Reembolsado',
+  'failed': 'Fallido',
+  'checkout-draft': 'Borrador',
+};
+
+const orderStatusSlug = (status: unknown): string =>
+  String(status ?? '').toLowerCase().replace(/[_\s]+/g, '-');
+
+const orderStatusLabel = (status: unknown): string =>
+  ORDER_STATUS_ES[orderStatusSlug(status)] || String(status ?? '');
+
 export default function MiCuentaPage() {
   const { user, login, register, logout, refreshUser, isLoading, isAdmin } = useAuth();
   const { formatPrice, currencyInfo } = useCurrency();
@@ -271,7 +290,9 @@ export default function MiCuentaPage() {
                                   <p className="nk-order-date">{new Date(order.date).toLocaleDateString()}</p>
                                 </div>
                                 <div className="nk-order-status">
-                                  <span>{order.status}</span>
+                                  <span className={`nk-status-${orderStatusSlug(order.status)}`}>
+                                    {orderStatusLabel(order.status)}
+                                  </span>
                                 </div>
                               </div>
                               
