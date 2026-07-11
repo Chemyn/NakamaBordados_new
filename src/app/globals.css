@@ -2377,14 +2377,18 @@ html.dark .nk-preloader-logo {
 
 @media (max-width: 1024px) {
   .nk-store-grid {
-    grid-template-columns: repeat(3, 1fr);
+    /* minmax(0,...): sin él, 1fr = minmax(auto,1fr) y el min-content de una
+       tarjeta (badge de envío nowrap, palabras largas del título) puede
+       inflar su columna y dejar anchos desiguales. Igual que el grid base. */
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 24px;
   }
 }
 
 @media (max-width: 768px) {
   .nk-store-grid {
-    grid-template-columns: repeat(2, 1fr);
+    /* minmax(0,...) garantiza columnas EXACTAMENTE iguales (ver nota en 1024px). */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     /* Filas iguales: cada fila toma la altura de su tarjeta más alta y, con
        la tarjeta en flex + altura 100%, ambas columnas quedan parejas. */
     grid-auto-rows: 1fr;
@@ -2423,6 +2427,17 @@ html.dark .nk-preloader-logo {
   .nk-store-card .nk-price-regular {
     display: none;
   }
+  /* Precio en UNA sola línea: los rangos ($440 MXN - $740 MXN) envolvían a 2
+     líneas y el contenido excedía la altura fija, cortando el badge de envío.
+     Fuente fluida para que el rango completo quepa en columnas angostas.
+     (Requiere minmax(0,1fr) en el grid para que el nowrap no infle la columna.) */
+  .nk-store-card .nk-price-line {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+  .nk-store-card .nk-card-price {
+    font-size: clamp(0.95rem, 4.2vw, 1.15rem) !important;
+  }
   .nk-store-search {
     width: 100%;
   }
@@ -2434,17 +2449,16 @@ html.dark .nk-preloader-logo {
 
 @media (max-width: 480px) {
   .nk-store-grid {
-    /* Dos columnas también en teléfonos (antes 1), con separación compacta. */
-    grid-template-columns: repeat(2, 1fr);
+    /* Dos columnas también en teléfonos (antes 1), con separación compacta.
+       minmax(0,...) garantiza columnas exactamente iguales. */
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 14px 10px;
   }
   .nk-store-card .nk-card-info {
     padding: 12px !important;
-    /* Teléfonos: fuentes/padding más chicos => alto fijo menor, todas iguales. */
-    height: 122px !important;
-  }
-  .nk-card-price {
-    font-size: 1.1rem !important;
+    /* Teléfonos: fuentes/padding más chicos => alto fijo menor, todas iguales.
+       124px = título 2 líneas + precio 1 línea + badge de envío, con margen. */
+    height: 124px !important;
   }
 }
 
