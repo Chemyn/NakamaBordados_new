@@ -1105,6 +1105,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
               productType={activeProduct}
               selectedPositions={getActivePositionsArray()}
               onPositionToggle={handlePositionToggle}
+              onPositionRemove={deactivatePosition}
               selectedEditingPosition={selectedPosition}
               onSelectPositionForEditing={setSelectedPosition}
               patchShape={patchConfig.shape}

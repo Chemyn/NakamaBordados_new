@@ -2404,25 +2404,24 @@ html.dark .nk-preloader-logo {
   .nk-card-title {
     font-size: 1.15rem !important;
   }
+  /* Altura DETERMINÍSTICA de la tarjeta: la imagen es cuadrada (ambas columnas
+     miden 1fr => mismo alto de imagen), así que basta con fijar el alto del
+     bloque de info para que TODAS las tarjetas midan exactamente igual, sin
+     depender de grid-auto-rows:1fr (que falla en varios navegadores móviles).
+     Se oculta lo variable (línea "X vendidos" y precio regular tachado) y el
+     contenido restante (título 2 líneas + precio + envío) cabe en el alto fijo;
+     overflow:hidden es la red de seguridad contra desbordes puntuales. */
   .nk-store-card .nk-card-info {
     padding: 14px !important;
     min-height: 0 !important;
+    height: 132px !important;
+    overflow: hidden;
   }
-  /* Altura de contenido DETERMINÍSTICA: el catálogo mezcla precios simples,
-     rangos y ofertas con tachado + "-%", más la línea opcional "X vendidos";
-     eso hacía que el bloque de info variara de 1 a 3 líneas y las tarjetas
-     salieran de tamaños distintos. En móvil se oculta lo variable y se
-     reserva espacio fijo para el precio. */
   .nk-store-card .nk-card-sales {
     display: none;
   }
   .nk-store-card .nk-price-regular {
     display: none;
-  }
-  .nk-store-card .nk-card-price {
-    /* 2 líneas reservadas: los rangos ($539 - $719 MXN) envuelven a 2 y los
-       precios simples quedan en 1; con la reserva todas miden igual. */
-    min-height: 2.2em;
   }
   .nk-store-search {
     width: 100%;
@@ -2441,6 +2440,8 @@ html.dark .nk-preloader-logo {
   }
   .nk-store-card .nk-card-info {
     padding: 12px !important;
+    /* Teléfonos: fuentes/padding más chicos => alto fijo menor, todas iguales. */
+    height: 122px !important;
   }
   .nk-card-price {
     font-size: 1.1rem !important;

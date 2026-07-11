@@ -7,6 +7,7 @@ interface VisualizerProps {
   productType: ProductType;
   selectedPositions: string[];
   onPositionToggle: (position: string) => void;
+  onPositionRemove: (position: string) => void;
   selectedEditingPosition: string | null;
   onSelectPositionForEditing: (position: string) => void;
   patchShape?: 'Rectangular' | 'Cuadrado' | 'Circular' | 'Forma del diseño';
@@ -17,16 +18,21 @@ export const Visualizer: React.FC<VisualizerProps> = ({
   productType,
   selectedPositions,
   onPositionToggle,
+  onPositionRemove,
   selectedEditingPosition,
   onSelectPositionForEditing,
   patchShape = 'Rectangular',
   garmentModel
 }) => {
   const [pendingZone, setPendingZone] = React.useState<string | null>(null);
+  // Zona ya activa sobre la que se hizo clic: abre el mini-menú Editar/Quitar
+  // para poder deseleccionarla in-situ (sin bajar al panel de áreas activas).
+  const [managingZone, setManagingZone] = React.useState<string | null>(null);
 
-  // Reset pending zone if product type changes
+  // Reset popups if product type changes
   React.useEffect(() => {
     setPendingZone(null);
+    setManagingZone(null);
   }, [productType]);
 
   const isPositionActive = (pos: string) => selectedPositions.includes(pos);
@@ -35,9 +41,11 @@ export const Visualizer: React.FC<VisualizerProps> = ({
   const handleZoneClick = (pos: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (isPositionActive(pos)) {
-      onSelectPositionForEditing(pos);
+      // Zona ya seleccionada: ofrecer Editar o Quitar directamente aquí.
+      setManagingZone(pos);
       setPendingZone(null);
     } else {
+      setManagingZone(null);
       setPendingZone(pos);
     }
   };
@@ -95,16 +103,20 @@ export const Visualizer: React.FC<VisualizerProps> = ({
                   visibles de pecho miden ~26px renderizados y son difíciles
                   de tocar. Van ANTES para que las zonas visibles conserven
                   prioridad de clic donde se traslapan. */}
-              <rect x="29.5" y="23.5" width="18" height="18" fill="transparent" style={{ cursor: 'pointer' }} onClick={(e) => handleZoneClick('Pecho Izquierdo', e)} />
-              <rect x="52.5" y="23.5" width="18" height="18" fill="transparent" style={{ cursor: 'pointer' }} onClick={(e) => handleZoneClick('Pecho Derecho', e)} />
+              {/* Vista espejo (se ve a la persona de frente): su pecho DERECHO
+                  cae a la IZQUIERDA de la imagen y viceversa. Por eso el rect de
+                  la izquierda se etiqueta 'Pecho Derecho' y el de la derecha
+                  'Pecho Izquierdo'. */}
+              <rect x="29.5" y="23.5" width="18" height="18" fill="transparent" style={{ cursor: 'pointer' }} onClick={(e) => handleZoneClick('Pecho Derecho', e)} />
+              <rect x="52.5" y="23.5" width="18" height="18" fill="transparent" style={{ cursor: 'pointer' }} onClick={(e) => handleZoneClick('Pecho Izquierdo', e)} />
               <rect x="41" y="24.5" width="18" height="18" fill="transparent" style={{ cursor: 'pointer' }} onClick={(e) => handleZoneClick('Pecho en Medio', e)} />
 
               {/* Clickable Overlay Zones */}
-              {/* Pecho Izquierdo */}
-              <rect x="33" y="27" width="11" height="11" rx="2" {...getZoneStyles('Pecho Izquierdo')} onClick={(e) => handleZoneClick('Pecho Izquierdo', e)} />
+              {/* Pecho Derecho (lado izquierdo de la imagen, vista espejo) */}
+              <rect x="33" y="27" width="11" height="11" rx="2" {...getZoneStyles('Pecho Derecho')} onClick={(e) => handleZoneClick('Pecho Derecho', e)} />
 
-              {/* Pecho Derecho */}
-              <rect x="56" y="27" width="11" height="11" rx="2" {...getZoneStyles('Pecho Derecho')} onClick={(e) => handleZoneClick('Pecho Derecho', e)} />
+              {/* Pecho Izquierdo (lado derecho de la imagen, vista espejo) */}
+              <rect x="56" y="27" width="11" height="11" rx="2" {...getZoneStyles('Pecho Izquierdo')} onClick={(e) => handleZoneClick('Pecho Izquierdo', e)} />
 
               {/* Pecho en Medio */}
               <rect x="45" y="29" width="10" height="9" rx="2" {...getZoneStyles('Pecho en Medio')} onClick={(e) => handleZoneClick('Pecho en Medio', e)} />
@@ -112,14 +124,14 @@ export const Visualizer: React.FC<VisualizerProps> = ({
               {/* Frente Completo */}
               <rect x="31" y="44" width="38" height="34" rx="3" {...getZoneStyles('Enfrente')} onClick={(e) => handleZoneClick('Enfrente', e)} />
               
-              {/* Manga Izquierda */}
+              {/* Manga Derecha (lado izquierdo de la imagen, vista espejo) */}
               {garmentModel !== 'Tank Top' && (
-                <path d="M 26 21 L 12 36 L 20 46 L 29 38 Z" {...getZoneStyles('Manga Izquierda')} onClick={(e) => handleZoneClick('Manga Izquierda', e)} />
+                <path d="M 26 21 L 12 36 L 20 46 L 29 38 Z" {...getZoneStyles('Manga Derecha')} onClick={(e) => handleZoneClick('Manga Derecha', e)} />
               )}
-              
-              {/* Manga Derecha */}
+
+              {/* Manga Izquierda (lado derecho de la imagen, vista espejo) */}
               {garmentModel !== 'Tank Top' && (
-                <path d="M 74 21 L 88 36 L 80 46 L 71 38 Z" {...getZoneStyles('Manga Derecha')} onClick={(e) => handleZoneClick('Manga Derecha', e)} />
+                <path d="M 74 21 L 88 36 L 80 46 L 71 38 Z" {...getZoneStyles('Manga Izquierda')} onClick={(e) => handleZoneClick('Manga Izquierda', e)} />
               )}
             </svg>
           </div>
@@ -314,12 +326,51 @@ export const Visualizer: React.FC<VisualizerProps> = ({
             >
               Sí, Añadir
             </button>
-            <button 
-              type="button" 
+            <button
+              type="button"
               className="btn btn-outline-secondary btn-sm font-display px-3 py-1.5"
               onClick={() => setPendingZone(null)}
             >
               Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
+      {managingZone && (
+        <div
+          className="position-absolute top-50 start-50 translate-middle p-3 bg-white border border-light-subtle shadow-lg rounded-3 text-center"
+          style={{ zIndex: 100, width: '90%', maxWidth: '260px' }}
+        >
+          <div className="mb-3">
+            <i className="bi bi-check-circle-fill text-danger fs-3"></i>
+            <h6 className="text-dark mt-2 mb-1 fw-bold font-display uppercase tracking-wider small">
+              Zona seleccionada
+            </h6>
+            <p className="text-muted small m-0 uppercase tracking-widest fw-semibold" style={{ fontSize: '10px' }}>
+              {managingZone}
+            </p>
+          </div>
+          <div className="d-flex justify-content-center gap-2">
+            <button
+              type="button"
+              className="btn btn-danger btn-sm font-display px-3 py-1.5"
+              onClick={() => {
+                onPositionRemove(managingZone);
+                setManagingZone(null);
+              }}
+            >
+              <i className="bi bi-x-circle me-1"></i> Quitar
+            </button>
+            <button
+              type="button"
+              className="btn btn-outline-secondary btn-sm font-display px-3 py-1.5"
+              onClick={() => {
+                onSelectPositionForEditing(managingZone);
+                setManagingZone(null);
+              }}
+            >
+              Editar
             </button>
           </div>
         </div>
