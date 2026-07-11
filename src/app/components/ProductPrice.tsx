@@ -35,9 +35,11 @@ export default function ProductPrice({ product }: { product: Product }) {
   const { formatPrice } = useCurrency();
   const { minPrice, maxPrice, regular, discounted, pct } = getPricing(product);
 
+  // En rangos, el código de moneda solo va en el precio final ("$440 - $740 MXN"
+  // en vez de "$440 MXN - $740 MXN"): más corto y cabe en las tarjetas móviles.
   const display = minPrice === maxPrice
     ? formatPrice(minPrice)
-    : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
+    : `${formatPrice(minPrice).replace(/\s[A-Z]{2,4}$/, '')} - ${formatPrice(maxPrice)}`;
 
   return (
     <span className="nk-price-line">

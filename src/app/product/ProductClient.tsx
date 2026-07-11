@@ -301,7 +301,8 @@ export default function ProductClient({ initialProduct: product, relatedProducts
     const varsToConsider = matchingVariations.length > 0 ? matchingVariations : validVariations;
     const minPrice = Math.min(...varsToConsider.map(v => v.price));
     const maxPrice = Math.max(...varsToConsider.map(v => v.price));
-    displayPrice = minPrice === maxPrice ? formatPrice(minPrice) : `${formatPrice(minPrice)} - ${formatPrice(maxPrice)}`;
+    // Mismo formato que las tarjetas: el código de moneda solo en el precio final.
+    displayPrice = minPrice === maxPrice ? formatPrice(minPrice) : `${formatPrice(minPrice).replace(/\s[A-Z]{2,4}$/, '')} - ${formatPrice(maxPrice)}`;
 
     const cheapest = varsToConsider.reduce((a, b) => (b.price < a.price ? b : a));
     const cheapestRegular = cheapest.regularPrice || 0;
