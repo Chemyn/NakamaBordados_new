@@ -644,6 +644,33 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
     setTimeout(() => setIsSubmitShaking(false), 500);
   };
 
+  /* Tarjeta "¿Sin diseño?": se renderiza DOS veces con clases responsivas de
+     Bootstrap — arriba de todo en móvil (d-lg-none, antes de iniciar el flujo)
+     y en la columna derecha en desktop (d-none d-lg-block). */
+  const renderDesignerCard = (visibilityClass: string) => (
+    <div className={`custom-card bg-white border border-light-subtle mb-4 ${visibilityClass}`}>
+      <h4 className="font-display text-primary-brand mb-2">
+        <i className="bi bi-palette-fill me-2"></i>
+        ¿Tienes la idea pero no el diseño? 🎨
+      </h4>
+      <p className="text-muted small mb-3">
+        ¡No te preocupes! Si quieres empezar desde cero o no tienes una imagen lista,
+        te conectamos con un diseñador de confianza para darle vida a tu idea. Haz
+        clic aquí y platica con él por WhatsApp para crear tu diseño personalizado.
+      </p>
+      <a
+        href={`https://wa.me/526621438401?text=${encodeURIComponent('Hola, vengo del cotizador de Nakama Bordados. Tengo una idea pero aún no tengo el diseño, ¿me ayudas a crearlo?')}`}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="btn btn-outline-success py-2 font-display text-white border-success w-100"
+        style={{ backgroundColor: '#25D366' }}
+      >
+        <i className="bi bi-whatsapp me-2"></i>
+        Platicar con el diseñador
+      </a>
+    </div>
+  );
+
   // Helper panel inputs layout for Ropa positions
   const renderRopaPositionForm = (posName: string, slotTitle: string, isOptional: boolean, slotIndex: number, onRemove?: () => void) => {
     const pos = ropaConfig.positions[posName];
@@ -1087,7 +1114,10 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
           
           {/* COLUMNA IZQUIERDA: CONFIGURADOR + VISUALIZADOR */}
           <div className="col-12 col-lg-8">
-            
+
+            {/* ¿SIN DISEÑO? — en móvil es el PRIMER recuadro, antes de iniciar el flujo */}
+            {renderDesignerCard('d-lg-none')}
+
             {/* TABS DE PRODUCTO */}
             <div className="custom-card mb-4 bg-white border border-light-subtle">
               <h5 className="nk-step-label small mb-3">Paso 1: Selecciona el tipo de producto</h5>
@@ -1154,28 +1184,8 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
           <div className="col-12 col-lg-4">
             <div className="position-sticky" style={{ top: '24px' }}>
               
-              {/* ¿SIN DISEÑO? CONTACTO CON DISEÑADOR */}
-              <div className="custom-card bg-white border border-light-subtle mb-4">
-                <h4 className="font-display text-primary-brand mb-2">
-                  <i className="bi bi-palette-fill me-2"></i>
-                  ¿Tienes la idea pero no el diseño? 🎨
-                </h4>
-                <p className="text-muted small mb-3">
-                  ¡No te preocupes! Si quieres empezar desde cero o no tienes una imagen lista,
-                  te conectamos con un diseñador de confianza para darle vida a tu idea. Haz
-                  clic aquí y platica con él por WhatsApp para crear tu diseño personalizado.
-                </p>
-                <a
-                  href={`https://wa.me/526621438401?text=${encodeURIComponent('Hola, vengo del cotizador de Nakama Bordados. Tengo una idea pero aún no tengo el diseño, ¿me ayudas a crearlo?')}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="btn btn-outline-success py-2 font-display text-white border-success w-100"
-                  style={{ backgroundColor: '#25D366' }}
-                >
-                  <i className="bi bi-whatsapp me-2"></i>
-                  Platicar con el diseñador
-                </a>
-              </div>
+              {/* ¿SIN DISEÑO? CONTACTO CON DISEÑADOR (solo desktop; en móvil va arriba de todo) */}
+              {renderDesignerCard('d-none d-lg-block')}
 
               {/* DATOS DEL CLIENTE */}
               <div className="custom-card bg-white border border-light-subtle mb-4">
