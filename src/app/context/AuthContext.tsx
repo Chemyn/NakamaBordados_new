@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { fetchGraphQL } from '@/lib/graphql-client';
+import { apiOrigin } from '@/lib/api-host';
 
 interface OrderMeta {
   key: string;
@@ -283,7 +284,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // como usuario (wp_authenticate lo resuelve).
     try {
       const res = await fetch(
-        `https://nakamabordados.com/?rest_route=/nakama/v1/register&nkcb=${Date.now()}`,
+        `${apiOrigin()}/?rest_route=/nakama/v1/register&nkcb=${Date.now()}`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
+import { apiOrigin } from '@/lib/api-host';
 
 interface SocialLinks {
   facebook: string;
@@ -40,7 +41,7 @@ export default function MaintenanceWrapper({ children }: { children: React.React
     // nkcb: cache-buster; LiteSpeed cachea las respuestas del API y sin esto
     // un cambio del modo mantenimiento tardaría en verse (o serviría un 404
     // viejo sin CORS, rompiendo el fetch en dev).
-    fetch(`https://nakamabordados.com/?rest_route=/nakama/v1/maintenance&nkcb=${Date.now()}`)
+    fetch(`${apiOrigin()}/?rest_route=/nakama/v1/maintenance&nkcb=${Date.now()}`)
       .then(res => (res.ok ? res.json() : null))
       .then(data => {
         if (active && data) {

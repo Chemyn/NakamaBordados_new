@@ -13,6 +13,7 @@ import { generateQuotePDF } from './utils/pdfGenerator';
 import { getQuoteZIPBlob } from './utils/zipGenerator';
 import { compressImage } from './utils/imageCompressor';
 import { useAuth } from '../context/AuthContext';
+import { apiOrigin } from '@/lib/api-host';
 
 const availableGarmentPositions = [
   'Pecho Izquierdo',
@@ -525,7 +526,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
       try {
         // ?rest_route=: la ruta /wp-json/ da 404 con el .htaccess del sitio
         // (por eso los folios salían del fallback aleatorio y no del contador).
-        const folioRes = await fetch(`https://nakamabordados.com/?rest_route=/nakama/v1/next-folio&nkcb=${Date.now()}`);
+        const folioRes = await fetch(`${apiOrigin()}/?rest_route=/nakama/v1/next-folio&nkcb=${Date.now()}`);
         if (folioRes.ok) {
           const data = await folioRes.json();
           if (data && data.formatted) {
@@ -560,7 +561,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
         const headers: HeadersInit = { 'Content-Type': 'application/json' };
         const token = typeof window !== 'undefined' ? localStorage.getItem('wp-jwt') : null;
         if (token) headers['Authorization'] = `Bearer ${token}`;
-        await fetch(`https://nakamabordados.com/?rest_route=/nakama/v1/quote-order&nkcb=${Date.now()}`, {
+        await fetch(`${apiOrigin()}/?rest_route=/nakama/v1/quote-order&nkcb=${Date.now()}`, {
           method: 'POST',
           headers,
           body: JSON.stringify({

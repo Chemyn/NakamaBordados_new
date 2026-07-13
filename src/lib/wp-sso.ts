@@ -7,6 +7,8 @@
  * DESPUÉS abre /wp-admin, que ya no pide iniciar sesión de nuevo.
  */
 
+import { apiOrigin } from './api-host';
+
 const WP_BASE = 'https://nakamabordados.com';
 
 export const WP_ADMIN_URL =
@@ -23,7 +25,7 @@ export async function seedWpSession(): Promise<boolean> {
     const token =
       typeof window !== 'undefined' ? localStorage.getItem('wp-jwt') : null;
     if (!token) return false;
-    const res = await fetch(`${WP_BASE}/?rest_route=/nakama/v1/sso&nkcb=${Date.now()}`, {
+    const res = await fetch(`${apiOrigin()}/?rest_route=/nakama/v1/sso&nkcb=${Date.now()}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
     });

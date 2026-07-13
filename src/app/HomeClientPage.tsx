@@ -11,6 +11,7 @@ import {
 } from './components/home/HomeClientComponents';
 import { Product } from '@/types/product';
 import { fetchProductsSearch } from './data/products';
+import { apiOrigin } from '@/lib/api-host';
 
 interface HeroSources {
   webm?: string;
@@ -43,7 +44,7 @@ export default function HomeClientPage({ bestSellers: initialBestSellers, heroSo
     // Cargar config del hero si no está inicializada (nkcb evita respuestas
     // cacheadas por LiteSpeed: el video debe reflejar el cambio al instante).
     if (!heroSources) {
-      fetch((process.env.NEXT_PUBLIC_WP_REST_URL || 'https://nakamabordados.com') + `/?rest_route=/nakama/v1/hero-config&nkcb=${Date.now()}`)
+      fetch((process.env.NEXT_PUBLIC_WP_REST_URL || apiOrigin()) + `/?rest_route=/nakama/v1/hero-config&nkcb=${Date.now()}`)
         .then(res => {
           if (res.ok) return res.json();
           throw new Error('API failed');

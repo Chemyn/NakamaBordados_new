@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { apiOrigin } from '@/lib/api-host';
 
 type CurrencyData = {
   currency: string;
@@ -39,7 +40,7 @@ function applyUsdMarkup(rawRate: number): number {
  */
 async function fetchUsdRate(): Promise<number | null> {
   try {
-    const wpRes = await fetch(`https://nakamabordados.com/?rest_route=/nakama/v1/currency&nkcb=${Date.now()}`);
+    const wpRes = await fetch(`${apiOrigin()}/?rest_route=/nakama/v1/currency&nkcb=${Date.now()}`);
     if (wpRes.ok) {
       const wpData = await wpRes.json();
       if (typeof wpData?.usdRate === 'number' && wpData.usdRate > 0) {

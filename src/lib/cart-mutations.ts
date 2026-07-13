@@ -1,4 +1,5 @@
 import { fetchGraphQL } from './graphql-client';
+import { apiOrigin } from './api-host';
 
 // We need a helper to manage the session token
 export const SESSION_KEY = 'woo-session';
@@ -250,7 +251,7 @@ export async function getShippingRates(postcode: string, state: string, city: st
       };
     });
 
-    const response = await fetch('https://nakamabordados.com/?rest_route=/nakama/v1/shipping', {
+    const response = await fetch(`${apiOrigin()}/?rest_route=/nakama/v1/shipping`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ postcode, state, city, cart: formattedCart })

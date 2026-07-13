@@ -10,6 +10,7 @@ import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
 import ProductPrice from '../components/ProductPrice';
 import FreeShippingBadge from '../components/FreeShippingBadge';
+import { apiOrigin } from '@/lib/api-host';
 
 interface ProductClientProps {
   initialProduct: Product;
@@ -94,7 +95,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
     setSubmittingReview(true);
     setReviewMessage(null);
     try {
-      const apiHost = process.env.NEXT_PUBLIC_API_HOST || 'https://nakamabordados.com';
+      const apiHost = process.env.NEXT_PUBLIC_API_HOST || apiOrigin();
       const res = await fetch(`${apiHost}/wp-json/nakama/v1/submit-review`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

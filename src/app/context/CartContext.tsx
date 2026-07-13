@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product, Variation } from '@/types/product';
+import { apiOrigin } from '@/lib/api-host';
 
 export interface CartItem {
   product: Product;
@@ -141,7 +142,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     
     try {
       // Intentar validar usando la API real (requiere nakama-checkout-tools.php)
-      const res = await fetch(`https://nakamabordados.com/?rest_route=/nakama/v1/check-coupon&code=${normalized}`);
+      const res = await fetch(`${apiOrigin()}/?rest_route=/nakama/v1/check-coupon&code=${normalized}`);
       
       if (res.ok) {
         const data = await res.json();

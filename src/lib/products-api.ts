@@ -7,9 +7,9 @@
  */
 import { Product, Variation } from '@/types/product';
 import type { WPCategory, WPTag } from '@/lib/queries';
+import { apiOrigin } from '@/lib/api-host';
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_WP_REST_URL || 'https://nakamabordados.com';
+const API_BASE = process.env.NEXT_PUBLIC_WP_REST_URL || apiOrigin();
 
 /**
  * Reglas para ocultar variaciones al cliente en todo el catálogo (tienda,

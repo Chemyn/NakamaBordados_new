@@ -1,3 +1,16 @@
+# ----------------------------------------------------------------------
+# NAKAMA - Dominio canonico: redirigir www -> nakamabordados.com (301)
+# Debe ir ANTES de cualquier otra regla de rewrite. Sin esto el sitio se
+# sirve en DOS origenes y las llamadas del frontend (registro, folios,
+# pedidos de cotizacion) fallan por CORS para los visitantes en www.
+# La query string se conserva automaticamente en la redireccion.
+# ----------------------------------------------------------------------
+<IfModule mod_rewrite.c>
+RewriteEngine On
+RewriteCond %{HTTP_HOST} ^www\.nakamabordados\.com$ [NC]
+RewriteRule ^(.*)$ https://nakamabordados.com/$1 [R=301,L]
+</IfModule>
+
 # BEGIN Imagify: webp file type
 <IfModule mod_mime.c>
 	AddType image/webp .webp

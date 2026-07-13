@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { apiOrigin } from '@/lib/api-host';
 
-const MAINTENANCE_ENDPOINT = 'https://nakamabordados.com/?rest_route=/nakama/v1/maintenance';
+const MAINTENANCE_ENDPOINT = () => `${apiOrigin()}/?rest_route=/nakama/v1/maintenance`;
 
 /**
  * Toggle de Modo Mantenimiento (solo se monta en ADMIN TOOLS de mi-cuenta,
@@ -19,7 +20,7 @@ export default function MaintenanceToggle() {
     setEnabled(null);
     // nkcb: cache-buster; LiteSpeed cachea las respuestas del API y podría
     // servir un estado viejo (o un 404 de antes de instalar el plugin).
-    fetch(`${MAINTENANCE_ENDPOINT}&nkcb=${Date.now()}`)
+    fetch(`${MAINTENANCE_ENDPOINT()}&nkcb=${Date.now()}`)
       .then(res => (res.ok ? res.json() : Promise.reject(new Error(`HTTP ${res.status} (¿plugin nakama-products-api v1.3+ instalado en WP?)`))))
       .then(data => setEnabled(!!data?.maintenanceMode))
       .catch(err => {
@@ -49,7 +50,7 @@ export default function MaintenanceToggle() {
       const token = typeof window !== 'undefined' ? localStorage.getItem('wp-jwt') : null;
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
-      const res = await fetch(MAINTENANCE_ENDPOINT, {
+      const res = await fetch(MAINTENANCE_ENDPOINT(), {
         method: 'POST',
         headers,
         body: JSON.stringify({ enabled: newState }),

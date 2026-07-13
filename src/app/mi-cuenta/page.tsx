@@ -9,6 +9,7 @@ import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
 import MaintenanceToggle from '../components/MaintenanceToggle';
 import { openWpAdmin, seedWpSession, WP_ADMIN_URL } from '@/lib/wp-sso';
+import { apiOrigin } from '@/lib/api-host';
 
 /* Estados de pedido de WooCommerce en español. GraphQL los entrega como enum
    (ON_HOLD) y REST como slug (on-hold); se canonicaliza a slug antes de mapear. */
@@ -124,7 +125,7 @@ export default function MiCuentaPage() {
     try {
       // nkcb: LiteSpeed cachea las respuestas de ?rest_route= y serviría un
       // estado de rastreo viejo.
-      const res = await fetch(`https://nakamabordados.com/?rest_route=/nakama/v1/track-shipment&tracking=${encodeURIComponent(code)}&carrier=${encodeURIComponent(carrier.toLowerCase())}&nkcb=${Date.now()}`);
+      const res = await fetch(`${apiOrigin()}/?rest_route=/nakama/v1/track-shipment&tracking=${encodeURIComponent(code)}&carrier=${encodeURIComponent(carrier.toLowerCase())}&nkcb=${Date.now()}`);
       if (res.ok) {
         const data = await res.json();
         setTrackingResults(prev => ({
