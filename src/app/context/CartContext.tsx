@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Product, Variation } from '@/types/product';
 import { apiOrigin } from '@/lib/api-host';
+import { trackAddToCart } from '@/lib/analytics';
 
 export interface CartItem {
   product: Product;
@@ -113,6 +114,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       });
     }
     saveCart(newCart);
+
+    // GA4 add_to_cart + Pixel AddToCart (los precios locales son MXN base).
+    trackAddToCart({
+      id: product.id,
+      name: product.name,
+      price: variation ? variation.price : product.price,
+      quantity: qty,
+      currency: 'MXN',
+    });
   };
 
   const removeFromCart = (index: number) => {

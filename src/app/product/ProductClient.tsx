@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import DOMPurify from 'isomorphic-dompurify';
@@ -11,6 +11,7 @@ import { useLanguage } from '../context/LanguageContext';
 import ProductPrice from '../components/ProductPrice';
 import FreeShippingBadge from '../components/FreeShippingBadge';
 import { apiOrigin } from '@/lib/api-host';
+import { trackViewContent } from '@/lib/analytics';
 
 interface ProductClientProps {
   initialProduct: Product;
@@ -62,6 +63,17 @@ export default function ProductClient({ initialProduct: product, relatedProducts
   const [activeTab, setActiveTab] = useState<'desc' | 'care' | 'reviews' | 'sizes'>('desc');
   const [showAllThumbs, setShowAllThumbs] = useState(false);
   const [zoomImage, setZoomImage] = useState<string | null>(null);
+
+  // GA4 view_item + Pixel ViewContent, una vez por producto visto (los
+  // precios locales son MXN base). Alimenta retargeting y catálogo en Meta.
+  useEffect(() => {
+    trackViewContent({
+      id: product.databaseId || product.id,
+      name: product.name,
+      price: product.price,
+      currency: 'MXN',
+    });
+  }, [product.id, product.databaseId, product.name, product.price]);
 
   const dbReviews = product.reviews || [];
   const reviewCount = dbReviews.length;

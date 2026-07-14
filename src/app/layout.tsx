@@ -9,6 +9,7 @@ import Navbar from "./components/Navbar";
 import Footer from "./components/Footer";
 import WhatsAppButton from "./components/WhatsAppButton";
 import MaintenanceWrapper from "./components/MaintenanceWrapper";
+import Analytics from "./components/Analytics";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -69,6 +70,11 @@ export default function RootLayout({
   return (
     <html lang="es">
       <body>
+        {/* GA4 + Meta Pixel (headless): mismos IDs que Site Kit y el plugin
+            del Pixel en WP. Suspense obligatorio por useSearchParams. */}
+        <Suspense fallback={null}>
+          <Analytics />
+        </Suspense>
         <AuthProvider>
           <LanguageProvider>
             <CurrencyProvider>
