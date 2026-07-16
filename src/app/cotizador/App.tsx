@@ -645,19 +645,28 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
     setTimeout(() => setIsSubmitShaking(false), 500);
   };
 
-  /* Tarjeta "¿Sin diseño?": se renderiza DOS veces con clases responsivas de
-     Bootstrap — arriba de todo en móvil (d-lg-none, antes de iniciar el flujo)
-     y en la columna derecha en desktop (d-none d-lg-block). */
+  /* Tarjeta del diseñador: filtra a quien YA tiene su diseño (que cotice solo
+     en la web) de quien necesita diseño desde cero/vectorizar/quitar fondo.
+     Se renderiza DOS veces con clases responsivas de Bootstrap — arriba de
+     todo en móvil (d-lg-none, antes de iniciar el flujo) y en la columna
+     derecha en desktop (d-none d-lg-block). */
   const renderDesignerCard = (visibilityClass: string) => (
     <div className={`custom-card bg-white border border-light-subtle mb-4 ${visibilityClass}`}>
-      <h4 className="font-display text-primary-brand mb-2">
-        <i className="bi bi-palette-fill me-2"></i>
-        ¿Tienes la idea pero no el diseño? 🎨
-      </h4>
+      <h5 className="font-display text-primary-brand mb-2">
+        ¿Ya tienes tu imagen, logo o diseño listo en buena calidad?
+      </h5>
       <p className="text-muted small mb-3">
-        ¡No te preocupes! Si quieres empezar desde cero o no tienes una imagen lista,
-        te conectamos con un diseñador de confianza para darle vida a tu idea. Haz
-        clic aquí y platica con él por WhatsApp para crear tu diseño personalizado.
+        ➡️ ¡Súbelo directamente al cotizador de nuestra web! Ahí podrás ver el
+        precio final de tu prenda y hacer tu pedido de inmediato sin esperar a
+        que un diseñador te responda.
+      </p>
+      <h5 className="font-display text-primary-brand mb-2">
+        ¿De verdad necesitas que diseñemos desde cero, vectoricemos o quitemos un fondo?
+      </h5>
+      <p className="text-muted small mb-3">
+        ➡️ ¡Perfecto, estás en el lugar correcto! Cuéntanos a detalle tu idea
+        aquí abajo y en breve el diseñador te atenderá para cotizar el servicio
+        de diseño.
       </p>
       <a
         href={`https://wa.me/526621438401?text=${encodeURIComponent('Hola, vengo del cotizador de Nakama Bordados. Tengo una idea pero aún no tengo el diseño, ¿me ayudas a crearlo?')}`}
@@ -667,7 +676,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
         style={{ backgroundColor: '#25D366' }}
       >
         <i className="bi bi-whatsapp me-2"></i>
-        Platicar con el diseñador
+        Solicitar diseño desde cero
       </a>
     </div>
   );
