@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Envia.com Tracking Integration
  * Description: Sistema completo de rastreo: Webhook de Envia, Proxy de consulta segura, línea de tiempo vía 17TRACK, exposición en WPGraphQL y pantalla de ajustes (tokens/secret).
- * Version: 1.3.2
+ * Version: 1.4
  * Author: Nakama
  */
 
@@ -27,6 +27,87 @@ function nakama_envia_order_meta( $order_id, $key ) {
     }
     $order = wc_get_order( $order_id );
     return $order ? $order->get_meta( $key ) : '';
+}
+
+/**
+ * Localiza la guía de rastreo en un pedido sin depender de una sola clave de
+ * metadato. Los plugins de Envia/paquetería guardan la guía con su propia
+ * clave (no siempre la nuestra `_envia_tracking_code`), así que buscamos en
+ * varias fuentes. Devuelve array( 'code' => string, 'carrier' => string ).
+ */
+function nakama_find_order_tracking( $order ) {
+    if ( ! $order ) {
+        return array( 'code' => '', 'carrier' => '' );
+    }
+
+    // 1. Nuestra clave (webhook de Envia): la más confiable si existe.
+    $code = $order->get_meta( '_envia_tracking_code' );
+    if ( ! empty( $code ) ) {
+        return array( 'code' => (string) $code, 'carrier' => (string) $order->get_meta( '_envia_carrier' ) );
+    }
+
+    // 2. Claves escalares conocidas de otros plugins de tracking.
+    $number_keys  = array( '_tracking_number', 'tracking_number', '_wt_tracking_number', '_aftership_tracking_number' );
+    $carrier_keys = array( '_tracking_company', 'tracking_company', '_tracking_provider', 'tracking_provider', 'carrier' );
+    foreach ( $number_keys as $nk ) {
+        $v = $order->get_meta( $nk );
+        if ( ! empty( $v ) && is_scalar( $v ) ) {
+            $carrier = '';
+            foreach ( $carrier_keys as $ck ) {
+                $cv = $order->get_meta( $ck );
+                if ( ! empty( $cv ) && is_scalar( $cv ) ) { $carrier = (string) $cv; break; }
+            }
+            return array( 'code' => (string) $v, 'carrier' => $carrier );
+        }
+    }
+
+    // 3. Escaneo de TODOS los metadatos por si la guía vive dentro de un array
+    //    o un JSON (el plugin de Envia guarda el envío como objeto con
+    //    tracking_number/tracking_company anidados).
+    foreach ( $order->get_meta_data() as $meta ) {
+        $data  = $meta->get_data();
+        $value = isset( $data['value'] ) ? $data['value'] : null;
+        if ( is_string( $value ) ) {
+            $decoded = json_decode( $value, true );
+            if ( is_array( $decoded ) ) {
+                $value = $decoded;
+            }
+        }
+        $hit = nakama_extract_tracking( $value );
+        if ( $hit ) {
+            return $hit;
+        }
+    }
+
+    return array( 'code' => '', 'carrier' => '' );
+}
+
+/**
+ * Busca recursivamente un tracking_number dentro de un array anidado
+ * (objeto de envío o lista de envíos). Devuelve el primer hallazgo o null.
+ */
+function nakama_extract_tracking( $value ) {
+    if ( ! is_array( $value ) ) {
+        return null;
+    }
+
+    if ( ! empty( $value['tracking_number'] ) && is_scalar( $value['tracking_number'] ) ) {
+        $carrier = '';
+        foreach ( array( 'tracking_company', 'carrier', 'tracking_provider', 'carrier_name', 'provider' ) as $k ) {
+            if ( ! empty( $value[ $k ] ) && is_scalar( $value[ $k ] ) ) { $carrier = (string) $value[ $k ]; break; }
+        }
+        return array( 'code' => (string) $value['tracking_number'], 'carrier' => $carrier );
+    }
+
+    foreach ( $value as $sub ) {
+        if ( is_array( $sub ) ) {
+            $hit = nakama_extract_tracking( $sub );
+            if ( $hit ) {
+                return $hit;
+            }
+        }
+    }
+    return null;
 }
 
 /**
@@ -133,19 +214,19 @@ function nakama_17track_register( $tracking_number, $carrier = '' ) {
 add_action( 'graphql_register_types', function() {
     register_graphql_field( 'Order', 'enviaTrackingCode', [
         'type' => 'String',
-        'description' => 'Código de rastreo de Envia.com',
+        'description' => 'Código de rastreo (busca en varias claves de metadatos)',
         'resolve' => function( $order ) {
-            $tracking_code = nakama_envia_order_meta( $order->databaseId, '_envia_tracking_code' );
-            return ! empty( $tracking_code ) ? $tracking_code : null;
+            $found = nakama_find_order_tracking( wc_get_order( $order->databaseId ) );
+            return ! empty( $found['code'] ) ? $found['code'] : null;
         }
     ]);
 
     register_graphql_field( 'Order', 'enviaCarrier', [
         'type' => 'String',
-        'description' => 'Paquetería asignada por Envia.com',
+        'description' => 'Paquetería asignada',
         'resolve' => function( $order ) {
-            $carrier = nakama_envia_order_meta( $order->databaseId, '_envia_carrier' );
-            return ! empty( $carrier ) ? $carrier : null;
+            $found = nakama_find_order_tracking( wc_get_order( $order->databaseId ) );
+            return ! empty( $found['carrier'] ) ? $found['carrier'] : null;
         }
     ]);
 });
@@ -960,6 +1041,42 @@ function nakama_envia_render_settings_page() {
             </table>
             <?php submit_button(); ?>
         </form>
+
+        <hr />
+        <h2>Diagnóstico de guía en pedidos</h2>
+        <p class="description">Escribe el ID de un pedido para ver dónde quedó guardada su guía de rastreo. Útil cuando la guía la crea otro plugin de Envia con su propia clave de metadato.</p>
+        <form method="get">
+            <input type="hidden" name="page" value="nakama-envia" />
+            <p>
+                <label>ID de pedido:
+                    <input type="number" name="debug_order" value="<?php echo isset( $_GET['debug_order'] ) ? absint( $_GET['debug_order'] ) : ''; ?>" class="small-text" />
+                </label>
+                <button type="submit" class="button">Ver metadatos</button>
+            </p>
+        </form>
+        <?php
+        $debug_order_id = isset( $_GET['debug_order'] ) ? absint( $_GET['debug_order'] ) : 0;
+        if ( $debug_order_id ) {
+            $dbg_order = function_exists( 'wc_get_order' ) ? wc_get_order( $debug_order_id ) : null;
+            if ( ! $dbg_order ) {
+                echo '<div class="notice notice-error inline"><p>No se encontró el pedido #' . esc_html( $debug_order_id ) . '.</p></div>';
+            } else {
+                $found = nakama_find_order_tracking( $dbg_order );
+                echo '<p><strong>El buscador detecta:</strong> <code>' . esc_html( wp_json_encode( $found ) ) . '</code>';
+                echo empty( $found['code'] )
+                    ? ' &mdash; <span style="color:#b32d2e;">NO encontró guía. Revisa abajo en qué clave está y avísame para agregarla.</span></p>'
+                    : ' &mdash; <span style="color:#1a7f37;">✓ La guía se leerá bien en Mi Cuenta.</span></p>';
+                echo '<p><strong>Todos los metadatos del pedido #' . esc_html( $debug_order_id ) . ':</strong></p>';
+                echo '<textarea readonly rows="16" style="width:100%;font-family:monospace;font-size:12px;">';
+                foreach ( $dbg_order->get_meta_data() as $meta ) {
+                    $d   = $meta->get_data();
+                    $val = is_scalar( $d['value'] ) ? $d['value'] : wp_json_encode( $d['value'] );
+                    echo esc_textarea( $d['key'] . ' = ' . $val . "\n" );
+                }
+                echo '</textarea>';
+            }
+        }
+        ?>
     </div>
     <?php
 }
