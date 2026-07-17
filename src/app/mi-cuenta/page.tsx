@@ -30,6 +30,59 @@ const orderStatusSlug = (status: unknown): string =>
 const orderStatusLabel = (status: unknown): string =>
   ORDER_STATUS_ES[orderStatusSlug(status)] || String(status ?? '');
 
+/* Seguimiento gráfico: la respuesta de /nakama/v1/track-timeline (17TRACK con
+   fallback a Envia) trae el enum de estado + el historial de eventos. */
+interface TrackTimelineEvent {
+  time: string;
+  status: string;
+  description: string;
+  location: string;
+}
+
+interface TrackTimeline {
+  success: boolean;
+  source: string;
+  number: string;
+  carrier_name: string;
+  status: string;
+  sub_status: string;
+  status_es: string;
+  delivered_time: string | null;
+  events: TrackTimelineEvent[];
+}
+
+const TRACK_STEPS = [
+  { key: 'InfoReceived', label: 'Información recibida', icon: 'receipt_long' },
+  { key: 'InTransit', label: 'En tránsito', icon: 'local_shipping' },
+  { key: 'OutForDelivery', label: 'En reparto', icon: 'markunread_mailbox' },
+  { key: 'Delivered', label: 'Entregado', icon: 'task_alt' },
+] as const;
+
+/** Índice del paso del stepper que corresponde al estado de 17TRACK. */
+const trackStepIndex = (status: string): number => {
+  switch (status) {
+    case 'InfoReceived': return 0;
+    case 'InTransit':
+    case 'Expired':
+    case 'Exception': return 1;
+    case 'OutForDelivery':
+    case 'AvailableForPickup':
+    case 'DeliveryFailure': return 2;
+    case 'Delivered': return 3;
+    default: return -1; // NotFound / sin datos
+  }
+};
+
+const isTrackProblem = (status: string): boolean =>
+  status === 'Exception' || status === 'DeliveryFailure';
+
+const formatEventTime = (iso: string): string => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  return d.toLocaleString('es-MX', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+};
+
 export default function MiCuentaPage() {
   const { user, login, register, logout, refreshUser, isLoading, isAdmin } = useAuth();
   const { formatPrice, currencyInfo } = useCurrency();
@@ -124,18 +177,20 @@ export default function MiCuentaPage() {
     setTrackingLoading(code);
     try {
       // nkcb: LiteSpeed cachea las respuestas de ?rest_route= y serviría un
-      // estado de rastreo viejo.
-      const res = await fetch(`${apiOrigin()}/?rest_route=/nakama/v1/track-shipment&tracking=${encodeURIComponent(code)}&carrier=${encodeURIComponent(carrier.toLowerCase())}&nkcb=${Date.now()}`);
+      // estado de rastreo viejo. El servidor tiene su propio caché (transient).
+      const res = await fetch(`${apiOrigin()}/?rest_route=/nakama/v1/track-timeline&tracking=${encodeURIComponent(code)}&carrier=${encodeURIComponent(carrier.toLowerCase())}&nkcb=${Date.now()}`);
       if (res.ok) {
-        const data = await res.json();
+        const data: TrackTimeline = await res.json();
         setTrackingResults(prev => ({
           ...prev,
-          [code]: data.data?.[0] || { status: 'desconocido', description: 'No se encontraron datos.' }
+          [code]: data && data.status
+            ? data
+            : { success: false, status: 'NotFound', status_es: 'No se encontraron datos.', events: [] }
         }));
       } else {
         setTrackingResults(prev => ({
           ...prev,
-          [code]: { status: 'error', description: 'Error al consultar la paquetería.' }
+          [code]: { success: false, status: 'NotFound', status_es: 'Error al consultar la paquetería.', events: [] }
         }));
       }
     } catch (e) {
@@ -144,6 +199,23 @@ export default function MiCuentaPage() {
       setTrackingLoading(null);
     }
   };
+
+  // Auto-carga del seguimiento al abrir el tab (el transient del servidor hace
+  // baratas las consultas repetidas). Escalonado para no rebasar el límite de
+  // peticiones del proxy cuando hay varios envíos.
+  useEffect(() => {
+    if (activeTab !== 'tracking' || !user?.orders?.nodes) return;
+    const pending = user.orders.nodes.filter(
+      (o: any) => o.enviaTrackingCode && !trackingResults[o.enviaTrackingCode]
+    );
+    const timers = pending.map((o: any, i: number) =>
+      setTimeout(() => fetchTracking(o.enviaTrackingCode, o.enviaCarrier || 'estafeta'), i * 400)
+    );
+    return () => timers.forEach(clearTimeout);
+    // trackingResults/fetchTracking intencionalmente fuera de deps: solo debe
+    // dispararse al entrar al tab o al cambiar los pedidos, no en cada resultado.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, user]);
 
   if (isLoading) {
     return (
@@ -362,7 +434,9 @@ export default function MiCuentaPage() {
                         <div className="nk-tracking-list">
                           {user.orders.nodes.filter((o: any) => o.enviaTrackingCode).map((order: any) => {
                             const code = order.enviaTrackingCode;
-                            const res = trackingResults[code];
+                            const res: TrackTimeline | undefined = trackingResults[code];
+                            const stepIndex = res ? trackStepIndex(res.status) : -1;
+                            const hasProblem = res ? isTrackProblem(res.status) : false;
                             return (
                               <div key={`track-${order.id}`} className="nk-tracking-card nk-manga-border">
                                 <div className="nk-tracking-header">
@@ -375,23 +449,60 @@ export default function MiCuentaPage() {
                                       <p className="nk-label">Guía de Rastreo</p>
                                       <p className="nk-track-code">{code}</p>
                                     </div>
-                                    <button 
-                                      className="nk-btn" 
-                                      onClick={() => fetchTracking(code, order.enviaCarrier || 'estafeta')} 
+                                    <button
+                                      className="nk-btn"
+                                      onClick={() => fetchTracking(code, order.enviaCarrier || 'estafeta')}
                                       disabled={trackingLoading === code}
                                     >
-                                      {trackingLoading === code ? '...' : 'Ver Estado'}
+                                      {trackingLoading === code ? '...' : res ? 'Actualizar' : 'Ver Estado'}
                                     </button>
                                   </div>
 
                                   {res && (
                                     <div className="nk-tracking-details nk-dash-animate">
-                                      <p className="nk-track-status">
-                                        ESTADO: {res.status || 'En camino'}
+                                      <p className={`nk-track-status ${hasProblem ? 'nk-track-status-problem' : ''}`}>
+                                        {res.status_es || 'En camino'}
                                       </p>
-                                      <p className="nk-track-desc">{res.description || 'El paquete está siendo procesado por la tripulación logística.'}</p>
-                                      {res.checkpoint && (
-                                        <p className="nk-track-checkpoint">Último avistamiento: {res.checkpoint}</p>
+
+                                      {/* Stepper de progreso: 4 etapas del envío */}
+                                      <div className="nk-track-stepper">
+                                        {TRACK_STEPS.map((step, i) => {
+                                          const isDone = stepIndex >= 0 && i <= stepIndex;
+                                          const isCurrent = i === stepIndex;
+                                          const label = res.status === 'AvailableForPickup' && i === 2
+                                            ? 'Listo para recoger'
+                                            : step.label;
+                                          return (
+                                            <div
+                                              key={step.key}
+                                              className={`nk-track-step${isDone ? ' is-done' : ''}${isCurrent ? ' is-current' : ''}${isCurrent && hasProblem ? ' is-problem' : ''}`}
+                                            >
+                                              <span className="nk-track-step-icon material-icons-outlined">{step.icon}</span>
+                                              <span className="nk-track-step-label">{label}</span>
+                                            </div>
+                                          );
+                                        })}
+                                      </div>
+
+                                      {/* Línea de tiempo de eventos (más reciente primero) */}
+                                      {res.events && res.events.length > 0 ? (
+                                        <div className="nk-track-timeline">
+                                          {res.events.map((ev, i) => (
+                                            <div key={`${code}-ev-${i}`} className={`nk-track-event${i === 0 ? ' nk-track-event-latest' : ''}`}>
+                                              <span className="nk-track-event-dot"></span>
+                                              <div>
+                                                <p className="nk-track-event-desc">{ev.description || ev.status}</p>
+                                                {(ev.time || ev.location) && (
+                                                  <p className="nk-track-event-meta">
+                                                    {[formatEventTime(ev.time), ev.location].filter(Boolean).join(' · ')}
+                                                  </p>
+                                                )}
+                                              </div>
+                                            </div>
+                                          ))}
+                                        </div>
+                                      ) : (
+                                        <p className="nk-track-desc">La paquetería aún no reporta movimientos. Intenta más tarde.</p>
                                       )}
                                       <div style={{ marginTop: '20px' }}>
                                         <a 
@@ -1067,6 +1178,143 @@ export default function MiCuentaPage() {
           padding: 15px;
           border-left: 4px solid var(--nk-primary);
           background: var(--nk-bg-wrapper);
+        }
+
+        .nk-track-status {
+          font-weight: 900;
+          font-size: 1.15rem;
+          text-transform: uppercase;
+          letter-spacing: 1px;
+          color: var(--nk-primary);
+        }
+
+        .nk-track-status-problem {
+          color: #e74c3c;
+        }
+
+        /* Stepper horizontal de 4 etapas */
+        .nk-track-stepper {
+          display: flex;
+          margin: 20px 0 24px;
+        }
+
+        .nk-track-step {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          position: relative;
+          gap: 6px;
+        }
+
+        /* Conector entre pasos */
+        .nk-track-step::before {
+          content: '';
+          position: absolute;
+          top: 17px;
+          right: 50%;
+          width: 100%;
+          height: 3px;
+          background: var(--nk-border, rgba(128, 128, 128, 0.35));
+          z-index: 0;
+        }
+
+        .nk-track-step:first-child::before {
+          display: none;
+        }
+
+        .nk-track-step.is-done::before {
+          background: var(--nk-primary);
+        }
+
+        .nk-track-step-icon {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 19px !important;
+          background: var(--nk-bg-card);
+          border: 2px solid var(--nk-border, rgba(128, 128, 128, 0.45));
+          color: var(--nk-text-sec);
+          position: relative;
+          z-index: 1;
+        }
+
+        .nk-track-step.is-done .nk-track-step-icon {
+          background: var(--nk-primary);
+          border-color: var(--nk-primary);
+          color: #fff;
+        }
+
+        .nk-track-step.is-current .nk-track-step-icon {
+          box-shadow: 0 0 0 4px rgba(230, 57, 70, 0.25);
+        }
+
+        .nk-track-step.is-problem .nk-track-step-icon {
+          background: #e74c3c;
+          border-color: #e74c3c;
+          box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.25);
+        }
+
+        .nk-track-step-label {
+          font-size: 0.68rem;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          text-transform: uppercase;
+          color: var(--nk-text-sec);
+          max-width: 90px;
+          line-height: 1.25;
+        }
+
+        .nk-track-step.is-done .nk-track-step-label {
+          color: var(--nk-text);
+        }
+
+        /* Línea de tiempo vertical de eventos */
+        .nk-track-timeline {
+          margin: 6px 0 0 6px;
+          border-left: 2px solid var(--nk-border, rgba(128, 128, 128, 0.35));
+          padding-left: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 16px;
+        }
+
+        .nk-track-event {
+          position: relative;
+        }
+
+        .nk-track-event-dot {
+          position: absolute;
+          left: -26px;
+          top: 5px;
+          width: 10px;
+          height: 10px;
+          border-radius: 50%;
+          background: var(--nk-border, rgba(128, 128, 128, 0.6));
+        }
+
+        .nk-track-event-latest .nk-track-event-dot {
+          background: var(--nk-primary);
+          box-shadow: 0 0 0 4px rgba(230, 57, 70, 0.2);
+        }
+
+        .nk-track-event-desc {
+          font-size: 0.9rem;
+          line-height: 1.4;
+        }
+
+        .nk-track-event-latest .nk-track-event-desc {
+          font-weight: 700;
+        }
+
+        .nk-track-event-meta {
+          font-size: 0.78rem;
+          color: var(--nk-text-sec);
+          margin-top: 2px;
         }
 
         /* Commissions & Profile */

@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Nakama Envia.com Tracking Integration
- * Description: Sistema completo de rastreo: Webhook de Envia, Proxy de consulta segura, exposición en WPGraphQL y pantalla de ajustes (token/secret).
- * Version: 1.2
+ * Description: Sistema completo de rastreo: Webhook de Envia, Proxy de consulta segura, línea de tiempo vía 17TRACK, exposición en WPGraphQL y pantalla de ajustes (tokens/secret).
+ * Version: 1.3
  * Author: Nakama
  */
 
@@ -37,6 +37,96 @@ function nakama_envia_no_cache( $response ) {
     $response->header( 'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0' );
     $response->header( 'X-LiteSpeed-Cache-Control', 'no-cache' );
     return $response;
+}
+
+// ---------------------------------------------------------------------------
+// 17TRACK (api.17track.net v2.4): aporta el historial COMPLETO de eventos para
+// la línea de tiempo de Mi Cuenta. La guía sigue llegando por el webhook de
+// Envia; 17TRACK solo enriquece la consulta. El token es secreto (server-side).
+// ---------------------------------------------------------------------------
+
+function nakama_17track_token() {
+    return getenv( 'SEVENTEENTRACK_TOKEN' ) ?: get_option( 'nakama_17track_token', '' );
+}
+
+/**
+ * POST a un endpoint de 17TRACK v2.4. $payload es el array de guías (máx 40).
+ * Devuelve el JSON decodificado o WP_Error.
+ */
+function nakama_17track_request( $endpoint, $payload ) {
+    $token = nakama_17track_token();
+    if ( empty( $token ) ) {
+        return new WP_Error( 'not_configured', 'Token de 17TRACK no configurado' );
+    }
+
+    $response = wp_remote_post( 'https://api.17track.net/track/v2.4/' . $endpoint, array(
+        'timeout' => 15,
+        'headers' => array(
+            'Content-Type' => 'application/json',
+            '17token'      => $token,
+        ),
+        'body'    => wp_json_encode( $payload ),
+    ) );
+
+    if ( is_wp_error( $response ) ) {
+        return $response;
+    }
+
+    $data = json_decode( wp_remote_retrieve_body( $response ), true );
+    if ( ! is_array( $data ) ) {
+        return new WP_Error( 'bad_response', 'Respuesta inválida de 17TRACK' );
+    }
+    return $data;
+}
+
+/**
+ * Mapa nombre de paquetería (como la reporta Envia) → código de carrier de
+ * 17TRACK. Si la paquetería no está aquí se omite el código y 17TRACK la
+ * auto-detecta a partir del formato de la guía.
+ */
+function nakama_17track_carrier_code( $carrier ) {
+    $map = array(
+        'estafeta'      => 100139,
+        'dhl'           => 100001,
+        'fedex'         => 100003,
+        'ups'           => 100002,
+        'paquetexpress' => 100147,
+        'redpack'       => 100138,
+    );
+    $key = strtolower( trim( (string) $carrier ) );
+    return isset( $map[ $key ] ) ? $map[ $key ] : 0;
+}
+
+/** Estados de 17TRACK → etiqueta en español para el cliente. */
+function nakama_17track_status_es( $status ) {
+    $map = array(
+        'NotFound'           => 'Sin información aún',
+        'InfoReceived'       => 'Información recibida',
+        'InTransit'          => 'En tránsito',
+        'Expired'            => 'Sin actualizaciones recientes',
+        'AvailableForPickup' => 'Listo para recoger en sucursal',
+        'OutForDelivery'     => 'En reparto',
+        'DeliveryFailure'    => 'Intento de entrega fallido',
+        'Delivered'          => 'Entregado',
+        'Exception'          => 'Incidencia en el envío',
+    );
+    return isset( $map[ $status ] ) ? $map[ $status ] : $status;
+}
+
+/**
+ * Registra una guía en 17TRACK (consume 1 de cuota, solo la primera vez;
+ * re-registrar devuelve -18019901 y es inofensivo). Nunca lanza.
+ */
+function nakama_17track_register( $tracking_number, $carrier = '' ) {
+    $item = array(
+        'number' => (string) $tracking_number,
+        'lang'   => 'es',
+    );
+    $code = nakama_17track_carrier_code( $carrier );
+    if ( $code ) {
+        $item['carrier'] = $code;
+    }
+    return nakama_17track_request( 'register', array( $item ) );
 }
 
 // 1. EXPONER CAMPOS EN WPGRAPHQL
@@ -76,6 +166,14 @@ add_action( 'rest_api_init', function () {
         'methods' => 'GET',
         'callback' => 'nakama_get_tracking_data',
         'permission_callback' => '__return_true', // Permitimos consulta pública (se podría asegurar con JWT)
+    ) );
+
+    // Línea de tiempo de rastreo (17TRACK con fallback a Envia) para Mi Cuenta.
+    // URL: https://tudominio.com/?rest_route=/nakama/v1/track-timeline
+    register_rest_route( 'nakama/v1', '/track-timeline', array(
+        'methods'  => 'GET',
+        'callback' => 'nakama_get_track_timeline',
+        'permission_callback' => '__return_true', // Consulta pública, igual que track-shipment.
     ) );
 
     // Endpoint Proxy para cotizar envíos (rate) desde el frontend estático (Next.js export)
@@ -153,6 +251,13 @@ function nakama_handle_envia_webhook( WP_REST_Request $request ) {
     }
     $order->add_order_note( sprintf( 'Guía de Envia.com registrada: %s%s', sanitize_text_field( $tracking_number ), $carrier ? ' (' . sanitize_text_field( $carrier ) . ')' : '' ) );
     $order->save();
+
+    // Registro proactivo en 17TRACK: así cuando el cliente abra Mi Cuenta la
+    // línea de tiempo ya tiene datos. Nunca debe romper el webhook (la función
+    // devuelve WP_Error en fallo, no lanza) y re-registrar es inofensivo.
+    if ( ! empty( nakama_17track_token() ) ) {
+        nakama_17track_register( $tracking_number, (string) $carrier );
+    }
 
     return nakama_envia_no_cache( rest_ensure_response( array( 'success' => true, 'order_id' => $order->get_id(), 'tracking' => $tracking_number ) ) );
 }
@@ -263,6 +368,255 @@ function nakama_get_tracking_data( WP_REST_Request $request ) {
     $response_obj->header( 'Access-Control-Allow-Methods', 'GET' );
 
     return nakama_envia_no_cache( $response_obj );
+}
+
+// 4.5 LÍNEA DE TIEMPO DE RASTREO (17TRACK v2.4, fallback a Envia)
+// Devuelve el historial completo de eventos para pintar el seguimiento gráfico
+// en Mi Cuenta. Consultar 17TRACK no consume cuota (solo el registro inicial
+// de cada guía) y la respuesta se cachea en un transient para respetar el
+// límite de 3 req/s y hacer gratis el auto-refresh del frontend.
+function nakama_get_track_timeline( WP_REST_Request $request ) {
+    $tracking = trim( (string) $request->get_param( 'tracking' ) );
+    $carrier  = trim( (string) $request->get_param( 'carrier' ) );
+
+    if ( '' === $tracking ) {
+        return new WP_Error( 'missing_params', 'tracking es requerido', array( 'status' => 400 ) );
+    }
+
+    $cache_key = 'nakama_17t_' . md5( $tracking . '|' . strtolower( $carrier ) );
+    $cached    = get_transient( $cache_key );
+    if ( is_array( $cached ) ) {
+        return nakama_track_timeline_respond( $cached );
+    }
+
+    $result = nakama_17track_timeline_payload( $tracking, $carrier );
+
+    // Fallback: sin token, error de 17TRACK o guía irreconocible → Envia
+    // (un solo evento, pero la tarjeta nunca queda vacía).
+    if ( null === $result && '' !== $carrier ) {
+        $result = nakama_envia_timeline_fallback( $request, $tracking, $carrier );
+    }
+
+    if ( null === $result ) {
+        $result = array(
+            'success'        => false,
+            'source'         => 'none',
+            'number'         => $tracking,
+            'carrier_name'   => $carrier,
+            'status'         => 'NotFound',
+            'sub_status'     => '',
+            'status_es'      => 'Sin información aún',
+            'delivered_time' => null,
+            'events'         => array(),
+        );
+    }
+
+    // Éxito: 30 min. Fallo: 5 min (permite reintentar pronto sin martillar).
+    set_transient( $cache_key, $result, ( ! empty( $result['success'] ) ? 30 : 5 ) * MINUTE_IN_SECONDS );
+
+    return nakama_track_timeline_respond( $result );
+}
+
+/** Respuesta REST con CORS y no-cache (mismo patrón que track-shipment). */
+function nakama_track_timeline_respond( $payload ) {
+    $response_obj = rest_ensure_response( $payload );
+    $response_obj->header( 'Access-Control-Allow-Origin', '*' );
+    $response_obj->header( 'Access-Control-Allow-Methods', 'GET' );
+    return nakama_envia_no_cache( $response_obj );
+}
+
+/**
+ * Consulta 17TRACK y normaliza. Devuelve null si no hay token o la API falla
+ * (para que el caller caiga a Envia). Si la guía no estaba registrada, la
+ * registra (1 de cuota) y reintenta una vez.
+ */
+function nakama_17track_timeline_payload( $tracking, $carrier ) {
+    if ( empty( nakama_17track_token() ) ) {
+        return null;
+    }
+
+    $item = array( 'number' => $tracking );
+    $code = nakama_17track_carrier_code( $carrier );
+    if ( $code ) {
+        $item['carrier'] = $code;
+    }
+
+    $data = nakama_17track_request( 'gettrackinfo', array( $item ) );
+    if ( is_wp_error( $data ) ) {
+        return null;
+    }
+
+    $accepted = isset( $data['data']['accepted'] ) && is_array( $data['data']['accepted'] ) ? $data['data']['accepted'] : array();
+
+    if ( empty( $accepted ) ) {
+        // Guía no registrada todavía: registrar (re-registrar es inofensivo,
+        // devuelve -18019901) y reintentar UNA vez.
+        $reg = nakama_17track_register( $tracking, $carrier );
+        if ( is_wp_error( $reg ) ) {
+            return null;
+        }
+        $data = nakama_17track_request( 'gettrackinfo', array( $item ) );
+        if ( is_wp_error( $data ) ) {
+            return null;
+        }
+        $accepted = isset( $data['data']['accepted'] ) && is_array( $data['data']['accepted'] ) ? $data['data']['accepted'] : array();
+
+        if ( empty( $accepted ) ) {
+            // Registrada pero 17TRACK aún no junta datos (los primeros
+            // resultados pueden tardar minutos). El transient corto del
+            // caller hace que se reintente pronto.
+            return array(
+                'success'        => false,
+                'source'         => '17track',
+                'number'         => $tracking,
+                'carrier_name'   => '',
+                'status'         => 'InfoReceived',
+                'sub_status'     => '',
+                'status_es'      => 'Guía registrada, esperando datos de la paquetería',
+                'delivered_time' => null,
+                'events'         => array(),
+            );
+        }
+    }
+
+    return nakama_17track_normalize( $accepted[0], $tracking, $carrier );
+}
+
+/**
+ * Normaliza la respuesta de gettrackinfo a la forma que consume el frontend.
+ * Tolerante a variantes de la estructura (providers bajo track_info.tracking
+ * o directo bajo track_info; nombres de campo de tiempo/descripcion varían).
+ */
+function nakama_17track_normalize( $info, $tracking, $carrier ) {
+    $ti = isset( $info['track_info'] ) && is_array( $info['track_info'] ) ? $info['track_info'] : array();
+
+    $latest     = isset( $ti['latest_status'] ) && is_array( $ti['latest_status'] ) ? $ti['latest_status'] : array();
+    $status     = isset( $latest['status'] ) && is_string( $latest['status'] ) ? $latest['status'] : 'NotFound';
+    $sub_status = isset( $latest['sub_status'] ) && is_string( $latest['sub_status'] ) ? $latest['sub_status'] : '';
+
+    // providers: v2.x los anida en track_info.tracking.providers.
+    $providers = array();
+    if ( isset( $ti['tracking']['providers'] ) && is_array( $ti['tracking']['providers'] ) ) {
+        $providers = $ti['tracking']['providers'];
+    } elseif ( isset( $ti['providers'] ) && is_array( $ti['providers'] ) ) {
+        $providers = $ti['providers'];
+    }
+
+    $pick = function ( $src, $keys ) {
+        foreach ( $keys as $key ) {
+            if ( isset( $src[ $key ] ) && is_scalar( $src[ $key ] ) && '' !== (string) $src[ $key ] ) {
+                return (string) $src[ $key ];
+            }
+        }
+        return '';
+    };
+
+    $carrier_name = '';
+    $events_out   = array();
+
+    foreach ( $providers as $provider ) {
+        if ( ! is_array( $provider ) ) {
+            continue;
+        }
+        if ( '' === $carrier_name ) {
+            if ( isset( $provider['provider']['name'] ) && is_string( $provider['provider']['name'] ) ) {
+                $carrier_name = $provider['provider']['name'];
+            } elseif ( isset( $provider['carrier_name'] ) && is_string( $provider['carrier_name'] ) ) {
+                $carrier_name = $provider['carrier_name'];
+            }
+        }
+        $events = isset( $provider['events'] ) && is_array( $provider['events'] ) ? $provider['events'] : array();
+        foreach ( $events as $event ) {
+            if ( ! is_array( $event ) ) {
+                continue;
+            }
+            $location = $pick( $event, array( 'location' ) );
+            if ( '' === $location && isset( $event['address'] ) && is_array( $event['address'] ) ) {
+                $location = implode( ', ', array_filter( array(
+                    $pick( $event['address'], array( 'city' ) ),
+                    $pick( $event['address'], array( 'state' ) ),
+                    $pick( $event['address'], array( 'country' ) ),
+                ) ) );
+            }
+            $events_out[] = array(
+                'time'        => $pick( $event, array( 'time_iso', 'time_utc', 'time_raw', 'time' ) ),
+                'status'      => $pick( $event, array( 'stage', 'sub_status', 'status' ) ),
+                'description' => $pick( $event, array( 'description_translation', 'description' ) ),
+                'location'    => $location,
+            );
+        }
+    }
+
+    // Más reciente primero (usort es estable en PHP 8; sin fecha → al final).
+    usort( $events_out, function ( $a, $b ) {
+        $ta = $a['time'] ? strtotime( $a['time'] ) : 0;
+        $tb = $b['time'] ? strtotime( $b['time'] ) : 0;
+        return $tb <=> $ta;
+    } );
+
+    $delivered_time = null;
+    if ( 'Delivered' === $status && ! empty( $events_out ) ) {
+        $delivered_time = $events_out[0]['time'];
+    }
+
+    return array(
+        'success'        => true,
+        'source'         => '17track',
+        'number'         => $tracking,
+        'carrier_name'   => $carrier_name ? $carrier_name : $carrier,
+        'status'         => $status,
+        'sub_status'     => $sub_status,
+        'status_es'      => nakama_17track_status_es( $status ),
+        'delivered_time' => $delivered_time,
+        'events'         => $events_out,
+    );
+}
+
+/**
+ * Fallback: reutiliza el proxy de Envia existente y adapta su único estado a
+ * la forma de la línea de tiempo (un solo evento). Mapea el texto libre de
+ * Envia al enum de 17TRACK para que el stepper del frontend tenga un solo camino.
+ */
+function nakama_envia_timeline_fallback( WP_REST_Request $request, $tracking, $carrier ) {
+    $resp = nakama_get_tracking_data( $request );
+    if ( is_wp_error( $resp ) ) {
+        return null;
+    }
+    $payload = $resp->get_data();
+    $first   = isset( $payload['data'][0] ) && is_array( $payload['data'][0] ) ? $payload['data'][0] : null;
+    if ( ! $first ) {
+        return null;
+    }
+
+    $status_text = isset( $first['status'] ) ? (string) $first['status'] : '';
+    $lower       = strtolower( $status_text );
+    if ( false !== strpos( $lower, 'entregado' ) || false !== strpos( $lower, 'delivered' ) ) {
+        $status = 'Delivered';
+    } elseif ( false !== strpos( $lower, 'reparto' ) || false !== strpos( $lower, 'out for delivery' ) ) {
+        $status = 'OutForDelivery';
+    } else {
+        $status = 'InTransit';
+    }
+
+    $event = array(
+        'time'        => '',
+        'status'      => $status,
+        'description' => ! empty( $first['description'] ) ? (string) $first['description'] : $status_text,
+        'location'    => ! empty( $first['checkpoint'] ) ? (string) $first['checkpoint'] : '',
+    );
+    $events = ( '' !== $event['description'] || '' !== $event['location'] ) ? array( $event ) : array();
+
+    return array(
+        'success'        => true,
+        'source'         => 'envia',
+        'number'         => $tracking,
+        'carrier_name'   => $carrier,
+        'status'         => $status,
+        'sub_status'     => '',
+        'status_es'      => $status_text ? $status_text : nakama_17track_status_es( $status ),
+        'delivered_time' => null,
+        'events'         => $events,
+    );
 }
 
 // 5. GUARDA DE ORIGEN (anti-abuso) PARA EL PROXY DE COTIZACIÓN
@@ -501,6 +855,11 @@ add_action( 'admin_init', function () {
         'sanitize_callback' => 'sanitize_text_field',
         'default'           => '',
     ) );
+    register_setting( 'nakama_envia_settings', 'nakama_17track_token', array(
+        'type'              => 'string',
+        'sanitize_callback' => 'sanitize_text_field',
+        'default'           => '',
+    ) );
 } );
 
 // Acceso rápido desde la lista de plugins.
@@ -514,8 +873,9 @@ function nakama_envia_render_settings_page() {
         return;
     }
 
-    $token  = get_option( 'nakama_envia_api_token', '' );
-    $secret = get_option( 'nakama_envia_webhook_secret', '' );
+    $token          = get_option( 'nakama_envia_api_token', '' );
+    $secret         = get_option( 'nakama_envia_webhook_secret', '' );
+    $token_17track  = get_option( 'nakama_17track_token', '' );
 
     // URL que se registra en el panel de Envia.com (Configuración → Webhooks).
     // Se usa ?rest_route= porque el .htaccess del sitio le aplica no-cache.
@@ -547,6 +907,14 @@ function nakama_envia_render_settings_page() {
                         <input type="text" id="nakama_envia_webhook_secret" name="nakama_envia_webhook_secret"
                                value="<?php echo esc_attr( $secret ); ?>" class="regular-text" autocomplete="off" />
                         <p class="description">Cualquier cadena larga y aleatoria. Protege el webhook para que solo Envia.com pueda registrar guías.</p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="nakama_17track_token">API Key de 17TRACK</label></th>
+                    <td>
+                        <input type="password" id="nakama_17track_token" name="nakama_17track_token"
+                               value="<?php echo esc_attr( $token_17track ); ?>" class="regular-text" autocomplete="off" />
+                        <p class="description">Security Key de api.17track.net → Settings. Habilita la línea de tiempo completa del rastreo en Mi Cuenta (cada guía nueva consume 1 de la cuota de 17TRACK al registrarse; consultarla es gratis). Sin este token, el rastreo cae al estado simple de Envia.</p>
                     </td>
                 </tr>
                 <tr>
