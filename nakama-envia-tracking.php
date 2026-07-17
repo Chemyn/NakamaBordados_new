@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Envia.com Tracking Integration
  * Description: Sistema completo de rastreo: Webhook de Envia, Proxy de consulta segura, línea de tiempo vía 17TRACK, exposición en WPGraphQL y pantalla de ajustes (tokens/secret).
- * Version: 1.3
+ * Version: 1.3.2
  * Author: Nakama
  */
 
@@ -100,7 +100,7 @@ function nakama_17track_carrier_code( $carrier ) {
 /** Estados de 17TRACK → etiqueta en español para el cliente. */
 function nakama_17track_status_es( $status ) {
     $map = array(
-        'NotFound'           => 'Sin información aún',
+        'NotFound'           => 'En espera de recolección',
         'InfoReceived'       => 'Información recibida',
         'InTransit'          => 'En tránsito',
         'Expired'            => 'Sin actualizaciones recientes',
@@ -378,18 +378,24 @@ function nakama_get_tracking_data( WP_REST_Request $request ) {
 function nakama_get_track_timeline( WP_REST_Request $request ) {
     $tracking = trim( (string) $request->get_param( 'tracking' ) );
     $carrier  = trim( (string) $request->get_param( 'carrier' ) );
+    // debug=1: salta el caché y agrega las respuestas crudas de 17TRACK al
+    // JSON (no expone el token; solo datos de rastreo). Para diagnóstico.
+    $debug = '1' === (string) $request->get_param( 'debug' );
 
     if ( '' === $tracking ) {
         return new WP_Error( 'missing_params', 'tracking es requerido', array( 'status' => 400 ) );
     }
 
     $cache_key = 'nakama_17t_' . md5( $tracking . '|' . strtolower( $carrier ) );
-    $cached    = get_transient( $cache_key );
-    if ( is_array( $cached ) ) {
-        return nakama_track_timeline_respond( $cached );
+    if ( ! $debug ) {
+        $cached = get_transient( $cache_key );
+        if ( is_array( $cached ) ) {
+            return nakama_track_timeline_respond( $cached );
+        }
     }
 
-    $result = nakama_17track_timeline_payload( $tracking, $carrier );
+    $trace  = array();
+    $result = nakama_17track_timeline_payload( $tracking, $carrier, $trace );
 
     // Fallback: sin token, error de 17TRACK o guía irreconocible → Envia
     // (un solo evento, pero la tarjeta nunca queda vacía).
@@ -405,14 +411,22 @@ function nakama_get_track_timeline( WP_REST_Request $request ) {
             'carrier_name'   => $carrier,
             'status'         => 'NotFound',
             'sub_status'     => '',
-            'status_es'      => 'Sin información aún',
+            'status_es'      => 'En espera de recolección',
             'delivered_time' => null,
             'events'         => array(),
         );
     }
 
-    // Éxito: 30 min. Fallo: 5 min (permite reintentar pronto sin martillar).
-    set_transient( $cache_key, $result, ( ! empty( $result['success'] ) ? 30 : 5 ) * MINUTE_IN_SECONDS );
+    if ( $debug ) {
+        $result['debug'] = $trace;
+        return nakama_track_timeline_respond( $result );
+    }
+
+    // Con eventos (guía ya en movimiento): 30 min. Sin eventos todavía
+    // (NotFound / esperando primer escaneo): 10 min, para que el primer
+    // movimiento aparezca pronto sin martillar la API.
+    $has_events = ! empty( $result['events'] );
+    set_transient( $cache_key, $result, ( $has_events ? 30 : 10 ) * MINUTE_IN_SECONDS );
 
     return nakama_track_timeline_respond( $result );
 }
@@ -430,18 +444,18 @@ function nakama_track_timeline_respond( $payload ) {
  * (para que el caller caiga a Envia). Si la guía no estaba registrada, la
  * registra (1 de cuota) y reintenta una vez.
  */
-function nakama_17track_timeline_payload( $tracking, $carrier ) {
+function nakama_17track_timeline_payload( $tracking, $carrier, &$trace = array() ) {
     if ( empty( nakama_17track_token() ) ) {
         return null;
     }
 
-    $item = array( 'number' => $tracking );
-    $code = nakama_17track_carrier_code( $carrier );
-    if ( $code ) {
-        $item['carrier'] = $code;
-    }
+    // gettrackinfo SIEMPRE solo con el número: si se manda un carrier distinto
+    // al que quedó registrado (p.ej. auto-detectado), 17TRACK rechaza la
+    // consulta aunque la guía exista.
+    $query_item = array( 'number' => $tracking );
 
-    $data = nakama_17track_request( 'gettrackinfo', array( $item ) );
+    $data = nakama_17track_request( 'gettrackinfo', array( $query_item ) );
+    $trace['gettrackinfo'] = is_wp_error( $data ) ? $data->get_error_message() : $data;
     if ( is_wp_error( $data ) ) {
         return null;
     }
@@ -449,13 +463,30 @@ function nakama_17track_timeline_payload( $tracking, $carrier ) {
     $accepted = isset( $data['data']['accepted'] ) && is_array( $data['data']['accepted'] ) ? $data['data']['accepted'] : array();
 
     if ( empty( $accepted ) ) {
-        // Guía no registrada todavía: registrar (re-registrar es inofensivo,
-        // devuelve -18019901) y reintentar UNA vez.
+        // Guía no registrada todavía: registrar y reintentar UNA vez.
         $reg = nakama_17track_register( $tracking, $carrier );
+        $trace['register'] = is_wp_error( $reg ) ? $reg->get_error_message() : $reg;
         if ( is_wp_error( $reg ) ) {
             return null;
         }
-        $data = nakama_17track_request( 'gettrackinfo', array( $item ) );
+
+        // Inspeccionar el resultado del registro: antes un fallo real (carrier
+        // no detectado, cuota agotada) pasaba desapercibido y quedaba como
+        // "esperando datos" para siempre.
+        $reg_ok   = ! empty( $reg['data']['accepted'] );
+        $rej_code = isset( $reg['data']['rejected'][0]['error']['code'] ) ? (int) $reg['data']['rejected'][0]['error']['code'] : 0;
+        $rej_msg  = isset( $reg['data']['rejected'][0]['error']['message'] ) ? (string) $reg['data']['rejected'][0]['error']['message'] : '';
+        $already  = ( -18019901 === $rej_code ); // "already registered": inofensivo
+
+        if ( ! $reg_ok && ! $already ) {
+            // Registro rechazado de verdad → dejar que el caller caiga a Envia,
+            // con el motivo visible en debug.
+            $trace['register_error'] = $rej_msg ? $rej_msg : 'Registro rechazado por 17TRACK';
+            return null;
+        }
+
+        $data = nakama_17track_request( 'gettrackinfo', array( $query_item ) );
+        $trace['gettrackinfo_retry'] = is_wp_error( $data ) ? $data->get_error_message() : $data;
         if ( is_wp_error( $data ) ) {
             return null;
         }
@@ -470,9 +501,11 @@ function nakama_17track_timeline_payload( $tracking, $carrier ) {
                 'source'         => '17track',
                 'number'         => $tracking,
                 'carrier_name'   => '',
-                'status'         => 'InfoReceived',
+                // NotFound: la guía existe (creada en Envia) pero la paquetería
+                // aún no la escanea → primer paso del stepper "Guía generada".
+                'status'         => 'NotFound',
                 'sub_status'     => '',
-                'status_es'      => 'Guía registrada, esperando datos de la paquetería',
+                'status_es'      => 'Guía generada, en espera de recolección',
                 'delivered_time' => null,
                 'events'         => array(),
             );

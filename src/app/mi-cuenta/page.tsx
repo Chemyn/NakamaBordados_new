@@ -52,24 +52,27 @@ interface TrackTimeline {
 }
 
 const TRACK_STEPS = [
+  { key: 'Generated', label: 'Guía generada', icon: 'inventory_2' },
   { key: 'InfoReceived', label: 'Información recibida', icon: 'receipt_long' },
   { key: 'InTransit', label: 'En tránsito', icon: 'local_shipping' },
   { key: 'OutForDelivery', label: 'En reparto', icon: 'markunread_mailbox' },
   { key: 'Delivered', label: 'Entregado', icon: 'task_alt' },
 ] as const;
 
-/** Índice del paso del stepper que corresponde al estado de 17TRACK. */
+/** Índice del paso del stepper que corresponde al estado de 17TRACK. El paso 0
+   ("Guía generada, en espera de recolección") está siempre alcanzado: la
+   tarjeta solo existe cuando ya hay una guía creada en Envia. */
 const trackStepIndex = (status: string): number => {
   switch (status) {
-    case 'InfoReceived': return 0;
+    case 'InfoReceived': return 1;
     case 'InTransit':
     case 'Expired':
-    case 'Exception': return 1;
+    case 'Exception': return 2;
     case 'OutForDelivery':
     case 'AvailableForPickup':
-    case 'DeliveryFailure': return 2;
-    case 'Delivered': return 3;
-    default: return -1; // NotFound / sin datos
+    case 'DeliveryFailure': return 3;
+    case 'Delivered': return 4;
+    default: return 0; // NotFound / sin datos aún: guía generada, esperando recolección
   }
 };
 
@@ -469,7 +472,7 @@ export default function MiCuentaPage() {
                                         {TRACK_STEPS.map((step, i) => {
                                           const isDone = stepIndex >= 0 && i <= stepIndex;
                                           const isCurrent = i === stepIndex;
-                                          const label = res.status === 'AvailableForPickup' && i === 2
+                                          const label = res.status === 'AvailableForPickup' && i === 3
                                             ? 'Listo para recoger'
                                             : step.label;
                                           return (
@@ -1271,6 +1274,22 @@ export default function MiCuentaPage() {
 
         .nk-track-step.is-done .nk-track-step-label {
           color: var(--nk-text);
+        }
+
+        /* 5 pasos en pantallas angostas: encoger para que no se encimen. */
+        @media (max-width: 480px) {
+          .nk-track-step-icon {
+            width: 30px;
+            height: 30px;
+            font-size: 16px !important;
+          }
+          .nk-track-step::before {
+            top: 14px;
+          }
+          .nk-track-step-label {
+            font-size: 0.58rem;
+            letter-spacing: 0.2px;
+          }
         }
 
         /* Línea de tiempo vertical de eventos */
