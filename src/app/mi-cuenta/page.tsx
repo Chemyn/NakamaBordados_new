@@ -10,12 +10,14 @@ import { useLanguage } from '../context/LanguageContext';
 import MaintenanceToggle from '../components/MaintenanceToggle';
 import { openWpAdmin, seedWpSession, WP_ADMIN_URL } from '@/lib/wp-sso';
 import { apiOrigin } from '@/lib/api-host';
+import { fetchProductionAccess } from '@/lib/production-api';
 
 /* Estados de pedido de WooCommerce en español. GraphQL los entrega como enum
    (ON_HOLD) y REST como slug (on-hold); se canonicaliza a slug antes de mapear. */
 const ORDER_STATUS_ES: Record<string, string> = {
   'pending': 'Pendiente de pago',
   'processing': 'Procesando',
+  'pendiente-guia': 'Preparando envío',
   'on-hold': 'En espera',
   'completed': 'Completado',
   'cancelled': 'Cancelado',
@@ -121,6 +123,16 @@ export default function MiCuentaPage() {
   // Tracking state - indexed by tracking code to avoid conflicts
   const [trackingLoading, setTrackingLoading] = useState<string | null>(null);
   const [trackingResults, setTrackingResults] = useState<Record<string, any>>({});
+
+  // ¿El usuario tiene permiso para el Panel de Producción? (admin o capability
+  // access_production_dashboard). Decide si se muestra el botón de acceso.
+  const [canProduction, setCanProduction] = useState(false);
+  useEffect(() => {
+    if (!user) { setCanProduction(false); return; }
+    let alive = true;
+    fetchProductionAccess().then(can => { if (alive) setCanProduction(can); });
+    return () => { alive = false; };
+  }, [user]);
 
   // Al entrar a Mi Cuenta, refrescar los pedidos: sin esto una cotización
   // recién creada no aparece hasta recargar toda la página (el contexto solo
@@ -290,6 +302,21 @@ export default function MiCuentaPage() {
                           Cuenta
                         </button>
                       </li>
+
+                      {/* PANEL DE PRODUCCIÓN — admins y usuarios con el permiso */}
+                      {canProduction && (
+                        <>
+                          <li className="nk-nav-divider">PRODUCCIÓN</li>
+                          <li>
+                            <Link href="/produccion/" className="nk-admin-btn-link">
+                              <button className="nk-admin-btn">
+                                <span className="material-icons-outlined">precision_manufacturing</span>
+                                Panel de Producción
+                              </button>
+                            </Link>
+                          </li>
+                        </>
+                      )}
 
                       {/* HERRAMIENTAS DE ADMINISTRADOR */}
                       {isAdmin && (
