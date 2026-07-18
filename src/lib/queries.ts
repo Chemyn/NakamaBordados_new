@@ -141,7 +141,9 @@ function mapNodeToProduct(node: unknown): Product {
           sku: `WP-VAR-${vNode.databaseId}`,
           attributes: attrs,
           price: vPrice,
-          stock: 10,
+          // Camino GraphQL de respaldo: sin datos de stock reales, se deja null
+          // (fuera del sistema de almacén) para no marcar agotado por error.
+          stock: null,
           images: vNode.image?.sourceUrl ? [vNode.image.sourceUrl] : []
         });
       }

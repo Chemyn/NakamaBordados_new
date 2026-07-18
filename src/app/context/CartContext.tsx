@@ -95,19 +95,25 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const addToCart = (product: Product, variation: Variation | null, qty: number) => {
     const newCart = [...cart];
     // Check if item already exists in cart (matching product and variation)
-    const existingIndex = newCart.findIndex(item => 
-      item.product.id === product.id && 
-      ((item.variation === null && variation === null) || 
+    const existingIndex = newCart.findIndex(item =>
+      item.product.id === product.id &&
+      ((item.variation === null && variation === null) ||
        (item.variation?.id === variation?.id))
     );
 
+    // Tope por stock de la prenda base compartida (nakama-warehouse). null =
+    // sin tracking → sin tope; la verdad final la impone el servidor al pagar.
+    const cap = typeof variation?.stock === 'number' ? variation.stock : null;
+    if (cap !== null && cap <= 0) return; // agotado: no agregar
+
     if (existingIndex > -1) {
-      newCart[existingIndex].quantity += qty;
+      const target = newCart[existingIndex].quantity + qty;
+      newCart[existingIndex].quantity = cap !== null ? Math.min(target, cap) : target;
     } else {
       newCart.push({
         product,
         variation,
-        quantity: qty,
+        quantity: cap !== null ? Math.min(qty, cap) : qty,
         selectedColor: getVariationAttr(variation, 'color'),
         selectedEstilo: getVariationAttr(variation, 'estilo'),
         selectedTalla: getVariationAttr(variation, 'talla')
@@ -137,7 +143,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
     const newCart = [...cart];
     if (newCart[index]) {
-      newCart[index].quantity = qty;
+      // Tope por stock de la prenda base compartida (null = sin tracking).
+      const cap = typeof newCart[index].variation?.stock === 'number'
+        ? (newCart[index].variation!.stock as number)
+        : null;
+      newCart[index].quantity = cap !== null ? Math.min(qty, Math.max(1, cap)) : qty;
       saveCart(newCart);
     }
   };

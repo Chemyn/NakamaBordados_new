@@ -12,7 +12,14 @@ export interface Variation {
     Talla?: string;
     [key: string]: string | undefined;
   };
-  stock: number;
+  /**
+   * Stock efectivo de la prenda base compartida (plugin nakama-warehouse):
+   *   number → existencias reales (0 = agotado);
+   *   null   → fuera del sistema o clave no capturada → disponible/ilimitado.
+   */
+  stock: number | null;
+  /** Clave del SKU base (prenda+color+talla) al que descuenta esta variación. */
+  baseSku?: string | null;
 }
 
 export interface Review {

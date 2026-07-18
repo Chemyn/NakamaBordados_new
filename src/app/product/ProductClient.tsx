@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import DOMPurify from 'isomorphic-dompurify';
 import { Product, Variation } from '@/types/product';
+import { isOutOfStock } from '@/lib/products-api';
 import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
@@ -218,6 +219,21 @@ export default function ProductClient({ initialProduct: product, relatedProducts
     return optionsArray.sort();
   };
 
+  // Una opción está agotada si TODAS las variaciones compatibles con la
+  // selección actual + esa opción tienen el SKU base en 0. Mismo filtrado que
+  // getAttributeOptions, evaluando stock en vez de solo existencia.
+  const isOptionSoldOut = (name: string, opt: string): boolean => {
+    const matching = validVariations.filter(v => {
+      if (v.attributes[name] !== opt) return false;
+      return Object.entries(selectedAttributes).every(([attrName, attrValue]) => {
+        if (attrName === name || !attrValue) return true;
+        return v.attributes[attrName] === attrValue;
+      });
+    });
+    if (matching.length === 0) return false;
+    return matching.every(isOutOfStock);
+  };
+
   const getAttributeOrderValue = (name: string): number => {
     const lower = name.toLowerCase();
     if (lower.includes('estilo') || lower.includes('style')) return 1;
@@ -243,6 +259,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
   };
 
   const currentVariation = getSelectedVariation();
+  const currentSoldOut = currentVariation ? isOutOfStock(currentVariation) : false;
 
   const handleAttributeSelect = (name: string, value: string) => {
     setSelectedAttributes(prev => {
@@ -293,6 +310,12 @@ export default function ProductClient({ initialProduct: product, relatedProducts
         setLuffyModalOpen(true);
         return;
       }
+    }
+    // La prenda base compartida está agotada: no permitir agregar.
+    if (currentSoldOut) {
+      setVibrateBtn(true);
+      setTimeout(() => setVibrateBtn(false), 500);
+      return;
     }
     addToCart(product, currentVariation, quantity);
     setSuccessModalOpen(true);
@@ -469,6 +492,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                       <div className={isColor ? "nk-color-swatches-container" : "nk-swatches-container"}>
                         {options.map(opt => {
                           const isActive = selectedVal === opt;
+                          const soldOut = isOptionSoldOut(name, opt);
                           if (isColor) {
                             const colorMap: Record<string, string> = {
                               'negro': '#000000', 'black': '#000000', 'blanco': '#ffffff', 'white': '#ffffff',
@@ -484,17 +508,18 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                             return (
                               <button
                                 key={opt}
-                                className={`nk-color-swatch nk-manga-border ${isActive ? 'active' : ''}`}
+                                className={`nk-color-swatch nk-manga-border ${isActive ? 'active' : ''} ${soldOut ? 'nk-swatch-soldout' : ''}`}
                                 style={{ backgroundColor: isPattern ? 'transparent' : colorValue, backgroundImage: isPattern ? colorValue : 'none' }}
                                 data-color-name={opt}
-                                onClick={() => handleAttributeSelect(name, opt)}
-                                title={opt}
+                                onClick={() => { if (!soldOut) handleAttributeSelect(name, opt); }}
+                                disabled={soldOut}
+                                title={soldOut ? `${opt} — Agotado` : opt}
                               ></button>
                             );
                           }
                           return (
-                            <button key={opt} className={`nk-swatch-option nk-manga-border ${isActive ? 'active' : ''}`} style={isActive ? { background: 'var(--nk-text-main)', color: 'var(--nk-bg-body)', boxShadow: 'var(--nk-manga-shadow)' } : {}} onClick={() => handleAttributeSelect(name, opt)}>
-                              {opt.toUpperCase()}
+                            <button key={opt} className={`nk-swatch-option nk-manga-border ${isActive ? 'active' : ''} ${soldOut ? 'nk-swatch-soldout' : ''}`} style={isActive ? { background: 'var(--nk-text-main)', color: 'var(--nk-bg-body)', boxShadow: 'var(--nk-manga-shadow)' } : {}} onClick={() => { if (!soldOut) handleAttributeSelect(name, opt); }} disabled={soldOut} title={soldOut ? `${opt} — Agotado` : undefined}>
+                              {opt.toUpperCase()}{soldOut ? ' · AGOTADO' : ''}
                             </button>
                           );
                         })}
@@ -551,8 +576,8 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                   <input type="number" value={quantity} onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))} className="nk-qty-input" />
                   <button className="nk-qty-btn" onClick={() => setQuantity(quantity + 1)}>+</button>
                 </div>
-                <button type="button" className={`nk-btn nk-btn-add-cart nk-manga-border ${vibrateBtn ? 'nk-vibrate' : ''}`} style={{ boxShadow: 'var(--nk-manga-shadow)' }} onClick={handleAddToCart}>
-                  {t('product.add_to_cart')}
+                <button type="button" className={`nk-btn nk-btn-add-cart nk-manga-border ${vibrateBtn ? 'nk-vibrate' : ''} ${currentSoldOut ? 'nk-btn-soldout' : ''}`} style={{ boxShadow: 'var(--nk-manga-shadow)' }} onClick={handleAddToCart} disabled={currentSoldOut}>
+                  {currentSoldOut ? 'AGOTADO' : t('product.add_to_cart')}
                 </button>
               </div>
             </div>

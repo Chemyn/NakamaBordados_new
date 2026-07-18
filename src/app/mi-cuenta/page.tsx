@@ -11,6 +11,7 @@ import MaintenanceToggle from '../components/MaintenanceToggle';
 import { openWpAdmin, seedWpSession, WP_ADMIN_URL } from '@/lib/wp-sso';
 import { apiOrigin } from '@/lib/api-host';
 import { fetchProductionAccess } from '@/lib/production-api';
+import { fetchWarehouseAccess } from '@/lib/warehouse-api';
 
 /* Estados de pedido de WooCommerce en español. GraphQL los entrega como enum
    (ON_HOLD) y REST como slug (on-hold); se canonicaliza a slug antes de mapear. */
@@ -131,6 +132,16 @@ export default function MiCuentaPage() {
     if (!user) { setCanProduction(false); return; }
     let alive = true;
     fetchProductionAccess().then(can => { if (alive) setCanProduction(can); });
+    return () => { alive = false; };
+  }, [user]);
+
+  // ¿El usuario tiene permiso para el Panel de Almacén? (capability
+  // access_warehouse). Decide si se muestra el botón de acceso.
+  const [canWarehouse, setCanWarehouse] = useState(false);
+  useEffect(() => {
+    if (!user) { setCanWarehouse(false); return; }
+    let alive = true;
+    fetchWarehouseAccess().then(can => { if (alive) setCanWarehouse(can); });
     return () => { alive = false; };
   }, [user]);
 
@@ -312,6 +323,21 @@ export default function MiCuentaPage() {
                               <button className="nk-admin-btn">
                                 <span className="material-icons-outlined">precision_manufacturing</span>
                                 Panel de Producción
+                              </button>
+                            </Link>
+                          </li>
+                        </>
+                      )}
+
+                      {/* PANEL DE ALMACÉN — admins y usuarios con el permiso */}
+                      {canWarehouse && (
+                        <>
+                          <li className="nk-nav-divider">ALMACÉN</li>
+                          <li>
+                            <Link href="/almacen/" className="nk-admin-btn-link">
+                              <button className="nk-admin-btn">
+                                <span className="material-icons-outlined">inventory_2</span>
+                                Panel de Almacén
                               </button>
                             </Link>
                           </li>

@@ -33,6 +33,13 @@ const HIDDEN_RULES: HiddenRule[] = [
 const normalizeValue = (value: string) =>
   value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
 
+/**
+ * Una variaci\u00f3n est\u00e1 agotada solo cuando su SKU base tiene stock 0 o menos.
+ * stock null (fuera del sistema de almac\u00e9n o clave no capturada) = disponible.
+ */
+export const isOutOfStock = (variation: Variation): boolean =>
+  typeof variation.stock === 'number' && variation.stock <= 0;
+
 /** WooCommerce nombra los atributos Color / Estilo / Size (o Talla). */
 const canonicalAttr = (name: string): 'color' | 'estilo' | 'talla' | null => {
   const n = normalizeValue(name);

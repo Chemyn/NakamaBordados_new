@@ -2735,6 +2735,44 @@ html.dark .nk-preloader-logo {
   visibility: visible;
 }
 
+/* Opción agotada (stock de la prenda base compartida en 0). Visible pero
+   deshabilitada: el cliente ve que existe la talla/color pero no hay stock. */
+.nk-swatch-option.nk-swatch-soldout {
+  opacity: 0.45;
+  cursor: not-allowed;
+  text-decoration: line-through;
+  filter: grayscale(1);
+}
+.nk-swatch-option.nk-swatch-soldout:hover {
+  transform: none;
+  box-shadow: none;
+}
+.nk-color-swatch.nk-swatch-soldout {
+  opacity: 0.4;
+  cursor: not-allowed;
+  filter: grayscale(1);
+}
+.nk-color-swatch.nk-swatch-soldout:hover {
+  transform: none;
+}
+/* Aspa diagonal sobre el swatch de color agotado. */
+.nk-color-swatch.nk-swatch-soldout::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top left, transparent 45%, #b32d2e 45%, #b32d2e 55%, transparent 55%);
+  opacity: 1;
+  visibility: visible;
+  z-index: 2;
+  border-width: 0;
+}
+/* Botón "Agregar" cuando la variación elegida está agotada. */
+.nk-btn-add-cart.nk-btn-soldout {
+  opacity: 0.6;
+  cursor: not-allowed;
+  filter: grayscale(0.6);
+}
+
 /* Actions Section */
 .nk-detail-actions-section {
   background: var(--nk-bg-wrapper);
