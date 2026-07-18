@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Products API
  * Description: API REST pública y RÁPIDA de productos (WooCommerce/$wpdb directo, sin WPGraphQL) para el frontend estático de Next.js.
- * Version: 1.9
+ * Version: 2.0
  * Author: Nakama
  */
 
@@ -11,9 +11,10 @@ if (!defined('ABSPATH')) {
 }
 
 // Se incluye en las claves de caché: al actualizar el plugin (nuevo shape de
-// respuesta, p. ej. regularPrice en 1.8) los transients viejos quedan huérfanos
-// en lugar de servirse 15 minutos con el formato anterior.
-define('NAKAMA_PRODUCTS_API_VER', '1.9');
+// respuesta, p. ej. regularPrice en 1.8, stock efectivo + baseSku en 2.0) los
+// transients viejos quedan huérfanos en lugar de servirse 15 minutos con el
+// formato anterior.
+define('NAKAMA_PRODUCTS_API_VER', '2.0');
 
 // Semilla one-time del contador de folios: deja el contador en 11 para que el
 // PRIMER folio emitido por /next-folio sea NK-12. Va protegida por un flag para
@@ -349,9 +350,16 @@ function nakama_products_build_variation($variation)
         $attributes[$label_key] = wp_specialchars_decode($display_value);
     }
 
-    // Stock: cantidad o 0.
-    $stock = $variation->get_stock_quantity();
-    $stock = (null === $stock) ? 0 : (int) $stock;
+    // Stock efectivo desde el almacén de SKU base (plugin nakama-warehouse).
+    // null = fuera del sistema o clave aún no capturada → disponible/ilimitado.
+    // int  = existencias reales de la prenda base compartida (0 = agotado).
+    // Con el plugin de almacén desactivado se devuelve null (comportamiento seguro:
+    // nada se marca agotado).
+    $stock = null;
+    $base  = null;
+    if ( function_exists( 'nakama_wh_effective_stock' ) ) {
+        list( $stock, $base ) = nakama_wh_effective_stock( $variation );
+    }
 
     return array(
         'id' => (string) $variation_id,
@@ -362,6 +370,7 @@ function nakama_products_build_variation($variation)
         'images' => $images,
         'attributes' => (object) $attributes, // objeto JSON, no array, incluso vacío.
         'stock' => $stock,
+        'baseSku' => $base,
     );
 }
 
