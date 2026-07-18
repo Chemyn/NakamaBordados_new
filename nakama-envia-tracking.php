@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Envia.com Tracking Integration
  * Description: Sistema completo de rastreo: Webhook de Envia, Proxy de consulta segura, línea de tiempo vía 17TRACK, exposición en WPGraphQL y pantalla de ajustes (tokens/secret).
- * Version: 1.4
+ * Version: 1.5
  * Author: Nakama
  */
 
@@ -46,7 +46,15 @@ function nakama_find_order_tracking( $order ) {
         return array( 'code' => (string) $code, 'carrier' => (string) $order->get_meta( '_envia_carrier' ) );
     }
 
-    // 2. Claves escalares conocidas de otros plugins de tracking.
+    // 2. Meta de las LÍNEAS del pedido: el plugin "Envia Shipping and
+    //    Fulfillment" guarda la guía como meta de un item de envío (no del
+    //    pedido). Confirmado en producción: wc_order_itemmeta.tracking_number.
+    $item_hit = nakama_find_item_tracking( $order );
+    if ( $item_hit ) {
+        return $item_hit;
+    }
+
+    // 3. Claves escalares conocidas de otros plugins de tracking.
     $number_keys  = array( '_tracking_number', 'tracking_number', '_wt_tracking_number', '_aftership_tracking_number' );
     $carrier_keys = array( '_tracking_company', 'tracking_company', '_tracking_provider', 'tracking_provider', 'carrier' );
     foreach ( $number_keys as $nk ) {
@@ -80,6 +88,46 @@ function nakama_find_order_tracking( $order ) {
     }
 
     return array( 'code' => '', 'carrier' => '' );
+}
+
+/**
+ * Busca la guía en la meta de las líneas del pedido (WC_Order_Item). El plugin
+ * "Envia Shipping and Fulfillment" agrega una línea con la etiqueta y guarda
+ * tracking_number / tracking_company como meta del item. Consulta directa a
+ * woocommerce_order_items(+itemmeta) para no depender del tipo de línea (las
+ * tablas de items no las mueve HPOS). Devuelve array o null.
+ */
+function nakama_find_item_tracking( $order ) {
+    global $wpdb;
+    $items    = $wpdb->prefix . 'woocommerce_order_items';
+    $itemmeta = $wpdb->prefix . 'woocommerce_order_itemmeta';
+
+    $row = $wpdb->get_row( $wpdb->prepare(
+        "SELECT im.order_item_id AS iid, im.meta_value AS code
+         FROM {$items} oi
+         JOIN {$itemmeta} im ON im.order_item_id = oi.order_item_id
+         WHERE oi.order_id = %d
+           AND im.meta_key IN ('tracking_number', '_tracking_number')
+           AND im.meta_value <> ''
+         ORDER BY im.order_item_id DESC
+         LIMIT 1",
+        $order->get_id()
+    ) );
+
+    if ( ! $row || empty( $row->code ) ) {
+        return null;
+    }
+
+    $carrier = $wpdb->get_var( $wpdb->prepare(
+        "SELECT meta_value FROM {$itemmeta}
+         WHERE order_item_id = %d
+           AND meta_key IN ('tracking_company', 'carrier', 'tracking_provider', 'carrier_name')
+           AND meta_value <> ''
+         LIMIT 1",
+        $row->iid
+    ) );
+
+    return array( 'code' => (string) $row->code, 'carrier' => (string) $carrier );
 }
 
 /**
@@ -1073,6 +1121,100 @@ function nakama_envia_render_settings_page() {
                     $val = is_scalar( $d['value'] ) ? $d['value'] : wp_json_encode( $d['value'] );
                     echo esc_textarea( $d['key'] . ' = ' . $val . "\n" );
                 }
+                echo '</textarea>';
+            }
+        }
+        ?>
+
+        <hr />
+        <h2>Localizar un número de guía en la base de datos</h2>
+        <p class="description">Si la guía no aparece en los metadatos del pedido (algunos plugins la guardan en su propia tabla), pega aquí el número de guía y te dice en qué tabla y columna está.</p>
+        <form method="get">
+            <input type="hidden" name="page" value="nakama-envia" />
+            <p>
+                <label>Número de guía:
+                    <input type="text" name="find_tracking" value="<?php echo isset( $_GET['find_tracking'] ) ? esc_attr( sanitize_text_field( wp_unslash( $_GET['find_tracking'] ) ) ) : ''; ?>" class="regular-text" />
+                </label>
+                <button type="submit" class="button">Localizar</button>
+            </p>
+        </form>
+        <?php
+        $find_tracking = isset( $_GET['find_tracking'] ) ? sanitize_text_field( wp_unslash( $_GET['find_tracking'] ) ) : '';
+        if ( '' !== $find_tracking ) {
+            global $wpdb;
+            $like = '%' . $wpdb->esc_like( $find_tracking ) . '%';
+            $hits = array();
+
+            // wp_postmeta (pedidos legacy y CPT).
+            $rows = $wpdb->get_results( $wpdb->prepare(
+                "SELECT post_id AS id, meta_key FROM {$wpdb->postmeta} WHERE meta_value LIKE %s LIMIT 50", $like
+            ) );
+            foreach ( (array) $rows as $r ) {
+                $hits[] = "wp_postmeta  →  post_id={$r->id}, meta_key={$r->meta_key}";
+            }
+
+            // Tabla de metadatos de pedidos con HPOS.
+            $hpos = $wpdb->prefix . 'wc_orders_meta';
+            if ( $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $hpos ) ) === $hpos ) {
+                $rows = $wpdb->get_results( $wpdb->prepare(
+                    "SELECT order_id AS id, meta_key FROM {$hpos} WHERE meta_value LIKE %s LIMIT 50", $like
+                ) );
+                foreach ( (array) $rows as $r ) {
+                    $hits[] = "wc_orders_meta  →  order_id={$r->id}, meta_key={$r->meta_key}";
+                }
+            }
+
+            echo '<p><strong>Coincidencias en metadatos:</strong></p>';
+            if ( empty( $hits ) ) {
+                echo '<p style="color:#b32d2e;">No está en wp_postmeta ni en wc_orders_meta. Ver la búsqueda profunda de abajo.</p>';
+            } else {
+                echo '<textarea readonly rows="' . min( 12, count( $hits ) + 1 ) . '" style="width:100%;font-family:monospace;font-size:12px;">';
+                echo esc_textarea( implode( "\n", $hits ) );
+                echo '</textarea>';
+            }
+
+            // Búsqueda PROFUNDA: recorre TODAS las tablas y todas sus columnas de
+            // texto. Encuentra la guía aunque el plugin la guarde en una tabla
+            // propia con cualquier nombre. Los nombres de tabla/columna vienen
+            // del propio esquema (confiables); el valor va escapado.
+            $deep      = array();
+            $val       = esc_sql( $wpdb->esc_like( $find_tracking ) );
+            $like_expr = "'%{$val}%'";
+            foreach ( (array) $wpdb->get_col( 'SHOW TABLES' ) as $table ) {
+                $cols = $wpdb->get_col( $wpdb->prepare(
+                    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = %s AND TABLE_NAME = %s AND DATA_TYPE IN ('char','varchar','tinytext','text','mediumtext','longtext')",
+                    DB_NAME, $table
+                ) );
+                if ( empty( $cols ) ) {
+                    continue;
+                }
+                $where  = array();
+                $select = array();
+                foreach ( $cols as $col ) {
+                    $where[]  = "`{$col}` LIKE {$like_expr}";
+                    $select[] = "`{$col}`";
+                }
+                $sql  = 'SELECT ' . implode( ',', $select ) . " FROM `{$table}` WHERE " . implode( ' OR ', $where ) . ' LIMIT 3';
+                $rows = $wpdb->get_results( $sql, ARRAY_A );
+                if ( empty( $rows ) ) {
+                    continue;
+                }
+                foreach ( $rows as $row ) {
+                    foreach ( $row as $col => $cellval ) {
+                        if ( is_string( $cellval ) && false !== stripos( $cellval, $find_tracking ) ) {
+                            $snippet = trim( preg_replace( '/\s+/', ' ', substr( $cellval, 0, 300 ) ) );
+                            $deep[]  = $table . ' . ' . $col . "\n    " . $snippet;
+                        }
+                    }
+                }
+            }
+
+            echo '<p><strong>Búsqueda profunda (todas las tablas):</strong></p>';
+            if ( empty( $deep ) ) {
+                echo '<p style="color:#b32d2e;">No se encontró el número en NINGUNA tabla. El plugin de Envia probablemente lo obtiene en vivo de su API y solo guarda un ID interno del envío. Busca ese ID (por ejemplo aHQadzFqJdFh2wkfuC) en este mismo localizador.</p>';
+            } else {
+                echo '<textarea readonly rows="' . min( 24, count( $deep ) + 2 ) . '" style="width:100%;font-family:monospace;font-size:12px;">';
+                echo esc_textarea( implode( "\n\n", $deep ) );
                 echo '</textarea>';
             }
         }
