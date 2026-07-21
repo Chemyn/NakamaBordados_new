@@ -216,6 +216,16 @@ RewriteRule ^ index.php [E=Cache-Control:no-cache,L]
 RewriteCond %{REQUEST_FILENAME} -f
 RewriteRule ^ - [L]
 
+# 3.5 HTML del frontend: NO cachear (los assets /_next llevan hash y sí se cachean).
+# Sin esto LiteSpeed sirve el HTML/bundle previo al deploy a los visitantes sin
+# cookies de wp-admin (el personal solo autenticado por JWT), de modo que los
+# paneles nuevos (Producción/Almacén) no les aparecían en /mi-cuenta hasta que
+# expiraba el caché. Marca la respuesta como no cacheable para .html directos y
+# para las URLs limpias que se reescriben a .html en la regla 4.
+RewriteCond %{REQUEST_FILENAME} \.html$ [OR]
+RewriteCond %{DOCUMENT_ROOT}/%{REQUEST_URI}.html -f
+RewriteRule ^ - [E=Cache-Control:no-cache]
+
 # 4. Enrutamiento de URLs Limpias de Next.js (ej. /store -> store.html)
 # Si se consulta /ruta y existe el archivo físico ruta.html en el servidor, lo sirve ocultando la extensión .html
 RewriteCond %{DOCUMENT_ROOT}/$1.html -f
@@ -227,6 +237,15 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule . /index.php [L]
 </IfModule>
 
+
+# NAKAMA - No cachear el HTML del frontend en el navegador (los assets /_next
+# llevan hash e igual se cachean). Evita que el HTML viejo se quede pegado tras
+# un deploy y esconda los paneles nuevos al personal.
+<IfModule mod_headers.c>
+<FilesMatch "\.html$">
+Header set Cache-Control "no-cache, must-revalidate"
+</FilesMatch>
+</IfModule>
 
 # Wordfence WAF
 <IfModule LiteSpeed>

@@ -10,6 +10,13 @@
 
 import { apiOrigin } from './api-host';
 
+/** Progreso de validación de un pedido (líneas de producto validadas). */
+export interface ProdProgress {
+  validated: number;
+  total: number;
+  pct: number;
+}
+
 export interface ProdCard {
   id: number;
   number: string;
@@ -19,6 +26,7 @@ export interface ProdCard {
   taken: boolean;
   taken_by: string;
   taken_age: string;
+  progress: ProdProgress;
 }
 
 export interface ProdOrdersResponse {
@@ -28,12 +36,17 @@ export interface ProdOrdersResponse {
 }
 
 export interface ProdProduct {
+  item_id: number;
   name: string;
   qty: number;
   talla: string;
   estilo: string;
   color: string;
   pdf_url: string;
+  image_url: string;
+  image_full: string;
+  validated: boolean;
+  validated_by: string;
 }
 
 export interface ProdOrderDetail {
@@ -43,6 +56,7 @@ export interface ProdOrderDetail {
   taken: boolean;
   taken_by: string;
   products: ProdProduct[];
+  progress: ProdProgress;
 }
 
 export interface ProdPdf {
@@ -61,8 +75,8 @@ export interface ProdUploadResult {
   suggestions?: string[];
 }
 
-/** Columnas del tablero (coinciden con el estatus de WooCommerce). */
-export type ProdColumn = 'processing' | 'pendiente-guia';
+/** Columnas del tablero. 'tomados' es una vista de processing con pedido tomado. */
+export type ProdColumn = 'processing' | 'tomados' | 'pendiente-guia';
 
 function authHeaders(extra?: Record<string, string>): Record<string, string> {
   const headers: Record<string, string> = { ...(extra || {}) };
@@ -123,7 +137,33 @@ export async function finishProductionOrder(orderId: number): Promise<void> {
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ order_id: orderId }),
   });
-  if (!res.ok) throw new Error('No se pudo finalizar la producción.');
+  if (!res.ok) {
+    // El servidor devuelve el motivo (ej. "Faltan 2 productos por validar").
+    let msg = 'No se pudo finalizar la producción.';
+    try {
+      const data = await res.json();
+      if (data?.message) msg = data.message;
+    } catch {
+      /* respuesta sin JSON */
+    }
+    throw new Error(msg);
+  }
+}
+
+/** Marca/desmarca una línea de producto como validada. Devuelve el progreso. */
+export async function validateProductionItem(
+  orderId: number,
+  itemId: number,
+  validated: boolean,
+): Promise<ProdProgress> {
+  const res = await fetch(prodUrl('/validate'), {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ order_id: orderId, item_id: itemId, validated }),
+  });
+  if (!res.ok) throw new Error('No se pudo actualizar la validación.');
+  const data = await res.json();
+  return data.progress as ProdProgress;
 }
 
 export async function listProductionPdfs(): Promise<ProdPdf[]> {
