@@ -1002,60 +1002,86 @@ function nakama_wh_rest_alerts() {
     return new WP_REST_Response( array( 'items' => $items ), 200 );
 }
 
-/** POST /warehouse/generate — fusiona duplicados, siembra claves faltantes desde
- *  el catálogo y reconstruye el índice + la cascada de agotado. */
+/**
+ * POST /warehouse/generate — fusiona duplicados, y en UN SOLO barrido del catálogo
+ * siembra las claves faltantes, (re)construye el índice _nakama_wh_key y aplica la
+ * cascada de "agotado". Antes hacía dos barridos (sembrar + sincronizar) lo que en
+ * catálogos grandes agotaba el tiempo/memoria de PHP. Devuelve created/skipped/merged.
+ */
 function nakama_wh_rest_generate() {
     global $wpdb;
     $table = nakama_wh_table();
 
-    // 1) Fusionar SKU base duplicados por sinónimos de color (suma stock).
-    $merged = nakama_wh_merge_duplicates();
-
-    $ids = $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND post_status IN ('publish','private')" );
-
-    $created = 0;
-    $skipped = 0;
-    $seen    = array();
-    foreach ( (array) $ids as $vid ) {
-        $variation = wc_get_product( (int) $vid );
-        if ( ! $variation ) {
-            continue;
-        }
-        $res = nakama_wh_resolve_for_variation( $variation );
-        if ( ! $res ) {
-            $skipped++;
-            continue;
-        }
-        if ( isset( $seen[ $res['key'] ] ) ) {
-            continue;
-        }
-        $seen[ $res['key'] ] = true;
-
-        $exists = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE sku_key = %s", $res['key'] ) );
-        if ( $exists ) {
-            continue;
-        }
-        $wpdb->insert( $table, array(
-            'sku_key'    => $res['key'],
-            'prenda'     => $res['prenda'],
-            'color'      => $res['color'],
-            'talla'      => $res['talla'],
-            'label'      => $res['label'],
-            'stock'      => 0,
-            'min_stock'  => 0,
-            'updated_at' => current_time( 'mysql' ),
-        ) );
-        nakama_wh_log_move( $res['key'], 0, 'seed' );
-        $created++;
+    // Catálogos grandes: dar margen de tiempo y memoria (best-effort; algunos hosts
+    // ignoran set_time_limit, pero no hace daño).
+    if ( function_exists( 'set_time_limit' ) ) {
+        @set_time_limit( 0 );
+    }
+    if ( function_exists( 'wp_raise_memory_limit' ) ) {
+        wp_raise_memory_limit( 'admin' );
     }
 
-    // Barrido completo: (re)construye el índice _nakama_wh_key y la cascada.
-    nakama_wh_sync_stock_status();
-    if ( function_exists( 'nakama_products_bump_cache' ) ) {
-        nakama_products_bump_cache();
-    }
+    try {
+        // 1) Fusionar SKU base duplicados por sinónimos de color (suma stock).
+        $merged = nakama_wh_merge_duplicates();
 
-    return new WP_REST_Response( array( 'created' => $created, 'skipped' => $skipped, 'merged' => $merged ), 200 );
+        // Mapa de stock actual (tras la fusión) para decidir agotado sin re-consultar.
+        $map = nakama_wh_stock_map( true );
+
+        $ids = $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND post_status IN ('publish','private')" );
+
+        $created = 0;
+        $skipped = 0;
+        foreach ( (array) $ids as $vid ) {
+            $variation = wc_get_product( (int) $vid );
+            if ( ! $variation ) {
+                continue;
+            }
+            $res = nakama_wh_resolve_for_variation( $variation );
+            if ( ! $res ) {
+                $skipped++;
+                continue;
+            }
+            $key = $res['key'];
+
+            // Sembrar la clave si aún no existe (stock 0).
+            if ( ! array_key_exists( $key, $map ) ) {
+                $wpdb->insert( $table, array(
+                    'sku_key'    => $key,
+                    'prenda'     => $res['prenda'],
+                    'color'      => $res['color'],
+                    'talla'      => $res['talla'],
+                    'label'      => $res['label'],
+                    'stock'      => 0,
+                    'min_stock'  => 0,
+                    'updated_at' => current_time( 'mysql' ),
+                ) );
+                nakama_wh_log_move( $key, 0, 'seed' );
+                $map[ $key ] = 0;
+                $created++;
+            }
+
+            // Índice inverso clave→variación (para el sync eficiente por pedido/lote).
+            if ( (string) get_post_meta( $vid, '_nakama_wh_key', true ) !== $key ) {
+                update_post_meta( $vid, '_nakama_wh_key', $key );
+            }
+
+            // Cascada de agotado en la misma pasada.
+            $desired = ( (int) $map[ $key ] <= 0 ) ? 'outofstock' : 'instock';
+            if ( $variation->get_stock_status() !== $desired ) {
+                $variation->set_stock_status( $desired );
+                $variation->save();
+            }
+        }
+
+        if ( function_exists( 'nakama_products_bump_cache' ) ) {
+            nakama_products_bump_cache();
+        }
+
+        return new WP_REST_Response( array( 'created' => $created, 'skipped' => $skipped, 'merged' => $merged ), 200 );
+    } catch ( \Throwable $e ) {
+        return new WP_Error( 'generate_failed', 'Error al generar: ' . $e->getMessage(), array( 'status' => 500 ) );
+    }
 }
 
 /** GET /warehouse/variation?id= — clave resuelta + override actual. */

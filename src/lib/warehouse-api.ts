@@ -132,7 +132,17 @@ export async function generateFromCatalog(): Promise<WhGenerateResult> {
     method: 'POST',
     headers: authHeaders(),
   });
-  if (!res.ok) throw new Error('No se pudo generar desde el catálogo.');
+  if (!res.ok) {
+    // Surface the server's real reason (timeout, PHP error, permiso…).
+    let msg = `No se pudo generar desde el catálogo (HTTP ${res.status}).`;
+    try {
+      const data = await res.json();
+      if (data?.message) msg = data.message;
+    } catch {
+      /* respuesta sin JSON (p. ej. 504/timeout) */
+    }
+    throw new Error(msg);
+  }
   return res.json();
 }
 

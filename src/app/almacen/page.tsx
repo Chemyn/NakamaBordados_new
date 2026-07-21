@@ -279,8 +279,8 @@ export default function AlmacenPage() {
         type: 'ok',
         text: `✓ Creados: ${res.created} · Fusionados (duplicados de color): ${res.merged} · Omitidos: ${res.skipped}.`,
       });
-    } catch {
-      setMsg({ type: 'err', text: 'No se pudo generar desde el catálogo.' });
+    } catch (err) {
+      setMsg({ type: 'err', text: err instanceof Error ? err.message : 'No se pudo generar desde el catálogo.' });
     } finally {
       setGenerating(false);
     }
