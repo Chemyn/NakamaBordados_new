@@ -39,6 +39,19 @@ export interface WhAdjustInput {
   min_stock?: number;
 }
 
+/** Un cambio pendiente para el guardado por lotes (set absoluto de stock/mínimo). */
+export interface WhBulkChange {
+  id: number;
+  stock?: number;
+  min_stock?: number;
+}
+
+export interface WhGenerateResult {
+  created: number;
+  skipped: number;
+  merged: number;
+}
+
 function authHeaders(extra?: Record<string, string>): Record<string, string> {
   const headers: Record<string, string> = { ...(extra || {}) };
   const token = typeof window !== 'undefined' ? localStorage.getItem('wp-jwt') : null;
@@ -114,11 +127,41 @@ export async function deleteWarehouseItem(id: number): Promise<void> {
   if (!res.ok) throw new Error('No se pudo eliminar el SKU base.');
 }
 
-export async function generateFromCatalog(): Promise<{ created: number; skipped: number }> {
+export async function generateFromCatalog(): Promise<WhGenerateResult> {
   const res = await fetch(whUrl('/generate'), {
     method: 'POST',
     headers: authHeaders(),
   });
   if (!res.ok) throw new Error('No se pudo generar desde el catálogo.');
   return res.json();
+}
+
+/**
+ * Aplica un lote de cambios (≤5 por llamada desde el panel) SIN sincronizar la
+ * cascada de agotado: eso lo hace syncWarehouse una sola vez al final. Devuelve
+ * las filas actualizadas y las claves afectadas (para el sync final).
+ */
+export async function bulkAdjustWarehouse(
+  items: WhBulkChange[],
+): Promise<{ items: WhItem[]; keys: string[] }> {
+  const res = await fetch(whUrl('/bulk'), {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ items }),
+  });
+  if (!res.ok) throw new Error('No se pudo aplicar el lote de cambios.');
+  const data = await res.json();
+  return { items: data?.items || [], keys: data?.keys || [] };
+}
+
+/** Sincroniza la cascada de "agotado" una sola vez (solo las claves indicadas). */
+export async function syncWarehouse(keys?: string[]): Promise<number> {
+  const res = await fetch(whUrl('/sync'), {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify(keys && keys.length ? { keys } : {}),
+  });
+  if (!res.ok) throw new Error('No se pudo sincronizar el inventario.');
+  const data = await res.json();
+  return Number(data?.changed) || 0;
 }

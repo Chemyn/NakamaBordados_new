@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -8,20 +8,32 @@ import {
   listWarehouseItems,
   listWarehouseAlerts,
   upsertWarehouseItem,
-  adjustWarehouseStock,
   deleteWarehouseItem,
   generateFromCatalog,
+  bulkAdjustWarehouse,
+  syncWarehouse,
   WhItem,
 } from '@/lib/warehouse-api';
 
 type AccessState = 'checking' | 'granted' | 'denied' | 'guest';
 type Tab = 'stock' | 'alerts';
+/** Cambio pendiente de una fila (valores absolutos aún no enviados). */
+type Edit = { stock?: number; min_stock?: number };
+type SaveState = 'saving' | 'saved' | 'error';
+type Msg = { type: 'ok' | 'err'; text: string } | null;
+
+/** Tamaño de lote para aplicar cambios sin saturar el servidor. */
+const APPLY_BATCH = 5;
 
 /**
  * Panel de Almacén (SKU base) en el frontend headless. La protección real la
  * impone el servidor (permission_callback current_user_can en
  * nakama/v1/warehouse/*); este gate es solo UX. Reutiliza los mismos endpoints
  * REST que la versión de wp-admin, autenticados con el JWT de la sesión.
+ *
+ * Edición: los cambios se acumulan en estado local (sin tocar el servidor) y se
+ * envían con "Aplicar cambios" en lotes de 5 + una sola sincronización final,
+ * para no barrer el catálogo en cada tecla.
  */
 export default function AlmacenPage() {
   const { user, isLoading } = useAuth();
@@ -37,7 +49,14 @@ export default function AlmacenPage() {
   const [alertsLoading, setAlertsLoading] = useState(false);
 
   const [generating, setGenerating] = useState(false);
+  const [msg, setMsg] = useState<Msg>(null);
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Edición por lotes.
+  const [edits, setEdits] = useState<Record<number, Edit>>({});
+  const [saveState, setSaveState] = useState<Record<number, SaveState>>({});
+  const [applying, setApplying] = useState(false);
+  const [applyProgress, setApplyProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
 
   const prenda = useRef<HTMLInputElement>(null);
   const color = useRef<HTMLInputElement>(null);
@@ -92,22 +111,121 @@ export default function AlmacenPage() {
     searchTimer.current = setTimeout(() => loadItems(value.trim()), 300);
   };
 
-  const replaceItem = (updated: WhItem) => {
+  // Índice id→fila (de ambas listas) para comparar contra los cambios pendientes.
+  const itemById = useMemo(() => {
+    const map = new Map<number, WhItem>();
+    items.forEach(it => map.set(it.id, it));
+    alerts.forEach(it => { if (!map.has(it.id)) map.set(it.id, it); });
+    return map;
+  }, [items, alerts]);
+
+  // Filas realmente modificadas (valor pendiente distinto del servidor).
+  const dirtyIds = useMemo(() => {
+    const out: number[] = [];
+    for (const [idStr, e] of Object.entries(edits)) {
+      const id = Number(idStr);
+      const it = itemById.get(id);
+      if (!it) continue;
+      const stockChanged = e.stock !== undefined && e.stock !== it.stock;
+      const minChanged = e.min_stock !== undefined && e.min_stock !== it.min_stock;
+      if (stockChanged || minChanged) out.push(id);
+    }
+    return out;
+  }, [edits, itemById]);
+
+  const replaceItem = useCallback((updated: WhItem) => {
     setItems(prev => prev.map(it => (it.id === updated.id ? updated : it)));
     setAlerts(prev => prev.map(it => (it.id === updated.id ? updated : it)));
+  }, []);
+
+  // Editar una fila: guarda el valor pendiente en estado local (no toca el server).
+  const onEdit = useCallback((id: number, patch: Edit) => {
+    setEdits(prev => ({ ...prev, [id]: { ...prev[id], ...patch } }));
+    setSaveState(prev => {
+      if (!prev[id]) return prev;
+      const next = { ...prev };
+      delete next[id]; // al reeditar, se limpia el ✓/✗ anterior
+      return next;
+    });
+  }, []);
+
+  const discardEdits = () => {
+    setEdits({});
+    setSaveState({});
+    setApplyProgress({ done: 0, total: 0 });
   };
 
-  const handleAdjust = async (id: number, input: { stock?: number; delta?: number; min_stock?: number }) => {
-    try {
-      const updated = await adjustWarehouseStock(id, input);
-      replaceItem(updated);
-      // El estado de alertas puede cambiar tras el ajuste.
-      if (tab === 'alerts' || input.stock !== undefined || input.delta !== undefined || input.min_stock !== undefined) {
-        loadAlerts();
+  // Aplica los cambios pendientes en lotes de 5 y sincroniza la cascada una vez.
+  const handleApply = async () => {
+    const ids = dirtyIds;
+    if (ids.length === 0) return;
+    setApplying(true);
+    setMsg(null);
+    setApplyProgress({ done: 0, total: ids.length });
+
+    const affectedKeys = new Set<string>();
+    let done = 0;
+    let errors = 0;
+
+    for (let i = 0; i < ids.length; i += APPLY_BATCH) {
+      const chunkIds = ids.slice(i, i + APPLY_BATCH);
+      setSaveState(prev => {
+        const next = { ...prev };
+        chunkIds.forEach(id => { next[id] = 'saving'; });
+        return next;
+      });
+
+      const payload = chunkIds.map(id => {
+        const e = edits[id] || {};
+        const it = itemById.get(id);
+        const change: { id: number; stock?: number; min_stock?: number } = { id };
+        if (e.stock !== undefined && it && e.stock !== it.stock) change.stock = e.stock;
+        if (e.min_stock !== undefined && it && e.min_stock !== it.min_stock) change.min_stock = e.min_stock;
+        return change;
+      });
+
+      try {
+        const res = await bulkAdjustWarehouse(payload);
+        res.items.forEach(replaceItem);
+        res.keys.forEach(k => affectedKeys.add(k));
+        setSaveState(prev => {
+          const next = { ...prev };
+          chunkIds.forEach(id => { next[id] = 'saved'; });
+          return next;
+        });
+        // Quitar del set de pendientes los ya guardados.
+        setEdits(prev => {
+          const next = { ...prev };
+          chunkIds.forEach(id => delete next[id]);
+          return next;
+        });
+      } catch {
+        errors += chunkIds.length;
+        setSaveState(prev => {
+          const next = { ...prev };
+          chunkIds.forEach(id => { next[id] = 'error'; });
+          return next;
+        });
       }
-    } catch {
-      /* noop */
+
+      done += chunkIds.length;
+      setApplyProgress({ done, total: ids.length });
     }
+
+    // Una sola sincronización de la cascada para todas las claves afectadas.
+    if (affectedKeys.size > 0) {
+      try {
+        await syncWarehouse(Array.from(affectedKeys));
+      } catch {
+        /* la cascada se puede re-sincronizar; no bloquea el guardado */
+      }
+    }
+
+    await loadAlerts();
+    setApplying(false);
+    setMsg(errors === 0
+      ? { type: 'ok', text: `✓ ${ids.length} cambio${ids.length === 1 ? '' : 's'} aplicado${ids.length === 1 ? '' : 's'}.` }
+      : { type: 'err', text: `Se aplicaron ${ids.length - errors} de ${ids.length}; ${errors} con error.` });
   };
 
   const handleDelete = async (id: number) => {
@@ -116,8 +234,10 @@ export default function AlmacenPage() {
       await deleteWarehouseItem(id);
       setItems(prev => prev.filter(it => it.id !== id));
       setAlerts(prev => prev.filter(it => it.id !== id));
+      setEdits(prev => { const n = { ...prev }; delete n[id]; return n; });
+      setMsg({ type: 'ok', text: 'SKU base eliminado.' });
     } catch {
-      /* noop */
+      setMsg({ type: 'err', text: 'No se pudo eliminar el SKU base.' });
     }
   };
 
@@ -142,20 +262,25 @@ export default function AlmacenPage() {
       if (newMin.current) newMin.current.value = '0';
       loadItems(search.trim());
       loadAlerts();
+      setMsg({ type: 'ok', text: '✓ SKU base añadido.' });
     } catch {
-      /* noop */
+      setMsg({ type: 'err', text: 'No se pudo añadir el SKU base.' });
     }
   };
 
   const handleGenerate = async () => {
     setGenerating(true);
+    setMsg(null);
     try {
       const res = await generateFromCatalog();
-      alert(`Creados: ${res.created} · Omitidos (fuera del sistema): ${res.skipped}`);
       loadItems(search.trim());
       loadAlerts();
+      setMsg({
+        type: 'ok',
+        text: `✓ Creados: ${res.created} · Fusionados (duplicados de color): ${res.merged} · Omitidos: ${res.skipped}.`,
+      });
     } catch {
-      /* noop */
+      setMsg({ type: 'err', text: 'No se pudo generar desde el catálogo.' });
     } finally {
       setGenerating(false);
     }
@@ -196,6 +321,7 @@ export default function AlmacenPage() {
 
   // ---- Panel ----
   const alertCount = alerts.length;
+  const dirtyCount = dirtyIds.length;
   return (
     <div className="nw-page">
       <header className="nw-header">
@@ -207,6 +333,8 @@ export default function AlmacenPage() {
           </button>
         </div>
       </header>
+
+      {msg && <div className={`nw-msg ${msg.type}`} role="status">{msg.text}</div>}
 
       {tab === 'stock' && (
         <div className="nw-view">
@@ -235,7 +363,9 @@ export default function AlmacenPage() {
             items={items}
             loading={itemsLoading}
             emptyText='Sin SKU base. Usa "Generar desde catálogo" o añade uno.'
-            onAdjust={handleAdjust}
+            edits={edits}
+            saveState={saveState}
+            onEdit={onEdit}
             onDelete={handleDelete}
           />
         </div>
@@ -247,9 +377,27 @@ export default function AlmacenPage() {
             items={alerts}
             loading={alertsLoading}
             emptyText="Sin faltantes. Todo el inventario está por encima del umbral."
-            onAdjust={handleAdjust}
+            edits={edits}
+            saveState={saveState}
+            onEdit={onEdit}
             onDelete={handleDelete}
           />
+        </div>
+      )}
+
+      {dirtyCount > 0 && (
+        <div className="nw-apply-bar">
+          <span className="nw-apply-info">
+            {applying
+              ? `Guardando ${applyProgress.done}/${applyProgress.total}…`
+              : `${dirtyCount} cambio${dirtyCount === 1 ? '' : 's'} sin guardar`}
+          </span>
+          <div className="nw-apply-actions">
+            <button className="nk-btn-sec" onClick={discardEdits} disabled={applying}>Descartar</button>
+            <button className="nk-btn" onClick={handleApply} disabled={applying}>
+              {applying ? 'Aplicando…' : `Aplicar cambios (${dirtyCount})`}
+            </button>
+          </div>
         </div>
       )}
 
@@ -259,11 +407,13 @@ export default function AlmacenPage() {
 }
 
 /* ---- Tabla de SKU base ---- */
-function ItemsTable({ items, loading, emptyText, onAdjust, onDelete }: {
+function ItemsTable({ items, loading, emptyText, edits, saveState, onEdit, onDelete }: {
   items: WhItem[];
   loading: boolean;
   emptyText: string;
-  onAdjust: (id: number, input: { stock?: number; delta?: number; min_stock?: number }) => void;
+  edits: Record<number, Edit>;
+  saveState: Record<number, SaveState>;
+  onEdit: (id: number, patch: Edit) => void;
   onDelete: (id: number) => void;
 }) {
   return (
@@ -281,7 +431,16 @@ function ItemsTable({ items, loading, emptyText, onAdjust, onDelete }: {
           ) : items.length === 0 ? (
             <tr><td colSpan={8} className="nw-empty">{emptyText}</td></tr>
           ) : (
-            items.map(it => <ItemRow key={it.id} item={it} onAdjust={onAdjust} onDelete={onDelete} />)
+            items.map(it => (
+              <ItemRow
+                key={it.id}
+                item={it}
+                edit={edits[it.id]}
+                save={saveState[it.id]}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
+            ))
           )}
         </tbody>
       </table>
@@ -289,46 +448,55 @@ function ItemsTable({ items, loading, emptyText, onAdjust, onDelete }: {
   );
 }
 
-function ItemRow({ item, onAdjust, onDelete }: {
+function ItemRow({ item, edit, save, onEdit, onDelete }: {
   item: WhItem;
-  onAdjust: (id: number, input: { stock?: number; delta?: number; min_stock?: number }) => void;
+  edit?: Edit;
+  save?: SaveState;
+  onEdit: (id: number, patch: Edit) => void;
   onDelete: (id: number) => void;
 }) {
+  const stockVal = edit?.stock ?? item.stock;
+  const minVal = edit?.min_stock ?? item.min_stock;
+  const stockDirty = edit?.stock !== undefined && edit.stock !== item.stock;
+  const minDirty = edit?.min_stock !== undefined && edit.min_stock !== item.min_stock;
+  const dirty = stockDirty || minDirty;
+
   const statusLabel = item.status === 'out' ? 'Agotado' : item.status === 'low' ? 'Bajo' : 'OK';
+
   return (
-    <tr>
+    <tr className={dirty ? 'nw-row-dirty' : ''}>
       <td className="nw-key">{item.sku_key}</td>
       <td>{item.prenda}</td>
       <td>{item.color}</td>
       <td>{item.talla}</td>
       <td>
         <div className="nw-stock-cell">
-          <button className="nw-btn-mini" onClick={() => onAdjust(item.id, { delta: -1 })}>−</button>
+          <button className="nw-btn-mini" onClick={() => onEdit(item.id, { stock: stockVal - 1 })}>−</button>
           <input
             type="number"
-            defaultValue={item.stock}
-            key={`s-${item.id}-${item.stock}`}
-            onBlur={e => {
-              const v = Number(e.target.value);
-              if (v !== item.stock) onAdjust(item.id, { stock: v });
-            }}
+            value={stockVal}
+            onChange={e => onEdit(item.id, { stock: Number(e.target.value) || 0 })}
           />
-          <button className="nw-btn-mini" onClick={() => onAdjust(item.id, { delta: 1 })}>+</button>
+          <button className="nw-btn-mini" onClick={() => onEdit(item.id, { stock: stockVal + 1 })}>+</button>
         </div>
       </td>
       <td>
         <input
           className="nw-min"
           type="number"
-          defaultValue={item.min_stock}
-          key={`m-${item.id}-${item.min_stock}`}
-          onBlur={e => {
-            const v = Number(e.target.value);
-            if (v !== item.min_stock) onAdjust(item.id, { min_stock: v });
-          }}
+          value={minVal}
+          onChange={e => onEdit(item.id, { min_stock: Number(e.target.value) || 0 })}
         />
       </td>
-      <td><span className={`nw-pill ${item.status}`}>{statusLabel}</span></td>
+      <td>
+        <div className="nw-status-cell">
+          <span className={`nw-pill ${item.status}`}>{statusLabel}</span>
+          {dirty && !save && <span className="nw-flag" title="Sin guardar">●</span>}
+          {save === 'saving' && <span className="nw-flag saving" title="Guardando">⋯</span>}
+          {save === 'saved' && <span className="nw-flag saved" title="Guardado">✓</span>}
+          {save === 'error' && <span className="nw-flag error" title="Error">✗</span>}
+        </div>
+      </td>
       <td><button className="nw-btn-mini nw-btn-del" onClick={() => onDelete(item.id)}>Eliminar</button></td>
     </tr>
   );
@@ -352,7 +520,7 @@ const panelStyles = `
     background:
       radial-gradient(color-mix(in srgb, var(--nk-border) 12%, transparent) 1px, transparent 1px) 0 0 / 20px 20px,
       var(--nk-bg-wrapper);
-    padding: calc(var(--header-padding) + 10px) 0 60px;
+    padding: calc(var(--header-padding) + 10px) 0 90px;
   }
 
   .nw-header {
@@ -372,6 +540,10 @@ const panelStyles = `
   }
   .nw-tab.is-active { background: var(--nk-primary); color: #fff; box-shadow: 3px 3px 0 var(--nk-border); }
   .nw-badge { display: inline-block; background: var(--nk-accent); color: #fff; font-family: 'Inter', sans-serif; font-size: .7rem; padding: 1px 6px; margin-left: 6px; }
+
+  .nw-msg { margin: 0 24px 16px; padding: 10px 14px; font-weight: 700; font-size: .9rem; border: 2px solid var(--nk-border); }
+  .nw-msg.ok  { background: #d7f5dd; color: #14532d; border-color: #14532d; }
+  .nw-msg.err { background: #fde2e1; color: #b32d2e; border-color: #b32d2e; }
 
   .nw-view { padding: 0 24px; }
 
@@ -398,15 +570,25 @@ const panelStyles = `
     overflow-x: auto; background: var(--nk-bg-card);
     border: 3px solid var(--nk-border); box-shadow: var(--nk-manga-shadow);
   }
-  .nw-table { width: 100%; border-collapse: collapse; min-width: 720px; }
+  .nw-table { width: 100%; border-collapse: collapse; min-width: 760px; }
   .nw-table th, .nw-table td { padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--nk-border-soft, #e2ded3); font-size: .92rem; color: var(--nk-text-main); }
   .nw-table th { background: var(--nk-navy); color: #fff; font-size: .78rem; text-transform: uppercase; letter-spacing: .5px; }
   .nw-table tr:last-child td { border-bottom: none; }
   .nw-key { font-family: 'Teko', sans-serif; font-size: 1.1rem; }
 
+  .nw-row-dirty td { background: color-mix(in srgb, var(--nk-accent) 12%, transparent); }
+  .nw-row-dirty td:first-child { box-shadow: inset 4px 0 0 var(--nk-accent); }
+
   .nw-stock-cell { display: flex; align-items: center; gap: 6px; }
   .nw-stock-cell input { width: 66px; padding: 4px 6px; border: 2px solid var(--nk-border); text-align: center; font-weight: 700; background: var(--nk-bg-wrapper); color: var(--nk-text-main); }
   .nw-min { width: 60px; padding: 4px 6px; border: 2px solid var(--nk-border); text-align: center; background: var(--nk-bg-wrapper); color: var(--nk-text-main); }
+
+  .nw-status-cell { display: flex; align-items: center; gap: 8px; }
+  .nw-flag { font-weight: 900; font-size: 1rem; line-height: 1; }
+  .nw-flag.saving { color: var(--nk-text-sec); }
+  .nw-flag.saved { color: #1a7f37; }
+  .nw-flag.error { color: #b32d2e; }
+  .nw-flag:not(.saving):not(.saved):not(.error) { color: var(--nk-accent); }
 
   .nw-btn-mini {
     font-family: 'Inter', sans-serif; font-size: .9rem; font-weight: 800; padding: 2px 9px;
@@ -422,4 +604,15 @@ const panelStyles = `
   .nw-pill.out { background: var(--nk-primary); color: #fff; }
 
   .nw-empty { font-style: italic; color: var(--nk-text-sec); padding: 16px; text-align: center; }
+
+  /* Barra fija para aplicar los cambios pendientes */
+  .nw-apply-bar {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 90;
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between;
+    padding: 12px 24px; background: var(--nk-navy); border-top: 4px solid var(--nk-primary);
+  }
+  .nw-apply-info { font-family: 'Teko', sans-serif; font-size: 1.4rem; text-transform: uppercase; color: #fff; }
+  .nw-apply-actions { display: flex; gap: 10px; }
+  .nw-apply-actions :global(.nk-btn), .nw-apply-actions :global(.nk-btn-sec) { text-decoration: none; }
+  .nw-apply-actions :global(.nk-btn):disabled { opacity: .6; cursor: not-allowed; }
 `;

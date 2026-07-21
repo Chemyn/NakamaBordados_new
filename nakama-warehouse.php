@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Almacén (SKU Base)
  * Description: Inventario de materia prima compartida. El stock vive en la prenda lisa base (prenda+color+talla); muchas variaciones de diseño descuentan del mismo SKU base al pagarse el pedido. Panel de almacén y alertas de faltantes, con cascada de "agotado" a la tienda.
- * Version: 1.0
+ * Version: 1.1
  * Author: Nakama
  */
 
@@ -139,8 +139,46 @@ function nakama_wh_norm_part( $raw ) {
     return trim( $t, '-' );
 }
 
-/** Clave canónica PRENDA-COLOR-TALLA a partir de los valores legibles. */
+/**
+ * Unifica sinónimos de color a un token canónico en español. Evita que la misma
+ * prenda física se duplique como dos SKU base ("Negra" vs "Black"). Si el color
+ * no está en el diccionario se devuelve tal cual (no rompe colores nuevos).
+ * Ampliable con el filtro 'nakama_wh_color_synonyms' (clave = color normalizado
+ * sin acentos/minúsculas, valor = display canónico).
+ */
+function nakama_wh_color_canonical( $raw ) {
+    $raw = trim( (string) $raw );
+    if ( '' === $raw ) {
+        return $raw;
+    }
+    $norm = strtolower( remove_accents( $raw ) );
+    $norm = preg_replace( '/\s+/', ' ', trim( $norm ) );
+
+    $map = array(
+        'negro' => 'Negro', 'negra' => 'Negro', 'black' => 'Negro', 'blk' => 'Negro',
+        'blanco' => 'Blanco', 'blanca' => 'Blanco', 'white' => 'Blanco', 'wht' => 'Blanco',
+        'rojo' => 'Rojo', 'roja' => 'Rojo', 'red' => 'Rojo',
+        'azul' => 'Azul', 'blue' => 'Azul', 'navy' => 'Azul Marino', 'azul marino' => 'Azul Marino',
+        'verde' => 'Verde', 'green' => 'Verde',
+        'amarillo' => 'Amarillo', 'amarilla' => 'Amarillo', 'yellow' => 'Amarillo',
+        'rosa' => 'Rosa', 'rosado' => 'Rosa', 'rosada' => 'Rosa', 'pink' => 'Rosa',
+        'gris' => 'Gris', 'gray' => 'Gris', 'grey' => 'Gris',
+        'kaki' => 'Kaki', 'caqui' => 'Kaki', 'khaki' => 'Kaki',
+        'morado' => 'Morado', 'morada' => 'Morado', 'purpura' => 'Morado', 'purple' => 'Morado',
+        'naranja' => 'Naranja', 'orange' => 'Naranja',
+        'cafe' => 'Café', 'marron' => 'Café', 'brown' => 'Café',
+        'beige' => 'Beige',
+        'vino' => 'Vino', 'wine' => 'Vino', 'burgundy' => 'Vino',
+    );
+    $map = apply_filters( 'nakama_wh_color_synonyms', $map );
+
+    return isset( $map[ $norm ] ) ? $map[ $norm ] : $raw;
+}
+
+/** Clave canónica PRENDA-COLOR-TALLA a partir de los valores legibles. El color
+ *  se unifica por sinónimos antes de normalizar (Negra/Black → misma clave). */
 function nakama_wh_key( $prenda, $color, $talla ) {
+    $color = nakama_wh_color_canonical( $color );
     return nakama_wh_norm_part( $prenda ) . '-' . nakama_wh_norm_part( $color ) . '-' . nakama_wh_norm_part( $talla );
 }
 
@@ -350,37 +388,67 @@ function nakama_wh_effective_stock( $variation ) {
 }
 
 /**
+ * Aplica instock/outofstock a UNA variación según el mapa de stock del almacén,
+ * y de paso mantiene el índice inverso _nakama_wh_key. Devuelve 1 si cambió el
+ * stock_status, 0 si no. NO activa manage_stock.
+ */
+function nakama_wh_apply_variation_status( $variation, $map ) {
+    $res = nakama_wh_resolve_for_variation( $variation );
+    if ( ! $res ) {
+        return 0; // fuera del sistema: no tocar
+    }
+    // Índice inverso clave→variación (para el sync eficiente por pedido/lote).
+    if ( (string) get_post_meta( $variation->get_id(), '_nakama_wh_key', true ) !== $res['key'] ) {
+        update_post_meta( $variation->get_id(), '_nakama_wh_key', $res['key'] );
+    }
+    // Agotado solo si la clave está capturada y en 0 o menos.
+    $is_out  = array_key_exists( $res['key'], $map ) && (int) $map[ $res['key'] ] <= 0;
+    $desired = $is_out ? 'outofstock' : 'instock';
+    if ( $variation->get_stock_status() !== $desired ) {
+        $variation->set_stock_status( $desired );
+        $variation->save();
+        return 1;
+    }
+    return 0;
+}
+
+/**
  * Sincroniza el stock_status de las variaciones de Woo (instock/outofstock) para
- * que el checkout nativo y el "bridge" del carrito rechacen agotados. NO activa
- * manage_stock. Si $only_keys se pasa, solo toca variaciones de esas claves.
- * Devuelve cuántas variaciones cambiaron.
+ * que el checkout nativo y el "bridge" del carrito rechacen agotados.
+ *
+ * - $only_keys (array): SOLO toca las variaciones de esas claves, resueltas por
+ *   el índice inverso _nakama_wh_key (una query de meta + carga de las afectadas).
+ *   O(variaciones afectadas), no O(catálogo). Este es el camino de pedidos/lotes.
+ * - $only_keys null: barrido COMPLETO del catálogo (solo "Generar desde catálogo"),
+ *   que además reconstruye el índice _nakama_wh_key de cada variación.
+ *
+ * Devuelve cuántas variaciones cambiaron de estado.
  */
 function nakama_wh_sync_stock_status( $only_keys = null ) {
     global $wpdb;
     $map     = nakama_wh_stock_map( true );
     $changed = 0;
 
-    $ids = $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND post_status IN ('publish','private')" );
+    if ( is_array( $only_keys ) ) {
+        $keys = array_values( array_unique( array_filter( array_map( 'strval', $only_keys ) ) ) );
+        if ( empty( $keys ) ) {
+            return 0;
+        }
+        $placeholders = implode( ',', array_fill( 0, count( $keys ), '%s' ) );
+        $ids = $wpdb->get_col( $wpdb->prepare(
+            "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_nakama_wh_key' AND meta_value IN ({$placeholders})",
+            $keys
+        ) );
+    } else {
+        $ids = $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND post_status IN ('publish','private')" );
+    }
+
     foreach ( (array) $ids as $vid ) {
         $variation = wc_get_product( (int) $vid );
         if ( ! $variation ) {
             continue;
         }
-        $res = nakama_wh_resolve_for_variation( $variation );
-        if ( ! $res ) {
-            continue; // fuera del sistema: no tocar
-        }
-        if ( is_array( $only_keys ) && ! in_array( $res['key'], $only_keys, true ) ) {
-            continue;
-        }
-        // Agotado solo si la clave está capturada y en 0 o menos.
-        $is_out  = array_key_exists( $res['key'], $map ) && (int) $map[ $res['key'] ] <= 0;
-        $desired = $is_out ? 'outofstock' : 'instock';
-        if ( $variation->get_stock_status() !== $desired ) {
-            $variation->set_stock_status( $desired );
-            $variation->save();
-            $changed++;
-        }
+        $changed += nakama_wh_apply_variation_status( $variation, $map );
     }
 
     if ( $changed && function_exists( 'nakama_products_bump_cache' ) ) {
@@ -433,6 +501,85 @@ function nakama_wh_apply_delta( $res, $delta, $reason, $order_id = 0 ) {
     nakama_wh_log_move( $key, (int) $delta, $reason, $order_id );
 
     return (int) $wpdb->get_var( $wpdb->prepare( "SELECT stock FROM {$table} WHERE sku_key = %s", $key ) );
+}
+
+/**
+ * Fusiona filas de SKU base que colapsan a la MISMA clave canónica (sinónimos de
+ * color). Recomputa la clave desde prenda/color/talla; en cada grupo con >1 fila
+ * suma el stock, toma el mínimo mayor, conserva una sola fila con la clave/color
+ * canónicos y borra las demás. Repunta los overrides de variación que apuntaban a
+ * claves eliminadas. Idempotente. Devuelve cuántas filas se eliminaron (fusionadas).
+ */
+function nakama_wh_merge_duplicates() {
+    global $wpdb;
+    $table = nakama_wh_table();
+    $rows  = $wpdb->get_results( "SELECT * FROM {$table}" );
+    if ( empty( $rows ) ) {
+        return 0;
+    }
+
+    // Agrupar por clave canónica recomputada.
+    $groups = array();
+    foreach ( $rows as $r ) {
+        $canon = nakama_wh_key( $r->prenda, $r->color, $r->talla );
+        $groups[ $canon ][] = $r;
+    }
+
+    $merged = 0;
+    foreach ( $groups as $canon => $group ) {
+        // Nada que fusionar si es una sola fila ya con la clave canónica.
+        if ( count( $group ) === 1 && $group[0]->sku_key === $canon ) {
+            continue;
+        }
+
+        // Elegir la fila superviviente: la que ya tenga la clave canónica, si no la primera.
+        $survivor = $group[0];
+        foreach ( $group as $r ) {
+            if ( $r->sku_key === $canon ) {
+                $survivor = $r;
+                break;
+            }
+        }
+
+        $total_stock = 0;
+        $max_min     = 0;
+        $canon_color = nakama_wh_color_canonical( $survivor->color );
+        foreach ( $group as $r ) {
+            $total_stock += (int) $r->stock;
+            $max_min      = max( $max_min, (int) $r->min_stock );
+        }
+
+        // Actualizar la superviviente a la forma canónica con el stock sumado.
+        $wpdb->update( $table, array(
+            'sku_key'    => $canon,
+            'color'      => $canon_color,
+            'label'      => nakama_wh_label( $survivor->prenda, $canon_color, $survivor->talla ),
+            'stock'      => $total_stock,
+            'min_stock'  => $max_min,
+            'updated_at' => current_time( 'mysql' ),
+        ), array( 'id' => (int) $survivor->id ) );
+
+        // Borrar las demás filas del grupo y repuntar sus overrides al canónico.
+        foreach ( $group as $r ) {
+            if ( (int) $r->id === (int) $survivor->id ) {
+                continue;
+            }
+            if ( $r->sku_key !== $canon ) {
+                $wpdb->update( $wpdb->postmeta,
+                    array( 'meta_value' => $canon ),
+                    array( 'meta_key' => '_nakama_base_sku', 'meta_value' => $r->sku_key )
+                );
+            }
+            $wpdb->delete( $table, array( 'id' => (int) $r->id ) );
+            $merged++;
+        }
+
+        if ( count( $group ) > 1 ) {
+            nakama_wh_log_move( $canon, 0, 'merge' );
+        }
+    }
+
+    return $merged;
 }
 
 /* ============================================================================
@@ -610,6 +757,16 @@ add_action( 'rest_api_init', function () {
         'callback'            => 'nakama_wh_rest_adjust',
         'permission_callback' => $perm,
     ) );
+    register_rest_route( 'nakama/v1', '/warehouse/bulk', array(
+        'methods'             => 'POST',
+        'callback'            => 'nakama_wh_rest_bulk',
+        'permission_callback' => $perm,
+    ) );
+    register_rest_route( 'nakama/v1', '/warehouse/sync', array(
+        'methods'             => 'POST',
+        'callback'            => 'nakama_wh_rest_sync',
+        'permission_callback' => $perm,
+    ) );
     register_rest_route( 'nakama/v1', '/warehouse/alerts', array(
         'methods'             => 'GET',
         'callback'            => 'nakama_wh_rest_alerts',
@@ -754,6 +911,71 @@ function nakama_wh_rest_adjust( WP_REST_Request $request ) {
     return new WP_REST_Response( nakama_wh_row_out( $fresh ), 200 );
 }
 
+/**
+ * POST /warehouse/bulk — aplica hasta 50 cambios de una vez, SOLO a la tabla (sin
+ * sincronizar el stock_status: eso lo hace /sync una sola vez al final del lote).
+ * Body: { items: [ { id, stock?, min_stock? }, … ] }.
+ * Devuelve { items: [filas actualizadas], keys: [sku_key afectadas] }.
+ */
+function nakama_wh_rest_bulk( WP_REST_Request $request ) {
+    global $wpdb;
+    $table = nakama_wh_table();
+    $input = $request->get_param( 'items' );
+    if ( ! is_array( $input ) || empty( $input ) ) {
+        return new WP_Error( 'bad_input', 'Sin cambios que aplicar.', array( 'status' => 400 ) );
+    }
+    $input = array_slice( $input, 0, 50 ); // cap defensivo
+
+    $out_rows = array();
+    $keys     = array();
+    $now      = current_time( 'mysql' );
+
+    foreach ( $input as $chg ) {
+        $id  = isset( $chg['id'] ) ? (int) $chg['id'] : 0;
+        $row = $id ? $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ) ) : null;
+        if ( ! $row ) {
+            continue;
+        }
+
+        $fields = array( 'updated_at' => $now );
+        if ( array_key_exists( 'min_stock', $chg ) && null !== $chg['min_stock'] ) {
+            $fields['min_stock'] = max( 0, (int) $chg['min_stock'] );
+        }
+        if ( array_key_exists( 'stock', $chg ) && null !== $chg['stock'] ) {
+            $new   = (int) $chg['stock'];
+            $delta = $new - (int) $row->stock;
+            $fields['stock'] = $new;
+            if ( 0 !== $delta ) {
+                nakama_wh_log_move( $row->sku_key, $delta, 'manual' );
+            }
+        }
+        $wpdb->update( $table, $fields, array( 'id' => $id ) );
+
+        $keys[]    = $row->sku_key;
+        $fresh     = $wpdb->get_row( $wpdb->prepare( "SELECT * FROM {$table} WHERE id = %d", $id ) );
+        $out_rows[] = nakama_wh_row_out( $fresh );
+    }
+
+    return new WP_REST_Response( array(
+        'items' => $out_rows,
+        'keys'  => array_values( array_unique( $keys ) ),
+    ), 200 );
+}
+
+/**
+ * POST /warehouse/sync — sincroniza la cascada de "agotado" UNA sola vez. Con
+ * { keys: [...] } solo toca esas claves (vía índice); sin keys, barrido completo.
+ */
+function nakama_wh_rest_sync( WP_REST_Request $request ) {
+    $keys    = $request->get_param( 'keys' );
+    $only    = is_array( $keys ) && ! empty( $keys ) ? array_map( 'strval', $keys ) : null;
+    $changed = nakama_wh_sync_stock_status( $only );
+    if ( function_exists( 'nakama_products_bump_cache' ) ) {
+        nakama_products_bump_cache();
+    }
+    return new WP_REST_Response( array( 'changed' => (int) $changed ), 200 );
+}
+
 /** DELETE /warehouse/items/{id} */
 function nakama_wh_rest_delete( WP_REST_Request $request ) {
     global $wpdb;
@@ -780,10 +1002,14 @@ function nakama_wh_rest_alerts() {
     return new WP_REST_Response( array( 'items' => $items ), 200 );
 }
 
-/** POST /warehouse/generate — sembrar claves faltantes desde el catálogo. */
+/** POST /warehouse/generate — fusiona duplicados, siembra claves faltantes desde
+ *  el catálogo y reconstruye el índice + la cascada de agotado. */
 function nakama_wh_rest_generate() {
     global $wpdb;
     $table = nakama_wh_table();
+
+    // 1) Fusionar SKU base duplicados por sinónimos de color (suma stock).
+    $merged = nakama_wh_merge_duplicates();
 
     $ids = $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND post_status IN ('publish','private')" );
 
@@ -823,12 +1049,13 @@ function nakama_wh_rest_generate() {
         $created++;
     }
 
+    // Barrido completo: (re)construye el índice _nakama_wh_key y la cascada.
     nakama_wh_sync_stock_status();
     if ( function_exists( 'nakama_products_bump_cache' ) ) {
         nakama_products_bump_cache();
     }
 
-    return new WP_REST_Response( array( 'created' => $created, 'skipped' => $skipped ), 200 );
+    return new WP_REST_Response( array( 'created' => $created, 'skipped' => $skipped, 'merged' => $merged ), 200 );
 }
 
 /** GET /warehouse/variation?id= — clave resuelta + override actual. */
@@ -861,15 +1088,17 @@ function nakama_wh_rest_override( WP_REST_Request $request ) {
         update_post_meta( $id, '_nakama_base_sku', sanitize_text_field( $val ) );
     }
 
+    // Aplicar el estado directo a esta variación: refresca su índice _nakama_wh_key
+    // (el override cambió su resolución) y actualiza su stock_status.
     $variation = wc_get_product( $id );
-    $affected  = array();
     if ( $variation ) {
-        $res = nakama_wh_resolve_for_variation( $variation );
-        if ( $res ) {
-            $affected[] = $res['key'];
+        if ( '-' === $val ) {
+            // Excluida del sistema: quitar del índice para que no la toque el sync.
+            delete_post_meta( $id, '_nakama_wh_key' );
+        } else {
+            nakama_wh_apply_variation_status( $variation, nakama_wh_stock_map( true ) );
         }
     }
-    nakama_wh_sync_stock_status( $affected ? $affected : null );
     if ( function_exists( 'nakama_products_bump_cache' ) ) {
         nakama_products_bump_cache();
     }
