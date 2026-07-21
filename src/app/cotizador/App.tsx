@@ -497,6 +497,25 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
     }
   };
 
+  // Guarda el PDF de la cotización en WordPress y lo vincula al pedido (folio).
+  // Producción lo mostrará una vez pagada la cotización. No es fatal: el envío
+  // a Discord sigue siendo el canal principal si esto falla.
+  const uploadQuotePdfToWordPress = async (pdfBlob: Blob, folioStr: string, filename: string): Promise<boolean> => {
+    try {
+      const formData = new FormData();
+      formData.append('folio', folioStr);
+      formData.append('file', pdfBlob, filename);
+      const res = await fetch(`${apiOrigin()}/?rest_route=/nakama/v1/quote-pdf&nkcb=${Date.now()}`, {
+        method: 'POST',
+        body: formData,
+      });
+      return res.ok;
+    } catch (error) {
+      console.warn('No se pudo guardar el PDF de la cotización en WordPress:', error);
+      return false;
+    }
+  };
+
   // Action: Send WhatsApp (Bypasses popup blocker by uploading files to Discord first and then opening WhatsApp!)
   const handleWhatsAppQuote = async () => {
     // Gate de sesión: enviar una cotización requiere cuenta iniciada. Sin
@@ -596,6 +615,16 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
         capConfig,
         folioStr
       );
+
+      // 1.5 Guardar el PDF en WordPress: el pedido de cotización (creado arriba
+      // en /quote-order) lo hereda al pagar y Producción lo muestra. No fatal.
+      if (!isLocalhost) {
+        try {
+          await uploadQuotePdfToWordPress(doc.output('blob'), folioStr, pdfFilename);
+        } catch {
+          /* Discord sigue siendo el canal principal */
+        }
+      }
 
       // 2. Upload to Discord Webhook with folio identifier
       sendSuccess = await sendQuoteToDiscord(doc, pdfFilename, folioStr);

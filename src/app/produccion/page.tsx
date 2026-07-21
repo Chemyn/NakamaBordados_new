@@ -301,7 +301,7 @@ export default function ProduccionPage() {
         <div className="np-pdfs">
           <div className="np-pdf-upload">
             <h2>Subir patrón (PDF)</h2>
-            <p>El nombre del archivo debe coincidir con el nombre del producto. Ej: <code>Hoodie One Piece.pdf</code></p>
+            <p>El nombre del archivo debe coincidir con el <strong>SKU del producto</strong>. Ej: <code>HOD-001.pdf</code></p>
             <input type="file" accept="application/pdf" ref={fileRef} />
             <button className="nk-btn" onClick={handleUpload} disabled={uploading}>
               {uploading ? 'Subiendo…' : 'Subir PDF'}
@@ -317,7 +317,10 @@ export default function ProduccionPage() {
             ) : (
               pdfs.map(p => (
                 <div key={p.id} className="np-pdf-item">
-                  <span className="np-pdf-name">{p.product_name}</span>
+                  <div className="np-pdf-info">
+                    <span className="np-pdf-name">{p.product_name}</span>
+                    {p.sku && <span className="np-pdf-sku">SKU: {p.sku}</span>}
+                  </div>
                   <div className="np-pdf-actions">
                     <a href={p.pdf_url} target="_blank" rel="noopener noreferrer">Ver</a>
                     <button className="np-pdf-del" onClick={() => handleDeletePdf(p.id)}>Eliminar</button>
@@ -337,7 +340,17 @@ export default function ProduccionPage() {
               <p className="np-empty">Cargando…</p>
             ) : (
               <>
-                <h2>Pedido #{detail.number}</h2>
+                <h2>{detail.is_quote ? `Cotización ${detail.quote_folio || detail.number}` : `Pedido #${detail.number}`}</h2>
+
+                {detail.is_quote && (
+                  <div className="np-quote-block">
+                    {detail.quote_pdf_url ? (
+                      <a className="nk-btn np-btn-sm" href={detail.quote_pdf_url} target="_blank" rel="noopener noreferrer">Ver PDF de cotización</a>
+                    ) : (
+                      <div className="np-quote-nopdf">PDF no disponible (cotización anterior).</div>
+                    )}
+                  </div>
+                )}
 
                 {detail.status === 'processing' && (
                   <div className="np-progress">
@@ -369,6 +382,7 @@ export default function ProduccionPage() {
                       <div className="np-prod-main">
                         <span className="np-prod-name">{p.name}</span>
                         <div className="np-prod-attrs">
+                          {p.sku && <span className="np-attr">SKU: {p.sku}</span>}
                           {p.talla && <span className="np-attr">Talla: {p.talla}</span>}
                           {p.estilo && <span className="np-attr">Estilo: {p.estilo}</span>}
                           {p.color && <span className="np-attr">Color: {p.color}</span>}
@@ -478,6 +492,7 @@ function Card({ order, showProgress, onClick }: { order: ProdCard; showProgress:
         <span className="np-card-age">hace {order.age}</span>
       </div>
       <span className="np-card-count">{order.item_count} pza{order.item_count === 1 ? '' : 's'}</span>
+      {order.is_quote && <span className="np-card-quote">Cotización</span>}
       <div className="np-card-products">{order.products.join(', ')}</div>
       {withProgress && (
         <div className="np-card-progress">
@@ -559,6 +574,10 @@ const panelStyles = `
     display: inline-block; margin: 8px 0; font-weight: 800; font-size: .75rem; text-transform: uppercase;
     background: var(--nk-accent); color: #fff; padding: 2px 8px;
   }
+  .np-card-quote {
+    display: inline-block; margin: 0 0 8px 6px; font-weight: 800; font-size: .7rem; text-transform: uppercase;
+    background: var(--nk-amber, #f5a623); color: #1A1F2B; border: 2px solid var(--nk-border); padding: 1px 7px;
+  }
   .np-card-products { font-size: .92rem; line-height: 1.35; color: var(--nk-text-main); }
   .np-card-progress { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
   .np-card-progress .np-progress-bar { flex: 1; }
@@ -599,6 +618,10 @@ const panelStyles = `
     background: none; border: none; cursor: pointer;
   }
   .np-modal-box h2 { font-family: 'Teko', sans-serif; font-size: 2rem; text-transform: uppercase; color: var(--nk-text-main); margin: 0 0 12px; }
+
+  .np-quote-block { margin: 0 0 16px; }
+  .np-quote-block :global(.nk-btn) { text-decoration: none; }
+  .np-quote-nopdf { font-style: italic; color: var(--nk-text-sec); font-size: .9rem; }
 
   .np-progress { margin: 0 0 16px; }
   .np-progress-label { display: block; margin-top: 6px; font-size: .82rem; font-weight: 700; color: var(--nk-text-sec); }
@@ -668,7 +691,9 @@ const panelStyles = `
     background: var(--nk-bg-card); border: 3px solid var(--nk-border); box-shadow: var(--nk-manga-shadow);
     padding: 12px; display: flex; flex-direction: column; gap: 8px;
   }
+  .np-pdf-info { display: flex; flex-direction: column; gap: 2px; }
   .np-pdf-name { font-weight: 800; font-size: .95rem; color: var(--nk-text-main); }
+  .np-pdf-sku { font-size: .78rem; font-weight: 700; color: var(--nk-text-sec); }
   .np-pdf-actions { display: flex; gap: 8px; }
   .np-pdf-actions a, .np-pdf-actions button {
     font-size: .78rem; font-weight: 700; text-transform: uppercase; text-decoration: none;

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Panel de Producción
  * Description: Tablero Kanban de pedidos para el personal de producción: ver pedidos en proceso, tomarlos, validar cada producto, finalizar producción y gestionar los PDF de patrones. Sin exponer precios ni datos administrativos.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Nakama
  */
 
@@ -162,6 +162,99 @@ function nakama_prod_normalize( $text ) {
     return trim( $text );
 }
 
+/** Normaliza un SKU para comparar el nombre de archivo (<SKU>.pdf) con el SKU
+ *  del producto: quita la extensión .pdf, recorta espacios y pasa a minúsculas.
+ *  A diferencia de nakama_prod_normalize(), NO colapsa guiones (rompería SKUs
+ *  como "HOD-001"). El match final es case-insensitive. */
+function nakama_prod_normalize_sku( $text ) {
+    $text = (string) $text;
+    $text = preg_replace( '/\.pdf$/i', '', $text );
+    return strtolower( trim( $text ) );
+}
+
+/** Resuelve un SKU (case-insensitive) al producto PADRE publicado.
+ *  Devuelve array( 'product_id', 'product_name', 'sku' ) o null si no existe.
+ *  Si el SKU pertenece a una variación, se resuelve a su producto padre. */
+function nakama_prod_product_by_sku( $sku ) {
+    $sku = trim( (string) $sku );
+    if ( '' === $sku ) {
+        return null;
+    }
+
+    // Intento 1: lookup indexado de WooCommerce (respeta la collation *_ci).
+    $product_id = function_exists( 'wc_get_product_id_by_sku' ) ? (int) wc_get_product_id_by_sku( $sku ) : 0;
+
+    // Intento 2: red de seguridad case-insensitive sobre la lookup table.
+    if ( ! $product_id ) {
+        global $wpdb;
+        $lookup = $wpdb->prefix . 'wc_product_meta_lookup';
+        $product_id = (int) $wpdb->get_var( $wpdb->prepare(
+            "SELECT product_id FROM {$lookup} WHERE sku <> '' AND LOWER(sku) = LOWER(%s) LIMIT 1",
+            $sku
+        ) );
+    }
+
+    if ( ! $product_id ) {
+        return null;
+    }
+
+    $product = wc_get_product( $product_id );
+    if ( ! $product ) {
+        return null;
+    }
+
+    // Un PDF por producto PADRE: si el SKU es de una variación, subir al padre.
+    if ( $product->is_type( 'variation' ) ) {
+        $parent_id = (int) $product->get_parent_id();
+        $parent    = $parent_id ? wc_get_product( $parent_id ) : null;
+        if ( ! $parent ) {
+            return null;
+        }
+        $product = $parent;
+    }
+
+    if ( 'publish' !== get_post_status( $product->get_id() ) ) {
+        return null;
+    }
+
+    return array(
+        'product_id'   => (int) $product->get_id(),
+        'product_name' => (string) $product->get_name(),
+        'sku'          => (string) $product->get_sku(),
+    );
+}
+
+/** Top-N SKUs de productos padre publicados más parecidos a $file_sku, para las
+ *  sugerencias "¿Quisiste decir?". Devuelve array de strings "SKU — Nombre". */
+function nakama_prod_sku_suggestions( $file_sku, $limit = 5 ) {
+    global $wpdb;
+    $lookup = $wpdb->prefix . 'wc_product_meta_lookup';
+    $rows   = $wpdb->get_results(
+        "SELECT l.sku AS sku, p.post_title AS title
+         FROM {$lookup} l
+         INNER JOIN {$wpdb->posts} p ON p.ID = l.product_id
+         WHERE p.post_type = 'product' AND p.post_status = 'publish' AND l.sku <> ''"
+    );
+
+    $needle  = nakama_prod_normalize_sku( $file_sku );
+    $scored  = array();
+    foreach ( (array) $rows as $r ) {
+        $pct = 0.0;
+        similar_text( $needle, strtolower( (string) $r->sku ), $pct );
+        $scored[] = array(
+            'label' => sprintf( '%s — %s', $r->sku, $r->title ),
+            'score' => $pct,
+        );
+    }
+    usort( $scored, function ( $a, $b ) {
+        return $b['score'] <=> $a['score'];
+    } );
+
+    return array_map( function ( $s ) {
+        return $s['label'];
+    }, array_slice( $scored, 0, (int) $limit ) );
+}
+
 /** Lee talla/estilo/color de un WC_Order_Item_Product tolerando los distintos
  *  nombres reales (Size/Talla, Style/Estilo, pa_*), igual que getVariationAttr()
  *  del frontend. Devuelve array( 'talla' => ..., 'estilo' => ..., 'color' => ... ). */
@@ -228,6 +321,29 @@ function nakama_prod_pdf_for( $product_id, $product_name ) {
     return '';
 }
 
+/** Información de cotización de un pedido: is_quote/folio/pdf_url. El PDF puede
+ *  vivir en la meta del propio pedido (pagado) o, como red de seguridad, en el
+ *  pedido de cotización origen (referenciado por _nakama_quote_source_order). */
+function nakama_prod_quote_info( $order ) {
+    $folio = (string) $order->get_meta( '_nakama_quote_folio' );
+    if ( '' === $folio ) {
+        return array( 'is_quote' => false, 'folio' => '', 'pdf_url' => '' );
+    }
+
+    $pdf_url = (string) $order->get_meta( '_nakama_quote_pdf_url' );
+    if ( '' === $pdf_url ) {
+        $src_id = (int) $order->get_meta( '_nakama_quote_source_order' );
+        if ( $src_id ) {
+            $src = wc_get_order( $src_id );
+            if ( $src ) {
+                $pdf_url = (string) $src->get_meta( '_nakama_quote_pdf_url' );
+            }
+        }
+    }
+
+    return array( 'is_quote' => true, 'folio' => $folio, 'pdf_url' => $pdf_url );
+}
+
 /** Construye la tarjeta resumida de un pedido (SIN precios ni direcciones). */
 function nakama_prod_card( $order ) {
     $items      = $order->get_items();
@@ -254,6 +370,7 @@ function nakama_prod_card( $order ) {
         'taken_by'   => $taken_by ? (string) $taken_by : '',
         'taken_age'  => $taken_at ? human_time_diff( $taken_at, time() ) : '',
         'progress'   => nakama_prod_order_progress( $order ),
+        'is_quote'   => nakama_prod_quote_info( $order )['is_quote'],
     );
 }
 
@@ -484,11 +601,13 @@ function nakama_prod_rest_order_detail( WP_REST_Request $request ) {
     foreach ( $order->get_items() as $item_id => $item ) {
         $product   = $item->get_product();
         $product_id = $product ? ( $product->is_type( 'variation' ) ? $product->get_parent_id() : $product->get_id() ) : 0;
+        $parent    = $product_id ? wc_get_product( $product_id ) : null;
         $attrs     = nakama_prod_item_attributes( $item );
         list( $img_thumb, $img_full ) = nakama_prod_item_images( $item );
         $products[] = array(
             'item_id'      => (int) $item_id,
             'name'         => $item->get_name(),
+            'sku'          => $parent ? (string) $parent->get_sku() : '',
             'qty'          => (int) $item->get_quantity(),
             'talla'        => $attrs['talla'],
             'estilo'       => $attrs['estilo'],
@@ -503,15 +622,19 @@ function nakama_prod_rest_order_detail( WP_REST_Request $request ) {
 
     $status   = $order->get_status();
     $taken_by = $order->get_meta( '_nakama_prod_taken_by' );
+    $quote    = nakama_prod_quote_info( $order );
 
     return new WP_REST_Response( array(
-        'id'       => $order->get_id(),
-        'number'   => $order->get_order_number(),
-        'status'   => $status,
-        'taken'    => ! empty( $taken_by ),
-        'taken_by' => $taken_by ? (string) $taken_by : '',
-        'products' => $products,
-        'progress' => nakama_prod_order_progress( $order ),
+        'id'            => $order->get_id(),
+        'number'        => $order->get_order_number(),
+        'status'        => $status,
+        'taken'         => ! empty( $taken_by ),
+        'taken_by'      => $taken_by ? (string) $taken_by : '',
+        'products'      => $products,
+        'progress'      => nakama_prod_order_progress( $order ),
+        'is_quote'      => $quote['is_quote'],
+        'quote_folio'   => $quote['folio'],
+        'quote_pdf_url' => $quote['pdf_url'],
     ), 200 );
 }
 
@@ -628,15 +751,19 @@ function nakama_prod_rest_finish( WP_REST_Request $request ) {
     return new WP_REST_Response( array( 'success' => true ), 200 );
 }
 
-/** GET /production/pdfs — listado de patrones. */
+/** GET /production/pdfs — listado de patrones (con SKU en vivo por producto). */
 function nakama_prod_rest_pdfs_list() {
     global $wpdb;
     $table = nakama_prod_table_name();
     $rows  = $wpdb->get_results( "SELECT id, product_id, product_name, pdf_url, uploaded_at FROM {$table} ORDER BY product_name ASC" );
+    foreach ( (array) $rows as $r ) {
+        $r->sku = $r->product_id ? (string) get_post_meta( (int) $r->product_id, '_sku', true ) : '';
+    }
     return new WP_REST_Response( array( 'pdfs' => (array) $rows ), 200 );
 }
 
-/** POST /production/pdfs (multipart: file) — valida match exacto por nombre. */
+/** POST /production/pdfs (multipart: file) — el nombre del archivo debe coincidir
+ *  con el SKU del producto padre (<SKU>.pdf). Sin match → 400 con sugerencias. */
 function nakama_prod_rest_pdf_upload( WP_REST_Request $request ) {
     $files = $request->get_file_params();
     if ( empty( $files['file'] ) ) {
@@ -650,46 +777,15 @@ function nakama_prod_rest_pdf_upload( WP_REST_Request $request ) {
         return new WP_Error( 'not_pdf', 'El archivo debe ser un PDF.', array( 'status' => 400 ) );
     }
 
-    // Buscar el producto cuyo título normalizado coincida con el del archivo.
-    $file_norm = nakama_prod_normalize( $file['name'] );
-    $products  = get_posts( array(
-        'post_type'      => 'product',
-        'post_status'    => 'publish',
-        'posts_per_page' => -1,
-        'fields'         => 'ids',
-    ) );
+    // El nombre del archivo (sin .pdf) es el SKU del producto padre.
+    $file_sku = nakama_prod_normalize_sku( $file['name'] );
+    $matched  = $file_sku ? nakama_prod_product_by_sku( $file_sku ) : null;
 
-    $matched_id   = 0;
-    $matched_name = '';
-    $catalog      = array();
-    foreach ( $products as $pid ) {
-        $title = get_the_title( $pid );
-        $catalog[ $pid ] = $title;
-        if ( nakama_prod_normalize( $title ) === $file_norm ) {
-            $matched_id   = $pid;
-            $matched_name = $title;
-            break;
-        }
-    }
-
-    if ( ! $matched_id ) {
-        // Sugerir los 5 títulos más parecidos, sin guardar nada.
-        $scored = array();
-        foreach ( $catalog as $pid => $title ) {
-            similar_text( $file_norm, nakama_prod_normalize( $title ), $pct );
-            $scored[] = array( 'name' => $title, 'pct' => $pct );
-        }
-        usort( $scored, function ( $a, $b ) {
-            return $b['pct'] <=> $a['pct'];
-        } );
-        $suggestions = array_map( function ( $s ) {
-            return $s['name'];
-        }, array_slice( $scored, 0, 5 ) );
-
+    if ( ! $matched ) {
         return new WP_REST_Response( array(
             'success'     => false,
-            'message'     => 'El nombre del PDF no coincide con ningún producto. Renómbralo igual que el producto y vuelve a subirlo.',
-            'suggestions' => $suggestions,
+            'message'     => 'El nombre del PDF no coincide con ningún SKU de producto. Renómbralo como <SKU>.pdf (por ejemplo HOD-001.pdf) y vuelve a subirlo.',
+            'suggestions' => nakama_prod_sku_suggestions( $file_sku, 5 ),
         ), 400 );
     }
 
@@ -701,13 +797,13 @@ function nakama_prod_rest_pdf_upload( WP_REST_Request $request ) {
         return new WP_Error( 'upload_error', $uploaded['error'], array( 'status' => 500 ) );
     }
 
-    // Insert/update: un PDF por producto.
+    // Insert/update: un PDF por producto (keyed por product_id).
     global $wpdb;
     $table    = nakama_prod_table_name();
-    $existing = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE product_id = %d", $matched_id ) );
+    $existing = $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$table} WHERE product_id = %d", $matched['product_id'] ) );
     $data     = array(
-        'product_id'   => $matched_id,
-        'product_name' => $matched_name,
+        'product_id'   => $matched['product_id'],
+        'product_name' => $matched['product_name'],
         'pdf_url'      => esc_url_raw( $uploaded['url'] ),
         'uploaded_at'  => current_time( 'mysql' ),
     );
@@ -719,7 +815,8 @@ function nakama_prod_rest_pdf_upload( WP_REST_Request $request ) {
 
     return new WP_REST_Response( array(
         'success'      => true,
-        'product_name' => $matched_name,
+        'product_name' => $matched['product_name'],
+        'sku'          => $matched['sku'],
         'pdf_url'      => $data['pdf_url'],
     ), 200 );
 }
@@ -815,7 +912,7 @@ function nakama_prod_render_page() {
         <section class="np-view" data-view="pdfs" hidden>
             <div class="np-pdf-upload">
                 <h2>Subir patrón (PDF)</h2>
-                <p>El nombre del archivo debe coincidir con el nombre del producto. Ejemplo: <code>Hoodie One Piece.pdf</code></p>
+                <p>El nombre del archivo debe coincidir con el <strong>SKU del producto</strong>. Ejemplo: <code>HOD-001.pdf</code></p>
                 <input type="file" id="np-pdf-file" accept="application/pdf" />
                 <button class="np-btn np-btn-primary" id="np-pdf-submit">Subir PDF</button>
                 <div class="np-pdf-msg" id="np-pdf-msg"></div>
@@ -930,6 +1027,11 @@ function nakama_prod_render_styles() {
         display: inline-block; margin: 8px 0; font-weight: 800; font-size: .8rem;
         text-transform: uppercase; background: #000; color: #fff; padding: 2px 8px;
     }
+    .np-card-quote {
+        display: inline-block; margin: 0 0 8px 6px; font-weight: 800; font-size: .72rem;
+        text-transform: uppercase; background: var(--np-amber); color: #1A1F2B;
+        border: 2px solid #000; padding: 1px 7px;
+    }
     .np-card-products { font-size: .92rem; line-height: 1.35; }
     .np-card-taken {
         margin-top: 10px; font-size: .82rem; font-weight: 600;
@@ -985,6 +1087,8 @@ function nakama_prod_render_styles() {
         border: 2px solid #000; padding: 2px 8px; background: #f4f1ea;
     }
     .np-modal-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+    .np-quote-block { margin: 4px 0 16px; }
+    .np-quote-nopdf { font-style: italic; color: #666; font-size: .9rem; }
 
     /* PDFs */
     .np-pdf-upload {
@@ -1001,6 +1105,7 @@ function nakama_prod_render_styles() {
         padding: 12px; display: flex; flex-direction: column; gap: 8px;
     }
     .np-pdf-name { font-weight: 800; font-size: .95rem; }
+    .np-pdf-sku { font-size: .78rem; color: #555; font-weight: 700; }
     .np-pdf-actions { display: flex; gap: 8px; }
     .np-pdf-actions a, .np-pdf-actions button {
         font-size: .78rem; font-weight: 700; text-transform: uppercase; text-decoration: none;
@@ -1068,10 +1173,11 @@ function nakama_prod_render_script() {
             var taken = o.taken
                 ? '<div class="np-card-taken">👤 ' + esc(o.taken_by) + ' · hace ' + esc(o.taken_age) + '</div>'
                 : '';
+            var quoteBadge = o.is_quote ? '<span class="np-card-quote">Cotización</span>' : '';
             return '<div class="np-card" data-id="' + o.id + '">' +
                 '<div class="np-card-top"><span class="np-card-num">#' + esc(o.number) + '</span>' +
                 '<span class="np-card-age">hace ' + esc(o.age) + '</span></div>' +
-                '<span class="np-card-count">' + o.item_count + ' pza' + (o.item_count === 1 ? '' : 's') + '</span>' +
+                '<span class="np-card-count">' + o.item_count + ' pza' + (o.item_count === 1 ? '' : 's') + '</span>' + quoteBadge +
                 '<div class="np-card-products">' + products + '</div>' + taken + '</div>';
         }
 
@@ -1120,6 +1226,7 @@ function nakama_prod_render_script() {
                 var o = res.data;
                 var rows = (o.products || []).map(function (p) {
                     var attrs = [];
+                    if (p.sku)    attrs.push('<span class="np-attr">SKU: ' + esc(p.sku) + '</span>');
                     if (p.talla)  attrs.push('<span class="np-attr">Talla: ' + esc(p.talla) + '</span>');
                     if (p.estilo) attrs.push('<span class="np-attr">Estilo: ' + esc(p.estilo) + '</span>');
                     if (p.color)  attrs.push('<span class="np-attr">Color: ' + esc(p.color) + '</span>');
@@ -1131,6 +1238,14 @@ function nakama_prod_render_script() {
                         '<div class="np-prod-attrs">' + attrs.join('') + '</div>' + pdf + '</div>';
                 }).join('');
 
+                var quoteBlock = '';
+                if (o.is_quote) {
+                    quoteBlock = o.quote_pdf_url
+                        ? '<a class="np-btn np-btn-amber" href="' + esc(o.quote_pdf_url) + '" target="_blank" rel="noopener">Ver PDF de cotización</a>'
+                        : '<div class="np-quote-nopdf">PDF no disponible (cotización anterior).</div>';
+                    quoteBlock = '<div class="np-quote-block">' + quoteBlock + '</div>';
+                }
+
                 var actions = '';
                 if (o.status === 'processing') {
                     var takeLabel = o.taken ? 'Re-tomar pedido' : 'Tomar pedido';
@@ -1138,7 +1253,8 @@ function nakama_prod_render_script() {
                         '<button class="np-btn np-btn-primary" id="np-finish" data-id="' + o.id + '">Finalizar producción</button>';
                 }
 
-                content.innerHTML = '<h2>Pedido #' + esc(o.number) + '</h2>' + rows +
+                var title = o.is_quote ? 'Cotización ' + esc(o.quote_folio || o.number) : 'Pedido #' + esc(o.number);
+                content.innerHTML = '<h2>' + title + '</h2>' + quoteBlock + rows +
                     '<div class="np-modal-actions">' + actions + '</div>';
 
                 var takeBtn = document.getElementById('np-take');
@@ -1177,7 +1293,8 @@ function nakama_prod_render_script() {
             api(url('/pdfs'), { method: 'POST', body: fd }).then(function (res) {
                 if (res.ok && res.data.success) {
                     pdfMsg.className = 'np-pdf-msg ok';
-                    pdfMsg.textContent = '✓ PDF vinculado a "' + res.data.product_name + '".';
+                    var skuTxt = res.data.sku ? ' (SKU: ' + res.data.sku + ')' : '';
+                    pdfMsg.textContent = '✓ PDF vinculado a "' + res.data.product_name + '"' + skuTxt + '.';
                     input.value = '';
                     loadPdfs();
                 } else {
@@ -1198,7 +1315,8 @@ function nakama_prod_render_script() {
                 var pdfs = (res.data && res.data.pdfs) || [];
                 if (!pdfs.length) { list.innerHTML = '<div class="np-empty">Aún no hay patrones subidos.</div>'; return; }
                 list.innerHTML = pdfs.map(function (p) {
-                    return '<div class="np-pdf-item"><div class="np-pdf-name">' + esc(p.product_name) + '</div>' +
+                    var skuLine = p.sku ? '<div class="np-pdf-sku">SKU: ' + esc(p.sku) + '</div>' : '';
+                    return '<div class="np-pdf-item"><div><div class="np-pdf-name">' + esc(p.product_name) + '</div>' + skuLine + '</div>' +
                         '<div class="np-pdf-actions">' +
                         '<a href="' + esc(p.pdf_url) + '" target="_blank" rel="noopener">Ver</a>' +
                         '<button class="np-pdf-del" data-id="' + p.id + '">Eliminar</button>' +

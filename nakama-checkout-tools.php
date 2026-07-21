@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO, pedidos de cotización, registro de clientes y sincronización de base de datos local (Next.js).
- * Version: 2.5
+ * Version: 2.6
  * Author: Nakama
  */
 
@@ -49,6 +49,17 @@ add_action( 'rest_api_init', function () {
     register_rest_route( 'nakama/v1', '/quote-order', array(
         'methods' => 'POST',
         'callback' => 'nakama_create_quote_order',
+        'permission_callback' => '__return_true'
+    ) );
+
+    // PDF de cotización: el cotizador sube aquí (multipart) el PDF generado en el
+    // navegador para dejarlo guardado en el servidor y vinculado al pedido de
+    // cotización (folio NK-xxxx). El pedido pagado lo hereda y el panel de
+    // Producción lo muestra. Público como /quote-order (mismo momento del flujo);
+    // se acota con escritura única, estado on-hold y ventana temporal (ver abajo).
+    register_rest_route( 'nakama/v1', '/quote-pdf', array(
+        'methods' => 'POST',
+        'callback' => 'nakama_quote_pdf_upload',
         'permission_callback' => '__return_true'
     ) );
 
@@ -254,6 +265,110 @@ function nakama_create_quote_order( WP_REST_Request $request ) {
         'success' => true,
         'orderId' => $order->get_id(),
         'folio'   => $folio,
+    ) );
+    $response->header( 'Access-Control-Allow-Origin', '*' );
+    $response->header( 'X-LiteSpeed-Cache-Control', 'no-cache' );
+    return $response;
+}
+
+/**
+ * POST /nakama/v1/quote-pdf — guarda el PDF de la cotización (generado en el
+ * navegador) en el servidor y lo vincula al pedido de cotización por su folio.
+ * Multipart: campo `folio` (NK-xxxx) + archivo `file` (PDF).
+ *
+ * Endpoint público (como /quote-order, mismo instante del flujo). Se acota el
+ * abuso con: folio válido + pedido existente, estado on-hold, escritura única
+ * (no reemplaza un PDF ya guardado), ventana < 1 h desde la creación, tamaño
+ * máximo, verificación de PDF real y nombre de archivo controlado por servidor.
+ */
+function nakama_quote_pdf_upload( WP_REST_Request $request ) {
+    $folio = trim( (string) $request->get_param( 'folio' ) );
+    if ( ! preg_match( '/^NK-\d{1,10}$/', $folio ) ) {
+        return new WP_Error( 'bad_folio', 'Folio inválido.', array( 'status' => 400 ) );
+    }
+
+    // Localizar el pedido de cotización por su folio (mismo patrón idempotente).
+    $orders = wc_get_orders( array(
+        'limit'      => 1,
+        'meta_query' => array(
+            array(
+                'key'   => '_nakama_quote_folio',
+                'value' => $folio,
+            ),
+        ),
+    ) );
+    if ( empty( $orders ) ) {
+        return new WP_Error( 'not_found', 'No existe una cotización con ese folio.', array( 'status' => 404 ) );
+    }
+    $order = $orders[0];
+
+    // Anti-abuso: solo cotizaciones recién creadas, en espera y sin PDF previo.
+    if ( 'on-hold' !== $order->get_status() ) {
+        return new WP_Error( 'bad_status', 'La cotización ya no admite adjuntar el PDF.', array( 'status' => 409 ) );
+    }
+    if ( '' !== (string) $order->get_meta( '_nakama_quote_pdf_url' ) ) {
+        return new WP_Error( 'already_uploaded', 'La cotización ya tiene un PDF adjunto.', array( 'status' => 409 ) );
+    }
+    $created = $order->get_date_created();
+    if ( $created && ( time() - $created->getTimestamp() ) > HOUR_IN_SECONDS ) {
+        return new WP_Error( 'too_late', 'La ventana para adjuntar el PDF ha expirado.', array( 'status' => 410 ) );
+    }
+
+    // Archivo.
+    $files = $request->get_file_params();
+    if ( empty( $files['file'] ) || ! isset( $files['file']['tmp_name'] ) ) {
+        return new WP_Error( 'no_file', 'No se recibió ningún archivo.', array( 'status' => 400 ) );
+    }
+    $file = $files['file'];
+
+    if ( (int) $file['size'] > 10 * MB_IN_BYTES ) {
+        return new WP_Error( 'too_big', 'El PDF supera el tamaño máximo (10 MB).', array( 'status' => 413 ) );
+    }
+
+    // Verificar que sea un PDF real: extensión/tipo + magic bytes + finfo.
+    $check = wp_check_filetype( $file['name'] );
+    $is_pdf = ( 'pdf' === strtolower( (string) $check['ext'] ) && 'application/pdf' === $check['type'] );
+    if ( $is_pdf ) {
+        $fh = fopen( $file['tmp_name'], 'rb' );
+        $magic = $fh ? fread( $fh, 5 ) : '';
+        if ( $fh ) {
+            fclose( $fh );
+        }
+        if ( '%PDF-' !== $magic ) {
+            $is_pdf = false;
+        }
+    }
+    if ( $is_pdf && function_exists( 'finfo_open' ) ) {
+        $finfo = finfo_open( FILEINFO_MIME_TYPE );
+        if ( $finfo ) {
+            $mime = finfo_file( $finfo, $file['tmp_name'] );
+            finfo_close( $finfo );
+            if ( 'application/pdf' !== $mime ) {
+                $is_pdf = false;
+            }
+        }
+    }
+    if ( ! $is_pdf ) {
+        return new WP_Error( 'not_pdf', 'El archivo debe ser un PDF.', array( 'status' => 400 ) );
+    }
+
+    // Nombre controlado por el servidor (neutraliza el filename del cliente).
+    $file['name'] = 'cotizacion-' . strtolower( $folio ) . '.pdf';
+
+    require_once ABSPATH . 'wp-admin/includes/file.php';
+    $overrides = array( 'test_form' => false, 'mimes' => array( 'pdf' => 'application/pdf' ) );
+    $uploaded  = wp_handle_upload( $file, $overrides );
+    if ( isset( $uploaded['error'] ) ) {
+        return new WP_Error( 'upload_error', $uploaded['error'], array( 'status' => 500 ) );
+    }
+
+    $order->update_meta_data( '_nakama_quote_pdf_url', esc_url_raw( $uploaded['url'] ) );
+    $order->save();
+    $order->add_order_note( 'PDF de cotización adjuntado automáticamente desde el cotizador web.' );
+
+    $response = rest_ensure_response( array(
+        'success' => true,
+        'pdf_url' => $uploaded['url'],
     ) );
     $response->header( 'Access-Control-Allow-Origin', '*' );
     $response->header( 'X-LiteSpeed-Cache-Control', 'no-cache' );
@@ -689,6 +804,14 @@ add_action( 'woocommerce_checkout_create_order_line_item', function ( $item, $ca
         if ( ! empty( $values['nakama_quote_folio'] ) ) {
             $order->update_meta_data( '_nakama_quote_folio', $values['nakama_quote_folio'] );
             $item->add_meta_data( 'Folio', $values['nakama_quote_folio'], true );
+        }
+        // Heredar el PDF de la cotización origen para que Producción lo muestre.
+        $src_quote = wc_get_order( (int) $values['nakama_quote_order_id'] );
+        if ( $src_quote ) {
+            $pdf = (string) $src_quote->get_meta( '_nakama_quote_pdf_url' );
+            if ( '' !== $pdf ) {
+                $order->update_meta_data( '_nakama_quote_pdf_url', $pdf );
+            }
         }
     }
 }, 10, 4 );

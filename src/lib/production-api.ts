@@ -27,6 +27,7 @@ export interface ProdCard {
   taken_by: string;
   taken_age: string;
   progress: ProdProgress;
+  is_quote?: boolean;
 }
 
 export interface ProdOrdersResponse {
@@ -38,6 +39,7 @@ export interface ProdOrdersResponse {
 export interface ProdProduct {
   item_id: number;
   name: string;
+  sku?: string;
   qty: number;
   talla: string;
   estilo: string;
@@ -57,12 +59,16 @@ export interface ProdOrderDetail {
   taken_by: string;
   products: ProdProduct[];
   progress: ProdProgress;
+  is_quote?: boolean;
+  quote_folio?: string;
+  quote_pdf_url?: string;
 }
 
 export interface ProdPdf {
   id: number;
   product_id: number;
   product_name: string;
+  sku?: string;
   pdf_url: string;
   uploaded_at: string;
 }
@@ -70,6 +76,7 @@ export interface ProdPdf {
 export interface ProdUploadResult {
   success: boolean;
   product_name?: string;
+  sku?: string;
   pdf_url?: string;
   message?: string;
   suggestions?: string[];
