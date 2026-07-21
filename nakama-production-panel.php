@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Nakama Panel de Producción
- * Description: Tablero Kanban de pedidos para el personal de producción: ver pedidos en proceso, tomarlos, finalizar producción y gestionar los PDF de patrones. Sin exponer precios ni datos administrativos.
- * Version: 1.0.1
+ * Description: Tablero Kanban de pedidos para el personal de producción: ver pedidos en proceso, tomarlos, validar cada producto, finalizar producción y gestionar los PDF de patrones. Sin exponer precios ni datos administrativos.
+ * Version: 1.1.0
  * Author: Nakama
  */
 
@@ -253,6 +253,7 @@ function nakama_prod_card( $order ) {
         'taken'      => ! empty( $taken_by ),
         'taken_by'   => $taken_by ? (string) $taken_by : '',
         'taken_age'  => $taken_at ? human_time_diff( $taken_at, time() ) : '',
+        'progress'   => nakama_prod_order_progress( $order ),
     );
 }
 
@@ -265,6 +266,47 @@ function nakama_prod_human_duration( $seconds ) {
         return sprintf( '%dh %dm', $h, $m );
     }
     return sprintf( '%dm', $m );
+}
+
+/** Progreso de validación del pedido: cuántas líneas de producto están marcadas
+ *  como validadas (meta de item _nakama_prod_validated = '1').
+ *  Devuelve array( 'validated' => n, 'total' => m, 'pct' => 0-100 ). */
+function nakama_prod_order_progress( $order ) {
+    $total     = 0;
+    $validated = 0;
+    foreach ( $order->get_items() as $item ) {
+        $total++;
+        if ( '1' === (string) $item->get_meta( '_nakama_prod_validated' ) ) {
+            $validated++;
+        }
+    }
+    return array(
+        'validated' => $validated,
+        'total'     => $total,
+        'pct'       => $total > 0 ? (int) round( ( $validated / $total ) * 100 ) : 0,
+    );
+}
+
+/** Imagen del producto de una línea de pedido: la de la variación comprada con
+ *  fallback a la destacada del producto padre. Devuelve array(miniatura, full). */
+function nakama_prod_item_images( $item ) {
+    $product = $item->get_product();
+    $img_id  = 0;
+    if ( $product ) {
+        $img_id = (int) $product->get_image_id();
+        if ( ! $img_id && $product->is_type( 'variation' ) ) {
+            $parent = wc_get_product( $product->get_parent_id() );
+            if ( $parent ) {
+                $img_id = (int) $parent->get_image_id();
+            }
+        }
+    }
+    if ( ! $img_id ) {
+        return array( '', '' );
+    }
+    $thumb = wp_get_attachment_image_url( $img_id, 'woocommerce_thumbnail' );
+    $full  = wp_get_attachment_url( $img_id );
+    return array( $thumb ? $thumb : ( $full ? $full : '' ), $full ? $full : '' );
 }
 
 /* ============================================================================
@@ -304,6 +346,11 @@ add_action( 'rest_api_init', function () {
         'callback'            => 'nakama_prod_rest_take',
         'permission_callback' => $perm,
     ) );
+    register_rest_route( 'nakama/v1', '/production/validate', array(
+        'methods'             => 'POST',
+        'callback'            => 'nakama_prod_rest_validate',
+        'permission_callback' => $perm,
+    ) );
     register_rest_route( 'nakama/v1', '/production/finish', array(
         'methods'             => 'POST',
         'callback'            => 'nakama_prod_rest_finish',
@@ -328,11 +375,20 @@ add_action( 'rest_api_init', function () {
     ) );
 } );
 
-/** GET /production/orders?column=processing|pendiente-guia&page=N */
+/** GET /production/orders?column=processing|tomados|pendiente-guia&page=N
+ *  &include_taken=1 (respaldo wp-admin): "processing" incluye también los tomados. */
 function nakama_prod_rest_orders( WP_REST_Request $request ) {
-    $column = $request->get_param( 'column' );
-    $page   = max( 1, (int) $request->get_param( 'page' ) );
-    $status = ( NAKAMA_PROD_STATUS === $column ) ? NAKAMA_PROD_STATUS : 'processing';
+    $column        = $request->get_param( 'column' );
+    $page          = max( 1, (int) $request->get_param( 'page' ) );
+    $include_taken = (bool) $request->get_param( 'include_taken' );
+    // 'tomados' es una vista de wc-processing (no un estatus propio).
+    if ( 'tomados' === $column ) {
+        $status = 'processing';
+    } elseif ( NAKAMA_PROD_STATUS === $column ) {
+        $status = NAKAMA_PROD_STATUS;
+    } else {
+        $status = 'processing';
+    }
 
     // Auto-completar: en "pendiente de guía", los pedidos que ya tienen guía de
     // Envia pasan solos a "completado" y salen del tablero.
@@ -363,28 +419,39 @@ function nakama_prod_rest_orders( WP_REST_Request $request ) {
         'return'   => 'objects',
     );
 
-    // En "en proceso" priorizar los NO tomados: se hace ordenando en dos pasadas.
+    // Las vistas sobre wc-processing se separan por si el pedido ya fue tomado.
+    // "processing" = solo NO tomados (FIFO por fecha); "tomados" = solo tomados
+    // (por antigüedad de toma). Con include_taken=1 (respaldo wp-admin) la vista
+    // "processing" incluye ambos, como el tablero antiguo de 2 columnas.
     if ( 'processing' === $status ) {
-        // Traer un lote amplio, separar tomados/no-tomados, paginar en memoria.
         $all = wc_get_orders( array(
             'status'  => 'wc-processing',
-            'limit'   => 200,
+            'limit'   => 300,
             'orderby' => 'date',
             'order'   => 'ASC',
             'return'  => 'objects',
         ) );
-        $untaken = array();
-        $taken   = array();
-        foreach ( $all as $o ) {
-            if ( $o->get_meta( '_nakama_prod_taken_at' ) ) {
-                $taken[] = $o;
-            } else {
-                $untaken[] = $o;
+        if ( 'tomados' === $column ) {
+            $taken = array();
+            foreach ( $all as $o ) {
+                $ts = (int) $o->get_meta( '_nakama_prod_taken_at' );
+                if ( $ts ) {
+                    $taken[ $ts . '-' . $o->get_id() ] = $o;
+                }
+            }
+            ksort( $taken ); // más antiguos en toma primero (FIFO del taller)
+            $ordered = array_values( $taken );
+        } elseif ( $include_taken ) {
+            $ordered = $all; // respaldo wp-admin: todo processing junto
+        } else {
+            $ordered = array();
+            foreach ( $all as $o ) {
+                if ( ! $o->get_meta( '_nakama_prod_taken_at' ) ) {
+                    $ordered[] = $o;
+                }
             }
         }
-        $ordered = array_merge( $untaken, $taken );
-        $slice   = array_slice( $ordered, ( $page - 1 ) * $per, $per + 1 );
-        $orders  = $slice;
+        $orders = array_slice( $ordered, ( $page - 1 ) * $per, $per + 1 );
     } else {
         $orders = wc_get_orders( $args );
     }
@@ -414,17 +481,23 @@ function nakama_prod_rest_order_detail( WP_REST_Request $request ) {
     }
 
     $products = array();
-    foreach ( $order->get_items() as $item ) {
+    foreach ( $order->get_items() as $item_id => $item ) {
         $product   = $item->get_product();
         $product_id = $product ? ( $product->is_type( 'variation' ) ? $product->get_parent_id() : $product->get_id() ) : 0;
         $attrs     = nakama_prod_item_attributes( $item );
+        list( $img_thumb, $img_full ) = nakama_prod_item_images( $item );
         $products[] = array(
-            'name'    => $item->get_name(),
-            'qty'     => (int) $item->get_quantity(),
-            'talla'   => $attrs['talla'],
-            'estilo'  => $attrs['estilo'],
-            'color'   => $attrs['color'],
-            'pdf_url' => nakama_prod_pdf_for( $product_id, $item->get_name() ),
+            'item_id'      => (int) $item_id,
+            'name'         => $item->get_name(),
+            'qty'          => (int) $item->get_quantity(),
+            'talla'        => $attrs['talla'],
+            'estilo'       => $attrs['estilo'],
+            'color'        => $attrs['color'],
+            'pdf_url'      => nakama_prod_pdf_for( $product_id, $item->get_name() ),
+            'image_url'    => $img_thumb,
+            'image_full'   => $img_full,
+            'validated'    => '1' === (string) $item->get_meta( '_nakama_prod_validated' ),
+            'validated_by' => (string) $item->get_meta( '_nakama_prod_validated_by' ),
         );
     }
 
@@ -438,6 +511,7 @@ function nakama_prod_rest_order_detail( WP_REST_Request $request ) {
         'taken'    => ! empty( $taken_by ),
         'taken_by' => $taken_by ? (string) $taken_by : '',
         'products' => $products,
+        'progress' => nakama_prod_order_progress( $order ),
     ), 200 );
 }
 
@@ -464,7 +538,53 @@ function nakama_prod_rest_take( WP_REST_Request $request ) {
     return new WP_REST_Response( array( 'success' => true, 'taken_by' => $name ), 200 );
 }
 
-/** POST /production/finish { order_id } — processing → pendiente-guia. */
+/** POST /production/validate { order_id, item_id, validated } — marca/desmarca
+ *  una línea de producto como validada. Solo mientras el pedido está en proceso. */
+function nakama_prod_rest_validate( WP_REST_Request $request ) {
+    $order = wc_get_order( (int) $request->get_param( 'order_id' ) );
+    if ( ! $order ) {
+        return new WP_Error( 'not_found', 'Pedido no encontrado', array( 'status' => 404 ) );
+    }
+    if ( 'processing' !== $order->get_status() ) {
+        return new WP_Error( 'bad_status', 'El pedido no está en proceso.', array( 'status' => 400 ) );
+    }
+
+    $item_id   = (int) $request->get_param( 'item_id' );
+    $validated = (bool) $request->get_param( 'validated' );
+    $item      = $order->get_item( $item_id );
+    if ( ! $item || 'line_item' !== $item->get_type() ) {
+        return new WP_Error( 'bad_item', 'La línea no pertenece al pedido.', array( 'status' => 400 ) );
+    }
+
+    $user = wp_get_current_user();
+    $name = $user->display_name ? $user->display_name : $user->user_login;
+
+    if ( $validated ) {
+        $item->update_meta_data( '_nakama_prod_validated', '1' );
+        $item->update_meta_data( '_nakama_prod_validated_by', $name );
+        $item->update_meta_data( '_nakama_prod_validated_at', time() );
+    } else {
+        $item->update_meta_data( '_nakama_prod_validated', '0' );
+        $item->delete_meta_data( '_nakama_prod_validated_by' );
+        $item->delete_meta_data( '_nakama_prod_validated_at' );
+    }
+    $item->save();
+
+    $order->add_order_note( sprintf(
+        'Producción: "%s" %s por %s.',
+        $item->get_name(),
+        $validated ? 'validado' : 'desmarcado',
+        $name
+    ) );
+
+    return new WP_REST_Response( array(
+        'success'  => true,
+        'progress' => nakama_prod_order_progress( $order ),
+    ), 200 );
+}
+
+/** POST /production/finish { order_id } — processing → pendiente-guia.
+ *  Requiere el 100% de las líneas de producto validadas. */
 function nakama_prod_rest_finish( WP_REST_Request $request ) {
     $order = wc_get_order( (int) $request->get_param( 'order_id' ) );
     if ( ! $order ) {
@@ -472,6 +592,16 @@ function nakama_prod_rest_finish( WP_REST_Request $request ) {
     }
     if ( 'processing' !== $order->get_status() ) {
         return new WP_Error( 'bad_status', 'El pedido no está en proceso.', array( 'status' => 400 ) );
+    }
+
+    $progress = nakama_prod_order_progress( $order );
+    if ( $progress['validated'] < $progress['total'] ) {
+        $faltan = $progress['total'] - $progress['validated'];
+        return new WP_Error(
+            'not_validated',
+            sprintf( 'Faltan %d producto%s por validar.', $faltan, 1 === $faltan ? '' : 's' ),
+            array( 'status' => 400, 'progress' => $progress )
+        );
     }
 
     $user = wp_get_current_user();
@@ -489,9 +619,10 @@ function nakama_prod_rest_finish( WP_REST_Request $request ) {
     $order->set_status( 'wc-' . NAKAMA_PROD_STATUS );
     $order->save();
 
+    $validados = sprintf( '%d/%d validados', $progress['validated'], $progress['total'] );
     $note = $duration > 0
-        ? sprintf( 'Producción finalizada por %s (duración: %s). Pedido en "Pendiente de guía".', $name, nakama_prod_human_duration( $duration ) )
-        : sprintf( 'Producción finalizada por %s. Pedido en "Pendiente de guía".', $name );
+        ? sprintf( 'Producción finalizada por %s (%s, duración: %s). Pedido en "Pendiente de guía".', $name, $validados, nakama_prod_human_duration( $duration ) )
+        : sprintf( 'Producción finalizada por %s (%s). Pedido en "Pendiente de guía".', $name, $validados );
     $order->add_order_note( $note );
 
     return new WP_REST_Response( array( 'success' => true ), 200 );
@@ -947,7 +1078,8 @@ function nakama_prod_render_script() {
         function loadColumn(col, append) {
             var cards = columnEl(col);
             if (!append) { cards.innerHTML = '<div class="np-empty">Cargando…</div>'; pages[col] = 1; }
-            api(url('/orders', { column: col, page: pages[col] })).then(function (res) {
+            // Respaldo wp-admin: tablero de 2 columnas, "En proceso" incluye tomados.
+            api(url('/orders', { column: col, page: pages[col], include_taken: 1 })).then(function (res) {
                 if (!res.ok) { cards.innerHTML = '<div class="np-empty">Error al cargar.</div>'; return; }
                 var html = (res.data.orders || []).map(cardHtml).join('');
                 if (!append) {
