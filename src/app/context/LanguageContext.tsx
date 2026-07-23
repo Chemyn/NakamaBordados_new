@@ -219,6 +219,13 @@ const translations: Record<Language, Record<string, string>> = {
     'terms.title': 'Términos y Condiciones',
     'terms.subtitle': 'Las reglas de este barco para una navegación segura.',
 
+    // Cookies
+    'cookies.title': 'Aviso de cookies',
+    'cookies.text': 'Usamos cookies propias y de terceros (Google Analytics y Meta) para analizar la navegación y mejorar tu experiencia. Las funciones esenciales de la tienda no dependen de ellas.',
+    'cookies.link': 'Consulta nuestro Aviso de Privacidad',
+    'cookies.accept': 'Aceptar',
+    'cookies.reject': 'Rechazar',
+
     // Bot
     'bot.welcome': '¡Oi, Nakama! 🍖 Soy Luffy, el guardián de este barco. ¡No pierdas tiempo escribiendo, mejor pícale a los botones para encontrar tu tesoro! 🏴‍☠️',
     'bot.status': '● NAVEGANDO POR EL MENÚ',
@@ -452,6 +459,13 @@ const translations: Record<Language, Record<string, string>> = {
     'privacy.subtitle': 'Protecting your data like the One Piece.',
     'terms.title': 'Terms & Conditions',
     'terms.subtitle': 'The rules of this ship for a safe navigation.',
+
+    // Cookies
+    'cookies.title': 'Cookie notice',
+    'cookies.text': 'We use our own and third-party cookies (Google Analytics and Meta) to analyze browsing and improve your experience. The store\'s essential features do not depend on them.',
+    'cookies.link': 'See our Privacy Notice',
+    'cookies.accept': 'Accept',
+    'cookies.reject': 'Reject',
 
     // Bot
     'bot.welcome': 'Oi, Nakama! 🍖 I\'m Luffy, the guardian of this ship. Don\'t waste time typing, just tap the buttons to find your treasure! 🏴‍☠️',

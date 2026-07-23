@@ -10,6 +10,7 @@ import Footer from "./components/Footer";
 import WhatsAppButton from "./components/WhatsAppButton";
 import MaintenanceWrapper from "./components/MaintenanceWrapper";
 import Analytics from "./components/Analytics";
+import CookieBanner from "./components/CookieBanner";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -88,6 +89,7 @@ export default function RootLayout({
                   </div>
                   <Footer />
                   <WhatsAppButton />
+                  <CookieBanner />
                 </MaintenanceWrapper>
               </CartProvider>
             </CurrencyProvider>

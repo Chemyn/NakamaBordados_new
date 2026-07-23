@@ -9,6 +9,7 @@ import {
   isTrackingHost,
   trackPageView,
 } from '@/lib/analytics';
+import { getCookieConsent, CONSENT_EVENT } from '@/lib/cookie-consent';
 
 /**
  * Carga GA4 (gtag.js) y el Meta Pixel (fbevents) en el frontend headless y
@@ -16,6 +17,10 @@ import {
  * una SPA tras la primera carga, así que sin esto GA solo contaría la primera
  * página. Ambos snippets se configuran SIN page view automático y el evento
  * se manda solo desde el effect de ruta: un único camino, sin dobles conteos.
+ *
+ * Consentimiento: los scripts SOLO se montan si el cliente aceptó las cookies
+ * (banner CookieBanner). Mientras rechace o no decida, no se descarga nada. El
+ * banner avisa la aceptación con CONSENT_EVENT para arrancar sin recargar.
  *
  * Requiere <Suspense> en el punto de montaje (useSearchParams, App Router).
  */
@@ -27,7 +32,17 @@ export default function Analytics() {
   const searchParams = useSearchParams();
 
   useEffect(() => {
-    if (isTrackingHost()) setEnabled(true);
+    if (!isTrackingHost()) return; // dev/localhost: nunca se mide
+    if (getCookieConsent() === 'accepted') {
+      setEnabled(true);
+      return;
+    }
+    // Sin aceptación aún: esperar a que el cliente acepte en el banner.
+    const onConsent = (e: Event) => {
+      if ((e as CustomEvent).detail === 'accepted') setEnabled(true);
+    };
+    window.addEventListener(CONSENT_EVENT, onConsent);
+    return () => window.removeEventListener(CONSENT_EVENT, onConsent);
   }, []);
 
   useEffect(() => {
