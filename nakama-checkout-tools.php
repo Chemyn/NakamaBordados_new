@@ -1,8 +1,8 @@
 <?php
 /**
  * Plugin Name: Nakama Checkout Tools
- * Description: Endpoints REST para validación de cupones, moneda, SSO, pedidos de cotización, registro de clientes y sincronización de base de datos local (Next.js).
- * Version: 2.6
+ * Description: Endpoints REST para validación de cupones, moneda, SSO, social login, pedidos de cotización, registro de clientes y sincronización de base de datos local (Next.js).
+ * Version: 2.7
  * Author: Nakama
  */
 
@@ -145,6 +145,27 @@ function nakama_register_customer( WP_REST_Request $request ) {
     $response->header( 'X-LiteSpeed-Cache-Control', 'no-cache' );
     $response->header( 'Cache-Control', 'no-store' );
     return $response;
+}
+
+/**
+ * Usuarios nuevos creados por Nextend Social Login: rol 'customer' para que
+ * WooCommerce los trate como clientes (Nextend registra con el rol por
+ * defecto de WordPress, normalmente 'subscriber'). Solo corre en altas
+ * nuevas: a un usuario existente vinculado por correo no se le toca el rol.
+ */
+add_action( 'nsl_register_new_user', 'nakama_social_new_user_role', 10, 2 );
+function nakama_social_new_user_role( $user_id, $provider = null ) {
+    $user = ( $user_id instanceof WP_User ) ? $user_id : get_user_by( 'id', (int) $user_id );
+    if ( ! $user instanceof WP_User ) {
+        return;
+    }
+
+    $user->set_role( 'customer' );
+
+    // Mismo prellenado que el registro por formulario (arriba).
+    if ( $user->first_name ) { update_user_meta( $user->ID, 'billing_first_name', $user->first_name ); }
+    if ( $user->last_name )  { update_user_meta( $user->ID, 'billing_last_name', $user->last_name ); }
+    if ( $user->user_email ) { update_user_meta( $user->ID, 'billing_email', $user->user_email ); }
 }
 
 function nakama_create_quote_order( WP_REST_Request $request ) {
@@ -563,6 +584,14 @@ function nakama_cart_bridge_handler() {
         return;
     }
 
+    // Social login: tras el OAuth de Nextend el usuario ya viene autenticado
+    // por cookie; este bridge solo emite el JWT del frontend. No necesita
+    // WooCommerce ni carrito, así que se atiende antes de esos guards.
+    if ( 'social-login' === $_GET['nk_bridge'] ) {
+        nakama_social_login_bridge();
+        return;
+    }
+
     $debug = isset( $_GET['nk_debug'] );
 
     if ( ! function_exists( 'WC' ) ) {
@@ -754,6 +783,50 @@ function nakama_pay_quote_via_checkout( $debug = false ) {
     }
 
     wp_safe_redirect( wc_get_checkout_url() );
+    exit;
+}
+
+/**
+ * BRIDGE: Social login (Nextend) -> JWT del frontend
+ * URL: https://nakamabordados.com/index.php?nk_bridge=social-login&back=/mi-cuenta/
+ *
+ * Tras el OAuth, Nextend deja al usuario autenticado con cookie de WordPress,
+ * pero el frontend estático trabaja con el JWT de WPGraphQL. La REST API con
+ * cookie exigiría un nonce que el frontend todavía no tiene, así que la
+ * conversión se hace aquí, en contexto web normal, y el token viaja de vuelta
+ * en el FRAGMENT de la URL (no llega a los logs del servidor ni al Referer).
+ */
+function nakama_social_login_bridge() {
+    // La respuesta depende de la cookie de sesión: nunca debe cachearse.
+    nocache_headers();
+    header( 'X-LiteSpeed-Cache-Control: no-cache' );
+
+    // Solo rutas internas relativas ('/algo', nunca '//host' ni absolutas):
+    // el destino llega por la URL, así que sin esto sería un open redirect.
+    $back = isset( $_GET['back'] ) ? (string) wp_unslash( $_GET['back'] ) : '/';
+    if ( ! preg_match( '#^/(?!/)[A-Za-z0-9\-_./?=&%]*$#', $back ) ) {
+        $back = '/';
+    }
+
+    $token = null;
+    $user  = wp_get_current_user();
+    if ( $user && $user->ID && class_exists( '\WPGraphQL\JWT_Authentication\Auth' ) ) {
+        // get_token() valida que el usuario sea el de la sesión actual, que es
+        // justo el caso aquí. Devuelve el token, null o WP_Error (por ejemplo
+        // si falta GRAPHQL_JWT_AUTH_SECRET_KEY).
+        $issued = \WPGraphQL\JWT_Authentication\Auth::get_token( $user );
+        if ( ! is_wp_error( $issued ) && is_string( $issued ) && '' !== $issued ) {
+            $token = $issued;
+        }
+    }
+
+    if ( null === $token ) {
+        $sep = ( false === strpos( $back, '?' ) ) ? '?' : '&';
+        wp_safe_redirect( home_url( $back . $sep . 'social_error=1' ) );
+        exit;
+    }
+
+    wp_safe_redirect( home_url( $back ) . '#nk_jwt=' . rawurlencode( $token ) );
     exit;
 }
 

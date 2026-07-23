@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
+import SocialLoginButtons from '../../components/SocialLoginButtons';
 
 interface AuthGateModalProps {
   /** Cierra el modal sin autenticarse (botón X / clic en el backdrop). */
@@ -220,6 +221,11 @@ export const AuthGateModal: React.FC<AuthGateModalProps> = ({ onClose, onSuccess
               </button>
             </form>
           )}
+
+          <SocialLoginButtons
+            backPath="/cotizador/"
+            note="Al continuar con Google o Facebook se recarga el cotizador y tendrás que armar tu diseño de nuevo."
+          />
         </div>
       </div>
     </div>

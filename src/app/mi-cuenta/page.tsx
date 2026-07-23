@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
 import MaintenanceToggle from '../components/MaintenanceToggle';
+import SocialLoginButtons from '../components/SocialLoginButtons';
 import { openWpAdmin, seedWpSession, WP_ADMIN_URL } from '@/lib/wp-sso';
 import { apiOrigin } from '@/lib/api-host';
 import { fetchProductionAccess } from '@/lib/production-api';
@@ -120,6 +121,17 @@ export default function MiCuentaPage() {
       router.replace(returnTo);
     }
   }, [user, returnTo, router]);
+
+  // ?social_error=1 — el bridge de login social no pudo emitir el token
+  // (sesión perdida o plugin JWT inactivo). Se avisa y se limpia la URL.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('social_error') !== '1') return;
+    setError('No se pudo completar el inicio de sesión con Google o Facebook. Inténtalo de nuevo o usa tu correo y contraseña.');
+    params.delete('social_error');
+    const qs = params.toString();
+    history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''));
+  }, []);
   
   // Tracking state - indexed by tracking code to avoid conflicts
   const [trackingLoading, setTrackingLoading] = useState<string | null>(null);
@@ -797,6 +809,12 @@ export default function MiCuentaPage() {
                   </button>
                 </>
               )}
+
+              {/* Aplica a iniciar sesión y a crear cuenta: Nextend vincula por
+                  correo, así que el mismo botón sirve para ambos casos. */}
+              <SocialLoginButtons
+                backPath={returnTo ? `/mi-cuenta/?return=${encodeURIComponent(returnTo)}` : '/mi-cuenta/'}
+              />
 
               <div className="nk-login-footer">
                 <Link href="/" className="nk-home-link">

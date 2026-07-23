@@ -234,12 +234,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [logout]);
 
   useEffect(() => {
+    // El login social (Google/Facebook) regresa del bridge de WordPress con el
+    // token en el fragment (#nk_jwt=...), que no viaja al servidor. Se guarda
+    // igual que un login normal y se borra del historial antes de seguir.
+    let token: string | null = null;
+    try {
+      const hash = window.location.hash;
+      if (hash.startsWith('#nk_jwt=')) {
+        const fromHash = decodeURIComponent(hash.slice('#nk_jwt='.length));
+        if (fromHash && fromHash.split('.').length === 3) {
+          token = fromHash;
+          localStorage.setItem('wp-jwt', fromHash);
+        }
+        history.replaceState(null, '', window.location.pathname + window.location.search);
+      }
+    } catch {
+      // Hash malformado: se ignora y se sigue con la sesión guardada.
+    }
+
     // Check local storage for token on mount
-    const token = localStorage.getItem('wp-jwt');
+    if (!token) {
+      token = localStorage.getItem('wp-jwt');
+    }
     if (token) {
+      const stored = token;
       queueMicrotask(() => {
-        setAuthToken(token);
-        fetchCustomerData(token);
+        setAuthToken(stored);
+        fetchCustomerData(stored);
       });
     } else {
       queueMicrotask(() => {
