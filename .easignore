@@ -1,0 +1,19 @@
+# Qué NO se sube a los servidores de EAS Build.
+#
+# EAS empaqueta desde la raíz del repositorio, así que sin esto viajaban también
+# los 120+ MB del sitio web (out/, public/) que la app móvil no necesita para
+# nada. Este archivo REEMPLAZA a .gitignore para EAS, por eso hay que repetir
+# aquí node_modules y .next.
+#
+# Importante: mobile/google-services.json sí debe subirse (lo necesita el build
+# para las notificaciones), por eso no se excluye aunque git lo ignore.
+
+node_modules/
+.next/
+/out/
+/public/
+
+# Credenciales del sitio: nunca deben salir de esta máquina.
+/.env*
+
+/*.zip
