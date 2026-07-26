@@ -18,7 +18,8 @@ import { fetchWarehouseAccess } from '@/lib/warehouse-api';
    (ON_HOLD) y REST como slug (on-hold); se canonicaliza a slug antes de mapear. */
 const ORDER_STATUS_ES: Record<string, string> = {
   'pending': 'Pendiente de pago',
-  'processing': 'Procesando',
+  'processing': 'En espera de fabricación',
+  'fabricando': 'Fabricando',
   'pendiente-guia': 'Preparando envío',
   'on-hold': 'En espera',
   'completed': 'Completado',
@@ -26,6 +27,28 @@ const ORDER_STATUS_ES: Record<string, string> = {
   'refunded': 'Reembolsado',
   'failed': 'Fallido',
   'checkout-draft': 'Borrador',
+};
+
+/* Etapas del ciclo del pedido que ve el cliente (barra de progreso). El envío
+   en detalle lo cubre el stepper de paquetería (TRACK_STEPS) más abajo. */
+const ORDER_STEPS = [
+  { slug: 'processing', label: 'En espera de fabricación', icon: 'schedule' },
+  { slug: 'fabricando', label: 'Fabricando', icon: 'content_cut' },
+  { slug: 'pendiente-guia', label: 'Preparando envío', icon: 'inventory_2' },
+  { slug: 'completed', label: 'Enviado', icon: 'local_shipping' },
+] as const;
+
+/* Índice de etapa alcanzada; -1 para estatus fuera del ciclo (pendiente de
+   pago, en espera/cotización, cancelado…), donde no se muestra la barra. */
+const orderStepIndex = (status: unknown): number => {
+  const slug = orderStatusSlug(status);
+  switch (slug) {
+    case 'processing': return 0;
+    case 'fabricando': return 1;
+    case 'pendiente-guia': return 2;
+    case 'completed': return 3;
+    default: return -1;
+  }
 };
 
 const orderStatusSlug = (status: unknown): string =>
@@ -436,7 +459,32 @@ export default function MiCuentaPage() {
                                   </span>
                                 </div>
                               </div>
-                              
+
+                              {/* Barra de progreso del ciclo del pedido. Solo para
+                                  estatus del flujo (pago→fabricación→envío); los
+                                  demás (pendiente de pago, cotización, cancelado)
+                                  se quedan con el badge de arriba. */}
+                              {orderStepIndex(order.status) >= 0 && (
+                                <div className="nk-order-steps" role="list" aria-label="Progreso del pedido">
+                                  {ORDER_STEPS.map((step, i) => {
+                                    const reached = i <= orderStepIndex(order.status);
+                                    const current = i === orderStepIndex(order.status);
+                                    return (
+                                      <div
+                                        key={step.slug}
+                                        role="listitem"
+                                        className={`nk-order-step${reached ? ' is-done' : ''}${current ? ' is-current' : ''}`}
+                                      >
+                                        <span className="nk-order-step-dot">
+                                          <span className="material-icons-outlined">{step.icon}</span>
+                                        </span>
+                                        <span className="nk-order-step-label">{step.label}</span>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              )}
+
                               <div className="nk-order-details">
                                 <ul>
                                   {order.lineItems?.nodes.map((item: any, i: number) => (
@@ -1359,6 +1407,90 @@ export default function MiCuentaPage() {
           }
           .nk-track-step-label {
             font-size: 0.58rem;
+            letter-spacing: 0.2px;
+          }
+        }
+
+        /* Barra de progreso del ciclo del pedido (mismo lenguaje visual que el
+           stepper de envío, aplicado a las 4 etapas de fabricación/envío). */
+        .nk-order-steps {
+          display: flex;
+          margin: 16px 0 4px;
+        }
+        .nk-order-step {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          text-align: center;
+          position: relative;
+          gap: 6px;
+        }
+        .nk-order-step::before {
+          content: '';
+          position: absolute;
+          top: 17px;
+          right: 50%;
+          width: 100%;
+          height: 3px;
+          background: var(--nk-border, rgba(128, 128, 128, 0.35));
+          z-index: 0;
+        }
+        .nk-order-step:first-child::before {
+          display: none;
+        }
+        .nk-order-step.is-done::before {
+          background: var(--nk-primary);
+        }
+        .nk-order-step-dot {
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: var(--nk-bg-card);
+          border: 2px solid var(--nk-border, rgba(128, 128, 128, 0.45));
+          color: var(--nk-text-sec);
+          position: relative;
+          z-index: 1;
+        }
+        .nk-order-step-dot .material-icons-outlined {
+          font-size: 19px;
+        }
+        .nk-order-step.is-done .nk-order-step-dot {
+          background: var(--nk-primary);
+          border-color: var(--nk-primary);
+          color: #fff;
+        }
+        .nk-order-step.is-current .nk-order-step-dot {
+          box-shadow: 0 0 0 4px rgba(230, 57, 70, 0.25);
+        }
+        .nk-order-step-label {
+          font-size: 0.66rem;
+          font-weight: 700;
+          letter-spacing: 0.5px;
+          text-transform: uppercase;
+          color: var(--nk-text-sec);
+          max-width: 92px;
+          line-height: 1.2;
+        }
+        .nk-order-step.is-done .nk-order-step-label {
+          color: var(--nk-text-main);
+        }
+        @media (max-width: 480px) {
+          .nk-order-step-dot {
+            width: 30px;
+            height: 30px;
+          }
+          .nk-order-step-dot .material-icons-outlined {
+            font-size: 16px;
+          }
+          .nk-order-step::before {
+            top: 14px;
+          }
+          .nk-order-step-label {
+            font-size: 0.55rem;
             letter-spacing: 0.2px;
           }
         }

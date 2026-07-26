@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Panel de Producción
  * Description: Tablero Kanban de pedidos para el personal de producción: ver pedidos en proceso, tomarlos, validar cada producto, finalizar producción y gestionar los PDF de patrones. Sin exponer precios ni datos administrativos.
- * Version: 1.2.0
+ * Version: 1.3.0
  * Author: Nakama
  */
 
@@ -12,6 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'NAKAMA_PROD_CAP', 'access_production_dashboard' );
 define( 'NAKAMA_PROD_STATUS', 'pendiente-guia' ); // sin prefijo wc-
+define( 'NAKAMA_PROD_FAB_STATUS', 'fabricando' );  // "Fabricando": pedido tomado en producción
 define( 'NAKAMA_PROD_PAGE', 'nakama-produccion' );
 define( 'NAKAMA_PROD_PER_PAGE', 5 );
 
@@ -58,6 +59,15 @@ register_activation_hook( __FILE__, function () {
  * ESTATUS CUSTOM: wc-pendiente-guia ("Pendiente de guía")
  * ========================================================================== */
 add_action( 'init', function () {
+    register_post_status( 'wc-' . NAKAMA_PROD_FAB_STATUS, array(
+        'label'                     => 'Fabricando',
+        'public'                    => true,
+        'exclude_from_search'       => false,
+        'show_in_admin_all_list'    => true,
+        'show_in_admin_status_list' => true,
+        /* translators: %s: número de pedidos. */
+        'label_count'               => _n_noop( 'Fabricando <span class="count">(%s)</span>', 'Fabricando <span class="count">(%s)</span>' ),
+    ) );
     register_post_status( 'wc-' . NAKAMA_PROD_STATUS, array(
         'label'                     => 'Pendiente de guía',
         'public'                    => true,
@@ -69,20 +79,31 @@ add_action( 'init', function () {
     ) );
 } );
 
-// Insertar el estatus en la lista de WooCommerce, justo después de "Procesando".
+// Insertar los estatus en la lista de WooCommerce en orden: Procesando ->
+// Fabricando -> Pendiente de guía. Ambos se anclan tras "Procesando"; se añade
+// "Fabricando" primero para que quede inmediatamente después.
 add_filter( 'wc_order_statuses', function ( $statuses ) {
     $new = array();
     foreach ( $statuses as $key => $label ) {
         $new[ $key ] = $label;
         if ( 'wc-processing' === $key ) {
-            $new[ 'wc-' . NAKAMA_PROD_STATUS ] = 'Pendiente de guía';
+            $new[ 'wc-' . NAKAMA_PROD_FAB_STATUS ] = 'Fabricando';
+            $new[ 'wc-' . NAKAMA_PROD_STATUS ]     = 'Pendiente de guía';
         }
     }
     return $new;
 } );
 
-// Registrar el estatus para el almacenamiento HPOS de pedidos.
+// Registrar los estatus para el almacenamiento HPOS de pedidos.
 add_filter( 'woocommerce_register_shop_order_post_statuses', function ( $statuses ) {
+    $statuses[ 'wc-' . NAKAMA_PROD_FAB_STATUS ] = array(
+        'label'                     => 'Fabricando',
+        'public'                    => false,
+        'exclude_from_search'       => false,
+        'show_in_admin_all_list'    => true,
+        'show_in_admin_status_list' => true,
+        'label_count'               => _n_noop( 'Fabricando <span class="count">(%s)</span>', 'Fabricando <span class="count">(%s)</span>' ),
+    );
     $statuses[ 'wc-' . NAKAMA_PROD_STATUS ] = array(
         'label'                     => 'Pendiente de guía',
         'public'                    => false,
@@ -94,9 +115,18 @@ add_filter( 'woocommerce_register_shop_order_post_statuses', function ( $statuse
     return $statuses;
 } );
 
-// Badge ámbar en la lista de pedidos del admin.
+// Ambos estatus cuentan como "pagado": un pedido en fabricación o pendiente de
+// guía sigue siendo un pedido ya cobrado (reportes correctos y sin ofrecer
+// "pagar" al cliente en Mi Cuenta).
+add_filter( 'woocommerce_order_is_paid_statuses', function ( $statuses ) {
+    $statuses[] = NAKAMA_PROD_FAB_STATUS;
+    $statuses[] = NAKAMA_PROD_STATUS;
+    return $statuses;
+} );
+
+// Badges de color en la lista de pedidos del admin.
 add_action( 'admin_head', function () {
-    echo '<style>.order-status.status-pendiente-guia{background:#FBBF24;color:#1A1F2B;}</style>';
+    echo '<style>.order-status.status-fabricando{background:#F59E0B;color:#1A1F2B;}.order-status.status-pendiente-guia{background:#FBBF24;color:#1A1F2B;}</style>';
 } );
 
 /* ============================================================================
@@ -498,9 +528,11 @@ function nakama_prod_rest_orders( WP_REST_Request $request ) {
     $column        = $request->get_param( 'column' );
     $page          = max( 1, (int) $request->get_param( 'page' ) );
     $include_taken = (bool) $request->get_param( 'include_taken' );
-    // 'tomados' es una vista de wc-processing (no un estatus propio).
+    // "En espera de fabricación" = wc-processing sin tomar. "Tomados/Fabricando"
+    // = pedidos con marca de toma (estatus wc-fabricando o, heredados de antes
+    // del cambio, wc-processing con meta de toma). "pendiente-guia" es propio.
     if ( 'tomados' === $column ) {
-        $status = 'processing';
+        $status = 'processing'; // rama de vistas por meta (abajo)
     } elseif ( NAKAMA_PROD_STATUS === $column ) {
         $status = NAKAMA_PROD_STATUS;
     } else {
@@ -536,13 +568,13 @@ function nakama_prod_rest_orders( WP_REST_Request $request ) {
         'return'   => 'objects',
     );
 
-    // Las vistas sobre wc-processing se separan por si el pedido ya fue tomado.
-    // "processing" = solo NO tomados (FIFO por fecha); "tomados" = solo tomados
-    // (por antigüedad de toma). Con include_taken=1 (respaldo wp-admin) la vista
-    // "processing" incluye ambos, como el tablero antiguo de 2 columnas.
+    // Las vistas se separan por si el pedido ya fue tomado. "En espera de
+    // fabricación" = wc-processing SIN tomar (FIFO por fecha); "Tomados/
+    // Fabricando" = con marca de toma (wc-fabricando o, heredados, wc-processing
+    // con meta). Con include_taken=1 (respaldo wp-admin) se muestran ambos.
     if ( 'processing' === $status ) {
         $all = wc_get_orders( array(
-            'status'  => 'wc-processing',
+            'status'  => array( 'wc-processing', 'wc-' . NAKAMA_PROD_FAB_STATUS ),
             'limit'   => 300,
             'orderby' => 'date',
             'order'   => 'ASC',
@@ -650,6 +682,12 @@ function nakama_prod_rest_take( WP_REST_Request $request ) {
     $prev_by = $order->get_meta( '_nakama_prod_taken_by' );
     $order->update_meta_data( '_nakama_prod_taken_by', $name );
     $order->update_meta_data( '_nakama_prod_taken_at', time() );
+    // Al tomarse, el pedido pasa a "Fabricando" (visible para el cliente). Solo
+    // se cambia desde processing; una re-toma sobre uno ya en fabricación no
+    // altera el estatus.
+    if ( 'processing' === $order->get_status() ) {
+        $order->set_status( 'wc-' . NAKAMA_PROD_FAB_STATUS );
+    }
     $order->save();
 
     if ( $prev_by && $prev_by !== $name ) {
@@ -668,7 +706,7 @@ function nakama_prod_rest_validate( WP_REST_Request $request ) {
     if ( ! $order ) {
         return new WP_Error( 'not_found', 'Pedido no encontrado', array( 'status' => 404 ) );
     }
-    if ( 'processing' !== $order->get_status() ) {
+    if ( ! in_array( $order->get_status(), array( 'processing', NAKAMA_PROD_FAB_STATUS ), true ) ) {
         return new WP_Error( 'bad_status', 'El pedido no está en proceso.', array( 'status' => 400 ) );
     }
 
@@ -713,7 +751,7 @@ function nakama_prod_rest_finish( WP_REST_Request $request ) {
     if ( ! $order ) {
         return new WP_Error( 'not_found', 'Pedido no encontrado', array( 'status' => 404 ) );
     }
-    if ( 'processing' !== $order->get_status() ) {
+    if ( ! in_array( $order->get_status(), array( 'processing', NAKAMA_PROD_FAB_STATUS ), true ) ) {
         return new WP_Error( 'bad_status', 'El pedido no está en proceso.', array( 'status' => 400 ) );
     }
 

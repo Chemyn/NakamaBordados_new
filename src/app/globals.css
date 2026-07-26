@@ -5648,6 +5648,7 @@ html.dark .nk-mobile-search-overlay::before {
 
 /* --- Status Colors & Utilities --- */
 .nk-status-processing { background: #ffd700; color: #000; }
+.nk-status-fabricando { background: #f59e0b; color: #1A1F2B; }
 .nk-status-pendiente-guia { background: #fbbf24; color: #1A1F2B; }
 .nk-status-completed { background: #2ecc71; color: #fff; }
 .nk-status-cancelled { background: #e74c3c; color: #fff; }

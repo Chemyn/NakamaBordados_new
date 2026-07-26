@@ -274,14 +274,14 @@ export default function ProduccionPage() {
       {tab === 'board' && (
         <div className="np-board">
           <Column
-            title="En proceso"
+            title="En espera de fabricación"
             variant="processing"
             state={board['processing']}
             onCard={openDetail}
             onMore={() => loadColumn('processing', board['processing'].page + 1, true)}
           />
           <Column
-            title="Tomados"
+            title="Fabricando"
             variant="taken"
             state={board['tomados']}
             onCard={openDetail}
@@ -352,7 +352,7 @@ export default function ProduccionPage() {
                   </div>
                 )}
 
-                {detail.status === 'processing' && (
+                {(detail.status === 'processing' || detail.status === 'fabricando') && (
                   <div className="np-progress">
                     <div className="np-progress-bar">
                       <span style={{ width: `${detail.progress.pct}%` }}
@@ -365,7 +365,7 @@ export default function ProduccionPage() {
                 )}
 
                 {detail.products.map(p => {
-                  const canValidate = detail.status === 'processing';
+                  const canValidate = (detail.status === 'processing' || detail.status === 'fabricando');
                   return (
                     <div key={p.item_id} className={`np-prod-row ${p.validated ? 'is-validated' : ''}`}>
                       {p.image_url ? (
@@ -409,7 +409,7 @@ export default function ProduccionPage() {
 
                 {finishErr && <div className="np-finish-err">{finishErr}</div>}
 
-                {detail.status === 'processing' && (
+                {(detail.status === 'processing' || detail.status === 'fabricando') && (
                   <div className="np-modal-actions">
                     <button className="nk-btn-sec" disabled={actionBusy} onClick={() => handleTake(detail.id)}>
                       {detail.taken ? 'Re-tomar pedido' : 'Tomar pedido'}
