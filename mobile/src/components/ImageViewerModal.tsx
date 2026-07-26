@@ -1,6 +1,6 @@
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Image } from 'expo-image';
-import { MaterialIcons } from '@expo/vector-icons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import type { ProdProduct } from '@/lib/api';
 import { colors, fonts, radius, spacing, TOUCH_TARGET } from '@/lib/theme';

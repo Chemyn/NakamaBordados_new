@@ -1,8 +1,10 @@
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
-import { MaterialIcons } from '@expo/vector-icons';
+import * as Application from 'expo-application';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { AppButton } from '@/components/AppButton';
+import { useApkVersion } from '@/hooks/useApkVersion';
 import { usePush, resetPushState } from '@/hooks/usePush';
 import { useAuth } from '@/lib/auth-context';
 import { API_ORIGIN } from '@/lib/config';
@@ -46,6 +48,7 @@ export default function SettingsScreen() {
   const { userName, signOut } = useAuth();
   const { state, checking, refresh } = usePush();
   const push = summarize(state);
+  const apk = useApkVersion();
 
   function confirmSignOut() {
     Alert.alert(
@@ -126,10 +129,33 @@ export default function SettingsScreen() {
         </Pressable>
       </View>
 
+      {apk.available && (
+        <View style={[styles.card, styles.updateCard]}>
+          <View style={styles.rowHead}>
+            <MaterialIcons name="system-update" size={22} color={colors.red} />
+            <View style={styles.flex}>
+              <Text style={styles.rowTitle}>Nueva versión {apk.version}</Text>
+              <Text style={[styles.rowStatus, { color: colors.red }]}>Disponible para instalar</Text>
+            </View>
+          </View>
+
+          {!!apk.notes && <Text style={styles.rowDetail}>{apk.notes}</Text>}
+
+          <AppButton
+            label="Descargar APK"
+            icon="download"
+            onPress={() => {
+              if (apk.apkUrl) void Linking.openURL(apk.apkUrl);
+            }}
+          />
+        </View>
+      )}
+
       <AppButton label="Cerrar sesión" icon="logout" variant="danger" onPress={confirmSignOut} />
 
       <Text style={styles.version}>
-        Nakama Producción {Constants.expoConfig?.version ?? '1.0.0'}
+        Nakama Producción {Application.nativeApplicationVersion ?? Constants.expoConfig?.version}
+        {Application.nativeBuildVersion ? ` (build ${Application.nativeBuildVersion})` : ''}
       </Text>
     </ScrollView>
   );
@@ -172,8 +198,12 @@ const styles = StyleSheet.create({
   userName: {
     fontFamily: fonts.displayBold,
     fontSize: 30,
-    lineHeight: 34,
+    lineHeight: 40,
     color: colors.ink,
+  },
+  updateCard: {
+    borderColor: colors.red,
+    backgroundColor: colors.redSoft,
   },
   userMeta: {
     fontFamily: fonts.body,

@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native';
-import { MaterialIcons } from '@expo/vector-icons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { colors, fonts, spacing } from '@/lib/theme';
 

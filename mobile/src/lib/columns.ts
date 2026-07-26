@@ -1,4 +1,4 @@
-import type { MaterialIcons } from '@expo/vector-icons';
+import type MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import type { ProdColumn } from './api';
 import { colors } from './theme';
@@ -37,7 +37,7 @@ export const COLUMNS: ColumnMeta[] = [
   {
     key: 'pendiente-guia',
     label: 'Pendiente de guía',
-    short: 'Pendiente guía',
+    short: 'Pend. guía',
     color: colors.amber,
     onColor: colors.onAmber,
     icon: 'local-shipping',

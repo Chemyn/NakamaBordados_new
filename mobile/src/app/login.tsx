@@ -10,7 +10,8 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { AppButton } from '@/components/AppButton';
 import { useAuth } from '@/lib/auth-context';
@@ -55,10 +56,12 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.brand}>
-          <View style={styles.brandMark}>
-            <MaterialIcons name="content-cut" size={30} color={colors.white} />
-          </View>
-          <Text style={styles.brandTitle}>NAKAMA</Text>
+          <Image
+            source={require('../../assets/logo.png')}
+            style={styles.logo}
+            contentFit="contain"
+            accessibilityLabel="Nakama Bordados"
+          />
           <Text style={styles.brandSubtitle}>Panel de Producción</Text>
         </View>
 
@@ -182,22 +185,11 @@ const styles = StyleSheet.create({
     marginBottom: spacing.xxl,
     gap: spacing.xs,
   },
-  brandMark: {
-    width: 64,
-    height: 64,
-    borderRadius: radius.lg,
-    backgroundColor: colors.red,
-    alignItems: 'center',
-    justifyContent: 'center',
+  logo: {
+    // 1024x463 en el original: mantiene la proporción del logotipo.
+    width: 220,
+    height: 100,
     marginBottom: spacing.sm,
-    ...shadow.raised,
-  },
-  brandTitle: {
-    fontFamily: fonts.displayBold,
-    fontSize: 44,
-    lineHeight: 46,
-    letterSpacing: 3,
-    color: colors.ink,
   },
   brandSubtitle: {
     fontFamily: fonts.bodyMedium,

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Tabs, useRouter } from 'expo-router';
 import * as Notifications from 'expo-notifications';
-import { MaterialIcons } from '@expo/vector-icons';
+import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { usePush } from '@/hooks/usePush';
 import { colors, fonts } from '@/lib/theme';
@@ -30,7 +30,9 @@ export default function TabsLayout() {
         tabBarActiveTintColor: colors.red,
         tabBarInactiveTintColor: colors.muted,
         tabBarLabelStyle: { fontFamily: fonts.bodyBold, fontSize: 11 },
-        tabBarStyle: { backgroundColor: colors.white, borderTopColor: colors.border, height: 62 },
+        // Sin alto fijo: en teléfonos con barra de gestos, 62 dejaba las
+        // etiquetas comprimidas contra el borde inferior.
+        tabBarStyle: { backgroundColor: colors.white, borderTopColor: colors.border },
         tabBarItemStyle: { paddingVertical: 6 },
         sceneStyle: { backgroundColor: colors.bg },
       }}

@@ -5,6 +5,7 @@ import { useRouter } from 'expo-router';
 import { OrderCard } from '@/components/OrderCard';
 import { SegmentedTabs } from '@/components/SegmentedTabs';
 import { StateMessage } from '@/components/StateMessage';
+import { UpdateBanner } from '@/components/UpdateBanner';
 import { useOrders } from '@/hooks/useOrders';
 import type { ProdColumn } from '@/lib/api';
 import { columnMeta } from '@/lib/columns';
@@ -102,6 +103,8 @@ export default function BoardScreen() {
 
   return (
     <View style={styles.screen}>
+      <UpdateBanner />
+
       <SegmentedTabs
         value={column}
         onChange={setColumn}
@@ -147,7 +150,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fonts.display,
     fontSize: 24,
-    lineHeight: 28,
+    lineHeight: 30,
     color: colors.ink,
     textTransform: 'uppercase',
     letterSpacing: 0.5,

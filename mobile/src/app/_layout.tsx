@@ -3,8 +3,15 @@ import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Stack, SplashScreen } from 'expo-router';
-import { useFonts, Teko_600SemiBold, Teko_700Bold } from '@expo-google-fonts/teko';
-import { Archivo_400Regular, Archivo_500Medium, Archivo_700Bold } from '@expo-google-fonts/archivo';
+// Importadas una a una a propósito: el índice del paquete reexporta TODAS las
+// variantes (5 de Teko, 18 de Archivo) y Metro las empaqueta aunque no se usen,
+// unos 2.5 MB de tipografía muerta dentro del APK.
+import { useFonts } from 'expo-font';
+import { Teko_600SemiBold } from '@expo-google-fonts/teko/600SemiBold';
+import { Teko_700Bold } from '@expo-google-fonts/teko/700Bold';
+import { Archivo_400Regular } from '@expo-google-fonts/archivo/400Regular';
+import { Archivo_500Medium } from '@expo-google-fonts/archivo/500Medium';
+import { Archivo_700Bold } from '@expo-google-fonts/archivo/700Bold';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import { AuthProvider, useAuth } from '@/lib/auth-context';
