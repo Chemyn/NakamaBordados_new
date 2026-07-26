@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Panel de Producción
  * Description: Tablero Kanban de pedidos para el personal de producción: ver pedidos en proceso, tomarlos, validar cada producto, finalizar producción y gestionar los PDF de patrones. Sin exponer precios ni datos administrativos.
- * Version: 1.3.0
+ * Version: 1.4.0
  * Author: Nakama
  */
 
@@ -520,6 +520,20 @@ add_action( 'rest_api_init', function () {
         'callback'            => 'nakama_prod_rest_pdf_delete',
         'permission_callback' => $perm,
     ) );
+
+    // Alta/baja del dispositivo móvil que recibe los avisos de pedidos nuevos.
+    register_rest_route( 'nakama/v1', '/production/push-token', array(
+        array(
+            'methods'             => 'POST',
+            'callback'            => 'nakama_prod_rest_push_register',
+            'permission_callback' => $perm,
+        ),
+        array(
+            'methods'             => 'DELETE',
+            'callback'            => 'nakama_prod_rest_push_unregister',
+            'permission_callback' => $perm,
+        ),
+    ) );
 } );
 
 /** GET /production/orders?column=processing|tomados|pendiente-guia&page=N
@@ -878,6 +892,197 @@ function nakama_prod_rest_pdf_delete( WP_REST_Request $request ) {
     }
     $wpdb->delete( $table, array( 'id' => $id ) );
     return new WP_REST_Response( array( 'success' => true ), 200 );
+}
+
+/* ============================================================================
+ * NOTIFICACIONES PUSH A LA APP MÓVIL (Expo)
+ *
+ * Cada dispositivo con la app registra su token Expo; cuando un pedido pagado
+ * entra a producción (wc-processing) se les avisa. El envío va por wp-cron para
+ * no retrasar el checkout, y los tokens que Expo reporta como muertos se borran
+ * solos.
+ * ========================================================================== */
+define( 'NAKAMA_PROD_PUSH_OPTION', 'nakama_prod_push_tokens' );
+define( 'NAKAMA_PROD_PUSH_EVENT', 'nakama_prod_send_push' );
+define( 'NAKAMA_PROD_PUSH_TTL', 60 * DAY_IN_SECONDS );
+define( 'NAKAMA_PROD_PUSH_MAX', 100 ); // tope de dispositivos; el taller tiene decenas, no miles
+
+/** Tokens registrados: array( token => array( user_id, updated ) ). */
+function nakama_prod_push_tokens() {
+    $tokens = get_option( NAKAMA_PROD_PUSH_OPTION, array() );
+    return is_array( $tokens ) ? $tokens : array();
+}
+
+function nakama_prod_push_save( array $tokens ) {
+    update_option( NAKAMA_PROD_PUSH_OPTION, $tokens, false );
+}
+
+/** Un token de Expo siempre tiene la forma ExponentPushToken[xxxxx]. */
+function nakama_prod_push_valid( $token ) {
+    return is_string( $token ) && (bool) preg_match( '/^ExponentPushToken\[[A-Za-z0-9_\-]+\]$/', $token );
+}
+
+/** POST /production/push-token { token } */
+function nakama_prod_rest_push_register( WP_REST_Request $request ) {
+    $token = $request->get_param( 'token' );
+    if ( ! nakama_prod_push_valid( $token ) ) {
+        return new WP_Error( 'bad_token', 'Token de notificaciones inválido.', array( 'status' => 400 ) );
+    }
+
+    $tokens = nakama_prod_push_tokens();
+    $now    = time();
+
+    // De paso se limpian los dispositivos que llevan meses sin aparecer.
+    foreach ( $tokens as $stored => $meta ) {
+        $updated = isset( $meta['updated'] ) ? (int) $meta['updated'] : 0;
+        if ( $updated && ( $now - $updated ) > NAKAMA_PROD_PUSH_TTL ) {
+            unset( $tokens[ $stored ] );
+        }
+    }
+
+    $tokens[ $token ] = array(
+        'user_id' => get_current_user_id(),
+        'updated' => $now,
+    );
+
+    // Tope duro: si algo registrara tokens en bucle, la option no crece sin fin.
+    if ( count( $tokens ) > NAKAMA_PROD_PUSH_MAX ) {
+        uasort( $tokens, function ( $a, $b ) {
+            return ( isset( $b['updated'] ) ? (int) $b['updated'] : 0 ) - ( isset( $a['updated'] ) ? (int) $a['updated'] : 0 );
+        } );
+        $tokens = array_slice( $tokens, 0, NAKAMA_PROD_PUSH_MAX, true );
+    }
+
+    nakama_prod_push_save( $tokens );
+
+    return new WP_REST_Response( array( 'success' => true ), 200 );
+}
+
+/** DELETE /production/push-token { token } */
+function nakama_prod_rest_push_unregister( WP_REST_Request $request ) {
+    $token  = $request->get_param( 'token' );
+    $tokens = nakama_prod_push_tokens();
+    if ( is_string( $token ) && isset( $tokens[ $token ] ) ) {
+        unset( $tokens[ $token ] );
+        nakama_prod_push_save( $tokens );
+    }
+    return new WP_REST_Response( array( 'success' => true ), 200 );
+}
+
+/**
+ * Pedido pagado -> aviso a producción. Se programa en vez de enviarse en el
+ * acto para que una caída de la API de Expo no bloquee el checkout.
+ */
+add_action( 'woocommerce_order_status_processing', function ( $order_id ) {
+    $order = wc_get_order( $order_id );
+    if ( ! $order ) {
+        return;
+    }
+    // Un pedido puede volver a "processing" (reembolso parcial, edición manual):
+    // solo se avisa la primera vez.
+    if ( $order->get_meta( '_nakama_push_notified' ) ) {
+        return;
+    }
+    $order->update_meta_data( '_nakama_push_notified', time() );
+    $order->save();
+
+    if ( ! wp_next_scheduled( NAKAMA_PROD_PUSH_EVENT, array( (int) $order_id ) ) ) {
+        wp_schedule_single_event( time() + 5, NAKAMA_PROD_PUSH_EVENT, array( (int) $order_id ) );
+    }
+}, 20 );
+
+add_action( NAKAMA_PROD_PUSH_EVENT, 'nakama_prod_push_send_new_order' );
+
+function nakama_prod_push_send_new_order( $order_id ) {
+    $tokens = nakama_prod_push_tokens();
+    if ( empty( $tokens ) ) {
+        return;
+    }
+
+    $order = wc_get_order( $order_id );
+    if ( ! $order ) {
+        return;
+    }
+
+    $pieces = 0;
+    foreach ( $order->get_items() as $item ) {
+        $pieces += (int) $item->get_quantity();
+    }
+
+    $title = sprintf( 'Nuevo pedido #%s', $order->get_order_number() );
+    $body  = sprintf(
+        _n( '%d pieza lista para fabricar.', '%d piezas listas para fabricar.', $pieces, 'nakama' ),
+        $pieces
+    );
+
+    $messages = array();
+    foreach ( array_keys( $tokens ) as $token ) {
+        $messages[] = array(
+            'to'        => $token,
+            'title'     => $title,
+            'body'      => $body,
+            'sound'     => 'default',
+            'channelId' => 'orders',
+            'priority'  => 'high',
+            'data'      => array( 'order_id' => (int) $order_id ),
+        );
+    }
+
+    // La API de Expo acepta 100 mensajes por petición.
+    foreach ( array_chunk( $messages, 100 ) as $chunk ) {
+        nakama_prod_push_dispatch( $chunk );
+    }
+}
+
+/** Envía un lote a Expo y borra los tokens de dispositivos que ya no existen. */
+function nakama_prod_push_dispatch( array $messages ) {
+    $response = wp_remote_post( 'https://exp.host/--/api/v2/push/send', array(
+        'timeout' => 15,
+        'headers' => array(
+            'Content-Type' => 'application/json',
+            'Accept'       => 'application/json',
+        ),
+        'body'    => wp_json_encode( $messages ),
+    ) );
+
+    if ( is_wp_error( $response ) ) {
+        // Sin log no hay forma de saber por qué dejaron de llegar los avisos.
+        error_log( 'Nakama push: fallo al contactar Expo: ' . $response->get_error_message() );
+        return;
+    }
+
+    $payload = json_decode( wp_remote_retrieve_body( $response ), true );
+    $tickets = isset( $payload['data'] ) && is_array( $payload['data'] ) ? $payload['data'] : array();
+    if ( empty( $tickets ) ) {
+        error_log( 'Nakama push: respuesta inesperada de Expo: ' . wp_remote_retrieve_body( $response ) );
+        return;
+    }
+
+    // Los tickets vuelven en el mismo orden que los mensajes enviados; si no
+    // cuadran las longitudes no se borra nada para no eliminar el token ajeno.
+    $aligned = count( $tickets ) === count( $messages );
+    $tokens  = nakama_prod_push_tokens();
+    $changed = false;
+
+    foreach ( $tickets as $index => $ticket ) {
+        $error = isset( $ticket['details']['error'] ) ? $ticket['details']['error'] : '';
+        if ( ! $error ) {
+            continue;
+        }
+        if ( 'DeviceNotRegistered' !== $error ) {
+            error_log( 'Nakama push: Expo devolvió el error ' . $error );
+            continue;
+        }
+        $token = $aligned && isset( $messages[ $index ]['to'] ) ? $messages[ $index ]['to'] : '';
+        if ( $token && isset( $tokens[ $token ] ) ) {
+            unset( $tokens[ $token ] );
+            $changed = true;
+        }
+    }
+
+    if ( $changed ) {
+        nakama_prod_push_save( $tokens );
+    }
 }
 
 /* ============================================================================

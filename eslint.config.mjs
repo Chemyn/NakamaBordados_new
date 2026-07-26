@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // La app Android (Expo) tiene su propio tooling; no la revisa el lint de Next.
+    "mobile/**",
   ]),
 ]);
 
