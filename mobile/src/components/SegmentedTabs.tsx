@@ -1,31 +1,40 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { ProdColumn } from '@/lib/api';
-import { COLUMNS } from '@/lib/columns';
 import { colors, fonts, radius, spacing, TOUCH_TARGET } from '@/lib/theme';
 
-interface SegmentedTabsProps {
-  value: ProdColumn;
-  onChange: (column: ProdColumn) => void;
-  /** Conteo ya formateado por columna (undefined = aún cargando). */
-  counts: Partial<Record<ProdColumn, string>>;
+export interface SegmentOption<K extends string> {
+  key: K;
+  /** Nombre completo, para el lector de pantalla. */
+  label: string;
+  /** Etiqueta corta, la que se ve en el botón. */
+  short: string;
+  color: string;
+  onColor: string;
+}
+
+interface SegmentedTabsProps<K extends string> {
+  options: readonly SegmentOption<K>[];
+  value: K;
+  onChange: (key: K) => void;
+  /** Conteo ya formateado por pestaña (undefined = aún cargando). */
+  counts?: Partial<Record<K, string>>;
 }
 
 /**
- * Sustituye a las tres columnas lado a lado del panel web: en un teléfono se
- * ve una etapa a la vez y se cambia con este selector.
+ * Sustituye a las columnas lado a lado del panel web: en un teléfono se ve una
+ * a la vez y se cambia con este selector.
  *
- * Las tres pestañas miden exactamente lo mismo (flex: 1) y el contador ocupa
- * su sitio desde el primer render, aunque aún no tenga número. Antes cada
- * pestaña se dimensionaba por su contenido, así que al ir resolviendo las tres
- * consultas los botones crecían de golpe y se movían bajo el dedo.
+ * Las pestañas miden exactamente lo mismo (flex: 1) y el contador ocupa su
+ * sitio desde el primer render, aunque aún no tenga número. Antes cada pestaña
+ * se dimensionaba por su contenido, así que al ir resolviendo las consultas los
+ * botones crecían de golpe y se movían bajo el dedo.
  */
-export function SegmentedTabs({ value, onChange, counts }: SegmentedTabsProps) {
+export function SegmentedTabs<K extends string>({ options, value, onChange, counts }: SegmentedTabsProps<K>) {
   return (
     <View style={styles.row} accessibilityRole="tablist">
-      {COLUMNS.map((column) => {
+      {options.map((column) => {
         const active = column.key === value;
-        const count = counts[column.key];
+        const count = counts?.[column.key];
 
         return (
           <Pressable

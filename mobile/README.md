@@ -103,13 +103,15 @@ src/
 ├── app/                    Rutas (expo-router)
 │   ├── login.tsx           Usuario/contraseña + Google/Facebook
 │   ├── (tabs)/index.tsx    Tablero: En espera · Fabricando · Pendiente de guía
-│   ├── (tabs)/pdfs.tsx     Patrones PDF por SKU
+│   ├── (tabs)/almacen.tsx  Existencias y faltantes (solo con permiso de almacén)
 │   ├── (tabs)/ajustes.tsx  Usuario, notificaciones, cerrar sesión
 │   └── order/[id].tsx      Detalle: validar productos, tomar, finalizar
 ├── components/             UI compartida
 ├── hooks/                  Consultas y mutaciones (TanStack Query)
 └── lib/
-    ├── api.ts              Cliente REST del panel (port de src/lib/production-api.ts de la web)
+    ├── rest.ts             Transporte compartido (token, reintento de sesión)
+    ├── api.ts              Cliente del panel de producción
+    ├── warehouse-api.ts    Cliente del almacén
     ├── auth.ts             Login GraphQL + login social
     ├── session.ts          JWT en el Keystore de Android (expo-secure-store)
     ├── push.ts             Registro de notificaciones
@@ -118,6 +120,13 @@ src/
 
 ## Notas
 
+- La gestión de patrones (subir/borrar PDFs) vive solo en la web: subir uno
+  exige teclear el SKU exacto como nombre de archivo, algo incómodo en el
+  teléfono. La app sigue mostrando el patrón de cada producto en el detalle del
+  pedido. `expo-document-picker` sigue instalado a propósito aunque ya no se
+  use: quitarlo cambia la huella nativa del proyecto y los APK instalados
+  dejarían de recibir actualizaciones automáticas. Se retirará cuando toque
+  compilar un APK nuevo por otro motivo.
 - `npx expo-doctor` avisa de un "duplicate dependency" de React (19.2.3 aquí,
   19.2.4 en el proyecto web del directorio padre). Es esperado: son dos proyectos
   independientes con su propio `node_modules`, y Metro resuelve primero el de

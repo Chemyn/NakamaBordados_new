@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Almacén (SKU Base)
  * Description: Inventario de materia prima compartida. El stock vive en la prenda lisa base (prenda+color+talla); muchas variaciones de diseño descuentan del mismo SKU base al pagarse el pedido. Panel de almacén y alertas de faltantes, con cascada de "agotado" a la tienda.
- * Version: 1.1
+ * Version: 1.2
  * Author: Nakama
  */
 
@@ -173,6 +173,121 @@ function nakama_wh_color_canonical( $raw ) {
     $map = apply_filters( 'nakama_wh_color_synonyms', $map );
 
     return isset( $map[ $norm ] ) ? $map[ $norm ] : $raw;
+}
+
+/* -------------------------------------------------------------------------
+ * Orden del catálogo físico
+ *
+ * El almacén se recorre en el mismo orden en que están las prendas en el
+ * anaquel, no alfabéticamente. Ordenar en SQL no sirve: los nombres reales
+ * traen coletillas ("Sudadera Cuello Redondo", "T-shirt 100% Algodón Peinado")
+ * y FIELD() exige valores exactos, así que el emparejamiento se hace en PHP
+ * por palabra clave. Ordenar aquí, y no en cada cliente, deja alineados de una
+ * vez la web, la app y el panel de wp-admin.
+ * ---------------------------------------------------------------------- */
+
+/** Normaliza para emparejar: sin acentos, mayúsculas y espacios colapsados. */
+function nakama_wh_match_norm( $value ) {
+    $value = strtoupper( remove_accents( trim( (string) $value ) ) );
+    return preg_replace( '/\s+/', ' ', $value );
+}
+
+/** Posición de la talla por tamaño físico; las desconocidas van al final. */
+function nakama_wh_size_index( $talla ) {
+    $order = array(
+        '2XS' => 0, 'XXS' => 0,
+        'XS'  => 1,
+        'S'   => 2,
+        'M'   => 3,
+        'L'   => 4,
+        'XL'  => 5,
+        '2XL' => 6, 'XXL' => 6,
+        '3XL' => 7, 'XXXL' => 7,
+    );
+    $key = str_replace( ' ', '', nakama_wh_match_norm( $talla ) );
+
+    return isset( $order[ $key ] ) ? $order[ $key ] : 99;
+}
+
+/**
+ * Posición del grupo prenda+color (1-13); 99 para lo que no está en la lista.
+ *
+ * El orden de las comprobaciones importa: una prenda puede contener varias
+ * palabras clave a la vez ("Oversize Acid Wash" o una sudadera descrita como
+ * hoodie), y gana la primera que coincide. Por eso Acid Wash y Tank Top —que
+ * agrupan todos sus colores— se evalúan antes que Oversize y T-shirt, y Hoodie
+ * antes que Sudadera.
+ */
+function nakama_wh_group_priority( $prenda, $color ) {
+    $p = nakama_wh_match_norm( $prenda );
+    $c = nakama_wh_match_norm( nakama_wh_color_canonical( $color ) );
+
+    if ( false !== strpos( $p, 'ACID WASH' ) ) {
+        return 9;
+    }
+    if ( false !== strpos( $p, 'TANK TOP' ) ) {
+        return 8;
+    }
+    if ( false !== strpos( $p, 'HOODIE' ) ) {
+        if ( 'KAKI' === $c ) {
+            return 11;
+        }
+        return 'NEGRO' === $c ? 13 : 99;
+    }
+    if ( false !== strpos( $p, 'OVERSIZE' ) ) {
+        $pos = array( 'NEGRO' => 1, 'HUESO' => 2, 'BLANCO' => 3, 'VERDE' => 4 );
+        return isset( $pos[ $c ] ) ? $pos[ $c ] : 99;
+    }
+    if ( false !== strpos( $p, 'T-SHIRT' ) || false !== strpos( $p, 'TSHIRT' ) ) {
+        $pos = array( 'NEGRO' => 5, 'BLANCO' => 6, 'HUESO' => 7 );
+        return isset( $pos[ $c ] ) ? $pos[ $c ] : 99;
+    }
+    if ( false !== strpos( $p, 'SUDADERA' ) ) {
+        if ( 'KAKI' === $c ) {
+            return 10;
+        }
+        return 'NEGRO' === $c ? 12 : 99;
+    }
+
+    return 99;
+}
+
+/**
+ * Compara dos filas por el orden del anaquel. Es un comparador total (nunca
+ * devuelve 0 salvo empate real) porque usort no garantiza estabilidad en PHP 7.
+ */
+function nakama_wh_compare_items( $a, $b ) {
+    $ga = nakama_wh_group_priority( $a->prenda, $a->color );
+    $gb = nakama_wh_group_priority( $b->prenda, $b->color );
+    if ( $ga !== $gb ) {
+        return $ga < $gb ? -1 : 1;
+    }
+
+    // Fuera de la lista se cae a alfabético por prenda; dentro, agrupar por
+    // color evita intercalar colores talla a talla en Tank Top y Acid Wash.
+    if ( 99 === $ga ) {
+        $cmp = strcasecmp( $a->prenda, $b->prenda );
+        if ( 0 !== $cmp ) {
+            return $cmp;
+        }
+    }
+    $cmp = strcasecmp( nakama_wh_color_canonical( $a->color ), nakama_wh_color_canonical( $b->color ) );
+    if ( 0 !== $cmp ) {
+        return $cmp;
+    }
+
+    $sa = nakama_wh_size_index( $a->talla );
+    $sb = nakama_wh_size_index( $b->talla );
+    if ( $sa !== $sb ) {
+        return $sa < $sb ? -1 : 1;
+    }
+
+    return strcasecmp( $a->label, $b->label );
+}
+
+/** Ordena las filas por el orden del anaquel. */
+function nakama_wh_sort_items( array &$rows ) {
+    usort( $rows, 'nakama_wh_compare_items' );
 }
 
 /** Clave canónica PRENDA-COLOR-TALLA a partir de los valores legibles. El color
@@ -807,10 +922,12 @@ function nakama_wh_rest_items( WP_REST_Request $request ) {
         $where .= ' AND (stock <= 0 OR (min_stock > 0 AND stock <= min_stock))';
     }
 
-    $sql  = "SELECT * FROM {$table} WHERE {$where} ORDER BY prenda ASC, color ASC, talla ASC";
-    $rows = $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ) ) : $wpdb->get_results( $sql );
+    $sql  = "SELECT * FROM {$table} WHERE {$where}";
+    $rows = (array) ( $args ? $wpdb->get_results( $wpdb->prepare( $sql, $args ) ) : $wpdb->get_results( $sql ) );
 
-    $items = array_map( 'nakama_wh_row_out', (array) $rows );
+    nakama_wh_sort_items( $rows );
+
+    $items = array_map( 'nakama_wh_row_out', $rows );
     return new WP_REST_Response( array( 'items' => $items ), 200 );
 }
 
@@ -997,8 +1114,20 @@ function nakama_wh_rest_delete( WP_REST_Request $request ) {
 function nakama_wh_rest_alerts() {
     global $wpdb;
     $table = nakama_wh_table();
-    $rows  = $wpdb->get_results( "SELECT * FROM {$table} WHERE stock <= 0 OR (min_stock > 0 AND stock <= min_stock) ORDER BY stock ASC, prenda ASC" );
-    $items = array_map( 'nakama_wh_row_out', (array) $rows );
+    $rows  = (array) $wpdb->get_results( "SELECT * FROM {$table} WHERE stock <= 0 OR (min_stock > 0 AND stock <= min_stock)" );
+
+    // Lo más urgente primero; a igual faltante, el orden del anaquel.
+    usort(
+        $rows,
+        function ( $a, $b ) {
+            if ( (int) $a->stock !== (int) $b->stock ) {
+                return (int) $a->stock < (int) $b->stock ? -1 : 1;
+            }
+            return nakama_wh_compare_items( $a, $b );
+        }
+    );
+
+    $items = array_map( 'nakama_wh_row_out', $rows );
     return new WP_REST_Response( array( 'items' => $items ), 200 );
 }
 

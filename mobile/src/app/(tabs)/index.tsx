@@ -8,7 +8,7 @@ import { StateMessage } from '@/components/StateMessage';
 import { UpdateBanner } from '@/components/UpdateBanner';
 import { useOrders } from '@/hooks/useOrders';
 import type { ProdColumn } from '@/lib/api';
-import { columnMeta } from '@/lib/columns';
+import { COLUMNS, columnMeta } from '@/lib/columns';
 import { colors, fonts, spacing } from '@/lib/theme';
 
 /** "5+" cuando el servidor avisa que quedan páginas por cargar. */
@@ -106,6 +106,7 @@ export default function BoardScreen() {
       <UpdateBanner />
 
       <SegmentedTabs
+        options={COLUMNS}
         value={column}
         onChange={setColumn}
         counts={{

@@ -1,6 +1,7 @@
 import { Alert, Linking, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
 import * as Application from 'expo-application';
+import * as Updates from 'expo-updates';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import { AppButton } from '@/components/AppButton';
@@ -156,6 +157,10 @@ export default function SettingsScreen() {
       <Text style={styles.version}>
         Nakama Producción {Application.nativeApplicationVersion ?? Constants.expoConfig?.version}
         {Application.nativeBuildVersion ? ` (build ${Application.nativeBuildVersion})` : ''}
+        {'\n'}
+        {/* Permite confirmar de un vistazo si una actualización automática ya
+            entró en este teléfono, sin tener que buscar el cambio en pantalla. */}
+        {Updates.updateId ? `Actualización ${Updates.updateId.slice(0, 8)}` : 'Versión original'}
       </Text>
     </ScrollView>
   );

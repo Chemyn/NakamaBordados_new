@@ -8,7 +8,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 
-import { checkProductionAccess, setSessionExpiredHandler } from './api';
+import { checkProductionAccess } from './api';
+import { setSessionExpiredHandler } from './rest';
 import { signInWithPassword, signInWithSocial, type SocialProvider } from './auth';
 import { clearSession, getSession, restoreSession } from './session';
 
