@@ -13,6 +13,11 @@ node_modules/
 /out/
 /public/
 
+# Historial de git (60 MB) y los mockups de producto del sitio (55 MB): la app
+# se compila desde mobile/ y no toca nada de esto.
+/.git/
+/assets/
+
 # Credenciales del sitio: nunca deben salir de esta máquina.
 /.env*
 

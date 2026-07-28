@@ -1,6 +1,6 @@
 {
-  "versionCode": 3,
-  "version": "1.0.0",
-  "apkUrl": "https://github.com/Chemyn/NakamaBordados_new/releases/download/app-v1.0.0/nakama-produccion-1.0.0.apk",
-  "notes": "Versión inicial del panel de producción."
+  "versionCode": 4,
+  "version": "1.1.0",
+  "apkUrl": "https://github.com/Chemyn/NakamaBordados_new/releases/download/app-v1.1.0/nakama-produccion-1.1.0.apk",
+  "notes": "Nuevo tablero, actualizaciones automáticas y app más ligera."
 }
