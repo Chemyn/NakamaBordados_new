@@ -121,6 +121,9 @@ export default function MiCuentaPage() {
   const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'profile' | 'addresses' | 'tracking' | 'commissions'>('dashboard');
   const [userCredentials, setUserCredentials] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
+  // Aviso informativo (no es un fallo): hoy solo el de "completa tu registro"
+  // al volver de Google/Facebook con un correo que aún no tiene cuenta.
+  const [notice, setNotice] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   // Alterna el formulario desconectado entre iniciar sesión y crear cuenta.
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
@@ -145,13 +148,33 @@ export default function MiCuentaPage() {
     }
   }, [user, returnTo, router]);
 
-  // ?social_error=1 — el bridge de login social no pudo emitir el token
-  // (sesión perdida o plugin JWT inactivo). Se avisa y se limpia la URL.
+  // Vueltas del login social. Dos casos, ambos limpian la URL al terminar:
+  //
+  //  ?social_error=1   el bridge no pudo emitir el token (sesión perdida o
+  //                    plugin JWT inactivo).
+  //  ?social_signup=1  el correo de Google/Facebook no tiene cuenta todavía.
+  //                    El plugin cancela el alta automática y manda aquí con
+  //                    los datos del proveedor para terminar el registro.
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('social_error') !== '1') return;
-    setError('No se pudo completar el inicio de sesión con Google o Facebook. Inténtalo de nuevo o usa tu correo y contraseña.');
-    params.delete('social_error');
+    const hadError = params.get('social_error') === '1';
+    const needsSignup = params.get('social_signup') === '1';
+    if (!hadError && !needsSignup) return;
+
+    if (hadError) {
+      setError('No se pudo completar el inicio de sesión con Google o Facebook. Inténtalo de nuevo o usa tu correo y contraseña.');
+    } else {
+      setAuthMode('register');
+      setRegisterData(prev => ({
+        ...prev,
+        firstName: params.get('first_name') || prev.firstName,
+        lastName: params.get('last_name') || prev.lastName,
+        email: params.get('email') || prev.email,
+      }));
+      setNotice('Aún no tienes cuenta con ese correo. Completa tus datos y elige una contraseña para crearla.');
+    }
+
+    ['social_error', 'social_signup', 'first_name', 'last_name', 'email', 'nsl-notice'].forEach(k => params.delete(k));
     const qs = params.toString();
     history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''));
   }, []);
@@ -230,6 +253,7 @@ export default function MiCuentaPage() {
 
   const switchAuthMode = (mode: 'login' | 'register') => {
     setError('');
+    setNotice('');
     setAuthMode(mode);
   };
 
@@ -735,6 +759,8 @@ export default function MiCuentaPage() {
                 </p>
               )}
 
+              {notice && <p className="nk-social-notice">{notice}</p>}
+
               {authMode === 'login' ? (
                 <>
                   <form onSubmit={handleLogin} className="nk-login-form">
@@ -1180,6 +1206,18 @@ export default function MiCuentaPage() {
           font-weight: 700;
           font-size: 0.9rem;
           text-align: center;
+        }
+
+        /* Informativo, no un error: el borde sólido lo distingue del aviso de
+           compra pendiente (punteado) y del mensaje de error (rojo). */
+        .nk-social-notice {
+          background: var(--nk-bg-wrapper);
+          border-left: 4px solid var(--nk-primary, #e11d2a);
+          padding: 10px 14px;
+          margin-bottom: 20px;
+          font-weight: 600;
+          font-size: 0.9rem;
+          line-height: 1.45;
         }
 
         .nk-auth-switch {

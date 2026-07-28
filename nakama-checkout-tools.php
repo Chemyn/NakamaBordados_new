@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO, social login, pedidos de cotización, registro de clientes y sincronización de base de datos local (Next.js).
- * Version: 2.7
+ * Version: 2.8
  * Author: Nakama
  */
 
@@ -148,10 +148,168 @@ function nakama_register_customer( WP_REST_Request $request ) {
 }
 
 /**
- * Usuarios nuevos creados por Nextend Social Login: rol 'customer' para que
- * WooCommerce los trate como clientes (Nextend registra con el rol por
- * defecto de WordPress, normalmente 'subscriber'). Solo corre en altas
- * nuevas: a un usuario existente vinculado por correo no se le toca el rol.
+ * Ruta interna segura o cadena vacía.
+ *
+ * Los destinos del login social llegan por la URL, así que sin esto cualquiera
+ * podría usar el sitio como trampolín hacia otro dominio (open redirect). Se
+ * aceptan solo rutas relativas: '/algo', nunca '//host' ni 'https://…'.
+ */
+function nakama_safe_internal_path( $path ) {
+    $path = is_string( $path ) ? $path : '';
+    return preg_match( '#^/(?!/)[A-Za-z0-9\-_./?=&%]*$#', $path ) ? $path : '';
+}
+
+/**
+ * Datos del proveedor social durante un alta cancelada.
+ *
+ * Nextend pregunta primero si puede registrar y solo después a dónde mandar al
+ * usuario, en dos filtros distintos y sin pasar los datos al segundo. Este
+ * estático los traslada de uno a otro; ambos corren en la misma petición.
+ */
+function nakama_social_signup_data( $set = null ) {
+    static $data = array( 'email' => '', 'first_name' => '', 'last_name' => '' );
+    if ( is_array( $set ) ) {
+        $data = wp_parse_args( $set, $data );
+    }
+    return $data;
+}
+
+/**
+ * Un correo sin cuenta no se registra solo: se manda a completar el registro.
+ *
+ * Nextend consulta este filtro únicamente cuando el correo del proveedor no
+ * corresponde a ningún usuario (en un correo ya conocido vincula la cuenta y
+ * ni pasa por aquí), así que llegar hasta este punto ya significa "cliente
+ * nuevo". Devolver false cancela el alta automática y hace que Nextend pida el
+ * destino con el filtro de abajo, donde armamos el formulario prellenado.
+ *
+ * Prioridad 99 para tener la última palabra sobre el propio filtro de Nextend.
+ */
+add_filter( 'nsl_is_register_allowed', 'nakama_social_block_auto_register', 99, 2 );
+function nakama_social_block_auto_register( $allowed, $provider = null ) {
+    $read = static function ( $key ) use ( $provider ) {
+        if ( ! is_object( $provider ) || ! method_exists( $provider, 'getAuthUserData' ) ) {
+            return '';
+        }
+        $value = $provider->getAuthUserData( $key );
+        return is_string( $value ) ? $value : '';
+    };
+
+    // Facebook puede no entregar correo si el usuario no dio ese permiso; en
+    // ese caso el formulario sale vacío y lo escribe a mano.
+    nakama_social_signup_data( array(
+        'email'      => sanitize_email( $read( 'email' ) ),
+        'first_name' => sanitize_text_field( $read( 'first_name' ) ),
+        'last_name'  => sanitize_text_field( $read( 'last_name' ) ),
+    ) );
+
+    return false;
+}
+
+// El aviso lo da Mi Cuenta con el diseño del sitio; sin esto Nextend encima
+// mostraría el mensaje genérico de WordPress ("User registration is currently
+// not allowed"), que aquí sería falso: el registro sí se puede, por formulario.
+add_filter( 'nsl_disabled_register_error_message', '__return_false' );
+
+/**
+ * A dónde va el cliente nuevo tras cancelar el alta automática.
+ *
+ * Al formulario de registro de Mi Cuenta con lo que entregó el proveedor ya
+ * puesto, para que solo tenga que elegir contraseña. Si venía de otra página
+ * (el cotizador, por ejemplo) se conserva para devolverlo ahí al terminar.
+ */
+add_filter( 'nsl_disabled_register_redirect_url', 'nakama_social_signup_redirect' );
+function nakama_social_signup_redirect( $url ) {
+    $back = nakama_social_login_back_path();
+
+    // La app móvil abre este flujo dentro de un navegador que solo sabe volver
+    // por el esquema nakamaprod://; el formulario web la dejaría atrapada. Se
+    // le responde con el error que ya sabe interpretar.
+    if ( 0 === strpos( $back, '/app-auth/' ) ) {
+        return home_url( '/app-auth/?social_error=1' );
+    }
+
+    $data = nakama_social_signup_data();
+    $args = array( 'social_signup' => '1' );
+
+    if ( '' !== $data['email'] )      { $args['email'] = $data['email']; }
+    if ( '' !== $data['first_name'] ) { $args['first_name'] = $data['first_name']; }
+    if ( '' !== $data['last_name'] )  { $args['last_name'] = $data['last_name']; }
+
+    $return = nakama_social_signup_return_path( $back );
+    if ( '' !== $return ) {
+        $args['return'] = $return;
+    }
+
+    // add_query_arg codifica los valores; pasarlos en crudo evita doble escape.
+    return add_query_arg( $args, home_url( '/mi-cuenta/' ) );
+}
+
+/**
+ * El 'back' del bridge guardado por Nextend al iniciar el OAuth.
+ *
+ * En el callback del proveedor ya no hay parámetros nuestros en la URL, pero
+ * Nextend conservó el 'redirect' con el que arrancó (Persistent::set en
+ * provider.php) y de ahí se recupera nuestra ruta de retorno.
+ */
+function nakama_social_login_back_path() {
+    if ( ! class_exists( '\NSL\Persistent\Persistent' ) ) {
+        return '';
+    }
+
+    $redirect = \NSL\Persistent\Persistent::get( 'redirect' );
+    if ( ! is_string( $redirect ) || '' === $redirect ) {
+        return '';
+    }
+
+    $query = wp_parse_url( $redirect, PHP_URL_QUERY );
+    if ( ! is_string( $query ) || '' === $query ) {
+        return '';
+    }
+
+    $params = array();
+    parse_str( $query, $params );
+
+    return nakama_safe_internal_path( isset( $params['back'] ) ? (string) $params['back'] : '' );
+}
+
+/**
+ * Página a la que volver después de registrarse, o cadena vacía.
+ *
+ * Cuando el intento salió de Mi Cuenta no hay nada que conservar: ahí es donde
+ * va a caer. Y si esa vuelta ya traía su propio 'return' (el caso de quien
+ * llegó desde el cotizador), se hereda ese en vez de anidar una ruta dentro de
+ * otra.
+ */
+function nakama_social_signup_return_path( $back ) {
+    if ( '' === $back ) {
+        return '';
+    }
+
+    $path = (string) wp_parse_url( $back, PHP_URL_PATH );
+    if ( '/mi-cuenta/' !== untrailingslashit( $path ) . '/' ) {
+        return $back;
+    }
+
+    $query = wp_parse_url( $back, PHP_URL_QUERY );
+    if ( ! is_string( $query ) || '' === $query ) {
+        return '';
+    }
+
+    $params = array();
+    parse_str( $query, $params );
+
+    return nakama_safe_internal_path( isset( $params['return'] ) ? (string) $params['return'] : '' );
+}
+
+/**
+ * Rol 'customer' para las altas de Nextend.
+ *
+ * Con el filtro de arriba el login social ya no registra a nadie, así que esto
+ * solo entra si alguien vuelve a habilitar el alta automática desde los ajustes
+ * del plugin. Se conserva porque Nextend registra con el rol por defecto de
+ * WordPress ('subscriber'), y WooCommerce no trataría a ese usuario como
+ * cliente. A un usuario existente vinculado por correo no se le toca el rol.
  */
 add_action( 'nsl_register_new_user', 'nakama_social_new_user_role', 10, 2 );
 function nakama_social_new_user_role( $user_id, $provider = null ) {
@@ -801,10 +959,8 @@ function nakama_social_login_bridge() {
     nocache_headers();
     header( 'X-LiteSpeed-Cache-Control: no-cache' );
 
-    // Solo rutas internas relativas ('/algo', nunca '//host' ni absolutas):
-    // el destino llega por la URL, así que sin esto sería un open redirect.
-    $back = isset( $_GET['back'] ) ? (string) wp_unslash( $_GET['back'] ) : '/';
-    if ( ! preg_match( '#^/(?!/)[A-Za-z0-9\-_./?=&%]*$#', $back ) ) {
+    $back = nakama_safe_internal_path( isset( $_GET['back'] ) ? (string) wp_unslash( $_GET['back'] ) : '' );
+    if ( '' === $back ) {
         $back = '/';
     }
 
