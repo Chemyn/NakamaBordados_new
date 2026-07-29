@@ -15,6 +15,7 @@ type CurrencyData = {
 interface CurrencyContextProps {
   currencyInfo: CurrencyData;
   formatPrice: (price: number) => string;
+  formatQuotePrice: (mxn: number) => string;
   setCurrencyManual: (currency: string) => void;
 }
 
@@ -136,8 +137,27 @@ export const CurrencyProvider = ({ children }: { children: ReactNode }) => {
     })} ${currencyInfo.currency}`;
   };
 
+  /**
+   * Precio de una COTIZACIÓN (siempre en MXN). Las cotizaciones están exentas
+   * del margen de -2 pesos de los productos: el checkout las convierte con el
+   * tipo de cambio real (pesos_reales = 1/rate + 2, hook del plugin de
+   * checkout). Usar formatPrice aquí mostraría un USD más caro del que se
+   * cobra. En MXN no hay conversión y delega al formato normal.
+   */
+  const formatQuotePrice = (mxn: number) => {
+    if (currencyInfo.currency !== 'USD' || currencyInfo.rate <= 0) {
+      return formatPrice(mxn);
+    }
+    const pesosReales = 1 / currencyInfo.rate + 2;
+    const usd = mxn / pesosReales;
+    return `${currencyInfo.symbol}${usd.toLocaleString('es-MX', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })} USD`;
+  };
+
   return (
-    <CurrencyContext.Provider value={{ currencyInfo, formatPrice, setCurrencyManual }}>
+    <CurrencyContext.Provider value={{ currencyInfo, formatPrice, formatQuotePrice, setCurrencyManual }}>
       {children}
     </CurrencyContext.Provider>
   );

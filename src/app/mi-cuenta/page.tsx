@@ -5,6 +5,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
+import { useCart } from '../context/CartContext';
 import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
 import MaintenanceToggle from '../components/MaintenanceToggle';
@@ -115,6 +116,7 @@ const formatEventTime = (iso: string): string => {
 
 export default function MiCuentaPage() {
   const { user, login, register, logout, refreshUser, isLoading, isAdmin } = useAuth();
+  const { addQuoteToCart, isQuoteInCart } = useCart();
   const { formatPrice, currencyInfo } = useCurrency();
   const { t } = useLanguage();
 
@@ -526,8 +528,8 @@ export default function MiCuentaPage() {
                               </div>
 
                               {/* Pedido pendiente de pago (p. ej. cotización con
-                                  precio ya asignado): botón directo a la página
-                                  de pago de WooCommerce (order-pay). */}
+                                  precio ya asignado): pagar solo, o mandarla al
+                                  carrito para pagarla junto con otros artículos. */}
                               {order.needsPayment && order.databaseId && order.orderKey && (
                                 <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px dashed var(--nk-border)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px' }}>
                                   <button
@@ -541,6 +543,10 @@ export default function MiCuentaPage() {
                                       // currency: sin él, el snippet de moneda de WP
                                       // decide solo (geo-IP) y convertía a USD sin
                                       // que el cliente lo hubiera seleccionado.
+                                      // No toca el carrito local: pay-quote vacía solo
+                                      // el carrito de WC. Si esta cotización también
+                                      // estaba agregada al carrito, el guard del server
+                                      // la expulsará cuando ya esté pagada.
                                       await seedWpSession();
                                       window.location.href = `https://nakamabordados.com/index.php?nk_bridge=pay-quote&order=${order.databaseId}&key=${order.orderKey}&currency=${currencyInfo.currency}`;
                                     }}
@@ -548,8 +554,30 @@ export default function MiCuentaPage() {
                                     <span className="material-icons-outlined" style={{ fontSize: '18px', verticalAlign: 'middle', marginRight: '6px' }}>payments</span>
                                     PAGAR AHORA
                                   </button>
+                                  {/* Solo cotizaciones (folio NK-): un pedido normal
+                                      pendiente se paga directo, no viaja al carrito. */}
+                                  {String(order.orderNumber || '').startsWith('NK-') && (
+                                    <button
+                                      className="nk-btn-sec"
+                                      style={{ padding: '10px 24px', fontSize: '1.2rem' }}
+                                      disabled={isQuoteInCart(order.databaseId)}
+                                      onClick={() => addQuoteToCart({
+                                        orderId: order.databaseId,
+                                        orderKey: order.orderKey,
+                                        folio: String(order.orderNumber),
+                                        // Mismo parseo del total que el render de arriba;
+                                        // las cotizaciones siempre se emiten en MXN.
+                                        totalMXN: parseFloat(String(order.total || '0').replace(/[^0-9.-]/g, '')) || 0,
+                                      })}
+                                    >
+                                      <span className="material-icons-outlined" style={{ fontSize: '18px', verticalAlign: 'middle', marginRight: '6px' }}>
+                                        {isQuoteInCart(order.databaseId) ? 'check' : 'add_shopping_cart'}
+                                      </span>
+                                      {isQuoteInCart(order.databaseId) ? 'EN EL CARRITO' : 'AGREGAR AL CARRITO'}
+                                    </button>
+                                  )}
                                   <span style={{ fontSize: '0.8rem', color: 'var(--nk-text-sec)', fontWeight: 600 }}>
-                                    Tu cotización ya tiene precio: completa el pago para iniciar la producción.
+                                    Tu cotización ya tiene precio: págala ahora o agrégala al carrito para pagarla junto con otros artículos.
                                   </span>
                                 </div>
                               )}

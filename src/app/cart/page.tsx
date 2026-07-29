@@ -12,8 +12,8 @@ import { useAuth } from '../context/AuthContext';
 import { seedWpSession } from '@/lib/wp-sso';
 
 export default function CartPage() {
-  const { cart, subtotal, shipping, discount, total, removeFromCart, updateQuantity, couponCode } = useCart();
-  const { formatPrice, currencyInfo } = useCurrency();
+  const { cart, quoteItems, removeQuoteFromCart, subtotal, shipping, discount, total, removeFromCart, updateQuantity, couponCode } = useCart();
+  const { formatPrice, formatQuotePrice, currencyInfo } = useCurrency();
   const { t } = useLanguage();
   const { user, isLoading: authLoading } = useAuth();
   const [showEmptyModal, setShowEmptyModal] = React.useState(false);
@@ -22,11 +22,11 @@ export default function CartPage() {
   const router = useRouter();
 
   React.useEffect(() => {
-    if (cart.length === 0) {
+    if (cart.length === 0 && quoteItems.length === 0) {
       const timer = setTimeout(() => setShowEmptyModal(true), 500);
       return () => clearTimeout(timer);
     }
-  }, [cart.length]);
+  }, [cart.length, quoteItems.length]);
 
   React.useEffect(() => {
     if (!isRedirecting) return;
@@ -65,7 +65,7 @@ export default function CartPage() {
     router.push('/store');
   };
 
-  if (cart.length === 0) {
+  if (cart.length === 0 && quoteItems.length === 0) {
     return (
       <div className="nk-cart-page" style={{ padding: '100px 0', background: 'var(--nk-bg-body)', minHeight: '80vh' }}>
         <div className="nk-container">
@@ -167,6 +167,45 @@ export default function CartPage() {
               );
             })}
 
+            {/* Cotizaciones agregadas desde Mi Cuenta: cantidad fija 1 (es un
+                pedido completo, no una pieza) y sin imagen de producto. El
+                server las revalida por orderKey al pasar al checkout. */}
+            {quoteItems.length > 0 && (
+              <>
+                <h3 style={{ margin: '30px 0 4px', fontFamily: 'Teko', fontSize: '1.6rem', letterSpacing: '0.5px' }}>COTIZACIONES</h3>
+                {quoteItems.map((q) => (
+                  <div key={`quote-${q.orderId}`} className="nk-cart-row">
+                    <div className="nk-cart-item-img nk-manga-border" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--nk-bg-wrapper)' }}>
+                      <span className="material-icons-outlined" style={{ fontSize: '36px', color: 'var(--nk-primary)' }}>request_quote</span>
+                    </div>
+                    <div className="nk-cart-item-info">
+                      <h4 className="nk-cart-item-title">Cotización {q.folio}</h4>
+                      <div className="nk-cart-item-meta">
+                        <span className="nk-meta-pill">PERSONALIZADA</span>
+                      </div>
+                      <div className="nk-mobile-only nk-cart-item-price-mobile">
+                        {formatQuotePrice(q.totalMXN)}
+                      </div>
+                    </div>
+                    <div className="nk-desktop-only" style={{ textAlign: 'center', fontWeight: 700 }}>{formatQuotePrice(q.totalMXN)}</div>
+                    <div className="nk-cart-item-qty-col" style={{ textAlign: 'center', fontWeight: 800 }}>1</div>
+                    <div className="nk-cart-item-total-col">
+                      {formatQuotePrice(q.totalMXN)}
+                    </div>
+                    <div className="nk-cart-item-remove-col">
+                      <button
+                        onClick={() => removeQuoteFromCart(q.orderId)}
+                        className="nk-cart-remove-btn"
+                        title="Quitar del carrito"
+                      >
+                        <span className="material-icons-outlined">delete</span>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </>
+            )}
+
             <div style={{ marginTop: '30px' }}>
               <Link href="/store" className="nk-btn-sec" style={{ textDecoration: 'none', fontSize: '0.9rem', fontWeight: 800 }}>
                 ← {t('cart.continue_btn')}
@@ -205,12 +244,17 @@ export default function CartPage() {
                     const id = item.variation?.databaseId || item.product.databaseId;
                     return `${id}:${item.quantity}`;
                   }).join(',');
-                  
+                  // Cotizaciones: el server las valida una a una por su orderKey.
+                  const quotesStr = quoteItems.map(q => `${q.orderId}:${q.orderKey}`).join(',');
+
                   // index.php explícito: la raíz "/" con query string sirve el index.html
                   // estático (DirectoryIndex) y el bridge nunca llega a WordPress.
                   // currency: el bridge fija la cookie nakama_currency para que el
                   // checkout de WooCommerce cobre en la misma moneda que ve el usuario.
-                  const checkoutUrl = `https://nakamabordados.com/index.php?nk_bridge=1&items=${itemsStr}&currency=${currencyInfo.currency}${couponCode ? `&coupon=${couponCode}` : ''}`;
+                  const checkoutUrl = `https://nakamabordados.com/index.php?nk_bridge=1`
+                    + (itemsStr ? `&items=${itemsStr}` : '')
+                    + (quotesStr ? `&quotes=${quotesStr}` : '')
+                    + `&currency=${currencyInfo.currency}${couponCode ? `&coupon=${couponCode}` : ''}`;
                   
                   return (
                     <a

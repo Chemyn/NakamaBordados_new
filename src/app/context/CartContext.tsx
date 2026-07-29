@@ -14,12 +14,29 @@ export interface CartItem {
   selectedTalla?: string;
 }
 
+/**
+ * Cotización pagable agregada al carrito para pagarla junto con productos u
+ * otras cotizaciones. No es un producto: referencia a un pedido de WooCommerce
+ * pendiente de pago; el server la valida por orderKey al pasar al checkout y
+ * cobra el total real del pedido en ese momento (totalMXN es solo display).
+ */
+export interface QuoteCartItem {
+  orderId: number;  // databaseId del pedido de cotización
+  orderKey: string;
+  folio: string;    // "NK-1001"
+  totalMXN: number; // las cotizaciones siempre se emiten en MXN
+}
+
 interface CartContextType {
   cart: CartItem[];
   addToCart: (product: Product, variation: Variation | null, qty: number) => void;
   removeFromCart: (index: number) => void;
   updateQuantity: (index: number, qty: number) => void;
   clearCart: () => void;
+  quoteItems: QuoteCartItem[];
+  addQuoteToCart: (quote: QuoteCartItem) => void;
+  removeQuoteFromCart: (orderId: number) => void;
+  isQuoteInCart: (orderId: number) => boolean;
   cartCount: number;
   subtotal: number;
   shipping: number;
@@ -59,6 +76,7 @@ export function getVariationAttr(
 
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
+  const [quoteItems, setQuoteItems] = useState<QuoteCartItem[]>([]);
   const [couponCode, setCouponCode] = useState<string>('');
   const [discount, setDiscount] = useState<number>(0);
   const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent');
@@ -66,6 +84,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // Load cart from localStorage on mount
   useEffect(() => {
     const savedCart = localStorage.getItem('nakama_cart');
+    const savedQuotes = localStorage.getItem('nakama_quote_cart');
     const savedCoupon = localStorage.getItem('nakama_coupon');
     const savedDiscount = localStorage.getItem('nakama_discount');
     const savedType = localStorage.getItem('nakama_discount_type');
@@ -74,6 +93,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       if (savedCart) {
         try {
           setCart(JSON.parse(savedCart));
+        } catch (e) {
+          console.error(e);
+        }
+      }
+      if (savedQuotes) {
+        try {
+          setQuoteItems(JSON.parse(savedQuotes));
         } catch (e) {
           console.error(e);
         }
@@ -90,6 +116,11 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const saveCart = (newCart: CartItem[]) => {
     setCart(newCart);
     localStorage.setItem('nakama_cart', JSON.stringify(newCart));
+  };
+
+  const saveQuoteItems = (newQuotes: QuoteCartItem[]) => {
+    setQuoteItems(newQuotes);
+    localStorage.setItem('nakama_quote_cart', JSON.stringify(newQuotes));
   };
 
   const addToCart = (product: Product, variation: Variation | null, qty: number) => {
@@ -152,8 +183,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const addQuoteToCart = (quote: QuoteCartItem) => {
+    if (quoteItems.some(q => q.orderId === quote.orderId)) return;
+    saveQuoteItems([...quoteItems, quote]);
+  };
+
+  const removeQuoteFromCart = (orderId: number) => {
+    saveQuoteItems(quoteItems.filter(q => q.orderId !== orderId));
+  };
+
+  const isQuoteInCart = (orderId: number) => quoteItems.some(q => q.orderId === orderId);
+
   const clearCart = () => {
     saveCart([]);
+    saveQuoteItems([]);
     removeCoupon();
   };
 
@@ -218,12 +261,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   // Calculations
-  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  
+  const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0) + quoteItems.length;
+
+  // Subtotal en MXN base: productos + cotizaciones. Es la estimación local;
+  // el server recalcula la cotización con su total real al pasar al checkout.
+  const quotesSubtotal = quoteItems.reduce((sum, q) => sum + q.totalMXN, 0);
   const subtotal = cart.reduce((sum, item) => {
     const price = item.variation ? item.variation.price : item.product.price;
     return sum + (price * item.quantity);
-  }, 0);
+  }, 0) + quotesSubtotal;
 
   // Calculate discount absolute value
   const discountAmount = discountType === 'percent' ? (subtotal * discount) : discount;
@@ -243,6 +289,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       removeFromCart,
       updateQuantity,
       clearCart,
+      quoteItems,
+      addQuoteToCart,
+      removeQuoteFromCart,
+      isQuoteInCart,
       cartCount,
       subtotal,
       shipping,

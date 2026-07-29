@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO, social login, pedidos de cotización, registro de clientes y sincronización de base de datos local (Next.js).
- * Version: 2.8
+ * Version: 2.9
  * Author: Nakama
  */
 
@@ -618,7 +618,7 @@ add_filter( 'woocommerce_get_checkout_payment_url', function ( $url ) {
 // nakamabordados.com, este script limpia las llaves directamente.
 // ------------------------------------------------------------------
 add_action( 'woocommerce_thankyou', function () {
-    echo '<script>try{["nakama_cart","nakama_coupon","nakama_discount","nakama_discount_type"].forEach(function(k){window.localStorage.removeItem(k);});}catch(e){}</script>';
+    echo '<script>try{["nakama_cart","nakama_quote_cart","nakama_coupon","nakama_discount","nakama_discount_type"].forEach(function(k){window.localStorage.removeItem(k);});}catch(e){}</script>';
 } );
 
 function nakama_sso_set_cookie() {
@@ -804,38 +804,74 @@ function nakama_cart_bridge_handler() {
     WC()->cart->empty_cart();
     if ( $debug ) echo "Carrito limpiado.<br>";
 
-    // 2. Parsear items: "ID:QTY,ID:QTY"
-    if ( ! isset( $_GET['items'] ) || empty( $_GET['items'] ) ) {
-        if ( $debug ) echo "Error: No hay items en la URL.<br>";
+    // 2. Parsear items "ID:QTY,ID:QTY" y/o cotizaciones "ID:ORDER_KEY,...".
+    //    Cualquiera de los dos puede faltar (un carrito de solo cotizaciones
+    //    es válido), pero no ambos.
+    $items_param  = isset( $_GET['items'] )  ? trim( sanitize_text_field( $_GET['items'] ) )  : '';
+    $quotes_param = isset( $_GET['quotes'] ) ? trim( sanitize_text_field( $_GET['quotes'] ) ) : '';
+    if ( '' === $items_param && '' === $quotes_param ) {
+        if ( $debug ) echo "Error: No hay items ni cotizaciones en la URL.<br>";
         return;
     }
 
-    $items_raw = explode( ',', sanitize_text_field( $_GET['items'] ) );
-    if ( $debug ) echo "Items detectados: " . count($items_raw) . "<br>";
+    if ( '' !== $items_param ) {
+        $items_raw = explode( ',', $items_param );
+        if ( $debug ) echo "Items detectados: " . count($items_raw) . "<br>";
 
-    foreach ( $items_raw as $item_str ) {
-        $parts = explode( ':', $item_str );
-        if ( count( $parts ) < 2 ) continue;
+        foreach ( $items_raw as $item_str ) {
+            $parts = explode( ':', $item_str );
+            if ( count( $parts ) < 2 ) continue;
 
-        $product_id = (int) $parts[0];
-        $quantity   = (int) $parts[1];
+            $product_id = (int) $parts[0];
+            $quantity   = (int) $parts[1];
 
-        if ( $product_id <= 0 || $quantity <= 0 ) continue;
+            if ( $product_id <= 0 || $quantity <= 0 ) continue;
 
-        $product = wc_get_product( $product_id );
-        if ( ! $product ) {
-            if ( $debug ) echo "Error: Producto ID $product_id no encontrado.<br>";
-            continue;
+            $product = wc_get_product( $product_id );
+            if ( ! $product ) {
+                if ( $debug ) echo "Error: Producto ID $product_id no encontrado.<br>";
+                continue;
+            }
+
+            if ( $product->is_type( 'variation' ) ) {
+                $parent_id = $product->get_parent_id();
+                $added = WC()->cart->add_to_cart( $parent_id, $quantity, $product_id );
+                if ( $debug ) echo "Añadiendo variación $product_id (Parent $parent_id) x $quantity: " . ($added ? 'OK' : 'FAIL') . "<br>";
+            } else {
+                $added = WC()->cart->add_to_cart( $product_id, $quantity );
+                if ( $debug ) echo "Añadiendo producto simple $product_id x $quantity: " . ($added ? 'OK' : 'FAIL') . "<br>";
+            }
         }
+    }
 
-        if ( $product->is_type( 'variation' ) ) {
-            $parent_id = $product->get_parent_id();
-            $added = WC()->cart->add_to_cart( $parent_id, $quantity, $product_id );
-            if ( $debug ) echo "Añadiendo variación $product_id (Parent $parent_id) x $quantity: " . ($added ? 'OK' : 'FAIL') . "<br>";
-        } else {
-            $added = WC()->cart->add_to_cart( $product_id, $quantity );
-            if ( $debug ) echo "Añadiendo producto simple $product_id x $quantity: " . ($added ? 'OK' : 'FAIL') . "<br>";
+    // 2.4 Cotizaciones del carrito mixto. Cada una se valida por su order_key
+    //     (misma exigencia que pay-quote); las que ya no procedan se OMITEN
+    //     con un aviso en el checkout en vez de tumbar todo el carrito — el
+    //     caso típico es una cotización pagada en otra pestaña.
+    if ( '' !== $quotes_param ) {
+        $seen_quotes = array();
+        foreach ( explode( ',', $quotes_param ) as $quote_str ) {
+            $parts = explode( ':', $quote_str, 2 );
+            if ( count( $parts ) < 2 ) continue;
+
+            $quote_id  = absint( $parts[0] );
+            $quote_key = trim( $parts[1] );
+            if ( $quote_id <= 0 || '' === $quote_key || isset( $seen_quotes[ $quote_id ] ) ) continue;
+            $seen_quotes[ $quote_id ] = true;
+
+            $result = nakama_add_quote_to_wc_cart( $quote_id, $quote_key );
+            if ( true !== $result ) {
+                wc_add_notice( sprintf( 'Se omitió una cotización del carrito: %s.', $result ), 'notice' );
+            }
+            if ( $debug ) echo "Cotización $quote_id: " . ( true === $result ? 'OK' : esc_html( $result ) ) . "<br>";
         }
+    }
+
+    // Todo resultó inválido: un checkout vacío solo confunde.
+    if ( WC()->cart->is_empty() ) {
+        if ( $debug ) { echo 'Carrito vacío tras validar items y cotizaciones.'; exit; }
+        wp_safe_redirect( home_url( '/mi-cuenta/' ) );
+        exit;
     }
 
     // 2.5 Aplicar cupón
@@ -890,37 +926,41 @@ function nakama_quote_product_id() {
     return $id;
 }
 
-/** Valida el pedido de cotización y manda al cliente al checkout normal. */
-function nakama_pay_quote_via_checkout( $debug = false ) {
-    $order_id = absint( $_GET['order'] ?? 0 );
-    $key      = sanitize_text_field( $_GET['key'] ?? '' );
+// El placeholder guarda sold_individually=true, pero un carrito mixto puede
+// llevar VARIAS cotizaciones y todas usan el mismo producto: sin este filtro
+// WooCommerce rechazaría la segunda ("solo puedes tener 1"). Cada cotización
+// sigue siendo un artículo separado porque su meta produce un cart_item_key
+// distinto, y el guard de check_cart_items fuerza cantidad 1 por artículo.
+add_filter( 'woocommerce_is_sold_individually', function ( $sold, $product ) {
+    if ( $product && (int) get_option( 'nakama_quote_product_id' ) === $product->get_id() ) {
+        return false;
+    }
+    return $sold;
+}, 10, 2 );
 
+/**
+ * Valida una cotización y la añade al carrito de WC como artículo.
+ *
+ * El precio de la cotización es el precio FINAL acordado: se guarda junto con
+ * su moneda y el hook de precio (prioridad 1000, después del conversor del
+ * sitio) lo fija en la moneda que el cliente esté viendo, SIN el margen de
+ * productos: 100 USD se ven/pagan como 100 USD.
+ *
+ * @return true|string true si se añadió; texto con el motivo si no procede.
+ */
+function nakama_add_quote_to_wc_cart( $order_id, $key ) {
     $order = $order_id ? wc_get_order( $order_id ) : false;
-    if ( ! $order || ! hash_equals( $order->get_order_key(), $key ) ) {
-        if ( $debug ) { echo 'Error: pedido o llave inválidos.'; exit; }
-        wp_safe_redirect( home_url( '/' ) );
-        exit;
+    if ( ! $order || ! hash_equals( $order->get_order_key(), (string) $key ) ) {
+        return 'no existe o la llave no coincide';
     }
     if ( ! $order->needs_payment() ) {
-        if ( $debug ) { echo 'El pedido no requiere pago (estado: ' . $order->get_status() . ').'; exit; }
-        wp_safe_redirect( home_url( '/mi-cuenta/' ) );
-        exit;
+        return 'ya no requiere pago (estado: ' . $order->get_status() . ')';
     }
-
     $total = (float) $order->get_total();
     if ( $total <= 0 ) {
-        // Aún sin precio asignado: no hay nada que cobrar.
-        if ( $debug ) { echo 'La cotización aún no tiene precio asignado.'; exit; }
-        wp_safe_redirect( home_url( '/mi-cuenta/' ) );
-        exit;
+        return 'aún no tiene precio asignado';
     }
 
-    // El precio de la cotización es el precio FINAL acordado: se guarda junto
-    // con su moneda y el hook de precio (prioridad 1000, después del conversor
-    // de moneda del sitio) lo fija en la moneda que el cliente esté viendo,
-    // SIN el margen de productos: 100 USD se ven/pagan como 100 USD, y su
-    // equivalente en pesos usa el tipo de cambio real (100 x 17.47 = 1,747 MXN).
-    WC()->cart->empty_cart();
     $added = WC()->cart->add_to_cart(
         nakama_quote_product_id(),
         1,
@@ -934,8 +974,29 @@ function nakama_pay_quote_via_checkout( $debug = false ) {
         )
     );
 
+    return $added ? true : 'no se pudo añadir al carrito';
+}
+
+/** Valida el pedido de cotización y manda al cliente al checkout normal. */
+function nakama_pay_quote_via_checkout( $debug = false ) {
+    $order_id = absint( $_GET['order'] ?? 0 );
+    $key      = sanitize_text_field( $_GET['key'] ?? '' );
+
+    // Camino rápido "Pagar ahora": SOLO esta cotización, carrito limpio.
+    WC()->cart->empty_cart();
+    $result = nakama_add_quote_to_wc_cart( $order_id, $key );
+
+    if ( true !== $result ) {
+        if ( $debug ) { echo 'Cotización rechazada: ' . esc_html( $result ); exit; }
+        // Llave inválida -> home (posible enlace manipulado); el resto son
+        // estados legítimos del pedido y el cliente los entiende en Mi Cuenta.
+        $dest = ( 'no existe o la llave no coincide' === $result ) ? '/' : '/mi-cuenta/';
+        wp_safe_redirect( home_url( $dest ) );
+        exit;
+    }
+
     if ( $debug ) {
-        echo 'Cotización ' . esc_html( $order->get_meta( '_nakama_quote_folio' ) ) . " al carrito: " . ( $added ? 'OK' : 'FAIL' ) . '<br>';
+        echo 'Cotización al carrito: OK<br>';
         echo "<a href='" . esc_url( wc_get_checkout_url() ) . "'>Ir al checkout</a>";
         exit;
     }
@@ -1026,44 +1087,117 @@ add_action( 'woocommerce_before_calculate_totals', function ( $cart ) {
     }
 }, 1000 );
 
-// Copiar la referencia de la cotización al pedido nuevo que crea el checkout.
+// Referencia de cada cotización EN SU LINE ITEM: con varias en el mismo
+// pedido, una meta a nivel pedido se sobrescribiría entre sí (le pasaba al
+// folio, al source y al PDF). El item conserva la suya pase lo que pase.
 add_action( 'woocommerce_checkout_create_order_line_item', function ( $item, $cart_item_key, $values, $order ) {
-    if ( isset( $values['nakama_quote_order_id'] ) ) {
-        $order->update_meta_data( '_nakama_quote_source_order', (int) $values['nakama_quote_order_id'] );
-        if ( ! empty( $values['nakama_quote_folio'] ) ) {
-            $order->update_meta_data( '_nakama_quote_folio', $values['nakama_quote_folio'] );
-            $item->add_meta_data( 'Folio', $values['nakama_quote_folio'], true );
-        }
-        // Heredar el PDF de la cotización origen para que Producción lo muestre.
-        $src_quote = wc_get_order( (int) $values['nakama_quote_order_id'] );
-        if ( $src_quote ) {
-            $pdf = (string) $src_quote->get_meta( '_nakama_quote_pdf_url' );
-            if ( '' !== $pdf ) {
-                $order->update_meta_data( '_nakama_quote_pdf_url', $pdf );
-            }
+    if ( ! isset( $values['nakama_quote_order_id'] ) ) {
+        return;
+    }
+    $src_id = (int) $values['nakama_quote_order_id'];
+    $item->add_meta_data( '_nakama_quote_source_order', $src_id, true );
+    if ( ! empty( $values['nakama_quote_folio'] ) ) {
+        $item->add_meta_data( 'Folio', $values['nakama_quote_folio'], true );
+    }
+    // Heredar el PDF de la cotización origen para que Producción lo muestre.
+    $src_quote = wc_get_order( $src_id );
+    if ( $src_quote ) {
+        $pdf = (string) $src_quote->get_meta( '_nakama_quote_pdf_url' );
+        if ( '' !== $pdf ) {
+            $item->add_meta_data( '_nakama_quote_pdf_url', $pdf, true );
         }
     }
 }, 10, 4 );
 
-// Al completarse el checkout: el folio vive ahora en el pedido nuevo (pagado,
-// con envío); la cotización original se cancela con nota de referencia.
+// Meta a nivel pedido SOLO cuando hay exactamente una cotización: así el
+// pedido nuevo toma el folio como número (filtro woocommerce_order_number) y
+// Producción encuentra el PDF donde siempre. Con varias, el pedido conserva
+// su número nativo y cada línea lleva su folio — no hay un único NK-x que
+// pueda representarlas a todas.
+add_action( 'woocommerce_checkout_create_order', function ( $order ) {
+    $quote_items = array();
+    foreach ( $order->get_items( 'line_item' ) as $item ) {
+        if ( $item->get_meta( '_nakama_quote_source_order' ) ) {
+            $quote_items[] = $item;
+        }
+    }
+    if ( 1 !== count( $quote_items ) ) {
+        return;
+    }
+    $item = $quote_items[0];
+    $order->update_meta_data( '_nakama_quote_source_order', (int) $item->get_meta( '_nakama_quote_source_order' ) );
+    $folio = $item->get_meta( 'Folio' );
+    if ( $folio ) {
+        $order->update_meta_data( '_nakama_quote_folio', $folio );
+    }
+    $pdf = $item->get_meta( '_nakama_quote_pdf_url' );
+    if ( $pdf ) {
+        $order->update_meta_data( '_nakama_quote_pdf_url', $pdf );
+    }
+}, 20 );
+
+// Al completarse el checkout: cada cotización pagada libera su folio hacia el
+// pedido nuevo y se cancela con nota. Se recorren los LINE ITEMS (no la meta
+// del pedido) para cubrir el caso de varias cotizaciones, y cada origen se
+// revalida: si otro flujo ya la pagó o canceló, solo se deja constancia —
+// nunca una segunda cancelación ni pisar un pedido vivo.
 add_action( 'woocommerce_checkout_order_processed', function ( $order_id, $posted_data, $order ) {
-    $src_id = (int) $order->get_meta( '_nakama_quote_source_order' );
-    if ( ! $src_id ) {
-        return;
+    $src_ids = array();
+    foreach ( $order->get_items( 'line_item' ) as $item ) {
+        $sid = (int) $item->get_meta( '_nakama_quote_source_order' );
+        if ( $sid ) {
+            $src_ids[ $sid ] = true;
+        }
     }
-    $src = wc_get_order( $src_id );
-    if ( ! $src ) {
-        return;
+
+    foreach ( array_keys( $src_ids ) as $src_id ) {
+        $src = wc_get_order( $src_id );
+        if ( ! $src ) {
+            continue;
+        }
+        if ( '' !== (string) $src->get_meta( '_nakama_quote_folio_ref' ) || $src->has_status( 'cancelled' ) ) {
+            $src->add_order_note( sprintf( 'El pedido #%d volvió a referenciar esta cotización; ya estaba procesada, sin cambios.', $order_id ) );
+            $src->save();
+            continue;
+        }
+        if ( ! $src->needs_payment() ) {
+            $src->add_order_note( sprintf( 'El pedido #%d referenció esta cotización, pero ya no requería pago (estado: %s). Sin cambios.', $order_id, $src->get_status() ) );
+            $src->save();
+            continue;
+        }
+        $folio = $src->get_meta( '_nakama_quote_folio' );
+        // Liberar el folio del original para que el número NK-x identifique al nuevo.
+        $src->delete_meta_data( '_nakama_quote_folio' );
+        $src->update_meta_data( '_nakama_quote_folio_ref', $folio );
+        $src->add_order_note( sprintf( 'Cotización %s pagada mediante el pedido #%d (checkout normal con envío).', $folio, $order_id ) );
+        $src->update_status( 'cancelled', 'Reemplazada por el pedido de pago con envío.' );
+        $src->save();
     }
-    $folio = $src->get_meta( '_nakama_quote_folio' );
-    // Liberar el folio del original para que el número NK-x identifique al nuevo.
-    $src->delete_meta_data( '_nakama_quote_folio' );
-    $src->update_meta_data( '_nakama_quote_folio_ref', $folio );
-    $src->add_order_note( sprintf( 'Cotización %s pagada mediante el pedido #%d (checkout normal con envío).', $folio, $order_id ) );
-    $src->update_status( 'cancelled', 'Reemplazada por el pedido de pago con envío.' );
-    $src->save();
 }, 10, 3 );
+
+// Entre que la cotización entró al carrito y el cliente paga puede pasar de
+// todo: pagarla en otra pestaña con "Pagar ahora", o que el taller la cierre.
+// WooCommerce ejecuta esto en el carrito y el checkout: la cotización que ya
+// no proceda sale del carrito con aviso, y ninguna puede llevar cantidad > 1.
+add_action( 'woocommerce_check_cart_items', function () {
+    if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
+        return;
+    }
+    foreach ( WC()->cart->get_cart() as $cart_key => $cart_item ) {
+        if ( empty( $cart_item['nakama_quote_order_id'] ) ) {
+            continue;
+        }
+        if ( (int) $cart_item['quantity'] > 1 ) {
+            WC()->cart->set_quantity( $cart_key, 1, false );
+        }
+        $src = wc_get_order( (int) $cart_item['nakama_quote_order_id'] );
+        if ( ! $src || ! $src->needs_payment() || (float) $src->get_total() <= 0 ) {
+            WC()->cart->remove_cart_item( $cart_key );
+            $folio = ! empty( $cart_item['nakama_quote_folio'] ) ? $cart_item['nakama_quote_folio'] : '';
+            wc_add_notice( sprintf( 'La cotización %s ya no está pendiente de pago; se quitó del carrito.', $folio ), 'notice' );
+        }
+    }
+} );
 
 // Nota: el envío gratis, el descuento por transferencia y los cupones se
 // gestionan desde otro plugin; este plugin no interviene en esas promos.
