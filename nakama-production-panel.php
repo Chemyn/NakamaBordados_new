@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Panel de Producción
  * Description: Tablero Kanban de pedidos para el personal de producción: ver pedidos en proceso, tomarlos, validar cada producto, finalizar producción y gestionar los PDF de patrones. Sin exponer precios ni datos administrativos.
- * Version: 1.4.0
+ * Version: 1.4.1
  * Author: Nakama
  */
 
@@ -202,6 +202,46 @@ function nakama_prod_normalize_sku( $text ) {
     return strtolower( trim( $text ) );
 }
 
+/**
+ * Color de un pedido en español para los operadores.
+ *
+ * El line item guarda el SLUG del término ('black', 'khaki'), no su nombre:
+ * WooCommerce solo lo resuelve en su propia capa de visualización, que este
+ * panel no usa. Primero se resuelve slug -> nombre del término (mismo patrón
+ * que el catálogo y el almacén) y después se unifica al español con el
+ * diccionario del almacén, que ya traduce black->Negro, khaki->Kaki, etc.
+ * Colores fuera del diccionario se devuelven tal cual: no rompe colores nuevos.
+ */
+function nakama_prod_color_es( $raw ) {
+    $raw = trim( (string) $raw );
+    if ( '' === $raw ) {
+        return $raw;
+    }
+
+    $term = get_term_by( 'slug', $raw, 'pa_color' );
+    if ( $term && ! is_wp_error( $term ) && '' !== $term->name ) {
+        $raw = $term->name;
+    }
+
+    if ( function_exists( 'nakama_wh_color_canonical' ) ) {
+        return nakama_wh_color_canonical( $raw );
+    }
+
+    // El plugin de almacén no está activo: mínimo propio con la misma
+    // normalización (minúsculas, sin acentos) para no quedar en inglés.
+    $norm = strtolower( remove_accents( $raw ) );
+    $norm = preg_replace( '/\s+/', ' ', trim( $norm ) );
+    $map  = array(
+        'black' => 'Negro', 'white' => 'Blanco', 'red' => 'Rojo',
+        'blue' => 'Azul', 'navy' => 'Azul Marino', 'green' => 'Verde',
+        'yellow' => 'Amarillo', 'pink' => 'Rosa', 'gray' => 'Gris',
+        'grey' => 'Gris', 'khaki' => 'Kaki', 'purple' => 'Morado',
+        'orange' => 'Naranja', 'brown' => 'Café', 'wine' => 'Vino',
+        'burgundy' => 'Vino',
+    );
+    return isset( $map[ $norm ] ) ? $map[ $norm ] : $raw;
+}
+
 /** Resuelve un SKU (case-insensitive) al producto PADRE publicado.
  *  Devuelve array( 'product_id', 'product_name', 'sku' ) o null si no existe.
  *  Si el SKU pertenece a una variación, se resuelve a su producto padre. */
@@ -313,7 +353,9 @@ function nakama_prod_item_attributes( $item ) {
             }
             foreach ( $aliases as $alias ) {
                 if ( false !== strpos( $key, $alias ) ) {
-                    $out[ $slot ] = (string) $value;
+                    $out[ $slot ] = ( 'color' === $slot )
+                        ? nakama_prod_color_es( (string) $value )
+                        : (string) $value;
                     break 2;
                 }
             }
