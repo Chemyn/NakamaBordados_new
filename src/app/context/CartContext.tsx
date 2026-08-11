@@ -154,7 +154,8 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     // GA4 add_to_cart + Pixel AddToCart (los precios locales son MXN base).
     trackAddToCart({
-      id: product.id,
+      // Debe coincidir con el ID numérico publicado en el catálogo de Meta.
+      id: product.databaseId || product.id,
       name: product.name,
       price: variation ? variation.price : product.price,
       quantity: qty,

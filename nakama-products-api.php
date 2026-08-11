@@ -185,6 +185,21 @@ add_action('rest_api_init', function () {
         ),
     ));
 
+    // 3.5) Catálogo público para Meta/Facebook en CSV.
+    //      URL: https://nakamabordados.com/wp-json/nakama/v1/facebook-catalog
+    register_rest_route('nakama/v1', '/facebook-catalog', array(
+        array(
+            'methods' => 'GET',
+            'callback' => 'nakama_products_facebook_catalog',
+            'permission_callback' => '__return_true',
+        ),
+        array(
+            'methods' => 'OPTIONS',
+            'callback' => 'nakama_products_preflight',
+            'permission_callback' => '__return_true',
+        ),
+    ));
+
     // 4) Modo Mantenimiento GET/POST/OPTIONS
     register_rest_route('nakama/v1', '/maintenance', array(
         array(
@@ -290,6 +305,158 @@ function nakama_products_submit_review($request)
 
     $response = new WP_Error('insert_failed', 'No se pudo guardar la valoración.', array('status' => 500));
     return nakama_products_add_cors(rest_ensure_response($response));
+}
+
+function nakama_products_catalog_clean_text($value)
+{
+    $text = wp_strip_all_tags((string) $value);
+    $text = html_entity_decode($text, ENT_QUOTES, 'UTF-8');
+    $text = preg_replace('/\s+/', ' ', $text);
+    return trim($text);
+}
+
+function nakama_products_catalog_csv_cell($value)
+{
+    $text = (string) $value;
+    if (preg_match('/[",\r\n]/', $text)) {
+        return '"' . str_replace('"', '""', $text) . '"';
+    }
+    return $text;
+}
+
+function nakama_products_catalog_price($price)
+{
+    $amount = (float) $price;
+    return $amount > 0 ? number_format($amount, 2, '.', '') . ' MXN' : '';
+}
+
+function nakama_products_catalog_product_link($product)
+{
+    return home_url('/product/?slug=' . rawurlencode($product->get_slug()));
+}
+
+function nakama_products_catalog_image($product)
+{
+    if ($product->get_image_id()) {
+        $url = wp_get_attachment_url($product->get_image_id());
+        if ($url) {
+            return $url;
+        }
+    }
+
+    return '';
+}
+
+function nakama_products_catalog_write_row($row)
+{
+    echo implode(',', array_map('nakama_products_catalog_csv_cell', $row)) . "\n";
+}
+
+function nakama_products_catalog_send_headers()
+{
+    status_header(200);
+    header('Content-Type: text/csv; charset=utf-8');
+    header('Content-Disposition: inline; filename="nakama-facebook-catalog.csv"');
+    header('Cache-Control: public, max-age=300');
+    header('Access-Control-Allow-Origin: *');
+    header('X-Content-Type-Options: nosniff');
+}
+
+function nakama_products_facebook_catalog($request)
+{
+    nakama_products_catalog_send_headers();
+
+    $headers = array('id', 'title', 'description', 'availability', 'condition', 'price', 'link', 'image_link', 'brand', 'google_product_category');
+    nakama_products_catalog_write_row($headers);
+
+    if ('1' === (string) $request->get_param('diagnostic')) {
+        nakama_products_catalog_write_row(array(
+            'NAKAMA-DIAGNOSTIC',
+            'Nakama diagnostic product',
+            'Endpoint diagnostic row',
+            'in stock',
+            'new',
+            '1.00 MXN',
+            home_url('/'),
+            home_url('/favicon.ico'),
+            'Nakama Bordados',
+            'Apparel & Accessories > Clothing',
+        ));
+        exit;
+    }
+
+    $page = 1;
+    $per_page = 50;
+
+    do {
+        $result = wc_get_products(array(
+            'status' => 'publish',
+            'visibility' => 'visible',
+            'limit' => $per_page,
+            'page' => $page,
+            'paginate' => true,
+            'orderby' => 'ID',
+            'order' => 'ASC',
+            'return' => 'objects',
+        ));
+
+        $products = is_object($result) && isset($result->products) && is_array($result->products)
+            ? $result->products
+            : array();
+        $max_pages = is_object($result) && isset($result->max_num_pages)
+            ? max(1, (int) $result->max_num_pages)
+            : 1;
+
+        foreach ($products as $product) {
+            if (!$product instanceof WC_Product) {
+                continue;
+            }
+
+            nakama_products_catalog_write_product($product);
+        }
+
+        $page++;
+    } while ($page <= $max_pages);
+
+    exit;
+}
+
+function nakama_products_catalog_write_product($product)
+{
+    $description = nakama_products_catalog_clean_text($product->get_description());
+    if ('' === $description) {
+        $description = nakama_products_catalog_clean_text($product->get_short_description());
+    }
+    if ('' === $description) {
+        $description = nakama_products_catalog_clean_text($product->get_name());
+    }
+
+    $base = array(
+        'description' => $description,
+        'condition' => 'new',
+        'link' => nakama_products_catalog_product_link($product),
+        'brand' => 'Nakama Bordados',
+        'google_product_category' => 'Apparel & Accessories > Clothing',
+    );
+
+    $price = nakama_products_catalog_price($product->get_price());
+    $image = nakama_products_catalog_image($product);
+    if ('' === $price || '' === $image) {
+        return;
+    }
+
+    nakama_products_catalog_write_row(array(
+        'id' => (string) $product->get_id(),
+        'title' => $product->get_name(),
+        'description' => $base['description'],
+        'availability' => $product->is_in_stock() ? 'in stock' : 'out of stock',
+        'condition' => $base['condition'],
+        'price' => $price,
+        'link' => $base['link'],
+        'image_link' => $image,
+        'brand' => $base['brand'],
+        'google_product_category' => $base['google_product_category'],
+    ));
 }
 
 // ============================================================================

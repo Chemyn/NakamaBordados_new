@@ -191,7 +191,7 @@ RewriteCond %{QUERY_STRING} rest_route= [NC,OR]
 RewriteCond %{QUERY_STRING} nk_bridge= [NC,OR]
 RewriteCond %{QUERY_STRING} wc-ajax= [NC,OR]
 RewriteCond %{QUERY_STRING} wc-api= [NC]
-RewriteRule ^ index.php [E=Cache-Control:no-cache,L]
+RewriteRule ^ /index.php [E=Cache-Control:no-cache,END]
 
 # 2. Rutas del núcleo de WordPress (archivos y directorios FÍSICOS): servir tal cual
 RewriteCond %{REQUEST_URI} ^/wp-admin(/|$) [NC,OR]
@@ -206,11 +206,11 @@ RewriteRule ^ - [L]
 # 404 y rompe el admin de WooCommerce (que consume /wp-json/): errores como
 # "Ha ocurrido un error al cargar las diversas recomendaciones", fallos al
 # cambiar estados de pedido, etc.
-RewriteRule ^(wp-json|graphql)(/|$) index.php [E=Cache-Control:no-cache,L]
+RewriteRule ^(wp-json|graphql)(/|$) /index.php [E=Cache-Control:no-cache,END]
 
 # 2.6 Enrutar el Checkout de WooCommerce directamente a WordPress (index.php) sin cachear
 RewriteCond %{REQUEST_URI} ^/finalizar-compra(/|$) [NC]
-RewriteRule ^ index.php [E=Cache-Control:no-cache,L]
+RewriteRule ^ /index.php [E=Cache-Control:no-cache,END]
 
 # 3. Servir archivos físicos si existen (imágenes, scripts en _next/static, etc.)
 RewriteCond %{REQUEST_FILENAME} -f
