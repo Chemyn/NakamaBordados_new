@@ -25,6 +25,9 @@ export interface ProdCard {
   taken_age: string;
   progress: ProdProgress;
   is_quote?: boolean;
+  cycle_number: number;
+  rework_units: number;
+  quality_status: 'production' | 'pending_review' | 'approved';
 }
 
 export interface ProdOrdersResponse {
@@ -46,6 +49,46 @@ export interface ProdProduct {
   image_full: string;
   validated: boolean;
   validated_by: string;
+  rework_quantity: number;
+  rework_comment: string;
+}
+
+export interface ProdReworkItem {
+  item_id: number;
+  product_name: string;
+  quantity_ordered: number;
+  quantity_rejected: number;
+  comment: string;
+}
+
+export interface ProdRework {
+  review_id: number;
+  cycle_id: number;
+  supervisor_name: string;
+  reviewed_at: string;
+  units_rejected: number;
+  items: ProdReworkItem[];
+}
+
+export interface ProdActiveCycle {
+  id: number;
+  number: number;
+  type: 'initial' | 'rework';
+  operator_name: string;
+  started_at: string;
+}
+
+export interface ProdCycleHistory {
+  id: number;
+  number: number;
+  type: 'initial' | 'rework';
+  operator_user_id: number;
+  operator_name: string;
+  units_total: number;
+  started_at: string;
+  finished_at: string;
+  duration_seconds: number;
+  status: 'active' | 'finished' | 'approved' | 'rejected' | 'released';
 }
 
 export interface ProdOrderDetail {
@@ -54,11 +97,26 @@ export interface ProdOrderDetail {
   status: string;
   taken: boolean;
   taken_by: string;
+  is_cycle_owner: boolean;
+  can_review: boolean;
+  quality_status: 'production' | 'pending_review' | 'approved';
+  has_shipping_guide: boolean;
+  active_cycle: ProdActiveCycle | null;
+  cycle_number: number;
+  cycles: ProdCycleHistory[];
+  total_duration_seconds: number;
+  rework: ProdRework | null;
   products: ProdProduct[];
   progress: ProdProgress;
   is_quote?: boolean;
   quote_folio?: string;
   quote_pdf_url?: string;
+}
+
+export interface ProdReviewItemInput {
+  item_id: number;
+  quantity_rejected: number;
+  comment: string;
 }
 
 /** Columnas del tablero. 'tomados' es la vista de los pedidos en fabricación. */
@@ -117,6 +175,26 @@ export async function validateProductionItem(
     'No se pudo actualizar la validación.',
   );
   return data.progress;
+}
+
+export async function reviewProductionOrder(
+  orderId: number,
+  decision: 'approved' | 'rework',
+  items: ProdReviewItemInput[] = [],
+): Promise<void> {
+  await request(
+    '/review',
+    { method: 'POST', json: { order_id: orderId, decision, items } },
+    'No se pudo guardar la revision.',
+  );
+}
+
+export async function reassignProductionOrder(orderId: number, reason: string): Promise<void> {
+  await request(
+    '/reassign',
+    { method: 'POST', json: { order_id: orderId, reason } },
+    'No se pudo liberar el pedido.',
+  );
 }
 
 // El alta y baja de patrones se administra desde la web: subir un PDF exige

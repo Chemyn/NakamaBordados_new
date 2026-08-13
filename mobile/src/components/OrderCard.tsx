@@ -61,6 +61,21 @@ function OrderCardComponent({ order, accent, onPress, showProgress = true }: Ord
           )}
         </View>
 
+        <View style={styles.badges}>
+          {order.cycle_number > 0 && (
+            <View style={styles.badge}><Text style={styles.badgeText}>Ciclo {order.cycle_number}</Text></View>
+          )}
+          {order.quality_status === 'pending_review' && (
+            <View style={[styles.badge, styles.qualityBadge]}><Text style={styles.qualityText}>Revision de calidad</Text></View>
+          )}
+          {order.quality_status === 'approved' && (
+            <View style={[styles.badge, styles.approvedBadge]}><Text style={styles.approvedText}>Calidad aprobada</Text></View>
+          )}
+          {order.rework_units > 0 && (
+            <View style={[styles.badge, styles.reworkBadge]}><Text style={styles.reworkText}>{order.rework_units} pza retrabajo</Text></View>
+          )}
+        </View>
+
         {order.products.length > 0 && (
           <Text style={styles.products} numberOfLines={2}>
             {order.products.join(' · ')}
@@ -154,6 +169,56 @@ const styles = StyleSheet.create({
   takenBy: {
     flexShrink: 1,
     color: colors.blue,
+  },
+  badges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: spacing.xs,
+    marginTop: spacing.xs,
+  },
+  badge: {
+    backgroundColor: colors.surface,
+    borderColor: colors.border,
+    borderRadius: radius.sm,
+    borderWidth: 1,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: 3,
+  },
+  badgeText: {
+    color: colors.body,
+    fontFamily: fonts.bodyBold,
+    fontSize: 10,
+    textTransform: 'uppercase',
+  },
+  qualityBadge: {
+    backgroundColor: '#FEF6E7',
+    borderColor: colors.amber,
+  },
+  qualityText: {
+    color: colors.onAmber,
+    fontFamily: fonts.bodyBold,
+    fontSize: 10,
+    textTransform: 'uppercase',
+  },
+  reworkBadge: {
+    backgroundColor: colors.errorSoft,
+    borderColor: colors.error,
+  },
+  approvedBadge: {
+    backgroundColor: colors.greenSoft,
+    borderColor: colors.green,
+  },
+  approvedText: {
+    color: colors.green,
+    fontFamily: fonts.bodyBold,
+    fontSize: 10,
+    textTransform: 'uppercase',
+  },
+  reworkText: {
+    color: colors.error,
+    fontFamily: fonts.bodyBold,
+    fontSize: 10,
+    textTransform: 'uppercase',
   },
   products: {
     marginTop: spacing.xs,

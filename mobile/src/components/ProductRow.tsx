@@ -10,6 +10,7 @@ interface ProductRowProps {
   product: ProdProduct;
   /** Solo se puede validar mientras el pedido está en fabricación. */
   canValidate: boolean;
+  showValidation?: boolean;
   busy: boolean;
   onToggleValidated: (itemId: number, validated: boolean) => void;
   onOpenImage: (product: ProdProduct) => void;
@@ -28,6 +29,7 @@ function Chip({ label, value }: { label: string; value: string }) {
 function ProductRowComponent({
   product,
   canValidate,
+  showValidation = true,
   busy,
   onToggleValidated,
   onOpenImage,
@@ -38,7 +40,7 @@ function ProductRowComponent({
   return (
     <View style={[styles.row, product.validated && styles.rowValidated]}>
       <View style={styles.top}>
-        <Pressable
+        {showValidation && <Pressable
           accessibilityRole="imagebutton"
           accessibilityLabel={`Ampliar imagen de ${product.name}`}
           onPress={() => onOpenImage(product)}
@@ -52,7 +54,7 @@ function ProductRowComponent({
               <MaterialIcons name="image-not-supported" size={22} color={colors.muted} />
             </View>
           )}
-        </Pressable>
+        </Pressable>}
 
         <View style={styles.info}>
           <Text style={styles.name}>{product.name}</Text>
@@ -65,6 +67,18 @@ function ProductRowComponent({
           </View>
         </View>
       </View>
+
+      {product.rework_quantity > 0 && (
+        <View style={styles.reworkNote}>
+          <View style={styles.reworkTitleRow}>
+            <MaterialIcons name="build" size={17} color={colors.error} />
+            <Text style={styles.reworkTitle}>
+              Retrabajo: {product.rework_quantity} pieza{product.rework_quantity === 1 ? '' : 's'}
+            </Text>
+          </View>
+          <Text style={styles.reworkComment}>{product.rework_comment}</Text>
+        </View>
+      )}
 
       <View style={styles.actions}>
         {product.pdf_url ? (
@@ -193,6 +207,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: spacing.md,
+  },
+  reworkNote: {
+    backgroundColor: colors.errorSoft,
+    borderLeftColor: colors.error,
+    borderLeftWidth: 4,
+    borderRadius: radius.sm,
+    gap: spacing.xs,
+    padding: spacing.md,
+  },
+  reworkTitleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    gap: spacing.xs,
+  },
+  reworkTitle: {
+    color: colors.error,
+    fontFamily: fonts.bodyBold,
+    fontSize: 12,
+    textTransform: 'uppercase',
+  },
+  reworkComment: {
+    color: colors.body,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 13,
+    lineHeight: 18,
   },
   pdfButton: {
     minHeight: TOUCH_TARGET - 8,

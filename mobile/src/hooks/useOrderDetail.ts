@@ -3,9 +3,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   fetchProductionOrderDetail,
   finishProductionOrder,
+  reassignProductionOrder,
+  reviewProductionOrder,
   takeProductionOrder,
   validateProductionItem,
   type ProdOrderDetail,
+  type ProdReviewItemInput,
 } from '@/lib/api';
 
 import { ORDERS_KEY } from './useOrders';
@@ -15,6 +18,11 @@ export const ORDER_DETAIL_KEY = 'production-order';
 interface ValidateInput {
   itemId: number;
   validated: boolean;
+}
+
+interface ReviewInput {
+  decision: 'approved' | 'rework';
+  items: ProdReviewItemInput[];
 }
 
 /**
@@ -85,5 +93,21 @@ export function useOrderDetail(orderId: number) {
     },
   });
 
-  return { detail, validate, take, finish };
+  const review = useMutation({
+    mutationFn: ({ decision, items }: ReviewInput) => reviewProductionOrder(orderId, decision, items),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: detailKey });
+      await invalidateBoard();
+    },
+  });
+
+  const reassign = useMutation({
+    mutationFn: (reason: string) => reassignProductionOrder(orderId, reason),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: detailKey });
+      await invalidateBoard();
+    },
+  });
+
+  return { detail, validate, take, finish, review, reassign };
 }

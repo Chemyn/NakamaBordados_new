@@ -191,7 +191,7 @@ export default function MiCuentaPage() {
   useEffect(() => {
     if (!user) { setCanProduction(false); return; }
     let alive = true;
-    fetchProductionAccess().then(can => { if (alive) setCanProduction(can); });
+    fetchProductionAccess().then(access => { if (alive) setCanProduction(access.can); });
     return () => { alive = false; };
   }, [user]);
 

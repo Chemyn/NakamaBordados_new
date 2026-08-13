@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Panel de Producción
  * Description: Tablero Kanban de pedidos para el personal de producción: ver pedidos en proceso, tomarlos, validar cada producto, finalizar producción y gestionar los PDF de patrones. Sin exponer precios ni datos administrativos.
- * Version: 1.4.1
+ * Version: 2.0.0
  * Author: Nakama
  */
 
@@ -11,10 +11,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'NAKAMA_PROD_CAP', 'access_production_dashboard' );
+define( 'NAKAMA_PROD_REVIEW_CAP', 'review_production_orders' );
 define( 'NAKAMA_PROD_STATUS', 'pendiente-guia' ); // sin prefijo wc-
 define( 'NAKAMA_PROD_FAB_STATUS', 'fabricando' );  // "Fabricando": pedido tomado en producción
 define( 'NAKAMA_PROD_PAGE', 'nakama-produccion' );
 define( 'NAKAMA_PROD_PER_PAGE', 5 );
+define( 'NAKAMA_PROD_SCHEMA_VERSION', '2.0.0' );
 
 // Compatibilidad con HPOS (pedidos en tablas propias).
 add_action( 'before_woocommerce_init', function () {
@@ -31,13 +33,31 @@ function nakama_prod_table_name() {
     return $wpdb->prefix . 'nakama_product_pdfs';
 }
 
-register_activation_hook( __FILE__, function () {
+function nakama_prod_cycles_table() {
     global $wpdb;
-    $table   = nakama_prod_table_name();
+    return $wpdb->prefix . 'nakama_prod_cycles';
+}
+
+function nakama_prod_reviews_table() {
+    global $wpdb;
+    return $wpdb->prefix . 'nakama_prod_reviews';
+}
+
+function nakama_prod_review_items_table() {
+    global $wpdb;
+    return $wpdb->prefix . 'nakama_prod_review_items';
+}
+
+function nakama_prod_install_schema() {
+    global $wpdb;
+    $pdfs    = nakama_prod_table_name();
+    $cycles  = nakama_prod_cycles_table();
+    $reviews = nakama_prod_reviews_table();
+    $items   = nakama_prod_review_items_table();
     $charset = $wpdb->get_charset_collate();
 
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
-    dbDelta( "CREATE TABLE {$table} (
+    dbDelta( "CREATE TABLE {$pdfs} (
         id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
         product_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
         product_name VARCHAR(255) NOT NULL DEFAULT '',
@@ -47,13 +67,79 @@ register_activation_hook( __FILE__, function () {
         KEY product_id (product_id)
     ) {$charset};" );
 
+    dbDelta( "CREATE TABLE {$cycles} (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        order_id BIGINT(20) UNSIGNED NOT NULL,
+        cycle_number INT(10) UNSIGNED NOT NULL DEFAULT 1,
+        cycle_type VARCHAR(20) NOT NULL DEFAULT 'initial',
+        operator_user_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+        operator_name VARCHAR(191) NOT NULL DEFAULT '',
+        units_total INT(10) UNSIGNED NOT NULL DEFAULT 0,
+        started_at DATETIME NOT NULL,
+        finished_at DATETIME NULL,
+        duration_seconds BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+        status VARCHAR(20) NOT NULL DEFAULT 'active',
+        created_at DATETIME NOT NULL,
+        PRIMARY KEY (id),
+        UNIQUE KEY order_cycle (order_id, cycle_number),
+        KEY order_status (order_id, status),
+        KEY operator_finished (operator_user_id, finished_at)
+    ) {$charset};" );
+
+    dbDelta( "CREATE TABLE {$reviews} (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        order_id BIGINT(20) UNSIGNED NOT NULL,
+        cycle_id BIGINT(20) UNSIGNED NOT NULL,
+        supervisor_user_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+        supervisor_name VARCHAR(191) NOT NULL DEFAULT '',
+        decision VARCHAR(20) NOT NULL,
+        units_reviewed INT(10) UNSIGNED NOT NULL DEFAULT 0,
+        units_rejected INT(10) UNSIGNED NOT NULL DEFAULT 0,
+        reviewed_at DATETIME NOT NULL,
+        PRIMARY KEY (id),
+        UNIQUE KEY cycle_review (cycle_id),
+        KEY order_reviewed (order_id, reviewed_at),
+        KEY supervisor_reviewed (supervisor_user_id, reviewed_at),
+        KEY decision_reviewed (decision, reviewed_at)
+    ) {$charset};" );
+
+    dbDelta( "CREATE TABLE {$items} (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        review_id BIGINT(20) UNSIGNED NOT NULL,
+        order_item_id BIGINT(20) UNSIGNED NOT NULL,
+        product_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+        variation_id BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+        product_name VARCHAR(255) NOT NULL DEFAULT '',
+        quantity_ordered INT(10) UNSIGNED NOT NULL DEFAULT 0,
+        quantity_rejected INT(10) UNSIGNED NOT NULL DEFAULT 0,
+        comment TEXT NOT NULL,
+        PRIMARY KEY (id),
+        KEY review_id (review_id),
+        KEY order_item_id (order_item_id)
+    ) {$charset};" );
+
     foreach ( array( 'administrator', 'shop_manager' ) as $role_name ) {
         $role = get_role( $role_name );
         if ( $role ) {
             $role->add_cap( NAKAMA_PROD_CAP );
         }
     }
-} );
+    $admin = get_role( 'administrator' );
+    if ( $admin ) {
+        $admin->add_cap( NAKAMA_PROD_REVIEW_CAP );
+    }
+
+    update_option( 'nakama_prod_schema_version', NAKAMA_PROD_SCHEMA_VERSION, false );
+}
+
+register_activation_hook( __FILE__, 'nakama_prod_install_schema' );
+
+// Replacing an active plugin ZIP does not trigger activation_hook.
+add_action( 'init', function () {
+    if ( NAKAMA_PROD_SCHEMA_VERSION !== get_option( 'nakama_prod_schema_version' ) ) {
+        nakama_prod_install_schema();
+    }
+}, 1 );
 
 /* ============================================================================
  * ESTATUS CUSTOM: wc-pendiente-guia ("Pendiente de guía")
@@ -136,7 +222,8 @@ function nakama_prod_render_user_field( $user ) {
     if ( ! current_user_can( 'edit_users' ) ) {
         return;
     }
-    $has = user_can( $user, NAKAMA_PROD_CAP );
+    $has        = user_can( $user, NAKAMA_PROD_CAP );
+    $has_review = user_can( $user, NAKAMA_PROD_REVIEW_CAP );
     wp_nonce_field( 'nakama_prod_user_cap', 'nakama_prod_user_cap_nonce' );
     ?>
     <h2>Panel de Producción</h2>
@@ -147,6 +234,15 @@ function nakama_prod_render_user_field( $user ) {
                 <label>
                     <input type="checkbox" name="nakama_prod_access" value="1" <?php checked( $has ); ?> />
                     Permitir a este usuario ver y gestionar el tablero de producción.
+                </label>
+            </td>
+        </tr>
+        <tr>
+            <th scope="row">Supervisor de calidad</th>
+            <td>
+                <label>
+                    <input type="checkbox" name="nakama_prod_review_access" value="1" <?php checked( $has_review ); ?> />
+                    Permitir revisar calidad, devolver pedidos y consultar reportes.
                 </label>
             </td>
         </tr>
@@ -172,6 +268,12 @@ function nakama_prod_save_user_field( $user_id ) {
         $user->add_cap( NAKAMA_PROD_CAP );
     } else {
         $user->remove_cap( NAKAMA_PROD_CAP );
+    }
+    if ( ! empty( $_POST['nakama_prod_review_access'] ) ) {
+        $user->add_cap( NAKAMA_PROD_CAP );
+        $user->add_cap( NAKAMA_PROD_REVIEW_CAP );
+    } else {
+        $user->remove_cap( NAKAMA_PROD_REVIEW_CAP );
     }
 }
 add_action( 'personal_options_update', 'nakama_prod_save_user_field' );
@@ -426,8 +528,15 @@ function nakama_prod_card( $order ) {
         $names[]     = $item->get_name();
     }
 
-    $taken_by = $order->get_meta( '_nakama_prod_taken_by' );
-    $taken_at = (int) $order->get_meta( '_nakama_prod_taken_at' );
+    $cycle     = nakama_prod_active_cycle( $order->get_id() );
+    $latest    = $cycle ? $cycle : nakama_prod_latest_cycle( $order->get_id() );
+    $rework    = nakama_prod_latest_rework( $order->get_id() );
+    $taken_by  = $cycle ? $cycle->operator_name : $order->get_meta( '_nakama_prod_taken_by' );
+    $taken_at  = $cycle ? strtotime( $cycle->started_at . ' UTC' ) : (int) $order->get_meta( '_nakama_prod_taken_at' );
+    $cycle_num = $latest ? (int) $latest->cycle_number : 0;
+    if ( $latest && 'rejected' === $latest->status && 'processing' === $order->get_status() ) {
+        $cycle_num++;
+    }
 
     $created  = $order->get_date_created();
     $created_ts = $created ? $created->getTimestamp() : 0;
@@ -443,6 +552,9 @@ function nakama_prod_card( $order ) {
         'taken_age'  => $taken_at ? human_time_diff( $taken_at, time() ) : '',
         'progress'   => nakama_prod_order_progress( $order ),
         'is_quote'   => nakama_prod_quote_info( $order )['is_quote'],
+        'cycle_number'  => $cycle_num,
+        'rework_units'  => $rework && 'yes' !== (string) $order->get_meta( '_nakama_prod_quality_approved' ) ? (int) $rework['units_rejected'] : 0,
+        'quality_status'=> nakama_prod_quality_status( $order ),
     );
 }
 
@@ -498,12 +610,237 @@ function nakama_prod_item_images( $item ) {
     return array( $thumb ? $thumb : ( $full ? $full : '' ), $full ? $full : '' );
 }
 
+function nakama_prod_user_snapshot( $user = null ) {
+    $user = $user ? $user : wp_get_current_user();
+    return array(
+        'id'   => $user && $user->exists() ? (int) $user->ID : 0,
+        'name' => $user && $user->exists()
+            ? ( $user->display_name ? (string) $user->display_name : (string) $user->user_login )
+            : '',
+    );
+}
+
+function nakama_prod_order_units( $order ) {
+    $units = 0;
+    foreach ( $order->get_items() as $item ) {
+        $units += max( 0, (int) $item->get_quantity() );
+    }
+    return $units;
+}
+
+function nakama_prod_active_cycle( $order_id ) {
+    global $wpdb;
+    $table = nakama_prod_cycles_table();
+    return $wpdb->get_row( $wpdb->prepare(
+        "SELECT * FROM {$table} WHERE order_id = %d AND status = 'active' ORDER BY cycle_number DESC LIMIT 1",
+        $order_id
+    ) );
+}
+
+function nakama_prod_latest_cycle( $order_id ) {
+    global $wpdb;
+    $table = nakama_prod_cycles_table();
+    return $wpdb->get_row( $wpdb->prepare(
+        "SELECT * FROM {$table} WHERE order_id = %d ORDER BY cycle_number DESC LIMIT 1",
+        $order_id
+    ) );
+}
+
+function nakama_prod_order_cycles( $order_id ) {
+    global $wpdb;
+    $table = nakama_prod_cycles_table();
+    $rows  = $wpdb->get_results( $wpdb->prepare(
+        "SELECT id, cycle_number, cycle_type, operator_user_id, operator_name, units_total,
+                started_at, finished_at, duration_seconds, status
+         FROM {$table} WHERE order_id = %d ORDER BY cycle_number ASC, id ASC",
+        $order_id
+    ), ARRAY_A );
+
+    return array_map( function ( $row ) {
+        return array(
+            'id'               => (int) $row['id'],
+            'number'           => (int) $row['cycle_number'],
+            'type'             => (string) $row['cycle_type'],
+            'operator_user_id' => (int) $row['operator_user_id'],
+            'operator_name'    => (string) $row['operator_name'],
+            'units_total'      => (int) $row['units_total'],
+            'started_at'       => nakama_prod_utc_rfc3339( $row['started_at'] ),
+            'finished_at'      => $row['finished_at'] ? nakama_prod_utc_rfc3339( $row['finished_at'] ) : '',
+            'duration_seconds' => (int) $row['duration_seconds'],
+            'status'           => (string) $row['status'],
+        );
+    }, (array) $rows );
+}
+
+function nakama_prod_utc_rfc3339( $value ) {
+    if ( ! $value ) {
+        return '';
+    }
+    try {
+        return ( new DateTimeImmutable( (string) $value, new DateTimeZone( 'UTC' ) ) )->format( DateTimeInterface::RFC3339 );
+    } catch ( Exception $exception ) {
+        return '';
+    }
+}
+
+function nakama_prod_cycle_review( $cycle_id ) {
+    global $wpdb;
+    $table = nakama_prod_reviews_table();
+    return $wpdb->get_row( $wpdb->prepare(
+        "SELECT * FROM {$table} WHERE cycle_id = %d LIMIT 1",
+        $cycle_id
+    ) );
+}
+
+function nakama_prod_latest_rework( $order_id ) {
+    global $wpdb;
+    $reviews = nakama_prod_reviews_table();
+    $items   = nakama_prod_review_items_table();
+    $review  = $wpdb->get_row( $wpdb->prepare(
+        "SELECT * FROM {$reviews} WHERE order_id = %d AND decision = 'rework' ORDER BY reviewed_at DESC, id DESC LIMIT 1",
+        $order_id
+    ) );
+    if ( ! $review ) {
+        return null;
+    }
+    $rows = $wpdb->get_results( $wpdb->prepare(
+        "SELECT order_item_id, product_name, quantity_ordered, quantity_rejected, comment FROM {$items} WHERE review_id = %d ORDER BY id ASC",
+        $review->id
+    ), ARRAY_A );
+    return array(
+        'review_id'       => (int) $review->id,
+        'cycle_id'        => (int) $review->cycle_id,
+        'supervisor_name' => (string) $review->supervisor_name,
+        'reviewed_at'     => nakama_prod_utc_rfc3339( $review->reviewed_at ),
+        'units_rejected'  => (int) $review->units_rejected,
+        'items'           => array_map( function ( $row ) {
+            return array(
+                'item_id'          => (int) $row['order_item_id'],
+                'product_name'      => (string) $row['product_name'],
+                'quantity_ordered'  => (int) $row['quantity_ordered'],
+                'quantity_rejected' => (int) $row['quantity_rejected'],
+                'comment'           => (string) $row['comment'],
+            );
+        }, (array) $rows ),
+    );
+}
+
+function nakama_prod_create_cycle( $order, $user = null ) {
+    global $wpdb;
+    $table = nakama_prod_cycles_table();
+    $user  = nakama_prod_user_snapshot( $user );
+    $last  = nakama_prod_latest_cycle( $order->get_id() );
+    $num   = $last ? ( (int) $last->cycle_number + 1 ) : 1;
+    $now   = current_time( 'mysql', true );
+    $type  = $last && ( 'rejected' === $last->status || 'rework' === $last->cycle_type ) ? 'rework' : 'initial';
+    $rework = 'rework' === $type ? nakama_prod_latest_rework( $order->get_id() ) : null;
+    $units  = $rework ? max( 1, (int) $rework['units_rejected'] ) : nakama_prod_order_units( $order );
+
+    $ok = $wpdb->insert( $table, array(
+        'order_id'         => $order->get_id(),
+        'cycle_number'     => $num,
+        'cycle_type'       => $type,
+        'operator_user_id' => $user['id'],
+        'operator_name'    => $user['name'],
+        'units_total'      => $units,
+        'started_at'       => $now,
+        'finished_at'      => null,
+        'duration_seconds' => 0,
+        'status'           => 'active',
+        'created_at'       => $now,
+    ), array( '%d', '%d', '%s', '%d', '%s', '%d', '%s', '%s', '%d', '%s', '%s' ) );
+
+    if ( false === $ok ) {
+        return new WP_Error( 'cycle_create_failed', 'No se pudo iniciar el ciclo de produccion.', array( 'status' => 500 ) );
+    }
+    return nakama_prod_active_cycle( $order->get_id() );
+}
+
+function nakama_prod_ensure_finished_cycle( $order ) {
+    global $wpdb;
+    $latest = nakama_prod_latest_cycle( $order->get_id() );
+    if ( $latest ) {
+        return $latest;
+    }
+
+    $taken_at   = (int) $order->get_meta( '_nakama_prod_taken_at' );
+    $finished_at = (int) $order->get_meta( '_nakama_prod_finished_at' );
+    $modified    = $order->get_date_modified();
+    $created     = $order->get_date_created();
+    $finish_ts   = $finished_at ? $finished_at : ( $modified ? $modified->getTimestamp() : time() );
+    $start_ts    = $taken_at ? $taken_at : ( $created ? $created->getTimestamp() : $finish_ts );
+    $duration    = max( 0, (int) $order->get_meta( '_nakama_prod_duration' ) );
+    if ( ! $duration ) {
+        $duration = max( 0, $finish_ts - $start_ts );
+    }
+
+    $table = nakama_prod_cycles_table();
+    $wpdb->insert( $table, array(
+        'order_id'         => $order->get_id(),
+        'cycle_number'     => 1,
+        'cycle_type'       => 'initial',
+        'operator_user_id' => (int) $order->get_meta( '_nakama_prod_taken_user_id' ),
+        'operator_name'    => (string) $order->get_meta( '_nakama_prod_finished_by' ) ?: (string) $order->get_meta( '_nakama_prod_taken_by' ),
+        'units_total'      => nakama_prod_order_units( $order ),
+        'started_at'       => gmdate( 'Y-m-d H:i:s', $start_ts ),
+        'finished_at'      => gmdate( 'Y-m-d H:i:s', $finish_ts ),
+        'duration_seconds' => $duration,
+        'status'           => 'finished',
+        'created_at'       => gmdate( 'Y-m-d H:i:s', $start_ts ),
+    ) );
+    return nakama_prod_latest_cycle( $order->get_id() );
+}
+
+function nakama_prod_cycle_owner( $order ) {
+    $cycle = nakama_prod_active_cycle( $order->get_id() );
+    if ( ! $cycle ) {
+        return new WP_Error( 'not_taken', 'Primero debes tomar el pedido.', array( 'status' => 409 ) );
+    }
+    if ( (int) $cycle->operator_user_id !== get_current_user_id() ) {
+        return new WP_Error(
+            'owned_by_other',
+            sprintf( 'Este pedido esta siendo trabajado por %s.', $cycle->operator_name ),
+            array( 'status' => 409, 'operator' => $cycle->operator_name )
+        );
+    }
+    return $cycle;
+}
+
+function nakama_prod_quality_status( $order ) {
+    if ( 'yes' === (string) $order->get_meta( '_nakama_prod_quality_approved' ) ) {
+        return 'approved';
+    }
+    return NAKAMA_PROD_STATUS === $order->get_status() ? 'pending_review' : 'production';
+}
+
+function nakama_prod_maybe_complete_approved( $order ) {
+    if ( ! $order || NAKAMA_PROD_STATUS !== $order->get_status() ) {
+        return false;
+    }
+    if ( 'yes' !== (string) $order->get_meta( '_nakama_prod_quality_approved' ) ) {
+        return false;
+    }
+    if ( ! function_exists( 'nakama_find_order_tracking' ) ) {
+        return false;
+    }
+    $found = nakama_find_order_tracking( $order );
+    if ( empty( $found['code'] ) ) {
+        return false;
+    }
+    $order->update_status( 'completed', sprintf( 'Calidad aprobada y guia detectada (%s): pedido completado.', $found['code'] ) );
+    return true;
+}
+
 /* ============================================================================
  * REST API: nakama/v1/production/*
  * Auth por cookie de sesión + nonce X-WP-Nonce; requiere la capability.
  * ========================================================================== */
 function nakama_prod_permission() {
     return current_user_can( NAKAMA_PROD_CAP );
+}
+
+function nakama_prod_review_permission() {
+    return current_user_can( NAKAMA_PROD_REVIEW_CAP );
 }
 
 add_action( 'rest_api_init', function () {
@@ -515,7 +852,10 @@ add_action( 'rest_api_init', function () {
     register_rest_route( 'nakama/v1', '/production/access', array(
         'methods'             => 'GET',
         'callback'            => function () {
-            return new WP_REST_Response( array( 'can' => current_user_can( NAKAMA_PROD_CAP ) ), 200 );
+            return new WP_REST_Response( array(
+                'can'        => current_user_can( NAKAMA_PROD_CAP ),
+                'can_review' => current_user_can( NAKAMA_PROD_REVIEW_CAP ),
+            ), 200 );
         },
         'permission_callback' => '__return_true',
     ) );
@@ -532,18 +872,33 @@ add_action( 'rest_api_init', function () {
     ) );
     register_rest_route( 'nakama/v1', '/production/take', array(
         'methods'             => 'POST',
-        'callback'            => 'nakama_prod_rest_take',
+        'callback'            => 'nakama_prod_rest_take_v2',
         'permission_callback' => $perm,
     ) );
     register_rest_route( 'nakama/v1', '/production/validate', array(
         'methods'             => 'POST',
-        'callback'            => 'nakama_prod_rest_validate',
+        'callback'            => 'nakama_prod_rest_validate_v2',
         'permission_callback' => $perm,
     ) );
     register_rest_route( 'nakama/v1', '/production/finish', array(
         'methods'             => 'POST',
-        'callback'            => 'nakama_prod_rest_finish',
+        'callback'            => 'nakama_prod_rest_finish_v2',
         'permission_callback' => $perm,
+    ) );
+    register_rest_route( 'nakama/v1', '/production/review', array(
+        'methods'             => 'POST',
+        'callback'            => 'nakama_prod_rest_review',
+        'permission_callback' => 'nakama_prod_review_permission',
+    ) );
+    register_rest_route( 'nakama/v1', '/production/reassign', array(
+        'methods'             => 'POST',
+        'callback'            => 'nakama_prod_rest_reassign',
+        'permission_callback' => 'nakama_prod_review_permission',
+    ) );
+    register_rest_route( 'nakama/v1', '/production/reports', array(
+        'methods'             => 'GET',
+        'callback'            => 'nakama_prod_rest_reports',
+        'permission_callback' => 'nakama_prod_review_permission',
     ) );
     register_rest_route( 'nakama/v1', '/production/pdfs', array(
         array(
@@ -607,7 +962,7 @@ function nakama_prod_rest_orders( WP_REST_Request $request ) {
         ) );
         foreach ( $pending as $po ) {
             $found = nakama_find_order_tracking( $po );
-            if ( ! empty( $found['code'] ) ) {
+            if ( 'yes' === (string) $po->get_meta( '_nakama_prod_quality_approved' ) && ! empty( $found['code'] ) ) {
                 $po->update_status( 'completed', sprintf( 'Guía detectada (%s): completado automáticamente por el Panel de Producción.', $found['code'] ) );
             }
         }
@@ -685,6 +1040,18 @@ function nakama_prod_rest_order_detail( WP_REST_Request $request ) {
         return new WP_Error( 'not_found', 'Pedido no encontrado', array( 'status' => 404 ) );
     }
 
+    if ( NAKAMA_PROD_STATUS === $order->get_status() && ! nakama_prod_latest_cycle( $order->get_id() ) ) {
+        nakama_prod_ensure_finished_cycle( $order );
+    }
+
+    $rework     = nakama_prod_latest_rework( $order->get_id() );
+    $rework_map = array();
+    if ( $rework ) {
+        foreach ( $rework['items'] as $row ) {
+            $rework_map[ (int) $row['item_id'] ] = $row;
+        }
+    }
+
     $products = array();
     foreach ( $order->get_items() as $item_id => $item ) {
         $product   = $item->get_product();
@@ -705,12 +1072,18 @@ function nakama_prod_rest_order_detail( WP_REST_Request $request ) {
             'image_full'   => $img_full,
             'validated'    => '1' === (string) $item->get_meta( '_nakama_prod_validated' ),
             'validated_by' => (string) $item->get_meta( '_nakama_prod_validated_by' ),
+            'rework_quantity' => isset( $rework_map[ (int) $item_id ] ) ? (int) $rework_map[ (int) $item_id ]['quantity_rejected'] : 0,
+            'rework_comment'  => isset( $rework_map[ (int) $item_id ] ) ? (string) $rework_map[ (int) $item_id ]['comment'] : '',
         );
     }
 
     $status   = $order->get_status();
-    $taken_by = $order->get_meta( '_nakama_prod_taken_by' );
+    $active   = nakama_prod_active_cycle( $order->get_id() );
+    $latest   = $active ? $active : nakama_prod_latest_cycle( $order->get_id() );
+    $cycles   = nakama_prod_order_cycles( $order->get_id() );
+    $taken_by = $active ? $active->operator_name : $order->get_meta( '_nakama_prod_taken_by' );
     $quote    = nakama_prod_quote_info( $order );
+    $tracking = function_exists( 'nakama_find_order_tracking' ) ? nakama_find_order_tracking( $order ) : array();
 
     return new WP_REST_Response( array(
         'id'            => $order->get_id(),
@@ -718,6 +1091,21 @@ function nakama_prod_rest_order_detail( WP_REST_Request $request ) {
         'status'        => $status,
         'taken'         => ! empty( $taken_by ),
         'taken_by'      => $taken_by ? (string) $taken_by : '',
+        'is_cycle_owner'=> $active && (int) $active->operator_user_id === get_current_user_id(),
+        'can_review'    => current_user_can( NAKAMA_PROD_REVIEW_CAP ),
+        'quality_status'=> nakama_prod_quality_status( $order ),
+        'has_shipping_guide' => ! empty( $tracking['code'] ),
+        'active_cycle'  => $active ? array(
+            'id'           => (int) $active->id,
+            'number'       => (int) $active->cycle_number,
+            'type'         => (string) $active->cycle_type,
+            'operator_name'=> (string) $active->operator_name,
+            'started_at'   => nakama_prod_utc_rfc3339( $active->started_at ),
+        ) : null,
+        'cycle_number'  => $latest ? (int) $latest->cycle_number : 0,
+        'cycles'        => $cycles,
+        'total_duration_seconds' => array_sum( wp_list_pluck( $cycles, 'duration_seconds' ) ),
+        'rework'        => $rework,
         'products'      => $products,
         'progress'      => nakama_prod_order_progress( $order ),
         'is_quote'      => $quote['is_quote'],
@@ -846,6 +1234,604 @@ function nakama_prod_rest_finish( WP_REST_Request $request ) {
 }
 
 /** GET /production/pdfs — listado de patrones (con SKU en vivo por producto). */
+function nakama_prod_rest_take_v2( WP_REST_Request $request ) {
+    $order = wc_get_order( (int) $request->get_param( 'order_id' ) );
+    if ( ! $order ) {
+        return new WP_Error( 'not_found', 'Pedido no encontrado', array( 'status' => 404 ) );
+    }
+    if ( ! in_array( $order->get_status(), array( 'processing', NAKAMA_PROD_FAB_STATUS ), true ) ) {
+        return new WP_Error( 'bad_status', 'El pedido no esta disponible para produccion.', array( 'status' => 400 ) );
+    }
+
+    $person = nakama_prod_user_snapshot();
+    $active = nakama_prod_active_cycle( $order->get_id() );
+    if ( $active ) {
+        if ( (int) $active->operator_user_id === $person['id'] ) {
+            return new WP_REST_Response( array(
+                'success'    => true,
+                'taken_by'   => (string) $active->operator_name,
+                'cycle_id'   => (int) $active->id,
+                'idempotent' => true,
+            ), 200 );
+        }
+        return new WP_Error(
+            'already_taken',
+            sprintf( 'Este pedido ya fue tomado por %s.', $active->operator_name ),
+            array( 'status' => 409, 'operator' => $active->operator_name )
+        );
+    }
+
+    $cycle = nakama_prod_create_cycle( $order );
+    if ( is_wp_error( $cycle ) ) {
+        return $cycle;
+    }
+
+    $order->update_meta_data( '_nakama_prod_active_cycle_id', (int) $cycle->id );
+    $order->update_meta_data( '_nakama_prod_taken_user_id', $person['id'] );
+    $order->update_meta_data( '_nakama_prod_taken_by', $person['name'] );
+    $order->update_meta_data( '_nakama_prod_taken_at', time() );
+    $order->update_meta_data( '_nakama_prod_quality_approved', 'no' );
+    $order->set_status( 'wc-' . NAKAMA_PROD_FAB_STATUS );
+    $order->save();
+    $order->add_order_note( sprintf( 'Ciclo %d tomado por %s.', (int) $cycle->cycle_number, $person['name'] ) );
+
+    return new WP_REST_Response( array(
+        'success'  => true,
+        'taken_by' => $person['name'],
+        'cycle_id' => (int) $cycle->id,
+    ), 200 );
+}
+
+function nakama_prod_rest_validate_v2( WP_REST_Request $request ) {
+    $order = wc_get_order( (int) $request->get_param( 'order_id' ) );
+    if ( ! $order ) {
+        return new WP_Error( 'not_found', 'Pedido no encontrado', array( 'status' => 404 ) );
+    }
+    if ( NAKAMA_PROD_FAB_STATUS !== $order->get_status() ) {
+        return new WP_Error( 'bad_status', 'El pedido no esta en fabricacion.', array( 'status' => 400 ) );
+    }
+
+    $cycle = nakama_prod_cycle_owner( $order );
+    if ( is_wp_error( $cycle ) ) {
+        return $cycle;
+    }
+
+    $item_id   = (int) $request->get_param( 'item_id' );
+    $validated = filter_var( $request->get_param( 'validated' ), FILTER_VALIDATE_BOOLEAN );
+    $item      = $order->get_item( $item_id );
+    if ( ! $item || 'line_item' !== $item->get_type() ) {
+        return new WP_Error( 'bad_item', 'La linea no pertenece al pedido.', array( 'status' => 400 ) );
+    }
+
+    $person = nakama_prod_user_snapshot();
+    if ( $validated ) {
+        $item->update_meta_data( '_nakama_prod_validated', '1' );
+        $item->update_meta_data( '_nakama_prod_validated_by', $person['name'] );
+        $item->update_meta_data( '_nakama_prod_validated_at', time() );
+    } else {
+        $item->update_meta_data( '_nakama_prod_validated', '0' );
+        $item->delete_meta_data( '_nakama_prod_validated_by' );
+        $item->delete_meta_data( '_nakama_prod_validated_at' );
+    }
+    $item->save();
+
+    return new WP_REST_Response( array(
+        'success'  => true,
+        'progress' => nakama_prod_order_progress( $order ),
+    ), 200 );
+}
+
+function nakama_prod_rest_finish_v2( WP_REST_Request $request ) {
+    global $wpdb;
+    $order = wc_get_order( (int) $request->get_param( 'order_id' ) );
+    if ( ! $order ) {
+        return new WP_Error( 'not_found', 'Pedido no encontrado', array( 'status' => 404 ) );
+    }
+    if ( NAKAMA_PROD_FAB_STATUS !== $order->get_status() ) {
+        return new WP_Error( 'bad_status', 'El pedido no esta en fabricacion.', array( 'status' => 400 ) );
+    }
+
+    $cycle = nakama_prod_cycle_owner( $order );
+    if ( is_wp_error( $cycle ) ) {
+        return $cycle;
+    }
+    $progress = nakama_prod_order_progress( $order );
+    if ( $progress['validated'] < $progress['total'] ) {
+        $missing = $progress['total'] - $progress['validated'];
+        return new WP_Error(
+            'not_validated',
+            sprintf( 'Faltan %d producto%s por validar.', $missing, 1 === $missing ? '' : 's' ),
+            array( 'status' => 400, 'progress' => $progress )
+        );
+    }
+
+    $person      = nakama_prod_user_snapshot();
+    $now         = time();
+    $started_at  = strtotime( $cycle->started_at . ' UTC' );
+    $duration    = $started_at ? max( 0, $now - $started_at ) : 0;
+    $cycles      = nakama_prod_cycles_table();
+    $wpdb->update( $cycles, array(
+        'finished_at'      => current_time( 'mysql', true ),
+        'duration_seconds' => $duration,
+        'status'           => 'finished',
+    ), array( 'id' => (int) $cycle->id ), array( '%s', '%d', '%s' ), array( '%d' ) );
+
+    $order->update_meta_data( '_nakama_prod_finished_by', $person['name'] );
+    $order->update_meta_data( '_nakama_prod_finished_at', $now );
+    $order->update_meta_data( '_nakama_prod_duration', $duration );
+    $order->update_meta_data( '_nakama_prod_quality_approved', 'no' );
+    $order->delete_meta_data( '_nakama_prod_active_cycle_id' );
+    $order->set_status( 'wc-' . NAKAMA_PROD_STATUS );
+    $order->save();
+    $order->add_order_note( sprintf(
+        'Ciclo %d finalizado por %s en %s. Pendiente de revision de calidad.',
+        (int) $cycle->cycle_number,
+        $person['name'],
+        nakama_prod_human_duration( $duration )
+    ) );
+
+    return new WP_REST_Response( array( 'success' => true, 'cycle_id' => (int) $cycle->id ), 200 );
+}
+
+function nakama_prod_rest_review( WP_REST_Request $request ) {
+    global $wpdb;
+    $order = wc_get_order( (int) $request->get_param( 'order_id' ) );
+    if ( ! $order ) {
+        return new WP_Error( 'not_found', 'Pedido no encontrado', array( 'status' => 404 ) );
+    }
+    $decision = sanitize_key( (string) $request->get_param( 'decision' ) );
+    if ( ! in_array( $decision, array( 'approved', 'rework' ), true ) ) {
+        return new WP_Error( 'bad_decision', 'Selecciona aprobar o devolver a produccion.', array( 'status' => 400 ) );
+    }
+
+    $cycle = nakama_prod_latest_cycle( $order->get_id() );
+    if ( ! $cycle && NAKAMA_PROD_STATUS === $order->get_status() ) {
+        $cycle = nakama_prod_ensure_finished_cycle( $order );
+    }
+    $existing = $cycle ? nakama_prod_cycle_review( $cycle->id ) : null;
+    if ( $existing ) {
+        if ( $existing->decision === $decision ) {
+            return new WP_REST_Response( array(
+                'success'    => true,
+                'review_id'  => (int) $existing->id,
+                'decision'   => (string) $existing->decision,
+                'completed'  => 'completed' === $order->get_status(),
+                'idempotent' => true,
+            ), 200 );
+        }
+        return new WP_Error( 'already_reviewed', 'Este ciclo ya fue revisado.', array( 'status' => 409 ) );
+    }
+    if ( NAKAMA_PROD_STATUS !== $order->get_status() ) {
+        return new WP_Error( 'bad_status', 'El pedido no esta pendiente de revision.', array( 'status' => 400 ) );
+    }
+    if ( ! $cycle || ! in_array( $cycle->status, array( 'finished', 'approved', 'rejected' ), true ) ) {
+        return new WP_Error( 'bad_cycle', 'No hay un ciclo terminado para revisar.', array( 'status' => 409 ) );
+    }
+
+    $clean_items = array();
+    $rejected    = 0;
+    $raw_items   = $request->get_param( 'items' );
+    if ( 'rework' === $decision ) {
+        if ( ! is_array( $raw_items ) || empty( $raw_items ) ) {
+            return new WP_Error( 'missing_items', 'Selecciona al menos un articulo rechazado.', array( 'status' => 400 ) );
+        }
+        $seen = array();
+        foreach ( $raw_items as $row ) {
+            $item_id = isset( $row['item_id'] ) ? (int) $row['item_id'] : 0;
+            if ( ! $item_id || isset( $seen[ $item_id ] ) ) {
+                return new WP_Error( 'bad_item', 'Hay articulos rechazados repetidos o invalidos.', array( 'status' => 400 ) );
+            }
+            $seen[ $item_id ] = true;
+            $item = $order->get_item( $item_id );
+            if ( ! $item || 'line_item' !== $item->get_type() ) {
+                return new WP_Error( 'bad_item', 'Un articulo no pertenece al pedido.', array( 'status' => 400 ) );
+            }
+            $qty     = isset( $row['quantity_rejected'] ) ? (int) $row['quantity_rejected'] : 0;
+            $ordered = max( 0, (int) $item->get_quantity() );
+            $comment = isset( $row['comment'] ) ? sanitize_textarea_field( $row['comment'] ) : '';
+            if ( $qty < 1 || $qty > $ordered ) {
+                return new WP_Error( 'bad_quantity', sprintf( 'La cantidad rechazada de %s no es valida.', $item->get_name() ), array( 'status' => 400 ) );
+            }
+            if ( '' === trim( $comment ) ) {
+                return new WP_Error( 'missing_comment', sprintf( 'Agrega un comentario para %s.', $item->get_name() ), array( 'status' => 400 ) );
+            }
+            $clean_items[] = array( 'item' => $item, 'quantity' => $qty, 'ordered' => $ordered, 'comment' => $comment );
+            $rejected += $qty;
+        }
+    } elseif ( is_array( $raw_items ) && ! empty( $raw_items ) ) {
+        return new WP_Error( 'approved_with_items', 'Una aprobacion no puede incluir articulos rechazados.', array( 'status' => 400 ) );
+    }
+
+    $person  = nakama_prod_user_snapshot();
+    $reviews = nakama_prod_reviews_table();
+    $items   = nakama_prod_review_items_table();
+    $cycles  = nakama_prod_cycles_table();
+    $wpdb->query( 'START TRANSACTION' );
+
+    $inserted = $wpdb->insert( $reviews, array(
+        'order_id'             => $order->get_id(),
+        'cycle_id'             => (int) $cycle->id,
+        'supervisor_user_id'   => $person['id'],
+        'supervisor_name'      => $person['name'],
+        'decision'             => $decision,
+        'units_reviewed'       => nakama_prod_order_units( $order ),
+        'units_rejected'       => $rejected,
+        'reviewed_at'          => current_time( 'mysql', true ),
+    ), array( '%d', '%d', '%d', '%s', '%s', '%d', '%d', '%s' ) );
+    if ( false === $inserted ) {
+        $wpdb->query( 'ROLLBACK' );
+        $existing = nakama_prod_cycle_review( $cycle->id );
+        if ( $existing && $existing->decision === $decision ) {
+            return new WP_REST_Response( array(
+                'success'    => true,
+                'review_id'  => (int) $existing->id,
+                'decision'   => (string) $existing->decision,
+                'idempotent' => true,
+            ), 200 );
+        }
+        return new WP_Error( 'review_failed', 'No se pudo guardar la revision.', array( 'status' => 500 ) );
+    }
+    $review_id = (int) $wpdb->insert_id;
+
+    foreach ( $clean_items as $row ) {
+        $item    = $row['item'];
+        $product = $item->get_product();
+        $product_id   = $product ? ( $product->is_type( 'variation' ) ? (int) $product->get_parent_id() : (int) $product->get_id() ) : 0;
+        $variation_id = $product && $product->is_type( 'variation' ) ? (int) $product->get_id() : 0;
+        $ok = $wpdb->insert( $items, array(
+            'review_id'        => $review_id,
+            'order_item_id'    => (int) $item->get_id(),
+            'product_id'       => $product_id,
+            'variation_id'     => $variation_id,
+            'product_name'     => (string) $item->get_name(),
+            'quantity_ordered' => $row['ordered'],
+            'quantity_rejected'=> $row['quantity'],
+            'comment'          => $row['comment'],
+        ), array( '%d', '%d', '%d', '%d', '%s', '%d', '%d', '%s' ) );
+        if ( false === $ok ) {
+            $wpdb->query( 'ROLLBACK' );
+            return new WP_Error( 'review_item_failed', 'No se pudo guardar un articulo rechazado.', array( 'status' => 500 ) );
+        }
+    }
+
+    $cycle_status = 'approved' === $decision ? 'approved' : 'rejected';
+    $updated = $wpdb->update( $cycles, array( 'status' => $cycle_status ), array( 'id' => (int) $cycle->id ), array( '%s' ), array( '%d' ) );
+    if ( false === $updated ) {
+        $wpdb->query( 'ROLLBACK' );
+        return new WP_Error( 'cycle_update_failed', 'No se pudo actualizar el ciclo revisado.', array( 'status' => 500 ) );
+    }
+
+    foreach ( $clean_items as $row ) {
+        $item = $row['item'];
+        $item->update_meta_data( '_nakama_prod_validated', '0' );
+        $item->delete_meta_data( '_nakama_prod_validated_by' );
+        $item->delete_meta_data( '_nakama_prod_validated_at' );
+        $item->save();
+    }
+
+    if ( 'approved' === $decision ) {
+        $order->update_meta_data( '_nakama_prod_quality_approved', 'yes' );
+        $order->update_meta_data( '_nakama_prod_quality_approved_by', $person['name'] );
+        $order->update_meta_data( '_nakama_prod_quality_approved_at', time() );
+        $order->save();
+        $order->add_order_note( sprintf( 'Calidad aprobada por %s.', $person['name'] ) );
+    } else {
+        $order->update_meta_data( '_nakama_prod_quality_approved', 'no' );
+        $order->delete_meta_data( '_nakama_prod_active_cycle_id' );
+        $order->delete_meta_data( '_nakama_prod_taken_user_id' );
+        $order->delete_meta_data( '_nakama_prod_taken_by' );
+        $order->delete_meta_data( '_nakama_prod_taken_at' );
+        $order->set_status( 'wc-processing' );
+        $order->save();
+        $order->add_order_note( sprintf(
+            'Calidad devuelta por %s: %d unidad%s requieren retrabajo.',
+            $person['name'],
+            $rejected,
+            1 === $rejected ? '' : 'es'
+        ) );
+    }
+
+    $wpdb->query( 'COMMIT' );
+    $completed = 'approved' === $decision ? nakama_prod_maybe_complete_approved( $order ) : false;
+
+    return new WP_REST_Response( array(
+        'success'   => true,
+        'review_id' => $review_id,
+        'decision'  => $decision,
+        'completed' => $completed,
+    ), 200 );
+}
+
+function nakama_prod_rest_reassign( WP_REST_Request $request ) {
+    global $wpdb;
+    $order = wc_get_order( (int) $request->get_param( 'order_id' ) );
+    if ( ! $order ) {
+        return new WP_Error( 'not_found', 'Pedido no encontrado', array( 'status' => 404 ) );
+    }
+    $reason = sanitize_textarea_field( (string) $request->get_param( 'reason' ) );
+    if ( '' === trim( $reason ) ) {
+        return new WP_Error( 'missing_reason', 'Indica el motivo de la reasignacion.', array( 'status' => 400 ) );
+    }
+    $cycle = nakama_prod_active_cycle( $order->get_id() );
+    if ( ! $cycle ) {
+        return new WP_Error( 'not_taken', 'El pedido no tiene un operador asignado.', array( 'status' => 409 ) );
+    }
+
+    $now      = time();
+    $started  = strtotime( $cycle->started_at . ' UTC' );
+    $duration = $started ? max( 0, $now - $started ) : 0;
+    $wpdb->update( nakama_prod_cycles_table(), array(
+        'finished_at'      => current_time( 'mysql', true ),
+        'duration_seconds' => $duration,
+        'status'           => 'released',
+    ), array( 'id' => (int) $cycle->id ), array( '%s', '%d', '%s' ), array( '%d' ) );
+
+    $person = nakama_prod_user_snapshot();
+    $order->delete_meta_data( '_nakama_prod_active_cycle_id' );
+    $order->delete_meta_data( '_nakama_prod_taken_user_id' );
+    $order->delete_meta_data( '_nakama_prod_taken_by' );
+    $order->delete_meta_data( '_nakama_prod_taken_at' );
+    $order->set_status( 'wc-processing' );
+    $order->save();
+    $order->add_order_note( sprintf(
+        'Asignacion de %s liberada por %s. Motivo: %s',
+        $cycle->operator_name,
+        $person['name'],
+        $reason
+    ) );
+
+    return new WP_REST_Response( array( 'success' => true ), 200 );
+}
+
+/** GET /production/reports?period=week|month&anchor=YYYY-MM-DD */
+function nakama_prod_rest_reports( WP_REST_Request $request ) {
+    global $wpdb;
+
+    $period = sanitize_key( (string) $request->get_param( 'period' ) );
+    if ( ! in_array( $period, array( 'week', 'month' ), true ) ) {
+        $period = 'week';
+    }
+
+    $timezone = wp_timezone();
+    $anchor    = sanitize_text_field( (string) $request->get_param( 'anchor' ) );
+    try {
+        $date = $anchor
+            ? new DateTimeImmutable( $anchor . ' 12:00:00', $timezone )
+            : new DateTimeImmutable( 'now', $timezone );
+    } catch ( Exception $exception ) {
+        return new WP_Error( 'bad_anchor', 'La fecha del reporte no es valida.', array( 'status' => 400 ) );
+    }
+
+    if ( 'month' === $period ) {
+        $start = $date->modify( 'first day of this month' )->setTime( 0, 0, 0 );
+        $end   = $start->modify( 'first day of next month' );
+    } else {
+        $start = $date->modify( 'monday this week' )->setTime( 0, 0, 0 );
+        $end   = $start->modify( '+7 days' );
+    }
+
+    $utc       = new DateTimeZone( 'UTC' );
+    $start_sql = $start->setTimezone( $utc )->format( 'Y-m-d H:i:s' );
+    $end_sql   = $end->setTimezone( $utc )->format( 'Y-m-d H:i:s' );
+    $cycles    = nakama_prod_cycles_table();
+    $reviews   = nakama_prod_reviews_table();
+    $items     = nakama_prod_review_items_table();
+
+    $cycle_rows = $wpdb->get_results( $wpdb->prepare(
+        "SELECT id, order_id, cycle_number, cycle_type, operator_user_id, operator_name,
+                units_total, started_at, finished_at, duration_seconds, status
+         FROM {$cycles}
+         WHERE finished_at >= %s AND finished_at < %s
+           AND status IN ('finished', 'approved', 'rejected')
+         ORDER BY finished_at ASC, id ASC",
+        $start_sql,
+        $end_sql
+    ), ARRAY_A );
+
+    $review_rows = $wpdb->get_results( $wpdb->prepare(
+        "SELECT r.id, r.order_id, r.cycle_id, r.supervisor_user_id, r.supervisor_name,
+                r.decision, r.units_reviewed, r.units_rejected, r.reviewed_at,
+                c.cycle_number, c.operator_user_id, c.operator_name, c.duration_seconds
+         FROM {$reviews} r
+         LEFT JOIN {$cycles} c ON c.id = r.cycle_id
+         WHERE r.reviewed_at >= %s AND r.reviewed_at < %s
+         ORDER BY r.reviewed_at ASC, r.id ASC",
+        $start_sql,
+        $end_sql
+    ), ARRAY_A );
+
+    $detail_rows = $wpdb->get_results( $wpdb->prepare(
+        "SELECT i.id, i.product_name, i.quantity_ordered, i.quantity_rejected, i.comment,
+                r.order_id, r.cycle_id, r.supervisor_name, r.reviewed_at,
+                c.cycle_number, c.operator_name, c.duration_seconds
+         FROM {$items} i
+         INNER JOIN {$reviews} r ON r.id = i.review_id
+         LEFT JOIN {$cycles} c ON c.id = r.cycle_id
+         WHERE r.decision = 'rework' AND r.reviewed_at >= %s AND r.reviewed_at < %s
+         ORDER BY r.reviewed_at DESC, i.id DESC",
+        $start_sql,
+        $end_sql
+    ), ARRAY_A );
+
+    $reviewed_units       = 0;
+    $rejected_units       = 0;
+    $first_pass_reviews   = 0;
+    $first_pass_approved  = 0;
+    $reviewed_orders      = array();
+    $rework_orders        = array();
+    foreach ( (array) $review_rows as $row ) {
+        $reviewed_units += (int) $row['units_reviewed'];
+        $rejected_units += (int) $row['units_rejected'];
+        $reviewed_orders[ (int) $row['order_id'] ] = true;
+        if ( 'rework' === $row['decision'] ) {
+            $rework_orders[ (int) $row['order_id'] ] = true;
+        }
+        if ( 1 === (int) $row['cycle_number'] ) {
+            $first_pass_reviews++;
+            if ( 'approved' === $row['decision'] ) {
+                $first_pass_approved++;
+            }
+        }
+    }
+
+    $cycle_seconds = 0;
+    $order_seconds = array();
+    $operators     = array();
+    foreach ( (array) $cycle_rows as $row ) {
+        $duration = max( 0, (int) $row['duration_seconds'] );
+        $order_id = (int) $row['order_id'];
+        $cycle_seconds += $duration;
+        $order_seconds[ $order_id ] = isset( $order_seconds[ $order_id ] )
+            ? $order_seconds[ $order_id ] + $duration
+            : $duration;
+
+        $operator_key = (int) $row['operator_user_id'] . ':' . (string) $row['operator_name'];
+        if ( ! isset( $operators[ $operator_key ] ) ) {
+            $operators[ $operator_key ] = array(
+                'user_id'          => (int) $row['operator_user_id'],
+                'name'             => (string) $row['operator_name'] ?: 'Sin operador',
+                'cycles_completed' => 0,
+                'rework_cycles'    => 0,
+                'units_produced'   => 0,
+                'units_rejected'   => 0,
+                'total_seconds'    => 0,
+                'avg_seconds'      => 0,
+                'rework_rate'      => 0,
+            );
+        }
+        $operators[ $operator_key ]['cycles_completed']++;
+        $operators[ $operator_key ]['units_produced'] += (int) $row['units_total'];
+        $operators[ $operator_key ]['total_seconds']  += $duration;
+        if ( 'rework' === $row['cycle_type'] ) {
+            $operators[ $operator_key ]['rework_cycles']++;
+        }
+    }
+
+    foreach ( (array) $review_rows as $row ) {
+        if ( 'rework' !== $row['decision'] ) {
+            continue;
+        }
+        $operator_key = (int) $row['operator_user_id'] . ':' . (string) $row['operator_name'];
+        if ( ! isset( $operators[ $operator_key ] ) ) {
+            $operators[ $operator_key ] = array(
+                'user_id'          => (int) $row['operator_user_id'],
+                'name'             => (string) $row['operator_name'] ?: 'Sin operador',
+                'cycles_completed' => 0,
+                'rework_cycles'    => 0,
+                'units_produced'   => 0,
+                'units_rejected'   => 0,
+                'total_seconds'    => 0,
+                'avg_seconds'      => 0,
+                'rework_rate'      => 0,
+            );
+        }
+        $operators[ $operator_key ]['units_rejected'] += (int) $row['units_rejected'];
+    }
+
+    foreach ( $operators as &$operator ) {
+        $operator['avg_seconds'] = $operator['cycles_completed']
+            ? (int) round( $operator['total_seconds'] / $operator['cycles_completed'] )
+            : 0;
+        $operator['rework_rate'] = $operator['units_produced']
+            ? round( ( $operator['units_rejected'] / $operator['units_produced'] ) * 100, 1 )
+            : 0;
+    }
+    unset( $operator );
+    usort( $operators, function ( $a, $b ) {
+        return $b['units_rejected'] <=> $a['units_rejected'];
+    } );
+
+    $series = array();
+    if ( 'week' === $period ) {
+        for ( $i = 0; $i < 7; $i++ ) {
+            $bucket = $start->modify( '+' . $i . ' days' );
+            $key    = $bucket->format( 'Y-m-d' );
+            $series[ $key ] = array(
+                'key'            => $key,
+                'label'          => wp_date( 'D j', $bucket->getTimestamp(), $timezone ),
+                'reviewed_units' => 0,
+                'rejected_units' => 0,
+            );
+        }
+    } else {
+        $days = (int) $start->format( 't' );
+        for ( $first = 1; $first <= $days; $first += 7 ) {
+            $last = min( $days, $first + 6 );
+            $key  = (string) count( $series );
+            $series[ $key ] = array(
+                'key'            => $key,
+                'label'          => $first . '-' . $last,
+                'reviewed_units' => 0,
+                'rejected_units' => 0,
+            );
+        }
+    }
+
+    foreach ( (array) $review_rows as $row ) {
+        try {
+            $review_date = ( new DateTimeImmutable( $row['reviewed_at'], $utc ) )->setTimezone( $timezone );
+        } catch ( Exception $exception ) {
+            continue;
+        }
+        $key = 'week' === $period
+            ? $review_date->format( 'Y-m-d' )
+            : (string) (int) floor( ( (int) $review_date->format( 'j' ) - 1 ) / 7 );
+        if ( isset( $series[ $key ] ) ) {
+            $series[ $key ]['reviewed_units'] += (int) $row['units_reviewed'];
+            $series[ $key ]['rejected_units'] += (int) $row['units_rejected'];
+        }
+    }
+
+    $details = array();
+    foreach ( (array) $detail_rows as $row ) {
+        $order = wc_get_order( (int) $row['order_id'] );
+        $details[] = array(
+            'id'                => (int) $row['id'],
+            'order_id'          => (int) $row['order_id'],
+            'order_number'      => $order ? (string) $order->get_order_number() : (string) $row['order_id'],
+            'cycle_number'      => (int) $row['cycle_number'],
+            'product_name'      => (string) $row['product_name'],
+            'quantity_ordered'  => (int) $row['quantity_ordered'],
+            'quantity_rejected' => (int) $row['quantity_rejected'],
+            'comment'           => (string) $row['comment'],
+            'operator_name'     => (string) $row['operator_name'] ?: 'Sin operador',
+            'supervisor_name'   => (string) $row['supervisor_name'],
+            'duration_seconds'  => (int) $row['duration_seconds'],
+            'reviewed_at'       => mysql_to_rfc3339( $row['reviewed_at'] ),
+        );
+    }
+
+    $avg_order_seconds = $order_seconds
+        ? (int) round( array_sum( $order_seconds ) / count( $order_seconds ) )
+        : 0;
+
+    return new WP_REST_Response( array(
+        'period' => array(
+            'type'  => $period,
+            'start' => $start->format( 'Y-m-d' ),
+            'end'   => $end->modify( '-1 day' )->format( 'Y-m-d' ),
+            'label' => 'week' === $period
+                ? sprintf( '%s - %s', wp_date( 'j M', $start->getTimestamp(), $timezone ), wp_date( 'j M Y', $end->modify( '-1 day' )->getTimestamp(), $timezone ) )
+                : wp_date( 'F Y', $start->getTimestamp(), $timezone ),
+        ),
+        'summary' => array(
+            'orders_reviewed'      => count( $reviewed_orders ),
+            'rework_orders'        => count( $rework_orders ),
+            'reviewed_units'       => $reviewed_units,
+            'rejected_units'       => $rejected_units,
+            'rework_rate'          => $reviewed_units ? round( ( $rejected_units / $reviewed_units ) * 100, 1 ) : 0,
+            'cycles_completed'     => count( $cycle_rows ),
+            'avg_cycle_seconds'    => $cycle_rows ? (int) round( $cycle_seconds / count( $cycle_rows ) ) : 0,
+            'avg_order_seconds'    => $avg_order_seconds,
+            'first_pass_approved'  => $first_pass_approved,
+            'first_pass_rate'      => $first_pass_reviews ? round( ( $first_pass_approved / $first_pass_reviews ) * 100, 1 ) : 0,
+        ),
+        'series'    => array_values( $series ),
+        'operators' => array_values( $operators ),
+        'details'   => $details,
+    ), 200 );
+}
+
 function nakama_prod_rest_pdfs_list() {
     global $wpdb;
     $table = nakama_prod_table_name();

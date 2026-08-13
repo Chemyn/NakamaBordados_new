@@ -10,6 +10,8 @@ import {
   takeProductionOrder,
   finishProductionOrder,
   validateProductionItem,
+  reviewProductionOrder,
+  reassignProductionOrder,
   listProductionPdfs,
   uploadProductionPdf,
   deleteProductionPdf,
@@ -17,16 +19,25 @@ import {
   ProdColumn,
   ProdOrderDetail,
   ProdPdf,
+  ProdReviewItemInput,
 } from '@/lib/production-api';
+import { ProductionReviewPanel } from './ProductionReviewPanel';
+import { ProductionReports } from './ProductionReports';
 
 type AccessState = 'checking' | 'granted' | 'denied' | 'guest';
 type ColState = { orders: ProdCard[]; page: number; hasMore: boolean; loading: boolean };
-type Tab = 'board' | 'pdfs';
+type Tab = 'board' | 'pdfs' | 'reports';
 type ColVariant = 'processing' | 'taken' | 'pending';
 /** Imagen ampliada + acceso al PDF del patrón. */
 type Viewer = { img: string; pdf: string; name: string };
 
 const EMPTY_COL: ColState = { orders: [], page: 1, hasMore: false, loading: false };
+
+function formatDuration(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  return hours ? `${hours}h ${minutes}m` : `${minutes}m`;
+}
 
 /**
  * Panel de Producción en el frontend headless. La protección real la impone el
@@ -38,6 +49,7 @@ export default function ProduccionPage() {
   const { user, isLoading } = useAuth();
 
   const [access, setAccess] = useState<AccessState>('checking');
+  const [canReview, setCanReview] = useState(false);
   const [tab, setTab] = useState<Tab>('board');
   const [board, setBoard] = useState<Record<ProdColumn, ColState>>({
     'processing': { ...EMPTY_COL },
@@ -50,6 +62,8 @@ export default function ProduccionPage() {
   const [finishErr, setFinishErr] = useState<string | null>(null);
   const [validatingItem, setValidatingItem] = useState<number | null>(null);
   const [viewer, setViewer] = useState<Viewer | null>(null);
+  const [showReassign, setShowReassign] = useState(false);
+  const [reassignReason, setReassignReason] = useState('');
 
   const [pdfs, setPdfs] = useState<ProdPdf[]>([]);
   const [pdfsLoading, setPdfsLoading] = useState(false);
@@ -85,9 +99,10 @@ export default function ProduccionPage() {
     if (!user) { setAccess('guest'); return; }
     let alive = true;
     setAccess('checking');
-    fetchProductionAccess().then(can => {
+    fetchProductionAccess().then(result => {
       if (!alive) return;
-      if (can) {
+      setCanReview(result.can_review);
+      if (result.can) {
         setAccess('granted');
         loadColumn('processing', 1, false);
         loadColumn('tomados', 1, false);
@@ -120,6 +135,8 @@ export default function ProduccionPage() {
     setDetail(null);
     setFinishErr(null);
     validatedDirty.current = false;
+    setShowReassign(false);
+    setReassignReason('');
     setDetailLoading(true);
     try {
       setDetail(await fetchProductionOrderDetail(id));
@@ -140,16 +157,58 @@ export default function ProduccionPage() {
     setDetail(null);
     setDetailLoading(false);
     setFinishErr(null);
+    setShowReassign(false);
+    setReassignReason('');
   };
 
   const handleTake = async (id: number) => {
     setActionBusy(true);
+    setFinishErr(null);
     try {
       await takeProductionOrder(id);
       closeModal();
       // El pedido pasa de "En proceso" a "Tomados": refrescar ambas columnas.
       loadColumn('processing', 1, false);
       loadColumn('tomados', 1, false);
+    } catch (err) {
+      setFinishErr(err instanceof Error ? err.message : 'No se pudo tomar el pedido.');
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleReview = async (
+    id: number,
+    decision: 'approved' | 'rework',
+    items: ProdReviewItemInput[],
+  ) => {
+    setActionBusy(true);
+    try {
+      await reviewProductionOrder(id, decision, items);
+      closeModal();
+      loadColumn('processing', 1, false);
+      loadColumn('tomados', 1, false);
+      loadColumn('pendiente-guia', 1, false);
+    } finally {
+      setActionBusy(false);
+    }
+  };
+
+  const handleReassign = async (id: number) => {
+    const reason = reassignReason.trim();
+    if (!reason) {
+      setFinishErr('Indica el motivo para liberar el pedido.');
+      return;
+    }
+    setActionBusy(true);
+    setFinishErr(null);
+    try {
+      await reassignProductionOrder(id, reason);
+      closeModal();
+      loadColumn('processing', 1, false);
+      loadColumn('tomados', 1, false);
+    } catch (err) {
+      setFinishErr(err instanceof Error ? err.message : 'No se pudo liberar el pedido.');
     } finally {
       setActionBusy(false);
     }
@@ -268,6 +327,9 @@ export default function ProduccionPage() {
         <div className="np-tabs">
           <button className={`np-tab ${tab === 'board' ? 'is-active' : ''}`} onClick={() => setTab('board')}>Tablero</button>
           <button className={`np-tab ${tab === 'pdfs' ? 'is-active' : ''}`} onClick={() => setTab('pdfs')}>Patrones (PDF)</button>
+          {canReview && (
+            <button className={`np-tab ${tab === 'reports' ? 'is-active' : ''}`} onClick={() => setTab('reports')}>Reportes</button>
+          )}
         </div>
       </header>
 
@@ -332,6 +394,8 @@ export default function ProduccionPage() {
         </div>
       )}
 
+      {tab === 'reports' && canReview && <ProductionReports />}
+
       {(detail || detailLoading) && (
         <div className="np-modal" onClick={e => { if (e.target === e.currentTarget) closeModal(); }}>
           <div className="np-modal-box">
@@ -365,7 +429,7 @@ export default function ProduccionPage() {
                 )}
 
                 {detail.products.map(p => {
-                  const canValidate = (detail.status === 'processing' || detail.status === 'fabricando');
+                  const canValidate = detail.status === 'fabricando' && detail.is_cycle_owner;
                   return (
                     <div key={p.item_id} className={`np-prod-row ${p.validated ? 'is-validated' : ''}`}>
                       {p.image_url ? (
@@ -391,6 +455,12 @@ export default function ProduccionPage() {
                         {p.pdf_url && (
                           <a className="nk-btn np-btn-sm" href={p.pdf_url} target="_blank" rel="noopener noreferrer">Ver patrón (PDF)</a>
                         )}
+                        {p.rework_quantity > 0 && (
+                          <div className="np-rework-note">
+                            <strong>Retrabajo: {p.rework_quantity} pieza{p.rework_quantity === 1 ? '' : 's'}</strong>
+                            <span>{p.rework_comment}</span>
+                          </div>
+                        )}
                       </div>
                       {canValidate && (
                         <label className="np-check">
@@ -407,13 +477,49 @@ export default function ProduccionPage() {
                   );
                 })}
 
+                {detail.cycles.length > 0 && (
+                  <section className="np-cycle-history">
+                    <div className="np-cycle-heading">
+                      <h3>Historial de produccion</h3>
+                      <strong>Total: {formatDuration(detail.total_duration_seconds)}</strong>
+                    </div>
+                    {detail.cycles.map(cycle => (
+                      <div className="np-cycle-row" key={cycle.id}>
+                        <span className={cycle.type === 'rework' ? 'is-rework' : ''}>
+                          Ciclo {cycle.number} · {cycle.type === 'rework' ? 'Retrabajo' : 'Inicial'}
+                        </span>
+                        <strong>{cycle.operator_name || 'Sin operador'}</strong>
+                        <span>{cycle.units_total} pzas</span>
+                        <span>{cycle.status === 'active' ? 'En curso' : formatDuration(cycle.duration_seconds)}</span>
+                      </div>
+                    ))}
+                  </section>
+                )}
+
+                {detail.status === 'pendiente-guia' && detail.can_review && (
+                  <ProductionReviewPanel
+                    order={detail}
+                    busy={actionBusy}
+                    onReview={(decision, items) => handleReview(detail.id, decision, items)}
+                  />
+                )}
+
+                {detail.status === 'pendiente-guia' && !detail.can_review && (
+                  <div className="np-quality-wait">Pendiente de revision por un supervisor de calidad.</div>
+                )}
+
                 {finishErr && <div className="np-finish-err">{finishErr}</div>}
 
-                {(detail.status === 'processing' || detail.status === 'fabricando') && (
+                {detail.status === 'processing' && (
                   <div className="np-modal-actions">
-                    <button className="nk-btn-sec" disabled={actionBusy} onClick={() => handleTake(detail.id)}>
-                      {detail.taken ? 'Re-tomar pedido' : 'Tomar pedido'}
+                    <button className="nk-btn" disabled={actionBusy} onClick={() => handleTake(detail.id)}>
+                      Tomar pedido
                     </button>
+                  </div>
+                )}
+
+                {detail.status === 'fabricando' && detail.is_cycle_owner && (
+                  <div className="np-modal-actions">
                     <button
                       className="nk-btn"
                       disabled={actionBusy || detail.progress.pct < 100}
@@ -422,6 +528,31 @@ export default function ProduccionPage() {
                     >
                       {detail.progress.pct < 100 ? 'Valida todos los productos' : 'Finalizar producción'}
                     </button>
+                  </div>
+                )}
+
+                {detail.status === 'fabricando' && !detail.is_cycle_owner && (
+                  <div className="np-owner-notice">
+                    Este ciclo esta asignado a <strong>{detail.taken_by || 'otro operador'}</strong>.
+                  </div>
+                )}
+
+                {detail.status === 'fabricando' && detail.can_review && detail.active_cycle && (
+                  <div className="np-reassign">
+                    {!showReassign ? (
+                      <button className="np-reassign-toggle" onClick={() => setShowReassign(true)}>Liberar asignacion</button>
+                    ) : (
+                      <>
+                        <label>
+                          Motivo de la liberacion
+                          <textarea rows={2} value={reassignReason} onChange={event => setReassignReason(event.target.value)} />
+                        </label>
+                        <div className="np-reassign-actions">
+                          <button className="nk-btn-sec" disabled={actionBusy} onClick={() => setShowReassign(false)}>Cancelar</button>
+                          <button className="nk-btn" disabled={actionBusy || !reassignReason.trim()} onClick={() => handleReassign(detail.id)}>Liberar pedido</button>
+                        </div>
+                      </>
+                    )}
                   </div>
                 )}
               </>
@@ -493,6 +624,12 @@ function Card({ order, showProgress, onClick }: { order: ProdCard; showProgress:
       </div>
       <span className="np-card-count">{order.item_count} pza{order.item_count === 1 ? '' : 's'}</span>
       {order.is_quote && <span className="np-card-quote">Cotización</span>}
+      <div className="np-card-badges">
+        {order.cycle_number > 0 && <span>Ciclo {order.cycle_number}</span>}
+        {order.quality_status === 'pending_review' && <span className="quality">Revision de calidad</span>}
+        {order.quality_status === 'approved' && <span className="approved">Calidad aprobada</span>}
+        {order.rework_units > 0 && <span className="rework">{order.rework_units} pza en retrabajo</span>}
+      </div>
       <div className="np-card-products">{order.products.join(', ')}</div>
       {withProgress && (
         <div className="np-card-progress">
@@ -503,7 +640,7 @@ function Card({ order, showProgress, onClick }: { order: ProdCard; showProgress:
         </div>
       )}
       {order.taken && (
-        <div className="np-card-taken">👤 {order.taken_by} · hace {order.taken_age}</div>
+        <div className="np-card-taken"><i className="bi bi-person-fill" aria-hidden="true" /> {order.taken_by} · hace {order.taken_age}</div>
       )}
     </div>
   );
@@ -579,6 +716,11 @@ const panelStyles = `
     background: var(--nk-amber, #f5a623); color: #1A1F2B; border: 2px solid var(--nk-border); padding: 1px 7px;
   }
   .np-card-products { font-size: .92rem; line-height: 1.35; color: var(--nk-text-main); }
+  .np-card-badges { display: flex; flex-wrap: wrap; gap: 5px; margin: 0 0 8px; }
+  .np-card-badges span { background: var(--nk-bg-wrapper); border: 1px solid var(--nk-border); color: var(--nk-text-main); font-size: .66rem; font-weight: 800; padding: 2px 6px; text-transform: uppercase; }
+  .np-card-badges .quality { background: #fef3c7; color: #713f12; }
+  .np-card-badges .approved { background: #dcfce7; color: #166534; }
+  .np-card-badges .rework { background: #fee2e2; color: #991b1b; }
   .np-card-progress { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
   .np-card-progress .np-progress-bar { flex: 1; }
   .np-card-pct { font-size: .72rem; font-weight: 800; color: var(--nk-text-sec); white-space: nowrap; }
@@ -650,6 +792,16 @@ const panelStyles = `
     color: var(--nk-text-main); cursor: pointer; flex: 0 0 auto; user-select: none;
   }
   .np-check input { width: 20px; height: 20px; cursor: pointer; accent-color: #1a7f37; }
+  .np-rework-note { background: color-mix(in srgb, #b32d2e 7%, var(--nk-bg-card)); border-left: 4px solid #b32d2e; color: var(--nk-text-main); display: flex; flex-direction: column; font-size: .82rem; gap: 3px; padding: 8px 10px; }
+  .np-rework-note strong { color: #b32d2e; font-size: .72rem; text-transform: uppercase; }
+  .np-cycle-history { border-top: 3px solid var(--nk-border); margin-top: 18px; padding-top: 14px; }
+  .np-cycle-heading { align-items: center; display: flex; justify-content: space-between; margin-bottom: 8px; }
+  .np-cycle-heading h3 { color: var(--nk-text-main); font-family: 'Teko', sans-serif; font-size: 1.5rem; margin: 0; text-transform: uppercase; }
+  .np-cycle-heading > strong { color: var(--nk-text-sec); font-size: .78rem; }
+  .np-cycle-row { align-items: center; border-bottom: 1px solid var(--nk-border); color: var(--nk-text-sec); display: grid; font-size: .75rem; gap: 8px; grid-template-columns: 1.25fr 1fr auto auto; padding: 8px 0; }
+  .np-cycle-row strong { color: var(--nk-text-main); }
+  .np-cycle-row .is-rework { color: #b32d2e; font-weight: 800; }
+  .np-quality-wait, .np-owner-notice { background: var(--nk-bg-wrapper); border: 2px solid var(--nk-border); color: var(--nk-text-main); font-size: .86rem; margin-top: 16px; padding: 10px 12px; }
   .np-finish-err {
     margin-top: 14px; font-size: .9rem; font-weight: 700; color: #b32d2e;
     border: 2px solid #b32d2e; background: color-mix(in srgb, #b32d2e 8%, transparent); padding: 8px 12px;
@@ -657,6 +809,13 @@ const panelStyles = `
   .np-modal-actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
   .np-modal-actions :global(.nk-btn), .np-modal-actions :global(.nk-btn-sec) { flex: 1 1 180px; text-align: center; }
   .np-modal-actions :global(.nk-btn):disabled { opacity: .55; cursor: not-allowed; }
+  .np-reassign { border-top: 2px solid var(--nk-border); margin-top: 16px; padding-top: 14px; }
+  .np-reassign-toggle { background: transparent; border: 0; color: #b32d2e; cursor: pointer; font-size: .78rem; font-weight: 800; padding: 0; text-decoration: underline; text-transform: uppercase; }
+  .np-reassign label { color: var(--nk-text-main); display: flex; flex-direction: column; font-size: .75rem; font-weight: 800; gap: 5px; text-transform: uppercase; }
+  .np-reassign textarea { background: var(--nk-bg-card); border: 2px solid var(--nk-border); color: var(--nk-text-main); font: inherit; padding: 8px; resize: vertical; text-transform: none; }
+  .np-reassign-actions { display: flex; gap: 10px; margin-top: 10px; }
+  .np-reassign-actions button { flex: 1; }
+  @media (max-width: 560px) { .np-cycle-row { grid-template-columns: 1fr 1fr; } }
   .np-btn-sm { font-size: .8rem !important; padding: 6px 12px !important; text-decoration: none; }
 
   /* Visor de imagen a pantalla completa */

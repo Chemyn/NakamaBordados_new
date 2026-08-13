@@ -59,9 +59,10 @@ Sin ese `projectId` la app funciona, pero las notificaciones quedan desactivadas
 
 ### 3. Plugin de WordPress
 
-Subir por cPanel `nakama-production-panel.zip` **v1.4.0** o superior. Es la versión
-que añade `POST|DELETE /production/push-token` y el aviso al entrar un pedido a
-producción. Sin ella la app funciona igual, solo que sin notificaciones.
+Subir por cPanel `nakama-production-panel.zip` **v2.0.0** o superior. Esta version
+incluye los ciclos de produccion, revision de calidad, retrabajos y reportes, ademas
+de `POST|DELETE /production/push-token`. La app actualizada requiere esta version
+para aprobar o devolver pedidos desde el telefono.
 
 ### 4. Login social
 
@@ -73,6 +74,18 @@ Facebook.
 ---
 
 ## Publicar una versión para el taller
+
+Para cambios de interfaz o logica que no alteran dependencias nativas, publicar
+una actualizacion automatica en el canal de produccion:
+
+```bash
+cd mobile
+npx eas update --channel production --message "Descripcion del cambio"
+```
+
+La app la descarga al abrirse y la aplica en el siguiente reinicio.
+
+Para cambios nativos o una instalacion nueva, generar un APK:
 
 ```bash
 cd mobile
