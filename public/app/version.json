@@ -1,6 +1,6 @@
 {
-  "versionCode": 4,
-  "version": "1.1.0",
-  "apkUrl": "https://github.com/Chemyn/NakamaBordados_new/releases/download/app-v1.1.0/nakama-produccion-1.1.0.apk",
-  "notes": "Nuevo tablero, actualizaciones automáticas y app más ligera."
+  "versionCode": 7,
+  "version": "1.2.0",
+  "apkUrl": "https://github.com/Chemyn/NakamaBordados_new/releases/download/app-v1.2.0/nakama-produccion-1.2.0.apk",
+  "notes": "Control de calidad, retrabajos, historial de ciclos y tiempos de producción."
 }
