@@ -14,6 +14,10 @@ import { openWpAdmin, seedWpSession, WP_ADMIN_URL } from '@/lib/wp-sso';
 import { apiOrigin } from '@/lib/api-host';
 import { fetchProductionAccess } from '@/lib/production-api';
 import { fetchWarehouseAccess } from '@/lib/warehouse-api';
+import AccountProgress from './AccountProgress';
+import AccountSectionNav, { type AccountSectionId } from './AccountSectionNav';
+import AuthModeTabs from './AuthModeTabs';
+import TrackingFeedback from './TrackingFeedback';
 
 /* Estados de pedido de WooCommerce en español. GraphQL los entrega como enum
    (ON_HOLD) y REST como slug (on-hold); se canonicaliza a slug antes de mapear. */
@@ -33,10 +37,10 @@ const ORDER_STATUS_ES: Record<string, string> = {
 /* Etapas del ciclo del pedido que ve el cliente (barra de progreso). El envío
    en detalle lo cubre el stepper de paquetería (TRACK_STEPS) más abajo. */
 const ORDER_STEPS = [
-  { slug: 'processing', label: 'En espera de fabricación', icon: 'schedule' },
-  { slug: 'fabricando', label: 'Fabricando', icon: 'content_cut' },
-  { slug: 'pendiente-guia', label: 'Preparando envío', icon: 'inventory_2' },
-  { slug: 'completed', label: 'Enviado', icon: 'local_shipping' },
+  { key: 'processing', label: 'En espera de fabricación', icon: 'schedule' },
+  { key: 'fabricando', label: 'Fabricando', icon: 'content_cut' },
+  { key: 'pendiente-guia', label: 'Preparando envío', icon: 'inventory_2' },
+  { key: 'completed', label: 'Enviado', icon: 'local_shipping' },
 ] as const;
 
 /* Índice de etapa alcanzada; -1 para estatus fuera del ciclo (pendiente de
@@ -120,7 +124,7 @@ export default function MiCuentaPage() {
   const { formatPrice, currencyInfo } = useCurrency();
   const { t } = useLanguage();
 
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'orders' | 'profile' | 'addresses' | 'tracking' | 'commissions'>('dashboard');
+  const [activeTab, setActiveTab] = useState<AccountSectionId>('dashboard');
   const [userCredentials, setUserCredentials] = useState({ username: '', password: '' });
   const [error, setError] = useState('');
   // Aviso informativo (no es un fallo): hoy solo el de "completa tu registro"
@@ -140,6 +144,8 @@ export default function MiCuentaPage() {
   useEffect(() => {
     const r = new URLSearchParams(window.location.search).get('return');
     if (r && r.startsWith('/') && !r.startsWith('//')) {
+      // This state intentionally consumes a browser-only URL after hydration.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setReturnTo(r);
     }
   }, []);
@@ -157,6 +163,7 @@ export default function MiCuentaPage() {
   //  ?social_signup=1  el correo de Google/Facebook no tiene cuenta todavía.
   //                    El plugin cancela el alta automática y manda aquí con
   //                    los datos del proveedor para terminar el registro.
+  /* eslint-disable react-hooks/set-state-in-effect -- OAuth parameters initialize the client-only auth form after hydration. */
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const hadError = params.get('social_error') === '1';
@@ -180,28 +187,38 @@ export default function MiCuentaPage() {
     const qs = params.toString();
     history.replaceState(null, '', window.location.pathname + (qs ? `?${qs}` : ''));
   }, []);
+  /* eslint-enable react-hooks/set-state-in-effect */
   
   // Tracking state - indexed by tracking code to avoid conflicts
   const [trackingLoading, setTrackingLoading] = useState<string | null>(null);
-  const [trackingResults, setTrackingResults] = useState<Record<string, any>>({});
+  const [trackingResults, setTrackingResults] = useState<Record<string, TrackTimeline>>({});
+  const [trackingErrors, setTrackingErrors] = useState<Record<string, string>>({});
 
   // ¿El usuario tiene permiso para el Panel de Producción? (admin o capability
   // access_production_dashboard). Decide si se muestra el botón de acceso.
-  const [canProduction, setCanProduction] = useState(false);
+  const [productionAccess, setProductionAccess] = useState({ userId: '', can: false });
+  const canProduction = Boolean(user && productionAccess.userId === user.id && productionAccess.can);
   useEffect(() => {
-    if (!user) { setCanProduction(false); return; }
+    if (!user) return;
     let alive = true;
-    fetchProductionAccess().then(access => { if (alive) setCanProduction(access.can); });
+    const userId = user.id;
+    fetchProductionAccess().then(access => {
+      if (alive) setProductionAccess({ userId, can: access.can });
+    });
     return () => { alive = false; };
   }, [user]);
 
   // ¿El usuario tiene permiso para el Panel de Almacén? (capability
   // access_warehouse). Decide si se muestra el botón de acceso.
-  const [canWarehouse, setCanWarehouse] = useState(false);
+  const [warehouseAccess, setWarehouseAccess] = useState({ userId: '', can: false });
+  const canWarehouse = Boolean(user && warehouseAccess.userId === user.id && warehouseAccess.can);
   useEffect(() => {
-    if (!user) { setCanWarehouse(false); return; }
+    if (!user) return;
     let alive = true;
-    fetchWarehouseAccess().then(can => { if (alive) setCanWarehouse(can); });
+    const userId = user.id;
+    fetchWarehouseAccess().then(can => {
+      if (alive) setWarehouseAccess({ userId, can });
+    });
     return () => { alive = false; };
   }, [user]);
 
@@ -259,29 +276,37 @@ export default function MiCuentaPage() {
     setAuthMode(mode);
   };
 
+
   const fetchTracking = async (code: string, carrier: string) => {
     if (!code) return;
     setTrackingLoading(code);
+    setTrackingErrors(prev => ({ ...prev, [code]: '' }));
     try {
       // nkcb: LiteSpeed cachea las respuestas de ?rest_route= y serviría un
       // estado de rastreo viejo. El servidor tiene su propio caché (transient).
       const res = await fetch(`${apiOrigin()}/?rest_route=/nakama/v1/track-timeline&tracking=${encodeURIComponent(code)}&carrier=${encodeURIComponent(carrier.toLowerCase())}&nkcb=${Date.now()}`);
       if (res.ok) {
         const data: TrackTimeline = await res.json();
-        setTrackingResults(prev => ({
-          ...prev,
-          [code]: data && data.status
-            ? data
-            : { success: false, status: 'NotFound', status_es: 'No se encontraron datos.', events: [] }
-        }));
+        if (data && data.status) {
+          setTrackingResults(prev => ({ ...prev, [code]: data }));
+        } else {
+          setTrackingErrors(prev => ({
+            ...prev,
+            [code]: 'No pudimos interpretar la respuesta de la paquetería. Intenta de nuevo.',
+          }));
+        }
       } else {
-        setTrackingResults(prev => ({
+        setTrackingErrors(prev => ({
           ...prev,
-          [code]: { success: false, status: 'NotFound', status_es: 'Error al consultar la paquetería.', events: [] }
+          [code]: 'No pudimos consultar la paquetería. Conservamos el último estado disponible.',
         }));
       }
-    } catch (e) {
-      console.error("Error fetching tracking:", e);
+    } catch {
+      console.error('Error fetching tracking timeline.');
+      setTrackingErrors(prev => ({
+        ...prev,
+        [code]: 'No hay conexión con la paquetería. Conservamos el último estado disponible.',
+      }));
     } finally {
       setTrackingLoading(null);
     }
@@ -293,10 +318,10 @@ export default function MiCuentaPage() {
   useEffect(() => {
     if (activeTab !== 'tracking' || !user?.orders?.nodes) return;
     const pending = user.orders.nodes.filter(
-      (o: any) => o.enviaTrackingCode && !trackingResults[o.enviaTrackingCode]
+      order => order.enviaTrackingCode && !trackingResults[order.enviaTrackingCode]
     );
-    const timers = pending.map((o: any, i: number) =>
-      setTimeout(() => fetchTracking(o.enviaTrackingCode, o.enviaCarrier || 'estafeta'), i * 400)
+    const timers = pending.map((order, index) =>
+      setTimeout(() => fetchTracking(order.enviaTrackingCode!, order.enviaCarrier || 'estafeta'), index * 400)
     );
     return () => timers.forEach(clearTimeout);
     // trackingResults/fetchTracking intencionalmente fuera de deps: solo debe
@@ -306,10 +331,37 @@ export default function MiCuentaPage() {
 
   if (isLoading) {
     return (
-      <div className="nk-loading-container" style={{ padding: '150px', textAlign: 'center' }}>
-        <div className="nk-spinner" style={{ margin: '0 auto 20px' }}></div>
-        <p style={{ fontFamily: 'Teko', fontSize: '1.5rem' }}>{t('store.loading')}</p>
-      </div>
+      <>
+        <div className="nk-account-loading" role="status" aria-live="polite">
+          <div className="nk-spinner" aria-hidden="true" />
+          <p>{t('store.loading')}</p>
+        </div>
+        <style jsx>{`
+          .nk-account-loading {
+            min-height: 60vh;
+            padding: calc(var(--header-padding) + 32px) 16px 48px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            background: var(--nk-bg-body);
+            color: var(--nk-text-main);
+            text-align: center;
+          }
+
+          .nk-account-loading p {
+            font-family: 'Teko', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            text-transform: uppercase;
+          }
+
+          @media (prefers-reduced-motion: reduce) {
+            .nk-account-loading :global(.nk-spinner) { animation: none; }
+          }
+        `}</style>
+      </>
     );
   }
 
@@ -324,121 +376,75 @@ export default function MiCuentaPage() {
                 <aside className="nk-dashboard-sidebar">
                   <div className="nk-sidebar-header">
                     <div className="nk-user-avatar">
-                      <span className="material-icons-outlined">person</span>
+                      <span className="material-icons-outlined" aria-hidden="true">person</span>
                     </div>
                     <div className="nk-user-meta">
                       <h3>{user.firstName || user.username}</h3>
-                      <p>{user.role || 'Nakama'}</p>
+                      <p>{user.email}</p>
                     </div>
+                    <button type="button" onClick={logout} className="nk-logout-btn">
+                      <span className="material-icons-outlined" aria-hidden="true">logout</span>
+                      <span>Cerrar sesión</span>
+                    </button>
                   </div>
 
-                  <nav className="nk-dashboard-nav">
-                    <ul>
-                      <li>
-                        <button onClick={() => setActiveTab('dashboard')} className={activeTab === 'dashboard' ? 'active' : ''}>
-                          <span className="material-icons-outlined">dashboard</span>
-                          Dashboard
-                        </button>
-                      </li>
-                      <li>
-                        <button onClick={() => setActiveTab('orders')} className={activeTab === 'orders' ? 'active' : ''}>
-                          <span className="material-icons-outlined">shopping_bag</span>
-                          Mis Pedidos
-                        </button>
-                      </li>
-                      <li>
-                        <button onClick={() => setActiveTab('tracking')} className={activeTab === 'tracking' ? 'active' : ''}>
-                          <span className="material-icons-outlined">local_shipping</span>
-                          Rastreo
-                        </button>
-                      </li>
-                      
-                      {user.comisiones && (
-                        <li>
-                          <button onClick={() => setActiveTab('commissions')} className={activeTab === 'commissions' ? 'active' : ''}>
-                            <span className="material-icons-outlined">payments</span>
-                            Comisiones
-                          </button>
-                        </li>
-                      )}
+                  <AccountSectionNav
+                    activeTab={activeTab}
+                    hasCommissions={Boolean(user.comisiones)}
+                    onTabChange={setActiveTab}
+                  />
 
-                      <li>
-                        <button onClick={() => setActiveTab('addresses')} className={activeTab === 'addresses' ? 'active' : ''}>
-                          <span className="material-icons-outlined">location_on</span>
-                          Direcciones
-                        </button>
-                      </li>
-                      <li>
-                        <button onClick={() => setActiveTab('profile')} className={activeTab === 'profile' ? 'active' : ''}>
-                          <span className="material-icons-outlined">manage_accounts</span>
-                          Cuenta
-                        </button>
-                      </li>
-
-                      {/* PANEL DE PRODUCCIÓN — admins y usuarios con el permiso */}
-                      {canProduction && (
-                        <>
-                          <li className="nk-nav-divider">PRODUCCIÓN</li>
+                  {(canProduction || canWarehouse || isAdmin) && (
+                    <section className="nk-work-access" aria-labelledby="work-access-title">
+                      <h4 id="work-access-title">Accesos de trabajo</h4>
+                      <ul>
+                        {canProduction && (
                           <li>
-                            <Link href="/produccion/" className="nk-admin-btn-link">
-                              <button className="nk-admin-btn">
-                                <span className="material-icons-outlined">precision_manufacturing</span>
-                                Panel de Producción
-                              </button>
+                            <Link href="/produccion/" className="nk-work-link">
+                              <span className="material-icons-outlined" aria-hidden="true">precision_manufacturing</span>
+                              Panel de Producción
                             </Link>
                           </li>
-                        </>
-                      )}
-
-                      {/* PANEL DE ALMACÉN — admins y usuarios con el permiso */}
-                      {canWarehouse && (
-                        <>
-                          <li className="nk-nav-divider">ALMACÉN</li>
+                        )}
+                        {canWarehouse && (
                           <li>
-                            <Link href="/almacen/" className="nk-admin-btn-link">
-                              <button className="nk-admin-btn">
-                                <span className="material-icons-outlined">inventory_2</span>
-                                Panel de Almacén
-                              </button>
+                            <Link href="/almacen/" className="nk-work-link">
+                              <span className="material-icons-outlined" aria-hidden="true">inventory_2</span>
+                              Panel de Almacén
                             </Link>
                           </li>
-                        </>
-                      )}
-
-                      {/* HERRAMIENTAS DE ADMINISTRADOR */}
-                      {isAdmin && (
-                        <>
-                          <li className="nk-nav-divider">ADMIN TOOLS</li>
-                          <li>
-                            <a
-                              href={WP_ADMIN_URL}
-                              onClick={(e) => { e.preventDefault(); openWpAdmin(); }}
-                              className="nk-admin-btn-link"
-                            >
-                              <button className="nk-admin-btn gold">
-                                <span className="material-icons-outlined">dashboard</span>
+                        )}
+                        {isAdmin && (
+                          <>
+                            <li>
+                              <a
+                                href={WP_ADMIN_URL}
+                                onClick={(event) => { event.preventDefault(); openWpAdmin(); }}
+                                className="nk-work-link nk-work-link-admin"
+                                aria-label="Escritorio WordPress (se abre en una nueva ventana)"
+                              >
+                                <span className="material-icons-outlined" aria-hidden="true">dashboard</span>
                                 Escritorio WordPress
-                              </button>
-                            </a>
-                          </li>
-                          <li>
-                            <MaintenanceToggle />
-                          </li>
-                        </>
-                      )}
-
-                      <li className="nk-logout-li">
-                        <button onClick={logout} className="nk-logout-btn">
-                          <span className="material-icons-outlined">logout</span>
-                          Cerrar Sesión
-                        </button>
-                      </li>
-                    </ul>
-                  </nav>
+                              </a>
+                            </li>
+                            <li className="nk-maintenance-control">
+                              <MaintenanceToggle />
+                            </li>
+                          </>
+                        )}
+                      </ul>
+                    </section>
+                  )}
                 </aside>
 
                 {/* Main Content Area */}
-                <main className="nk-dashboard-content">
+                <main
+                  id={`account-panel-${activeTab}`}
+                  className="nk-dashboard-content"
+                  role="tabpanel"
+                  aria-labelledby={`account-tab-${activeTab}`}
+                  tabIndex={0}
+                >
                   {activeTab === 'dashboard' && (
                     <div className="nk-tab-pane nk-dash-animate">
                       <h2 className="nk-section-title">Hola, {user.firstName || user.username}</h2>
@@ -447,22 +453,22 @@ export default function MiCuentaPage() {
                       </p>
                       
                       <div className="nk-dash-shortcuts">
-                        <div className="nk-manga-border nk-shortcut-card" onClick={() => setActiveTab('orders')}>
-                           <span className="material-icons-outlined">receipt_long</span>
-                           <h4>Pedidos</h4>
-                        </div>
-                        <div className="nk-manga-border nk-shortcut-card" onClick={() => setActiveTab('tracking')}>
-                           <span className="material-icons-outlined">local_shipping</span>
-                           <h4>Rastreo</h4>
-                        </div>
-                        <div className="nk-manga-border nk-shortcut-card" onClick={() => setActiveTab('addresses')}>
-                           <span className="material-icons-outlined">home</span>
-                           <h4>Direcciones</h4>
-                        </div>
-                        <div className="nk-manga-border nk-shortcut-card" onClick={() => setActiveTab('profile')}>
-                           <span className="material-icons-outlined">settings</span>
-                           <h4>Ajustes</h4>
-                        </div>
+                        <button type="button" className="nk-manga-border nk-shortcut-card" onClick={() => setActiveTab('orders')}>
+                           <span className="material-icons-outlined" aria-hidden="true">receipt_long</span>
+                           <span>Pedidos</span>
+                        </button>
+                        <button type="button" className="nk-manga-border nk-shortcut-card" onClick={() => setActiveTab('tracking')}>
+                           <span className="material-icons-outlined" aria-hidden="true">local_shipping</span>
+                           <span>Rastreo</span>
+                        </button>
+                        <button type="button" className="nk-manga-border nk-shortcut-card" onClick={() => setActiveTab('addresses')}>
+                           <span className="material-icons-outlined" aria-hidden="true">home</span>
+                           <span>Dirección</span>
+                        </button>
+                        <button type="button" className="nk-manga-border nk-shortcut-card" onClick={() => setActiveTab('profile')}>
+                           <span className="material-icons-outlined" aria-hidden="true">settings</span>
+                           <span>Cuenta</span>
+                        </button>
                       </div>
                     </div>
                   )}
@@ -472,7 +478,7 @@ export default function MiCuentaPage() {
                       <h2 className="nk-section-title">Historial de Botín</h2>
                       {user.orders && user.orders.nodes.length > 0 ? (
                         <div className="nk-orders-list">
-                          {user.orders.nodes.map((order: any) => (
+                          {user.orders.nodes.map((order) => (
                             <div key={order.id} className="nk-order-item nk-manga-border">
                               <div className="nk-order-header">
                                 <div>
@@ -491,30 +497,17 @@ export default function MiCuentaPage() {
                                   demás (pendiente de pago, cotización, cancelado)
                                   se quedan con el badge de arriba. */}
                               {orderStepIndex(order.status) >= 0 && (
-                                <div className="nk-order-steps" role="list" aria-label="Progreso del pedido">
-                                  {ORDER_STEPS.map((step, i) => {
-                                    const reached = i <= orderStepIndex(order.status);
-                                    const current = i === orderStepIndex(order.status);
-                                    return (
-                                      <div
-                                        key={step.slug}
-                                        role="listitem"
-                                        className={`nk-order-step${reached ? ' is-done' : ''}${current ? ' is-current' : ''}`}
-                                      >
-                                        <span className="nk-order-step-dot">
-                                          <span className="material-icons-outlined">{step.icon}</span>
-                                        </span>
-                                        <span className="nk-order-step-label">{step.label}</span>
-                                      </div>
-                                    );
-                                  })}
-                                </div>
+                                <AccountProgress
+                                  steps={ORDER_STEPS}
+                                  currentIndex={orderStepIndex(order.status)}
+                                  label={`Progreso del pedido ${order.orderNumber}`}
+                                />
                               )}
 
                               <div className="nk-order-details">
                                 <ul>
-                                  {order.lineItems?.nodes.map((item: any, i: number) => (
-                                    <li key={i}>
+                                  {order.lineItems?.nodes.map((item, index) => (
+                                    <li key={index}>
                                       <span>{item.quantity}x {item.product?.node?.name || 'Producto'}</span>
                                     </li>
                                   ))}
@@ -531,10 +524,13 @@ export default function MiCuentaPage() {
                                   precio ya asignado): pagar solo, o mandarla al
                                   carrito para pagarla junto con otros artículos. */}
                               {order.needsPayment && order.databaseId && order.orderKey && (
-                                <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px dashed var(--nk-border)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px' }}>
+                                <div className="nk-order-payment">
+                                  <p className="nk-order-payment-copy">
+                                    Tu cotización ya tiene precio: págala ahora o agrégala al carrito para pagarla junto con otros artículos.
+                                  </p>
+                                  <div className="nk-order-payment-actions">
                                   <button
-                                    className="nk-btn"
-                                    style={{ padding: '10px 24px', fontSize: '1.2rem' }}
+                                    className="nk-btn nk-order-payment-action"
                                     onClick={async () => {
                                       // Sembrar la sesión de WP para que el checkout
                                       // reconozca al cliente, y pagar por el CHECKOUT
@@ -551,34 +547,31 @@ export default function MiCuentaPage() {
                                       window.location.href = `https://nakamabordados.com/index.php?nk_bridge=pay-quote&order=${order.databaseId}&key=${order.orderKey}&currency=${currencyInfo.currency}`;
                                     }}
                                   >
-                                    <span className="material-icons-outlined" style={{ fontSize: '18px', verticalAlign: 'middle', marginRight: '6px' }}>payments</span>
+                                    <span className="material-icons-outlined" aria-hidden="true">payments</span>
                                     PAGAR AHORA
                                   </button>
                                   {/* Solo cotizaciones (folio NK-): un pedido normal
                                       pendiente se paga directo, no viaja al carrito. */}
                                   {String(order.orderNumber || '').startsWith('NK-') && (
                                     <button
-                                      className="nk-btn-sec"
-                                      style={{ padding: '10px 24px', fontSize: '1.2rem' }}
-                                      disabled={isQuoteInCart(order.databaseId)}
+                                      className="nk-account-secondary-action nk-order-payment-action"
+                                      disabled={isQuoteInCart(order.databaseId!)}
                                       onClick={() => addQuoteToCart({
-                                        orderId: order.databaseId,
-                                        orderKey: order.orderKey,
+                                        orderId: order.databaseId!,
+                                        orderKey: order.orderKey!,
                                         folio: String(order.orderNumber),
                                         // Mismo parseo del total que el render de arriba;
                                         // las cotizaciones siempre se emiten en MXN.
                                         totalMXN: parseFloat(String(order.total || '0').replace(/[^0-9.-]/g, '')) || 0,
                                       })}
                                     >
-                                      <span className="material-icons-outlined" style={{ fontSize: '18px', verticalAlign: 'middle', marginRight: '6px' }}>
-                                        {isQuoteInCart(order.databaseId) ? 'check' : 'add_shopping_cart'}
+                                      <span className="material-icons-outlined" aria-hidden="true">
+                                        {isQuoteInCart(order.databaseId!) ? 'check' : 'add_shopping_cart'}
                                       </span>
-                                      {isQuoteInCart(order.databaseId) ? 'EN EL CARRITO' : 'AGREGAR AL CARRITO'}
+                                      {isQuoteInCart(order.databaseId!) ? 'EN EL CARRITO' : 'AGREGAR AL CARRITO'}
                                     </button>
                                   )}
-                                  <span style={{ fontSize: '0.8rem', color: 'var(--nk-text-sec)', fontWeight: 600 }}>
-                                    Tu cotización ya tiene precio: págala ahora o agrégala al carrito para pagarla junto con otros artículos.
-                                  </span>
+                                  </div>
                                 </div>
                               )}
                             </div>
@@ -598,13 +591,19 @@ export default function MiCuentaPage() {
                     <div className="nk-tab-pane nk-dash-animate">
                       <h2 className="nk-section-title">Rastreo de Botín</h2>
                       
-                      {user.orders && user.orders.nodes.some((o: any) => o.enviaTrackingCode) ? (
+                      {user.orders && user.orders.nodes.some((order) => order.enviaTrackingCode) ? (
                         <div className="nk-tracking-list">
-                          {user.orders.nodes.filter((o: any) => o.enviaTrackingCode).map((order: any) => {
-                            const code = order.enviaTrackingCode;
+                          {user.orders.nodes.filter((order) => order.enviaTrackingCode).map((order) => {
+                            const code = order.enviaTrackingCode!;
                             const res: TrackTimeline | undefined = trackingResults[code];
                             const stepIndex = res ? trackStepIndex(res.status) : -1;
                             const hasProblem = res ? isTrackProblem(res.status) : false;
+                            const trackingSteps = TRACK_STEPS.map((step, index) => ({
+                              ...step,
+                              label: res?.status === 'AvailableForPickup' && index === 3
+                                ? 'Listo para recoger'
+                                : step.label,
+                            }));
                             return (
                               <div key={`track-${order.id}`} className="nk-tracking-card nk-manga-border">
                                 <div className="nk-tracking-header">
@@ -618,46 +617,39 @@ export default function MiCuentaPage() {
                                       <p className="nk-track-code">{code}</p>
                                     </div>
                                     <button
-                                      className="nk-btn"
+                                      className="nk-btn nk-tracking-refresh"
                                       onClick={() => fetchTracking(code, order.enviaCarrier || 'estafeta')}
                                       disabled={trackingLoading === code}
+                                      aria-busy={trackingLoading === code}
                                     >
-                                      {trackingLoading === code ? '...' : res ? 'Actualizar' : 'Ver Estado'}
+                                      {trackingLoading === code ? 'Actualizando…' : res ? 'Actualizar estado' : 'Ver estado'}
                                     </button>
                                   </div>
 
+                                  <TrackingFeedback
+                                    error={trackingErrors[code] || ''}
+                                    loading={trackingLoading === code}
+                                    onRetry={() => fetchTracking(code, order.enviaCarrier || 'estafeta')}
+                                  >
                                   {res && (
                                     <div className="nk-tracking-details nk-dash-animate">
-                                      <p className={`nk-track-status ${hasProblem ? 'nk-track-status-problem' : ''}`}>
+                                      <p className={`nk-track-status ${hasProblem ? 'nk-track-status-problem' : ''}`} role="status">
                                         {res.status_es || 'En camino'}
                                       </p>
 
-                                      {/* Stepper de progreso: 4 etapas del envío */}
-                                      <div className="nk-track-stepper">
-                                        {TRACK_STEPS.map((step, i) => {
-                                          const isDone = stepIndex >= 0 && i <= stepIndex;
-                                          const isCurrent = i === stepIndex;
-                                          const label = res.status === 'AvailableForPickup' && i === 3
-                                            ? 'Listo para recoger'
-                                            : step.label;
-                                          return (
-                                            <div
-                                              key={step.key}
-                                              className={`nk-track-step${isDone ? ' is-done' : ''}${isCurrent ? ' is-current' : ''}${isCurrent && hasProblem ? ' is-problem' : ''}`}
-                                            >
-                                              <span className="nk-track-step-icon material-icons-outlined">{step.icon}</span>
-                                              <span className="nk-track-step-label">{label}</span>
-                                            </div>
-                                          );
-                                        })}
-                                      </div>
+                                      <AccountProgress
+                                        steps={trackingSteps}
+                                        currentIndex={stepIndex}
+                                        label={`Estado del envío ${order.orderNumber}`}
+                                        hasProblem={hasProblem}
+                                      />
 
                                       {/* Línea de tiempo de eventos (más reciente primero) */}
                                       {res.events && res.events.length > 0 ? (
-                                        <div className="nk-track-timeline">
+                                        <ol className="nk-track-timeline" aria-label="Eventos del envío">
                                           {res.events.map((ev, i) => (
-                                            <div key={`${code}-ev-${i}`} className={`nk-track-event${i === 0 ? ' nk-track-event-latest' : ''}`}>
-                                              <span className="nk-track-event-dot"></span>
+                                            <li key={`${code}-ev-${i}`} className={`nk-track-event${i === 0 ? ' nk-track-event-latest' : ''}`}>
+                                              <span className="nk-track-event-dot" aria-hidden="true" />
                                               <div>
                                                 <p className="nk-track-event-desc">{ev.description || ev.status}</p>
                                                 {(ev.time || ev.location) && (
@@ -666,13 +658,13 @@ export default function MiCuentaPage() {
                                                   </p>
                                                 )}
                                               </div>
-                                            </div>
+                                            </li>
                                           ))}
-                                        </div>
+                                        </ol>
                                       ) : (
                                         <p className="nk-track-desc">La paquetería aún no reporta movimientos. Intenta más tarde.</p>
                                       )}
-                                      <div style={{ marginTop: '20px' }}>
+                                      <div className="nk-official-tracking">
                                         <a 
                                           href={
                                             order.enviaCarrier?.toLowerCase().includes('estafeta') ? `https://www.estafeta.com/Herramientas/Rastreo?waybill=${code}` :
@@ -682,14 +674,15 @@ export default function MiCuentaPage() {
                                           } 
                                           target="_blank" 
                                           rel="noopener noreferrer"
-                                          className="nk-btn-sec"
-                                          style={{ fontSize: '0.8rem', padding: '8px 15px' }}
+                                          className="nk-account-secondary-action nk-official-tracking-link"
+                                          aria-label="Ver rastreo en el sitio oficial (se abre en una nueva pestaña)"
                                         >
-                                          Ver en sitio oficial <span className="material-icons-outlined" style={{ fontSize: '12px' }}>open_in_new</span>
+                                          Ver en sitio oficial <span className="material-icons-outlined" aria-hidden="true">open_in_new</span>
                                         </a>
                                       </div>
                                     </div>
                                   )}
+                                  </TrackingFeedback>
                                 </div>
                               </div>
                             );
@@ -697,8 +690,12 @@ export default function MiCuentaPage() {
                         </div>
                       ) : (
                         <div className="nk-tracking-empty">
-                          <span className="material-icons-outlined">local_shipping</span>
+                          <span className="material-icons-outlined" aria-hidden="true">local_shipping</span>
+                          <h3>Aún sin guía</h3>
                           <p>Tus pedidos aún están en el astillero. Te avisaremos cuando zarpen.</p>
+                          <button type="button" className="nk-account-secondary-action" onClick={() => setActiveTab('orders')}>
+                            Ver mis pedidos
+                          </button>
                         </div>
                       )}
                     </div>
@@ -735,7 +732,10 @@ export default function MiCuentaPage() {
                             </>
                           ) : 'No has configurado una dirección de envío aún.'}
                         </p>
-                        <button className="nk-btn">{user.shipping?.address1 ? 'Editar Dirección' : 'Añadir Nueva'}</button>
+                        <p className="nk-readonly-note">
+                          <span className="material-icons-outlined" aria-hidden="true">lock</span>
+                          Tus datos se muestran en modo de solo lectura.
+                        </p>
                       </div>
                     </div>
                   )}
@@ -744,28 +744,28 @@ export default function MiCuentaPage() {
                     <div className="nk-tab-pane nk-dash-animate">
                       <h2 className="nk-section-title">Detalles de la Cuenta</h2>
                       <div className="nk-info-box nk-manga-border">
-                        <div className="nk-profile-grid">
+                        <dl className="nk-profile-grid">
                           <div className="nk-profile-item">
-                            <label>Nombre Completo</label>
-                            <p>{user.firstName} {user.lastName || ''}</p>
+                            <dt>Nombre Completo</dt>
+                            <dd>{user.firstName} {user.lastName || ''}</dd>
                           </div>
                           <div className="nk-profile-item">
-                            <label>Email</label>
-                            <p>{user.email}</p>
+                            <dt>Email</dt>
+                            <dd>{user.email}</dd>
                           </div>
                           <div className="nk-profile-item">
-                            <label>Usuario</label>
-                            <p>{user.username}</p>
+                            <dt>Usuario</dt>
+                            <dd>{user.username}</dd>
                           </div>
                           <div className="nk-profile-item">
-                            <label>Rol</label>
-                            <p className="nk-role-tag">{user.role?.toUpperCase() || 'NAKAMA'}</p>
+                            <dt>Rol</dt>
+                            <dd className="nk-role-tag">{user.role?.toUpperCase() || 'NAKAMA'}</dd>
                           </div>
-                        </div>
-                        <div className="nk-profile-actions">
-                           <button className="nk-btn">Editar Perfil</button>
-                           <button className="nk-btn-sec">Cambiar Contraseña</button>
-                        </div>
+                        </dl>
+                        <p className="nk-readonly-note">
+                          <span className="material-icons-outlined" aria-hidden="true">lock</span>
+                          Tus datos se muestran en modo de solo lectura.
+                        </p>
                       </div>
                     </div>
                   )}
@@ -775,28 +775,31 @@ export default function MiCuentaPage() {
           ) : (
             <div className="nk-login-form-wrapper">
               <div className="nk-login-header">
-                <Image src="https://nakamabordados.com/wp-content/uploads/2025/11/LOGO-NAKAMA-scaled-2048x926.png" alt="Nakama" width={150} height={70} style={{ objectFit: 'contain' }} className="nk-logo-img" />
+                <Image src="https://nakamabordados.com/wp-content/uploads/2025/11/LOGO-NAKAMA-scaled-2048x926.png" alt="Nakama" width={150} height={70} className="nk-logo-img" />
                 <h2 className="nk-section-title">
                   {authMode === 'login' ? t('account.login.title') : t('account.register.title')}
                 </h2>
               </div>
 
+              <AuthModeTabs mode={authMode} onChange={switchAuthMode} />
+
               {returnTo && (
-                <p className="nk-return-notice">
+                <p className="nk-return-notice" role="status">
                   Inicia sesión o crea tu cuenta para completar tu compra. Al crear tu cuenta obtienes descuentos y beneficios exclusivos, y al terminar te regresamos a donde estabas.
                 </p>
               )}
 
-              {notice && <p className="nk-social-notice">{notice}</p>}
+              {notice && <p className="nk-social-notice" role="status">{notice}</p>}
 
               {authMode === 'login' ? (
-                <>
+                <div id="auth-panel-login" role="tabpanel" aria-labelledby="auth-tab-login">
                   <form onSubmit={handleLogin} className="nk-login-form">
                     <div className="nk-form-group">
-                      <label>{t('account.login.user')}</label>
+                      <label htmlFor="account-login-username">{t('account.login.user')}</label>
                       {/* autoCapitalize/autoCorrect off: los teclados móviles capitalizan
                           la primera letra o autocorrigen el usuario y el login falla. */}
                       <input
+                        id="account-login-username"
                         type="text"
                         name="username"
                         value={userCredentials.username}
@@ -807,11 +810,13 @@ export default function MiCuentaPage() {
                         autoCorrect="off"
                         spellCheck={false}
                         autoComplete="username"
+                        aria-describedby={error ? 'account-auth-error' : undefined}
                       />
                     </div>
                     <div className="nk-form-group">
-                      <label>{t('account.login.pass')}</label>
+                      <label htmlFor="account-login-password">{t('account.login.pass')}</label>
                       <input
+                        id="account-login-password"
                         type="password"
                         name="password"
                         value={userCredentials.password}
@@ -819,26 +824,24 @@ export default function MiCuentaPage() {
                         required
                         className="nk-manga-input"
                         autoComplete="current-password"
+                        aria-describedby={error ? 'account-auth-error' : undefined}
                       />
                     </div>
 
-                    {error && <p className="nk-error-msg">{error}</p>}
+                    {error && <p id="account-auth-error" className="nk-error-msg" role="alert">{error}</p>}
 
-                    <button type="submit" disabled={isLoggingIn} className="nk-btn nk-btn-block">
-                      {isLoggingIn ? '...' : t('account.login.btn')}
+                    <button type="submit" disabled={isLoggingIn} aria-busy={isLoggingIn} className="nk-btn nk-btn-block">
+                      {isLoggingIn ? 'Iniciando sesión…' : t('account.login.btn')}
                     </button>
                   </form>
-
-                  <button type="button" className="nk-auth-switch" onClick={() => switchAuthMode('register')}>
-                    {t('account.login.no_account')}
-                  </button>
-                </>
+                </div>
               ) : (
-                <>
+                <div id="auth-panel-register" role="tabpanel" aria-labelledby="auth-tab-register">
                   <form onSubmit={handleRegister} className="nk-login-form">
                     <div className="nk-form-group">
-                      <label>{t('account.register.first')}</label>
+                      <label htmlFor="account-register-first-name">{t('account.register.first')}</label>
                       <input
+                        id="account-register-first-name"
                         type="text"
                         name="firstName"
                         value={registerData.firstName}
@@ -846,22 +849,26 @@ export default function MiCuentaPage() {
                         required
                         className="nk-manga-input"
                         autoComplete="given-name"
+                        aria-describedby={error ? 'account-auth-error' : undefined}
                       />
                     </div>
                     <div className="nk-form-group">
-                      <label>{t('account.register.last')}</label>
+                      <label htmlFor="account-register-last-name">{t('account.register.last')}</label>
                       <input
+                        id="account-register-last-name"
                         type="text"
                         name="lastName"
                         value={registerData.lastName}
                         onChange={handleRegisterChange}
                         className="nk-manga-input"
                         autoComplete="family-name"
+                        aria-describedby={error ? 'account-auth-error' : undefined}
                       />
                     </div>
                     <div className="nk-form-group">
-                      <label>{t('account.register.email')}</label>
+                      <label htmlFor="account-register-email">{t('account.register.email')}</label>
                       <input
+                        id="account-register-email"
                         type="email"
                         name="email"
                         value={registerData.email}
@@ -872,22 +879,26 @@ export default function MiCuentaPage() {
                         autoCorrect="off"
                         spellCheck={false}
                         autoComplete="email"
+                        aria-describedby={error ? 'account-auth-error' : undefined}
                       />
                     </div>
                     <div className="nk-form-group">
-                      <label>{t('account.register.phone')}</label>
+                      <label htmlFor="account-register-phone">{t('account.register.phone')}</label>
                       <input
+                        id="account-register-phone"
                         type="tel"
                         name="phone"
                         value={registerData.phone}
                         onChange={handleRegisterChange}
                         className="nk-manga-input"
                         autoComplete="tel"
+                        aria-describedby={error ? 'account-auth-error' : undefined}
                       />
                     </div>
                     <div className="nk-form-group">
-                      <label>{t('account.register.pass')}</label>
+                      <label htmlFor="account-register-password">{t('account.register.pass')}</label>
                       <input
+                        id="account-register-password"
                         type="password"
                         name="password"
                         value={registerData.password}
@@ -896,20 +907,17 @@ export default function MiCuentaPage() {
                         minLength={6}
                         className="nk-manga-input"
                         autoComplete="new-password"
+                        aria-describedby={error ? 'account-auth-error' : undefined}
                       />
                     </div>
 
-                    {error && <p className="nk-error-msg">{error}</p>}
+                    {error && <p id="account-auth-error" className="nk-error-msg" role="alert">{error}</p>}
 
-                    <button type="submit" disabled={isRegistering} className="nk-btn nk-btn-block">
-                      {isRegistering ? '...' : t('account.register.btn')}
+                    <button type="submit" disabled={isRegistering} aria-busy={isRegistering} className="nk-btn nk-btn-block">
+                      {isRegistering ? 'Creando cuenta…' : t('account.register.btn')}
                     </button>
                   </form>
-
-                  <button type="button" className="nk-auth-switch" onClick={() => switchAuthMode('login')}>
-                    {t('account.register.have_account')}
-                  </button>
-                </>
+                </div>
               )}
 
               {/* Aplica a iniciar sesión y a crear cuenta: Nextend vincula por
@@ -920,7 +928,7 @@ export default function MiCuentaPage() {
 
               <div className="nk-login-footer">
                 <Link href="/" className="nk-home-link">
-                  <span className="material-icons-outlined">home</span>
+                  <span className="material-icons-outlined" aria-hidden="true">home</span>
                   {t('nav.home')}
                 </Link>
               </div>
@@ -937,12 +945,13 @@ export default function MiCuentaPage() {
              El 60px fijo anterior metía la tarjeta bajo el header en móvil,
              y el centrado vertical (align-items:center con 90vh) la subía
              aún más en pantallas cortas; en móvil se alinea arriba. */
-          padding: calc(var(--header-padding) + 20px) 15px 60px;
+          padding: calc(var(--header-padding) + 16px) 12px 48px;
           background: var(--nk-bg-body);
           min-height: 90vh;
           display: flex;
           align-items: flex-start;
           justify-content: center;
+          font-size: 1rem;
         }
 
         .nk-container {
@@ -953,7 +962,7 @@ export default function MiCuentaPage() {
 
         .nk-account-card {
           background: var(--nk-bg-card);
-          padding: 20px;
+          padding: 12px;
           width: 100%;
           box-sizing: border-box;
           box-shadow: var(--nk-manga-shadow-lg);
@@ -973,7 +982,16 @@ export default function MiCuentaPage() {
         .nk-dashboard-grid {
           display: flex;
           flex-direction: column;
-          gap: 30px;
+          gap: 24px;
+        }
+
+        @media (min-width: 375px) {
+          .nk-account-page { padding-inline: 16px; }
+          .nk-account-card { padding: 16px; }
+        }
+
+        @media (min-width: 768px) and (max-width: 991px) {
+          .nk-account-card { padding: 24px; }
         }
 
         /* Desktop Sidebar */
@@ -997,152 +1015,144 @@ export default function MiCuentaPage() {
         }
 
         .nk-sidebar-header {
-          text-align: center;
-          margin-bottom: 25px;
-          padding-bottom: 20px;
-          border-bottom: 2px solid var(--nk-border);
+          display: grid;
+          grid-template-columns: 48px minmax(0, 1fr) auto;
+          align-items: center;
+          gap: 12px;
+          margin-bottom: 16px;
+          padding: 4px 0 16px;
+          border-bottom: 3px dashed var(--nk-primary);
         }
 
         .nk-user-avatar {
-          width: 70px;
-          height: 70px;
+          width: 48px;
+          height: 48px;
           border-radius: 50%;
           border: 3px solid var(--nk-border);
-          margin: 0 auto 15px;
           background: var(--nk-bg-wrapper);
           display: flex;
           align-items: center;
           justify-content: center;
         }
 
-        .nk-user-avatar span {
-          font-size: 2.5rem;
-        }
+        .nk-user-avatar span { font-size: 1.75rem; }
+        .nk-user-meta { min-width: 0; }
 
         .nk-user-meta h3 {
           margin: 0;
-          font-size: 1.3rem;
           font-family: 'Teko', sans-serif;
+          font-size: 1.35rem;
+          line-height: 1;
+          overflow-wrap: anywhere;
         }
 
         .nk-user-meta p {
-          font-size: 0.75rem;
-          opacity: 0.6;
-          text-transform: uppercase;
-          letter-spacing: 1px;
-        }
-
-        .nk-dashboard-nav ul {
-          list-style: none;
-          padding: 0;
-          margin: 0;
-          display: flex;
-          gap: 10px;
-          overflow-x: auto;
-          padding-bottom: 10px;
-          -webkit-overflow-scrolling: touch;
-          scrollbar-width: none;
-        }
-
-        /* En móvil la nav es una fila deslizable: los items no deben encogerse */
-        .nk-dashboard-nav li {
-          flex-shrink: 0;
-        }
-
-        .nk-dashboard-nav ul::-webkit-scrollbar {
-          display: none;
-        }
-
-        @media (min-width: 992px) {
-          .nk-dashboard-nav ul {
-            flex-direction: column;
-            overflow-x: visible;
-          }
-        }
-
-        /* :not(.nk-admin-btn): los botones de ADMIN TOOLS se visten SOLO con
-           .nk-admin-btn (globals.css). Este selector con hash de styled-jsx
-           tiene más especificidad y pisaba el fondo/tipografía del botón
-           "Escritorio WordPress" (el MaintenanceToggle, al ser otro componente,
-           no lleva el hash — quedaban dos botones vecinos con diseños distintos). */
-        .nk-dashboard-nav button:not(.nk-admin-btn) {
-          white-space: nowrap;
-          padding: 8px 14px;
-          border: 2px solid transparent;
-          background: var(--nk-bg-wrapper);
-          color: var(--nk-text-main);
-          font-family: 'Teko', sans-serif;
-          font-size: 1.1rem;
-          text-transform: uppercase;
-          cursor: pointer;
-          transition: 0.3s;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-          border-radius: 4px;
-          min-height: 44px; /* alto táctil mínimo recomendado */
-        }
-
-        @media (min-width: 992px) {
-          .nk-dashboard-nav button:not(.nk-admin-btn) {
-            width: 100%;
-            background: transparent;
-            border: none;
-            border-radius: 0;
-            padding: 12px 15px;
-            font-size: 1.4rem;
-          }
-        }
-
-        .nk-dashboard-nav button.active {
-          background: var(--nk-primary);
-          color: #fff;
-          border-color: var(--nk-primary);
-        }
-
-        .nk-nav-divider {
-          display: none;
-        }
-
-        @media (min-width: 992px) {
-          .nk-nav-divider {
-            display: block;
-            margin-top: 20px;
-            padding: 10px 0 5px;
-            font-size: 0.7rem;
-            font-weight: 800;
-            color: var(--nk-primary);
-            letter-spacing: 2px;
-            border-top: 1px solid var(--nk-border);
-          }
-        }
-
-        /* Los estilos de .nk-admin-btn viven en globals.css: los usan
-           componentes distintos (esta página y MaintenanceToggle) y el scope
-           por hash de styled-jsx dejaba al toggle sin estilos. */
-
-        .nk-logout-li {
-          margin-left: auto;
-        }
-
-        @media (min-width: 992px) {
-          .nk-logout-li {
-            margin-left: 0;
-            margin-top: 20px;
-            padding-top: 20px;
-            border-top: 1px solid var(--nk-border);
-          }
+          margin-top: 3px;
+          color: var(--nk-text-sec);
+          font-size: 0.875rem;
+          line-height: 1.3;
+          overflow-wrap: anywhere;
         }
 
         .nk-logout-btn {
-          color: #ff4444 !important;
+          min-width: 44px;
+          min-height: 44px;
+          padding: 6px 10px;
+          border: 2px solid #c83232;
+          background: transparent;
+          color: #c83232;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          font-size: 0.875rem;
           font-weight: 800;
+          cursor: pointer;
+        }
+
+        .nk-logout-btn > span:last-child { display: none; }
+
+        .nk-work-access {
+          margin-top: 24px;
+          padding-top: 16px;
+          border-top: 2px solid var(--nk-border);
+        }
+
+        .nk-work-access h4 {
+          margin: 0 0 10px;
+          color: var(--nk-primary);
+          font-size: 1.15rem;
+          letter-spacing: 0.04em;
+        }
+
+        .nk-work-access ul {
+          list-style: none;
+          margin: 0;
+          padding: 0;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 8px;
+        }
+
+        .nk-work-access :global(.nk-work-link) {
+          min-height: 44px;
+          padding: 8px 12px;
+          border: 2px solid var(--nk-border);
+          background: var(--nk-bg-wrapper);
+          color: var(--nk-text-main);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 1rem;
+          font-weight: 800;
+          line-height: 1.25;
+          text-decoration: none;
+        }
+
+        .nk-work-access :global(.nk-work-link:hover) {
+          border-color: var(--nk-primary);
+          color: var(--nk-primary);
+        }
+
+        .nk-work-access :global(.nk-work-link-admin) { border-color: var(--nk-primary); }
+
+        .nk-maintenance-control :global(.nk-admin-btn) {
+          min-height: 44px;
+          width: 100%;
+        }
+
+        @media (min-width: 600px) and (max-width: 991px) {
+          .nk-work-access ul { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        }
+
+        @media (min-width: 992px) {
+          .nk-sidebar-header {
+            grid-template-columns: minmax(0, 1fr);
+            justify-items: center;
+            text-align: center;
+            gap: 10px;
+            margin-bottom: 20px;
+            border-bottom-color: var(--nk-border);
+          }
+
+          .nk-user-avatar { width: 70px; height: 70px; }
+          .nk-user-avatar span { font-size: 2.5rem; }
+          .nk-logout-btn { width: 100%; }
+          .nk-logout-btn > span:last-child { display: inline; }
+          .nk-work-access ul { display: flex; flex-direction: column; }
         }
 
         /* Content Area */
         .nk-dashboard-content {
           width: 100%;
           min-width: 0; /* Prevents grid overflow */
+          border-left: 3px dashed var(--nk-primary);
+          padding-left: 12px;
+        }
+
+        .nk-dashboard-content:focus-visible {
+          outline: 3px solid var(--nk-primary);
+          outline-offset: 4px;
         }
 
         .nk-tab-intro {
@@ -1168,28 +1178,42 @@ export default function MiCuentaPage() {
         }
 
         .nk-shortcut-card {
-          padding: 20px 10px;
+          min-height: 88px;
+          padding: 14px 8px;
           text-align: center;
           cursor: pointer;
           background: var(--nk-bg-wrapper);
-          transition: 0.2s;
+          color: var(--nk-text-main);
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          transition: border-color 160ms ease, color 160ms ease, box-shadow 160ms ease;
         }
 
-        .nk-shortcut-card span {
+        .nk-shortcut-card > .material-icons-outlined {
           font-size: 2rem;
           color: var(--nk-primary);
-          margin-bottom: 8px;
-          display: block;
         }
 
-        .nk-shortcut-card h4 {
+        .nk-shortcut-card > span:last-child {
+          font-family: 'Teko', sans-serif;
           font-size: 1rem;
+          font-weight: 700;
+          line-height: 1;
+          text-transform: uppercase;
           margin: 0;
           overflow-wrap: anywhere;
         }
 
+        .nk-shortcut-card:hover {
+          border-color: var(--nk-primary);
+          color: var(--nk-primary);
+        }
+
         @media (min-width: 480px) {
-          .nk-shortcut-card h4 { font-size: 1.1rem; }
+          .nk-shortcut-card > span:last-child { font-size: 1.1rem; }
         }
 
         /* Forms */
@@ -1198,6 +1222,17 @@ export default function MiCuentaPage() {
           width: 100%;
           margin: 0 auto;
         }
+
+        .nk-login-header {
+          text-align: center;
+        }
+
+        .nk-login-header :global(.nk-logo-img) {
+          width: 150px;
+          height: 70px;
+          object-fit: contain;
+        }
+
 
         .nk-form-group {
           margin-bottom: 20px;
@@ -1208,7 +1243,7 @@ export default function MiCuentaPage() {
           margin-bottom: 8px;
           font-weight: 700;
           text-transform: uppercase;
-          font-size: 0.85rem;
+          font-size: 0.875rem;
         }
 
         .nk-manga-input {
@@ -1218,12 +1253,26 @@ export default function MiCuentaPage() {
           background: var(--nk-bg-body);
           color: var(--nk-text-main);
           font-size: 1rem;
+          min-height: 48px;
+          border-radius: 0;
         }
 
         .nk-btn-block {
           width: 100%;
           padding: 15px;
           font-size: 1.4rem;
+          min-height: 48px;
+        }
+
+        .nk-error-msg {
+          margin: 0 0 16px;
+          padding: 12px;
+          border: 2px solid #c83232;
+          color: var(--nk-text-main);
+          background: var(--nk-bg-wrapper);
+          font-size: 1rem;
+          font-weight: 700;
+          line-height: 1.5;
         }
 
         .nk-return-notice {
@@ -1248,29 +1297,7 @@ export default function MiCuentaPage() {
           line-height: 1.45;
         }
 
-        .nk-auth-switch {
-          display: block;
-          width: 100%;
-          margin-top: 16px;
-          padding: 6px;
-          background: none;
-          border: none;
-          color: var(--nk-primary, #e11d2a);
-          font-weight: 700;
-          text-transform: uppercase;
-          font-size: 0.9rem;
-          letter-spacing: 0.03em;
-          cursor: pointer;
-          text-decoration: underline;
-        }
-
-        .nk-auth-switch:hover {
-          opacity: 0.8;
-        }
-
-        /* Volver al inicio: centrado bajo el switch de login/registro y
-           separado con línea punteada, como botón outline del sistema manga
-           (la clase global nk-btn-sec no existe; el estilo vive aquí). */
+        /* Volver al inicio: acción outline separada del acceso social. */
         .nk-login-footer {
           margin-top: 25px;
           padding-top: 20px;
@@ -1344,6 +1371,83 @@ export default function MiCuentaPage() {
           color: var(--nk-primary);
         }
 
+        .nk-order-date,
+        .nk-order-status,
+        .nk-order-details,
+        .nk-order-payment-copy {
+          font-size: 0.875rem;
+          line-height: 1.5;
+        }
+
+        .nk-order-details li {
+          font-size: 1rem;
+          line-height: 1.5;
+        }
+
+        .nk-order-payment {
+          margin-top: 16px;
+          padding-top: 16px;
+          border-top: 2px dashed var(--nk-border);
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+        }
+
+        .nk-order-payment-copy {
+          color: var(--nk-text-sec);
+          font-weight: 700;
+        }
+
+        .nk-order-payment-actions {
+          display: grid;
+          grid-template-columns: minmax(0, 1fr);
+          gap: 8px;
+        }
+
+        .nk-order-payment-action {
+          width: 100%;
+          min-height: 48px;
+          padding: 10px 14px;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 7px;
+          font-size: 1.1rem;
+          line-height: 1.1;
+        }
+
+        .nk-order-payment-action .material-icons-outlined { font-size: 18px; }
+
+        @media (min-width: 600px) {
+          .nk-order-payment-actions {
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+          }
+        }
+
+        .nk-account-secondary-action {
+          min-height: 44px;
+          padding: 9px 16px;
+          border: 2px solid var(--nk-border);
+          background: var(--nk-bg-card);
+          color: var(--nk-text-main);
+          font-family: 'Teko', sans-serif;
+          font-size: 1.1rem;
+          font-weight: 700;
+          text-transform: uppercase;
+          text-decoration: none;
+          cursor: pointer;
+        }
+
+        .nk-account-secondary-action:hover:not(:disabled) {
+          border-color: var(--nk-primary);
+          color: var(--nk-primary);
+        }
+
+        .nk-account-secondary-action:disabled {
+          opacity: 0.62;
+          cursor: not-allowed;
+        }
+
         /* Tracking */
         .nk-track-input-area {
           display: flex;
@@ -1354,12 +1458,29 @@ export default function MiCuentaPage() {
           margin-bottom: 20px;
         }
 
+        .nk-track-input-area > div { min-width: 0; }
+
+        .nk-track-code,
+        .nk-track-carrier,
+        .nk-track-order {
+          font-size: 0.875rem;
+          line-height: 1.4;
+        }
+
+        .nk-tracking-refresh {
+          width: 100%;
+          min-height: 48px;
+          white-space: normal;
+        }
+
         @media (min-width: 600px) {
           .nk-track-input-area {
             flex-direction: row;
             justify-content: space-between;
             align-items: center;
           }
+
+          .nk-tracking-refresh { width: auto; min-width: 160px; }
         }
 
         .nk-tracking-details {
@@ -1377,194 +1498,14 @@ export default function MiCuentaPage() {
         }
 
         .nk-track-status-problem {
-          color: #e74c3c;
-        }
-
-        /* Stepper horizontal de 4 etapas */
-        .nk-track-stepper {
-          display: flex;
-          margin: 20px 0 24px;
-        }
-
-        .nk-track-step {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          text-align: center;
-          position: relative;
-          gap: 6px;
-        }
-
-        /* Conector entre pasos */
-        .nk-track-step::before {
-          content: '';
-          position: absolute;
-          top: 17px;
-          right: 50%;
-          width: 100%;
-          height: 3px;
-          background: var(--nk-border, rgba(128, 128, 128, 0.35));
-          z-index: 0;
-        }
-
-        .nk-track-step:first-child::before {
-          display: none;
-        }
-
-        .nk-track-step.is-done::before {
-          background: var(--nk-primary);
-        }
-
-        .nk-track-step-icon {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-size: 19px !important;
-          background: var(--nk-bg-card);
-          border: 2px solid var(--nk-border, rgba(128, 128, 128, 0.45));
-          color: var(--nk-text-sec);
-          position: relative;
-          z-index: 1;
-        }
-
-        .nk-track-step.is-done .nk-track-step-icon {
-          background: var(--nk-primary);
-          border-color: var(--nk-primary);
-          color: #fff;
-        }
-
-        .nk-track-step.is-current .nk-track-step-icon {
-          box-shadow: 0 0 0 4px rgba(230, 57, 70, 0.25);
-        }
-
-        .nk-track-step.is-problem .nk-track-step-icon {
-          background: #e74c3c;
-          border-color: #e74c3c;
-          box-shadow: 0 0 0 4px rgba(231, 76, 60, 0.25);
-        }
-
-        .nk-track-step-label {
-          font-size: 0.68rem;
-          font-weight: 700;
-          letter-spacing: 0.5px;
-          text-transform: uppercase;
-          color: var(--nk-text-sec);
-          max-width: 90px;
-          line-height: 1.25;
-        }
-
-        .nk-track-step.is-done .nk-track-step-label {
-          color: var(--nk-text);
-        }
-
-        /* 5 pasos en pantallas angostas: encoger para que no se encimen. */
-        @media (max-width: 480px) {
-          .nk-track-step-icon {
-            width: 30px;
-            height: 30px;
-            font-size: 16px !important;
-          }
-          .nk-track-step::before {
-            top: 14px;
-          }
-          .nk-track-step-label {
-            font-size: 0.58rem;
-            letter-spacing: 0.2px;
-          }
-        }
-
-        /* Barra de progreso del ciclo del pedido (mismo lenguaje visual que el
-           stepper de envío, aplicado a las 4 etapas de fabricación/envío). */
-        .nk-order-steps {
-          display: flex;
-          margin: 16px 0 4px;
-        }
-        .nk-order-step {
-          flex: 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          text-align: center;
-          position: relative;
-          gap: 6px;
-        }
-        .nk-order-step::before {
-          content: '';
-          position: absolute;
-          top: 17px;
-          right: 50%;
-          width: 100%;
-          height: 3px;
-          background: var(--nk-border, rgba(128, 128, 128, 0.35));
-          z-index: 0;
-        }
-        .nk-order-step:first-child::before {
-          display: none;
-        }
-        .nk-order-step.is-done::before {
-          background: var(--nk-primary);
-        }
-        .nk-order-step-dot {
-          width: 36px;
-          height: 36px;
-          border-radius: 50%;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: var(--nk-bg-card);
-          border: 2px solid var(--nk-border, rgba(128, 128, 128, 0.45));
-          color: var(--nk-text-sec);
-          position: relative;
-          z-index: 1;
-        }
-        .nk-order-step-dot .material-icons-outlined {
-          font-size: 19px;
-        }
-        .nk-order-step.is-done .nk-order-step-dot {
-          background: var(--nk-primary);
-          border-color: var(--nk-primary);
-          color: #fff;
-        }
-        .nk-order-step.is-current .nk-order-step-dot {
-          box-shadow: 0 0 0 4px rgba(230, 57, 70, 0.25);
-        }
-        .nk-order-step-label {
-          font-size: 0.66rem;
-          font-weight: 700;
-          letter-spacing: 0.5px;
-          text-transform: uppercase;
-          color: var(--nk-text-sec);
-          max-width: 92px;
-          line-height: 1.2;
-        }
-        .nk-order-step.is-done .nk-order-step-label {
-          color: var(--nk-text-main);
-        }
-        @media (max-width: 480px) {
-          .nk-order-step-dot {
-            width: 30px;
-            height: 30px;
-          }
-          .nk-order-step-dot .material-icons-outlined {
-            font-size: 16px;
-          }
-          .nk-order-step::before {
-            top: 14px;
-          }
-          .nk-order-step-label {
-            font-size: 0.55rem;
-            letter-spacing: 0.2px;
-          }
+          color: #c83232;
         }
 
         /* Línea de tiempo vertical de eventos */
         .nk-track-timeline {
-          margin: 6px 0 0 6px;
-          border-left: 2px solid var(--nk-border, rgba(128, 128, 128, 0.35));
+          list-style: none;
+          margin: 8px 0 0 6px;
+          border-left: 3px dashed var(--nk-primary);
           padding-left: 20px;
           display: flex;
           flex-direction: column;
@@ -1591,8 +1532,8 @@ export default function MiCuentaPage() {
         }
 
         .nk-track-event-desc {
-          font-size: 0.9rem;
-          line-height: 1.4;
+          font-size: 1rem;
+          line-height: 1.5;
         }
 
         .nk-track-event-latest .nk-track-event-desc {
@@ -1600,9 +1541,49 @@ export default function MiCuentaPage() {
         }
 
         .nk-track-event-meta {
-          font-size: 0.78rem;
+          font-size: 0.875rem;
           color: var(--nk-text-sec);
           margin-top: 2px;
+        }
+
+        .nk-official-tracking {
+          margin-top: 20px;
+        }
+
+        .nk-official-tracking-link {
+          width: 100%;
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          line-height: 1.2;
+        }
+
+        .nk-official-tracking-link .material-icons-outlined { font-size: 18px; }
+
+        .nk-empty-state,
+        .nk-tracking-empty {
+          min-height: 220px;
+          padding: 24px 12px;
+          border-left: 3px dashed var(--nk-primary);
+          display: flex;
+          flex-direction: column;
+          align-items: flex-start;
+          justify-content: center;
+          gap: 12px;
+          text-align: left;
+        }
+
+        .nk-empty-state > .material-icons-outlined,
+        .nk-tracking-empty > .material-icons-outlined {
+          color: var(--nk-primary);
+          font-size: 2.5rem;
+        }
+
+        .nk-empty-state p,
+        .nk-tracking-empty p {
+          font-size: 1rem;
+          line-height: 1.55;
         }
 
         /* Commissions & Profile */
@@ -1635,6 +1616,7 @@ export default function MiCuentaPage() {
         }
 
         .nk-profile-grid {
+          margin: 0;
           display: grid;
           grid-template-columns: minmax(0, 1fr);
           gap: 20px;
@@ -1648,10 +1630,24 @@ export default function MiCuentaPage() {
         }
 
         /* Emails/usuarios/guías largos no deben desbordar en móvil */
-        .nk-profile-item p,
+        .nk-profile-item dd,
         .nk-track-code,
         .nk-order-number {
           overflow-wrap: anywhere;
+        }
+
+        .nk-profile-item dt {
+          margin-bottom: 5px;
+          color: var(--nk-text-sec);
+          font-size: 0.875rem;
+          font-weight: 800;
+          text-transform: uppercase;
+        }
+
+        .nk-profile-item dd {
+          margin: 0;
+          font-size: 1rem;
+          line-height: 1.55;
         }
 
         .nk-order-details ul {
@@ -1659,26 +1655,24 @@ export default function MiCuentaPage() {
           margin: 0 0 10px;
         }
 
-        .nk-profile-actions {
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
+        .nk-readonly-note {
           margin-top: 30px;
           padding-top: 20px;
-          border-top: 1px solid var(--nk-border);
-        }
-
-        @media (min-width: 600px) {
-          .nk-profile-actions {
-            flex-direction: row;
-          }
+          border-top: 2px dashed var(--nk-border);
+          color: var(--nk-text-sec);
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 0.875rem;
+          font-weight: 700;
+          line-height: 1.5;
         }
 
         .nk-login-protocol {
           text-align: center;
           margin-top: 30px;
-          font-size: 0.65rem;
-          opacity: 0.3;
+          font-size: 0.875rem;
+          color: var(--nk-text-sec);
           letter-spacing: 2px;
           padding: 0 10px;
         }
@@ -1686,8 +1680,31 @@ export default function MiCuentaPage() {
         @media (min-width: 768px) {
           .nk-login-protocol {
             margin-top: 50px;
-            font-size: 0.8rem;
+            font-size: 0.875rem;
             letter-spacing: 4px;
+          }
+        }
+
+        .nk-account-page button:focus-visible,
+        .nk-account-page input:focus-visible,
+        .nk-account-page :global(a:focus-visible) {
+          outline: 3px solid var(--nk-primary);
+          outline-offset: 3px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .nk-account-page *,
+          .nk-account-page *::before,
+          .nk-account-page *::after {
+            scroll-behavior: auto !important;
+            transition-duration: 0.01ms !important;
+            animation-duration: 0.01ms !important;
+            animation-iteration-count: 1 !important;
+          }
+
+          .nk-dash-animate,
+          .nk-login-footer :global(.nk-home-link:hover) {
+            transform: none !important;
           }
         }
       `}</style>
