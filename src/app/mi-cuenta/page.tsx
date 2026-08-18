@@ -14,6 +14,7 @@ import { openWpAdmin, seedWpSession, WP_ADMIN_URL } from '@/lib/wp-sso';
 import { apiOrigin } from '@/lib/api-host';
 import { fetchProductionAccess } from '@/lib/production-api';
 import { fetchWarehouseAccess } from '@/lib/warehouse-api';
+import { canShowQuotePaymentActions } from '@/lib/quote-payment';
 
 /* Estados de pedido de WooCommerce en español. GraphQL los entrega como enum
    (ON_HOLD) y REST como slug (on-hold); se canonicaliza a slug antes de mapear. */
@@ -527,10 +528,9 @@ export default function MiCuentaPage() {
                                 </div>
                               </div>
 
-                              {/* Pedido pendiente de pago (p. ej. cotización con
-                                  precio ya asignado): pagar solo, o mandarla al
-                                  carrito para pagarla junto con otros artículos. */}
-                              {order.needsPayment && order.databaseId && order.orderKey && (
+                              {/* La decisión server-side incluye procedencia,
+                                  estado, needs_payment, precio y moneda. */}
+                              {canShowQuotePaymentActions(order) && (
                                 <div style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px dashed var(--nk-border)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '12px' }}>
                                   <button
                                     className="nk-btn"
@@ -554,28 +554,24 @@ export default function MiCuentaPage() {
                                     <span className="material-icons-outlined" style={{ fontSize: '18px', verticalAlign: 'middle', marginRight: '6px' }}>payments</span>
                                     PAGAR AHORA
                                   </button>
-                                  {/* Solo cotizaciones (folio NK-): un pedido normal
-                                      pendiente se paga directo, no viaja al carrito. */}
-                                  {String(order.orderNumber || '').startsWith('NK-') && (
-                                    <button
-                                      className="nk-btn-sec"
-                                      style={{ padding: '10px 24px', fontSize: '1.2rem' }}
-                                      disabled={isQuoteInCart(order.databaseId)}
-                                      onClick={() => addQuoteToCart({
-                                        orderId: order.databaseId,
-                                        orderKey: order.orderKey,
-                                        folio: String(order.orderNumber),
-                                        // Mismo parseo del total que el render de arriba;
-                                        // las cotizaciones siempre se emiten en MXN.
-                                        totalMXN: parseFloat(String(order.total || '0').replace(/[^0-9.-]/g, '')) || 0,
-                                      })}
-                                    >
-                                      <span className="material-icons-outlined" style={{ fontSize: '18px', verticalAlign: 'middle', marginRight: '6px' }}>
-                                        {isQuoteInCart(order.databaseId) ? 'check' : 'add_shopping_cart'}
-                                      </span>
-                                      {isQuoteInCart(order.databaseId) ? 'EN EL CARRITO' : 'AGREGAR AL CARRITO'}
-                                    </button>
-                                  )}
+                                  <button
+                                    className="nk-btn-sec"
+                                    style={{ padding: '10px 24px', fontSize: '1.2rem' }}
+                                    disabled={isQuoteInCart(order.databaseId)}
+                                    onClick={() => addQuoteToCart({
+                                      orderId: order.databaseId,
+                                      orderKey: order.orderKey,
+                                      folio: String(order.orderNumber),
+                                      // Display/cart snapshot only; WooCommerce
+                                      // revalidates the authoritative total.
+                                      totalMXN: parseFloat(String(order.total || '0').replace(/[^0-9.-]/g, '')) || 0,
+                                    })}
+                                  >
+                                    <span className="material-icons-outlined" style={{ fontSize: '18px', verticalAlign: 'middle', marginRight: '6px' }}>
+                                      {isQuoteInCart(order.databaseId) ? 'check' : 'add_shopping_cart'}
+                                    </span>
+                                    {isQuoteInCart(order.databaseId) ? 'EN EL CARRITO' : 'AGREGAR AL CARRITO'}
+                                  </button>
                                   <span style={{ fontSize: '0.8rem', color: 'var(--nk-text-sec)', fontWeight: 600 }}>
                                     Tu cotización ya tiene precio: págala ahora o agrégala al carrito para pagarla junto con otros artículos.
                                   </span>

@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { fetchGraphQL } from '@/lib/graphql-client';
 import { apiOrigin } from '@/lib/api-host';
+import { mergeQuotePaymentEligibility } from '@/lib/quote-payment';
 
 interface OrderMeta {
   key: string;
@@ -17,6 +18,8 @@ interface Order {
   orderKey?: string;
   /** true cuando el pedido está pendiente de pago (o el pago falló) */
   needsPayment?: boolean;
+  /** Decisión server-side para entrar al checkout exclusivo de cotizaciones. */
+  nakamaQuotePaymentEligible?: boolean;
   orderNumber: string;
   status: string;
   total: string;
@@ -158,7 +161,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           email: v.email,
           billingPhone: c.billing?.phone || '',
           role: v.roles?.nodes?.[0]?.name || 'customer',
-          orders: c.orders || { nodes: [] },
+          orders: {
+            nodes: mergeQuotePaymentEligibility(c.orders?.nodes || [], []),
+          },
           shipping: c.shipping || {
             address1: '', address2: '', city: '',
             state: '', postcode: '', country: ''
@@ -194,6 +199,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (trackErr) {
           console.warn('AuthProvider: rastreo Envia no disponible (¿plugin activo en WP?)', trackErr);
+        }
+
+        // Elegibilidad de pago de cotizaciones: query SEPARADA y fail-closed.
+        // Un deploy sin el campo nuevo no rompe viewer/login ni deja visibles
+        // acciones autorizadas solo con datos antiguos del pedido.
+        try {
+          const quoteEligibilityQuery = `
+            query GetOrdersQuotePaymentEligibility {
+              customer {
+                orders(first: 20, where: { orderby: { field: DATE, order: DESC } }) {
+                  nodes { id nakamaQuotePaymentEligible }
+                }
+              }
+            }
+          `;
+          const eligibilityRes = await fetchGraphQL(
+            quoteEligibilityQuery,
+            {},
+            { Authorization: ['Bearer', token].join(' ') },
+          );
+          const eligibilityNodes = eligibilityRes?.errors
+            ? []
+            : eligibilityRes?.data?.customer?.orders?.nodes;
+          customer.orders.nodes = mergeQuotePaymentEligibility(
+            customer.orders.nodes,
+            eligibilityNodes,
+          );
+        } catch (eligibilityErr) {
+          console.warn('AuthProvider: elegibilidad de pago de cotizaciones no disponible', eligibilityErr);
         }
 
         setUser(customer);
