@@ -4,6 +4,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import type { RowSaveState } from '@/hooks/useWarehouse';
 import type { WhItem, WhStatus } from '@/lib/warehouse-api';
+import { translateWarehouseColor } from '@/lib/warehouse-display';
 import { colors, fonts, radius, spacing, TOUCH_TARGET } from '@/lib/theme';
 
 /** Color y texto del estado. Nunca solo color: en el taller se lee de reojo. */
@@ -81,13 +82,15 @@ function StockRowBase({
   const min = draftMin ?? item.min_stock;
   const dirty = draftStock !== undefined || draftMin !== undefined;
   const status = STATUS[item.status];
+  const displayColor = translateWarehouseColor(item.color);
+  const accessibilityItemLabel = `${item.prenda}, ${displayColor}, talla ${item.talla}`;
 
   return (
     <View style={[styles.row, dirty && styles.rowDirty]}>
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}
-        accessibilityLabel={`${item.prenda} ${item.color}, talla ${item.talla}. ${status.label}.`}
+        accessibilityLabel={`${accessibilityItemLabel}. ${status.label}.`}
         accessibilityHint="Toca para ajustar el mínimo"
         onPress={() => onToggle(item.id)}
         style={({ pressed }) => [styles.header, pressed && styles.pressed]}
@@ -96,7 +99,7 @@ function StockRowBase({
 
         <View style={styles.identity}>
           <Text style={styles.name} numberOfLines={1}>
-            {item.prenda} {item.color}
+            {item.prenda} {displayColor}
           </Text>
           <Text style={styles.meta} numberOfLines={1}>
             {status.label}
@@ -117,7 +120,7 @@ function StockRowBase({
         label="En existencia"
         value={stock}
         onChange={(value) => onChangeStock(item.id, value)}
-        accessibilityLabel={`existencia de ${item.label}`}
+        accessibilityLabel={`existencia de ${accessibilityItemLabel}`}
       />
 
       {expanded && (
@@ -125,7 +128,7 @@ function StockRowBase({
           label="Mínimo antes de avisar"
           value={min}
           onChange={(value) => onChangeMin(item.id, value)}
-          accessibilityLabel={`mínimo de ${item.label}`}
+          accessibilityLabel={`mínimo de ${accessibilityItemLabel}`}
         />
       )}
     </View>
