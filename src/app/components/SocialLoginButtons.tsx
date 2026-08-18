@@ -22,8 +22,8 @@ const dividerStyle: React.CSSProperties = {
   alignItems: 'center',
   gap: '0.75rem',
   margin: '1.25rem 0 1rem',
-  color: '#8a8a8a',
-  fontSize: '0.8rem',
+  color: 'var(--nk-text-sec)',
+  fontSize: '0.875rem',
   textTransform: 'uppercase',
   letterSpacing: '0.08em',
 };
@@ -47,7 +47,7 @@ const buttonStyle: React.CSSProperties = {
   border: '2px solid #1a1a1a',
   borderRadius: 8,
   fontWeight: 700,
-  fontSize: '0.95rem',
+  fontSize: '1rem',
   textDecoration: 'none',
   cursor: 'pointer',
 };
@@ -94,7 +94,7 @@ export default function SocialLoginButtons({ backPath, note }: SocialLoginButton
       </a>
 
       {note && (
-        <p style={{ margin: '0.5rem 0 0', fontSize: '0.78rem', color: '#8a8a8a', textAlign: 'center' }}>
+        <p style={{ margin: '0.5rem 0 0', fontSize: '0.875rem', color: 'var(--nk-text-sec)', textAlign: 'center' }}>
           {note}
         </p>
       )}

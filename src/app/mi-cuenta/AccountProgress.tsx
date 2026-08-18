@@ -112,9 +112,9 @@ export default function AccountProgress({
         }
 
         .nk-account-progress-step.is-problem .nk-account-progress-marker {
-          border-color: #c83232;
-          background: #c83232;
-          color: #fff;
+          border-color: var(--nk-danger);
+          background: var(--nk-danger);
+          color: var(--nk-bg-body);
         }
 
         .nk-account-progress-label {
@@ -134,7 +134,7 @@ export default function AccountProgress({
         }
 
         .is-problem .nk-account-progress-state {
-          color: #c83232;
+          color: var(--nk-danger);
         }
 
         @media (min-width: 600px) {

@@ -173,12 +173,15 @@ export default function MiCuentaPage() {
     if (hadError) {
       setError('No se pudo completar el inicio de sesión con Google o Facebook. Inténtalo de nuevo o usa tu correo y contraseña.');
     } else {
+      const socialFirstName = params.get('first_name');
+      const socialLastName = params.get('last_name');
+      const socialEmail = params.get('email');
       setAuthMode('register');
       setRegisterData(prev => ({
         ...prev,
-        firstName: params.get('first_name') || prev.firstName,
-        lastName: params.get('last_name') || prev.lastName,
-        email: params.get('email') || prev.email,
+        firstName: socialFirstName || prev.firstName,
+        lastName: socialLastName || prev.lastName,
+        email: socialEmail || prev.email,
       }));
       setNotice('Aún no tienes cuenta con ese correo. Completa tus datos y elige una contraseña para crearla.');
     }
@@ -190,7 +193,7 @@ export default function MiCuentaPage() {
   /* eslint-enable react-hooks/set-state-in-effect */
   
   // Tracking state - indexed by tracking code to avoid conflicts
-  const [trackingLoading, setTrackingLoading] = useState<string | null>(null);
+  const [trackingLoading, setTrackingLoading] = useState<Record<string, number>>({});
   const [trackingResults, setTrackingResults] = useState<Record<string, TrackTimeline>>({});
   const [trackingErrors, setTrackingErrors] = useState<Record<string, string>>({});
 
@@ -276,10 +279,15 @@ export default function MiCuentaPage() {
     setAuthMode(mode);
   };
 
+  const activateAccountTab = (tab: AccountSectionId) => {
+    setActiveTab(tab);
+    document.getElementById(`account-tab-${tab}`)?.focus();
+  };
+
 
   const fetchTracking = async (code: string, carrier: string) => {
     if (!code) return;
-    setTrackingLoading(code);
+    setTrackingLoading(prev => ({ ...prev, [code]: (prev[code] || 0) + 1 }));
     setTrackingErrors(prev => ({ ...prev, [code]: '' }));
     try {
       // nkcb: LiteSpeed cachea las respuestas de ?rest_route= y serviría un
@@ -308,7 +316,7 @@ export default function MiCuentaPage() {
         [code]: 'No hay conexión con la paquetería. Conservamos el último estado disponible.',
       }));
     } finally {
-      setTrackingLoading(null);
+      setTrackingLoading(prev => ({ ...prev, [code]: Math.max(0, (prev[code] || 1) - 1) }));
     }
   };
 
@@ -318,7 +326,9 @@ export default function MiCuentaPage() {
   useEffect(() => {
     if (activeTab !== 'tracking' || !user?.orders?.nodes) return;
     const pending = user.orders.nodes.filter(
-      order => order.enviaTrackingCode && !trackingResults[order.enviaTrackingCode]
+      order => order.enviaTrackingCode
+        && !trackingResults[order.enviaTrackingCode]
+        && !trackingLoading[order.enviaTrackingCode]
     );
     const timers = pending.map((order, index) =>
       setTimeout(() => fetchTracking(order.enviaTrackingCode!, order.enviaCarrier || 'estafeta'), index * 400)
@@ -438,14 +448,15 @@ export default function MiCuentaPage() {
                 </aside>
 
                 {/* Main Content Area */}
-                <main
-                  id={`account-panel-${activeTab}`}
-                  className="nk-dashboard-content"
-                  role="tabpanel"
-                  aria-labelledby={`account-tab-${activeTab}`}
-                  tabIndex={0}
-                >
-                  {activeTab === 'dashboard' && (
+                <main className="nk-dashboard-content">
+                  <section
+                    id="account-panel-dashboard"
+                    role="tabpanel"
+                    aria-labelledby="account-tab-dashboard"
+                    tabIndex={activeTab === 'dashboard' ? 0 : undefined}
+                    hidden={activeTab !== 'dashboard'}
+                    className="nk-account-panel"
+                  >
                     <div className="nk-tab-pane nk-dash-animate">
                       <h2 className="nk-section-title">Hola, {user.firstName || user.username}</h2>
                       <p className="nk-tab-intro">
@@ -453,27 +464,34 @@ export default function MiCuentaPage() {
                       </p>
                       
                       <div className="nk-dash-shortcuts">
-                        <button type="button" className="nk-manga-border nk-shortcut-card" onClick={() => setActiveTab('orders')}>
+                        <button type="button" className="nk-manga-border nk-shortcut-card" onClick={() => activateAccountTab('orders')}>
                            <span className="material-icons-outlined" aria-hidden="true">receipt_long</span>
                            <span>Pedidos</span>
                         </button>
-                        <button type="button" className="nk-manga-border nk-shortcut-card" onClick={() => setActiveTab('tracking')}>
+                        <button type="button" className="nk-manga-border nk-shortcut-card" onClick={() => activateAccountTab('tracking')}>
                            <span className="material-icons-outlined" aria-hidden="true">local_shipping</span>
                            <span>Rastreo</span>
                         </button>
-                        <button type="button" className="nk-manga-border nk-shortcut-card" onClick={() => setActiveTab('addresses')}>
+                        <button type="button" className="nk-manga-border nk-shortcut-card" onClick={() => activateAccountTab('addresses')}>
                            <span className="material-icons-outlined" aria-hidden="true">home</span>
                            <span>Dirección</span>
                         </button>
-                        <button type="button" className="nk-manga-border nk-shortcut-card" onClick={() => setActiveTab('profile')}>
+                        <button type="button" className="nk-manga-border nk-shortcut-card" onClick={() => activateAccountTab('profile')}>
                            <span className="material-icons-outlined" aria-hidden="true">settings</span>
                            <span>Cuenta</span>
                         </button>
                       </div>
                     </div>
-                  )}
+                  </section>
 
-                  {activeTab === 'orders' && (
+                  <section
+                    id="account-panel-orders"
+                    role="tabpanel"
+                    aria-labelledby="account-tab-orders"
+                    tabIndex={activeTab === 'orders' ? 0 : undefined}
+                    hidden={activeTab !== 'orders'}
+                    className="nk-account-panel"
+                  >
                     <div className="nk-tab-pane nk-dash-animate">
                       <h2 className="nk-section-title">Historial de Botín</h2>
                       {user.orders && user.orders.nodes.length > 0 ? (
@@ -526,7 +544,9 @@ export default function MiCuentaPage() {
                               {order.needsPayment && order.databaseId && order.orderKey && (
                                 <div className="nk-order-payment">
                                   <p className="nk-order-payment-copy">
-                                    Tu cotización ya tiene precio: págala ahora o agrégala al carrito para pagarla junto con otros artículos.
+                                    {String(order.orderNumber || '').startsWith('NK-')
+                                      ? 'Tu cotización ya tiene precio: págala ahora o agrégala al carrito para pagarla junto con otros artículos.'
+                                      : 'Este pedido está pendiente de pago. Puedes completar el pago ahora.'}
                                   </p>
                                   <div className="nk-order-payment-actions">
                                   <button
@@ -585,9 +605,16 @@ export default function MiCuentaPage() {
                         </div>
                       )}
                     </div>
-                  )}
+                  </section>
 
-                  {activeTab === 'tracking' && (
+                  <section
+                    id="account-panel-tracking"
+                    role="tabpanel"
+                    aria-labelledby="account-tab-tracking"
+                    tabIndex={activeTab === 'tracking' ? 0 : undefined}
+                    hidden={activeTab !== 'tracking'}
+                    className="nk-account-panel"
+                  >
                     <div className="nk-tab-pane nk-dash-animate">
                       <h2 className="nk-section-title">Rastreo de Botín</h2>
                       
@@ -619,16 +646,16 @@ export default function MiCuentaPage() {
                                     <button
                                       className="nk-btn nk-tracking-refresh"
                                       onClick={() => fetchTracking(code, order.enviaCarrier || 'estafeta')}
-                                      disabled={trackingLoading === code}
-                                      aria-busy={trackingLoading === code}
+                                      disabled={Boolean(trackingLoading[code])}
+                                      aria-busy={Boolean(trackingLoading[code])}
                                     >
-                                      {trackingLoading === code ? 'Actualizando…' : res ? 'Actualizar estado' : 'Ver estado'}
+                                      {trackingLoading[code] ? 'Actualizando…' : res ? 'Actualizar estado' : 'Ver estado'}
                                     </button>
                                   </div>
 
                                   <TrackingFeedback
                                     error={trackingErrors[code] || ''}
-                                    loading={trackingLoading === code}
+                                    loading={Boolean(trackingLoading[code])}
                                     onRetry={() => fetchTracking(code, order.enviaCarrier || 'estafeta')}
                                   >
                                   {res && (
@@ -693,15 +720,23 @@ export default function MiCuentaPage() {
                           <span className="material-icons-outlined" aria-hidden="true">local_shipping</span>
                           <h3>Aún sin guía</h3>
                           <p>Tus pedidos aún están en el astillero. Te avisaremos cuando zarpen.</p>
-                          <button type="button" className="nk-account-secondary-action" onClick={() => setActiveTab('orders')}>
+                          <button type="button" className="nk-account-secondary-action" onClick={() => activateAccountTab('orders')}>
                             Ver mis pedidos
                           </button>
                         </div>
                       )}
                     </div>
-                  )}
+                  </section>
 
-                  {activeTab === 'commissions' && (
+                  {Boolean(user.comisiones) && (
+                  <section
+                    id="account-panel-commissions"
+                    role="tabpanel"
+                    aria-labelledby="account-tab-commissions"
+                    tabIndex={activeTab === 'commissions' ? 0 : undefined}
+                    hidden={activeTab !== 'commissions'}
+                    className="nk-account-panel"
+                  >
                     <div className="nk-tab-pane nk-dash-animate">
                       <h2 className="nk-section-title">Tus Ganancias</h2>
                       <div className="nk-commission-card nk-manga-border">
@@ -715,9 +750,17 @@ export default function MiCuentaPage() {
                         </div>
                       </div>
                     </div>
+                  </section>
                   )}
 
-                  {activeTab === 'addresses' && (
+                  <section
+                    id="account-panel-addresses"
+                    role="tabpanel"
+                    aria-labelledby="account-tab-addresses"
+                    tabIndex={activeTab === 'addresses' ? 0 : undefined}
+                    hidden={activeTab !== 'addresses'}
+                    className="nk-account-panel"
+                  >
                     <div className="nk-tab-pane nk-dash-animate">
                       <h2 className="nk-section-title">Direcciones</h2>
                       <div className="nk-manga-border nk-address-box">
@@ -738,9 +781,16 @@ export default function MiCuentaPage() {
                         </p>
                       </div>
                     </div>
-                  )}
+                  </section>
 
-                  {activeTab === 'profile' && (
+                  <section
+                    id="account-panel-profile"
+                    role="tabpanel"
+                    aria-labelledby="account-tab-profile"
+                    tabIndex={activeTab === 'profile' ? 0 : undefined}
+                    hidden={activeTab !== 'profile'}
+                    className="nk-account-panel"
+                  >
                     <div className="nk-tab-pane nk-dash-animate">
                       <h2 className="nk-section-title">Detalles de la Cuenta</h2>
                       <div className="nk-info-box nk-manga-border">
@@ -768,7 +818,7 @@ export default function MiCuentaPage() {
                         </p>
                       </div>
                     </div>
-                  )}
+                  </section>
                 </main>
               </div>
             </div>
@@ -791,8 +841,13 @@ export default function MiCuentaPage() {
 
               {notice && <p className="nk-social-notice" role="status">{notice}</p>}
 
-              {authMode === 'login' ? (
-                <div id="auth-panel-login" role="tabpanel" aria-labelledby="auth-tab-login">
+              <div
+                id="auth-panel-login"
+                role="tabpanel"
+                aria-labelledby="auth-tab-login"
+                tabIndex={authMode === 'login' ? 0 : undefined}
+                hidden={authMode !== 'login'}
+              >
                   <form onSubmit={handleLogin} className="nk-login-form">
                     <div className="nk-form-group">
                       <label htmlFor="account-login-username">{t('account.login.user')}</label>
@@ -810,7 +865,7 @@ export default function MiCuentaPage() {
                         autoCorrect="off"
                         spellCheck={false}
                         autoComplete="username"
-                        aria-describedby={error ? 'account-auth-error' : undefined}
+                        aria-describedby={error && authMode === 'login' ? 'account-login-error' : undefined}
                       />
                     </div>
                     <div className="nk-form-group">
@@ -824,19 +879,25 @@ export default function MiCuentaPage() {
                         required
                         className="nk-manga-input"
                         autoComplete="current-password"
-                        aria-describedby={error ? 'account-auth-error' : undefined}
+                        aria-describedby={error && authMode === 'login' ? 'account-login-error' : undefined}
                       />
                     </div>
 
-                    {error && <p id="account-auth-error" className="nk-error-msg" role="alert">{error}</p>}
+                    {error && authMode === 'login' && <p id="account-login-error" className="nk-error-msg" role="alert">{error}</p>}
 
                     <button type="submit" disabled={isLoggingIn} aria-busy={isLoggingIn} className="nk-btn nk-btn-block">
                       {isLoggingIn ? 'Iniciando sesión…' : t('account.login.btn')}
                     </button>
                   </form>
-                </div>
-              ) : (
-                <div id="auth-panel-register" role="tabpanel" aria-labelledby="auth-tab-register">
+              </div>
+
+              <div
+                id="auth-panel-register"
+                role="tabpanel"
+                aria-labelledby="auth-tab-register"
+                tabIndex={authMode === 'register' ? 0 : undefined}
+                hidden={authMode !== 'register'}
+              >
                   <form onSubmit={handleRegister} className="nk-login-form">
                     <div className="nk-form-group">
                       <label htmlFor="account-register-first-name">{t('account.register.first')}</label>
@@ -849,7 +910,7 @@ export default function MiCuentaPage() {
                         required
                         className="nk-manga-input"
                         autoComplete="given-name"
-                        aria-describedby={error ? 'account-auth-error' : undefined}
+                        aria-describedby={error && authMode === 'register' ? 'account-register-error' : undefined}
                       />
                     </div>
                     <div className="nk-form-group">
@@ -862,7 +923,7 @@ export default function MiCuentaPage() {
                         onChange={handleRegisterChange}
                         className="nk-manga-input"
                         autoComplete="family-name"
-                        aria-describedby={error ? 'account-auth-error' : undefined}
+                        aria-describedby={error && authMode === 'register' ? 'account-register-error' : undefined}
                       />
                     </div>
                     <div className="nk-form-group">
@@ -879,7 +940,7 @@ export default function MiCuentaPage() {
                         autoCorrect="off"
                         spellCheck={false}
                         autoComplete="email"
-                        aria-describedby={error ? 'account-auth-error' : undefined}
+                        aria-describedby={error && authMode === 'register' ? 'account-register-error' : undefined}
                       />
                     </div>
                     <div className="nk-form-group">
@@ -892,7 +953,7 @@ export default function MiCuentaPage() {
                         onChange={handleRegisterChange}
                         className="nk-manga-input"
                         autoComplete="tel"
-                        aria-describedby={error ? 'account-auth-error' : undefined}
+                        aria-describedby={error && authMode === 'register' ? 'account-register-error' : undefined}
                       />
                     </div>
                     <div className="nk-form-group">
@@ -907,18 +968,17 @@ export default function MiCuentaPage() {
                         minLength={6}
                         className="nk-manga-input"
                         autoComplete="new-password"
-                        aria-describedby={error ? 'account-auth-error' : undefined}
+                        aria-describedby={error && authMode === 'register' ? 'account-register-error' : undefined}
                       />
                     </div>
 
-                    {error && <p id="account-auth-error" className="nk-error-msg" role="alert">{error}</p>}
+                    {error && authMode === 'register' && <p id="account-register-error" className="nk-error-msg" role="alert">{error}</p>}
 
                     <button type="submit" disabled={isRegistering} aria-busy={isRegistering} className="nk-btn nk-btn-block">
                       {isRegistering ? 'Creando cuenta…' : t('account.register.btn')}
                     </button>
                   </form>
-                </div>
-              )}
+              </div>
 
               {/* Aplica a iniciar sesión y a crear cuenta: Nextend vincula por
                   correo, así que el mismo botón sirve para ambos casos. */}
@@ -1058,14 +1118,14 @@ export default function MiCuentaPage() {
           min-width: 44px;
           min-height: 44px;
           padding: 6px 10px;
-          border: 2px solid #c83232;
+          border: 2px solid var(--nk-danger);
           background: transparent;
-          color: #c83232;
+          color: var(--nk-danger);
           display: inline-flex;
           align-items: center;
           justify-content: center;
           gap: 6px;
-          font-size: 0.875rem;
+          font-size: 1rem;
           font-weight: 800;
           cursor: pointer;
         }
@@ -1150,7 +1210,7 @@ export default function MiCuentaPage() {
           padding-left: 12px;
         }
 
-        .nk-dashboard-content:focus-visible {
+        .nk-account-panel:focus-visible {
           outline: 3px solid var(--nk-primary);
           outline-offset: 4px;
         }
@@ -1267,7 +1327,7 @@ export default function MiCuentaPage() {
         .nk-error-msg {
           margin: 0 0 16px;
           padding: 12px;
-          border: 2px solid #c83232;
+          border: 2px solid var(--nk-danger);
           color: var(--nk-text-main);
           background: var(--nk-bg-wrapper);
           font-size: 1rem;
@@ -1281,7 +1341,7 @@ export default function MiCuentaPage() {
           padding: 10px 14px;
           margin-bottom: 20px;
           font-weight: 700;
-          font-size: 0.9rem;
+          font-size: 1rem;
           text-align: center;
         }
 
@@ -1293,7 +1353,7 @@ export default function MiCuentaPage() {
           padding: 10px 14px;
           margin-bottom: 20px;
           font-weight: 600;
-          font-size: 0.9rem;
+          font-size: 1rem;
           line-height: 1.45;
         }
 
@@ -1372,10 +1432,14 @@ export default function MiCuentaPage() {
         }
 
         .nk-order-date,
-        .nk-order-status,
+        .nk-order-status {
+          font-size: 0.875rem;
+          line-height: 1.5;
+        }
+
         .nk-order-details,
         .nk-order-payment-copy {
-          font-size: 0.875rem;
+          font-size: 1rem;
           line-height: 1.5;
         }
 
@@ -1498,7 +1562,7 @@ export default function MiCuentaPage() {
         }
 
         .nk-track-status-problem {
-          color: #c83232;
+          color: var(--nk-danger);
         }
 
         /* Línea de tiempo vertical de eventos */

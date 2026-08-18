@@ -27,6 +27,7 @@
   --nk-input-border: #000000;
   --nk-primary: #E3000F; /* Optimized Red */
   --nk-primary-dark: #C2000D;
+  --nk-danger: #C83232;
   --nk-accent: #000000; 
   --nk-accent-dark: #111111;
   --nk-navy: #000000;
@@ -60,6 +61,7 @@ html.dark {
   --nk-input-border: #4B5563;
   --nk-primary: #FBBF24;     /* ámbar: CTAs, enlaces, precios */
   --nk-primary-dark: #D97706;
+  --nk-danger: #FF6B6B;
   --nk-accent: #4B5563;
   --nk-navy: #11151F;
   --nk-manga-shadow: 4px 4px 0px #4B5563;

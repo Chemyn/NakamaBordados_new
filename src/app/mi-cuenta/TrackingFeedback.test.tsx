@@ -16,6 +16,8 @@ describe('TrackingFeedback', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('No pudimos consultar la paquetería.');
     expect(screen.getByText('En tránsito por Hermosillo')).toBeVisible();
+    expect(Array.from(document.querySelectorAll('style')).some((style) =>
+      style.textContent?.includes('var(--nk-danger)'))).toBe(true);
 
     await user.click(screen.getByRole('button', { name: /reintentar rastreo/i }));
     expect(retry).toHaveBeenCalledOnce();

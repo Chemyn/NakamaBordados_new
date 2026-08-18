@@ -64,13 +64,13 @@ export default function TrackingFeedback({
           grid-template-columns: 28px minmax(0, 1fr);
           gap: 10px;
           padding: 14px;
-          border: 2px solid #c83232;
+          border: 2px solid var(--nk-danger);
           background: var(--nk-bg-card);
           color: var(--nk-text-main);
         }
 
         .nk-tracking-error > .material-icons-outlined {
-          color: #c83232;
+          color: var(--nk-danger);
         }
 
         .nk-tracking-error p {

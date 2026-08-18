@@ -35,5 +35,7 @@ describe('AccountProgress', () => {
     const current = screen.getAllByRole('listitem')[1];
     expect(current).toHaveClass('is-problem');
     expect(current).toHaveAccessibleName(/requiere atención/i);
+    expect(Array.from(document.querySelectorAll('style')).some((style) =>
+      style.textContent?.includes('var(--nk-danger)'))).toBe(true);
   });
 });
