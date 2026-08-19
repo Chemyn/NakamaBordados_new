@@ -326,6 +326,113 @@ function nakama_social_new_user_role( $user_id, $provider = null ) {
     if ( $user->user_email ) { update_user_meta( $user->ID, 'billing_email', $user->user_email ); }
 }
 
+/** Whether an order is an original quote request created by Nakama. */
+function nakama_is_quote_request( $order ) {
+    if ( ! $order instanceof WC_Abstract_Order ) {
+        return false;
+    }
+
+    // A derived/converted order is never an original request, even if bad
+    // external code accidentally copied the dedicated marker.
+    if (
+        '' !== (string) $order->get_meta( '_nakama_quote_source_order' )
+        || '' !== (string) $order->get_meta( '_nakama_quote_folio_ref' )
+    ) {
+        return false;
+    }
+
+    if ( 'yes' === (string) $order->get_meta( '_nakama_quote_request' ) ) {
+        return true;
+    }
+
+    // Strict compatibility for requests created before the dedicated marker.
+    // Folio alone is insufficient because it is copied to derived orders.
+    $folio = (string) $order->get_meta( '_nakama_quote_folio' );
+    if (
+        ! preg_match( '/^NK-\d{1,10}$/', $folio )
+    ) {
+        return false;
+    }
+
+    $fees = $order->get_items( 'fee' );
+    if ( 1 !== count( $fees ) ) {
+        return false;
+    }
+
+    $fee = reset( $fees );
+    return is_object( $fee )
+        && method_exists( $fee, 'get_name' )
+        && 1 === preg_match( '/^Cotización ' . preg_quote( $folio, '/' ) . '(?: — .+)?$/u', (string) $fee->get_name() );
+}
+
+/**
+ * Return the server-side payment decision for an original quote request.
+ *
+ * @return array{eligible:bool,code:string}
+ */
+function nakama_quote_payment_eligibility( $order ) {
+    if ( ! $order instanceof WC_Abstract_Order ) {
+        return array( 'eligible' => false, 'code' => 'invalid_order' );
+    }
+
+    if ( ! nakama_is_quote_request( $order ) ) {
+        return array( 'eligible' => false, 'code' => 'not_quote' );
+    }
+
+    if (
+        ! in_array( $order->get_status(), array( 'pending', 'failed' ), true )
+        || ! $order->needs_payment()
+    ) {
+        return array( 'eligible' => false, 'code' => 'not_payable_status' );
+    }
+
+    $raw_total = $order->get_total();
+    $total     = is_numeric( $raw_total ) ? (float) $raw_total : NAN;
+    if ( ! is_finite( $total ) || $total <= 0 ) {
+        return array( 'eligible' => false, 'code' => 'invalid_price' );
+    }
+
+    $currency = strtoupper( trim( (string) $order->get_currency() ) );
+    if ( ! in_array( $currency, array( 'MXN', 'USD' ), true ) ) {
+        return array( 'eligible' => false, 'code' => 'unsupported_currency' );
+    }
+
+    return array( 'eligible' => true, 'code' => 'eligible' );
+}
+
+/** Resolve quote-payment eligibility without exposing provenance metadata. */
+function nakama_graphql_order_quote_payment_eligible( $source ) {
+    $order = $source instanceof WC_Abstract_Order ? $source : false;
+    if ( ! $order ) {
+        $order_id = 0;
+        if ( is_object( $source ) && method_exists( $source, 'get_id' ) ) {
+            $order_id = (int) $source->get_id();
+        } elseif ( is_object( $source ) && isset( $source->databaseId ) ) {
+            $order_id = (int) $source->databaseId;
+        } elseif ( is_object( $source ) && isset( $source->ID ) ) {
+            $order_id = (int) $source->ID;
+        } elseif ( is_array( $source ) && isset( $source['databaseId'] ) ) {
+            $order_id = (int) $source['databaseId'];
+        }
+        $order = $order_id ? wc_get_order( $order_id ) : false;
+    }
+
+    $eligibility = nakama_quote_payment_eligibility( $order );
+    return true === $eligibility['eligible'];
+}
+
+add_action( 'graphql_register_types', function () {
+    if ( ! function_exists( 'register_graphql_field' ) ) {
+        return;
+    }
+
+    register_graphql_field( 'Order', 'nakamaQuotePaymentEligible', array(
+        'type'        => array( 'non_null' => 'Boolean' ),
+        'description' => 'Whether this original Nakama quote request can enter the custom payment checkout.',
+        'resolve'     => 'nakama_graphql_order_quote_payment_eligible',
+    ) );
+} );
+
 function nakama_create_quote_order( WP_REST_Request $request ) {
     if ( ! function_exists( 'wc_create_order' ) ) {
         return new WP_Error( 'no_wc', 'WooCommerce no está activo', array( 'status' => 500 ) );
@@ -417,6 +524,7 @@ function nakama_create_quote_order( WP_REST_Request $request ) {
     $order->set_currency( get_option( 'woocommerce_currency', 'MXN' ) );
 
     $order->update_meta_data( '_nakama_quote_folio', $folio );
+    $order->update_meta_data( '_nakama_quote_request', 'yes' );
     if ( ! $is_issued_folio ) {
         // Folio generado con el fallback aleatorio del frontend: se acepta
         // pero se marca para revisión.
@@ -604,12 +712,14 @@ add_action( 'woocommerce_email_header', function () {
 add_action( 'woocommerce_email_footer', function () {
     $GLOBALS['nakama_in_email'] = false;
 }, 999 );
-add_filter( 'woocommerce_get_checkout_payment_url', function ( $url ) {
-    if ( ! empty( $GLOBALS['nakama_in_email'] ) ) {
+function nakama_quote_email_payment_url( $url, $order = null ) {
+    $eligibility = nakama_quote_payment_eligibility( $order );
+    if ( ! empty( $GLOBALS['nakama_in_email'] ) && $eligibility['eligible'] ) {
         return home_url( '/mi-cuenta/' );
     }
     return $url;
-} );
+}
+add_filter( 'woocommerce_get_checkout_payment_url', 'nakama_quote_email_payment_url', 10, 2 );
 
 // ------------------------------------------------------------------
 // Vaciar el carrito del frontend tras una compra exitosa.
@@ -953,13 +1063,22 @@ function nakama_add_quote_to_wc_cart( $order_id, $key ) {
     if ( ! $order || ! hash_equals( $order->get_order_key(), (string) $key ) ) {
         return 'no existe o la llave no coincide';
     }
-    if ( ! $order->needs_payment() ) {
-        return 'ya no requiere pago (estado: ' . $order->get_status() . ')';
+
+    $eligibility = nakama_quote_payment_eligibility( $order );
+    if ( ! $eligibility['eligible'] ) {
+        switch ( $eligibility['code'] ) {
+            case 'not_quote':
+                return 'no es una solicitud de cotización';
+            case 'not_payable_status':
+                return 'ya no requiere pago (estado: ' . $order->get_status() . ')';
+            case 'unsupported_currency':
+                return 'usa una moneda no soportada';
+            default:
+                return 'aún no tiene precio asignado';
+        }
     }
+
     $total = (float) $order->get_total();
-    if ( $total <= 0 ) {
-        return 'aún no tiene precio asignado';
-    }
 
     $added = WC()->cart->add_to_cart(
         nakama_quote_product_id(),
@@ -977,14 +1096,41 @@ function nakama_add_quote_to_wc_cart( $order_id, $key ) {
     return $added ? true : 'no se pudo añadir al carrito';
 }
 
+/**
+ * Build the direct-payment cart only after the quote was accepted and added.
+ * Rejections therefore cannot clear the customer's existing WooCommerce cart.
+ *
+ * @return true|string
+ */
+function nakama_prepare_quote_only_cart( $order_id, $key ) {
+    $result = nakama_add_quote_to_wc_cart( $order_id, $key );
+    if ( true !== $result ) {
+        return $result;
+    }
+
+    $kept_target = false;
+    foreach ( WC()->cart->get_cart() as $cart_key => $cart_item ) {
+        $is_target = isset( $cart_item['nakama_quote_order_id'] )
+            && (int) $cart_item['nakama_quote_order_id'] === (int) $order_id;
+        if ( $is_target && ! $kept_target ) {
+            $kept_target = true;
+            WC()->cart->set_quantity( $cart_key, 1, false );
+            continue;
+        }
+        WC()->cart->remove_cart_item( $cart_key );
+    }
+
+    return true;
+}
+
 /** Valida el pedido de cotización y manda al cliente al checkout normal. */
 function nakama_pay_quote_via_checkout( $debug = false ) {
     $order_id = absint( $_GET['order'] ?? 0 );
     $key      = sanitize_text_field( $_GET['key'] ?? '' );
 
-    // Camino rápido "Pagar ahora": SOLO esta cotización, carrito limpio.
-    WC()->cart->empty_cart();
-    $result = nakama_add_quote_to_wc_cart( $order_id, $key );
+    // Camino rápido "Pagar ahora": SOLO esta cotización. El carrito anterior
+    // se toca únicamente después de que la referencia fue aceptada y añadida.
+    $result = nakama_prepare_quote_only_cart( $order_id, $key );
 
     if ( true !== $result ) {
         if ( $debug ) { echo 'Cotización rechazada: ' . esc_html( $result ); exit; }
@@ -1090,22 +1236,35 @@ add_action( 'woocommerce_before_calculate_totals', function ( $cart ) {
 // Referencia de cada cotización EN SU LINE ITEM: con varias en el mismo
 // pedido, una meta a nivel pedido se sobrescribiría entre sí (le pasaba al
 // folio, al source y al PDF). El item conserva la suya pase lo que pase.
-add_action( 'woocommerce_checkout_create_order_line_item', function ( $item, $cart_item_key, $values, $order ) {
+function nakama_populate_quote_order_line_item( $item, $values ) {
     if ( ! isset( $values['nakama_quote_order_id'] ) ) {
-        return;
+        return true;
     }
+
     $src_id = (int) $values['nakama_quote_order_id'];
-    $item->add_meta_data( '_nakama_quote_source_order', $src_id, true );
-    if ( ! empty( $values['nakama_quote_folio'] ) ) {
-        $item->add_meta_data( 'Folio', $values['nakama_quote_folio'], true );
+    $src_quote = $src_id ? wc_get_order( $src_id ) : false;
+    $eligibility = nakama_quote_payment_eligibility( $src_quote );
+    if ( ! $eligibility['eligible'] ) {
+        return false;
     }
-    // Heredar el PDF de la cotización origen para que Producción lo muestre.
-    $src_quote = wc_get_order( $src_id );
-    if ( $src_quote ) {
-        $pdf = (string) $src_quote->get_meta( '_nakama_quote_pdf_url' );
-        if ( '' !== $pdf ) {
-            $item->add_meta_data( '_nakama_quote_pdf_url', $pdf, true );
-        }
+
+    $item->add_meta_data( '_nakama_quote_source_order', $src_id, true );
+    $folio = (string) $src_quote->get_meta( '_nakama_quote_folio' );
+    if ( '' !== $folio ) {
+        $item->add_meta_data( 'Folio', $folio, true );
+    }
+
+    // PDF is optional and copied only from the revalidated source.
+    $pdf = (string) $src_quote->get_meta( '_nakama_quote_pdf_url' );
+    if ( '' !== $pdf ) {
+        $item->add_meta_data( '_nakama_quote_pdf_url', $pdf, true );
+    }
+
+    return true;
+}
+add_action( 'woocommerce_checkout_create_order_line_item', function ( $item, $cart_item_key, $values, $order ) {
+    if ( ! nakama_populate_quote_order_line_item( $item, $values ) ) {
+        throw new Exception( 'La cotización ya no está disponible para pago. Actualiza el carrito e inténtalo de nuevo.' );
     }
 }, 10, 4 );
 
@@ -1141,7 +1300,7 @@ add_action( 'woocommerce_checkout_create_order', function ( $order ) {
 // del pedido) para cubrir el caso de varias cotizaciones, y cada origen se
 // revalida: si otro flujo ya la pagó o canceló, solo se deja constancia —
 // nunca una segunda cancelación ni pisar un pedido vivo.
-add_action( 'woocommerce_checkout_order_processed', function ( $order_id, $posted_data, $order ) {
+function nakama_finalize_quote_sources( $order_id, $order ) {
     $src_ids = array();
     foreach ( $order->get_items( 'line_item' ) as $item ) {
         $sid = (int) $item->get_meta( '_nakama_quote_source_order' );
@@ -1160,8 +1319,9 @@ add_action( 'woocommerce_checkout_order_processed', function ( $order_id, $poste
             $src->save();
             continue;
         }
-        if ( ! $src->needs_payment() ) {
-            $src->add_order_note( sprintf( 'El pedido #%d referenció esta cotización, pero ya no requería pago (estado: %s). Sin cambios.', $order_id, $src->get_status() ) );
+        $eligibility = nakama_quote_payment_eligibility( $src );
+        if ( ! $eligibility['eligible'] ) {
+            $src->add_order_note( sprintf( 'El pedido #%d referenció esta fuente, pero no era una cotización elegible (%s). Sin cambios.', $order_id, $eligibility['code'] ) );
             $src->save();
             continue;
         }
@@ -1173,13 +1333,16 @@ add_action( 'woocommerce_checkout_order_processed', function ( $order_id, $poste
         $src->update_status( 'cancelled', 'Reemplazada por el pedido de pago con envío.' );
         $src->save();
     }
+}
+add_action( 'woocommerce_checkout_order_processed', function ( $order_id, $posted_data, $order ) {
+    nakama_finalize_quote_sources( $order_id, $order );
 }, 10, 3 );
 
 // Entre que la cotización entró al carrito y el cliente paga puede pasar de
 // todo: pagarla en otra pestaña con "Pagar ahora", o que el taller la cierre.
-// WooCommerce ejecuta esto en el carrito y el checkout: la cotización que ya
-// no proceda sale del carrito con aviso, y ninguna puede llevar cantidad > 1.
-add_action( 'woocommerce_check_cart_items', function () {
+// WooCommerce ejecuta esto en el carrito y justo antes de crear el pedido: la
+// cotización que ya no proceda sale con aviso, y ninguna lleva cantidad > 1.
+function nakama_revalidate_quote_cart() {
     if ( ! function_exists( 'WC' ) || ! WC()->cart ) {
         return;
     }
@@ -1191,13 +1354,29 @@ add_action( 'woocommerce_check_cart_items', function () {
             WC()->cart->set_quantity( $cart_key, 1, false );
         }
         $src = wc_get_order( (int) $cart_item['nakama_quote_order_id'] );
-        if ( ! $src || ! $src->needs_payment() || (float) $src->get_total() <= 0 ) {
+        $eligibility = nakama_quote_payment_eligibility( $src );
+        if ( ! $eligibility['eligible'] ) {
             WC()->cart->remove_cart_item( $cart_key );
             $folio = ! empty( $cart_item['nakama_quote_folio'] ) ? $cart_item['nakama_quote_folio'] : '';
             wc_add_notice( sprintf( 'La cotización %s ya no está pendiente de pago; se quitó del carrito.', $folio ), 'notice' );
         }
     }
-} );
+}
+add_action( 'woocommerce_check_cart_items', 'nakama_revalidate_quote_cart' );
+
+function nakama_validate_quote_checkout( $data, $errors ) {
+    nakama_revalidate_quote_cart();
+    if (
+        function_exists( 'WC' )
+        && WC()->cart
+        && WC()->cart->is_empty()
+        && is_object( $errors )
+        && method_exists( $errors, 'add' )
+    ) {
+        $errors->add( 'nakama_quote_invalid', 'La cotización ya no está disponible para pago. Actualiza el carrito e inténtalo de nuevo.' );
+    }
+}
+add_action( 'woocommerce_after_checkout_validation', 'nakama_validate_quote_checkout', 10, 2 );
 
 // Nota: el envío gratis, el descuento por transferencia y los cupones se
 // gestionan desde otro plugin; este plugin no interviene en esas promos.

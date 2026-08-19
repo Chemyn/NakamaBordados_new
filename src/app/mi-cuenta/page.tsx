@@ -18,6 +18,7 @@ import AccountProgress from './AccountProgress';
 import AccountSectionNav, { type AccountSectionId } from './AccountSectionNav';
 import AuthModeTabs from './AuthModeTabs';
 import TrackingFeedback from './TrackingFeedback';
+import { canShowQuotePaymentActions } from '@/lib/quote-payment';
 
 /* Estados de pedido de WooCommerce en español. GraphQL los entrega como enum
    (ON_HOLD) y REST como slug (on-hold); se canonicaliza a slug antes de mapear. */
@@ -541,7 +542,7 @@ export default function MiCuentaPage() {
                               {/* Pedido pendiente de pago (p. ej. cotización con
                                   precio ya asignado): pagar solo, o mandarla al
                                   carrito para pagarla junto con otros artículos. */}
-                              {order.needsPayment && order.databaseId && order.orderKey && (
+                              {(String(order.orderNumber || '').startsWith('NK-') ? canShowQuotePaymentActions(order) : (order.needsPayment && order.databaseId && order.orderKey)) && (
                                 <div className="nk-order-payment">
                                   <p className="nk-order-payment-copy">
                                     {String(order.orderNumber || '').startsWith('NK-')
