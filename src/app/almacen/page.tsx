@@ -14,6 +14,7 @@ import {
   syncWarehouse,
   WhItem,
 } from '@/lib/warehouse-api';
+import { translateWarehouseColor } from '@/lib/warehouse-display';
 
 type AccessState = 'checking' | 'granted' | 'denied' | 'guest';
 type Tab = 'stock' | 'alerts';
@@ -460,6 +461,7 @@ function ItemRow({ item, edit, save, onEdit, onDelete }: {
   const stockDirty = edit?.stock !== undefined && edit.stock !== item.stock;
   const minDirty = edit?.min_stock !== undefined && edit.min_stock !== item.min_stock;
   const dirty = stockDirty || minDirty;
+  const displayColor = translateWarehouseColor(item.color);
 
   const statusLabel = item.status === 'out' ? 'Agotado' : item.status === 'low' ? 'Bajo' : 'OK';
 
@@ -467,7 +469,7 @@ function ItemRow({ item, edit, save, onEdit, onDelete }: {
     <tr className={dirty ? 'nw-row-dirty' : ''}>
       <td className="nw-key">{item.sku_key}</td>
       <td>{item.prenda}</td>
-      <td>{item.color}</td>
+      <td>{displayColor}</td>
       <td>{item.talla}</td>
       <td>
         <div className="nw-stock-cell">
