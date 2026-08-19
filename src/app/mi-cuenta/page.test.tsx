@@ -275,6 +275,7 @@ describe('MiCuentaPage accessibility and account navigation', () => {
         needsPayment: true,
         databaseId: 2048,
         orderKey: 'wc_order_quote',
+        nakamaQuotePaymentEligible: true,
       }),
       createOrder({
         id: 'ordinary-order',
