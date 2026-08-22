@@ -18,7 +18,9 @@
 
 ## Final design
 
-The endpoint sends CSV headers immediately and reads published, visible products in pages of 50. Each parent product is converted and emitted before the next page is loaded. Variable products use their parent price and availability; size and color selection remains on the WooCommerce storefront. This keeps feed generation within the hosting response limit.
+The endpoint sends CSV headers immediately and reads published, visible parent products in pages of 10. Simple products produce one row. Variable products produce one row per purchasable variation, using the variation ID as `id` and the parent product ID as `item_group_id`. Rows are flushed periodically instead of being accumulated in memory.
+
+Each row includes `quantity_to_sell_on_facebook`. For variations managed by Nakama Warehouse, the effective shared stock is used; otherwise the WooCommerce stock quantity or a conservative in-stock value is used.
 
 Adding `?diagnostic=1` returns a fixed valid CSV row without querying products. This separates endpoint and hosting failures from WooCommerce catalog-generation failures.
 
@@ -40,8 +42,9 @@ Adding `?diagnostic=1` returns a fixed valid CSV row without querying products. 
 ## Decision log
 
 - Keep the existing REST URL to avoid changing the Meta integration.
-- Use batches of 50 to limit memory and response delay.
-- Publish one row per parent product and use its numeric WooCommerce ID in both the feed and Pixel events.
+- Use small parent-product batches and stream variation rows to limit memory.
+- Publish numeric WooCommerce variation IDs and group them with the numeric parent ID.
+- Send Pixel `ViewContent` as `product_group` for variable products and `AddToCart` with the selected variation ID.
 - Add a diagnostic query parameter to isolate failures without another deployment.
 - Do not add caching until production output is confirmed stable.
 - Do not request a Meta firewall allowlist because the hosting accepts Meta's user agent on other routes.

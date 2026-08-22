@@ -6,10 +6,12 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * El motor (Nakama_Engine) solo lee de aquí; no toca WooCommerce directamente.
  */
 class Nakama_Context {
+	const EXCLUDED_CATEGORY = 'lisas';
 
 	public $customer_id   = 0;
 	public $email         = '';
-	public $subtotal      = 0.0;   // suma de subtotales de línea (base % descuento)
+	public $subtotal      = 0.0;   // subtotal completo, sin cupones ni fees
+	public $eligible_subtotal = 0.0; // subtotal que puede recibir beneficios
 	public $payment_method = '';   // gateway elegido en checkout
 	public $selected_promo = '';   // 'welcome' | 'special_10' | 'special_3x2' | ''
 	public $cart          = null;
@@ -22,11 +24,36 @@ class Nakama_Context {
 		$ctx->cart          = $cart;
 		$ctx->customer_id   = get_current_user_id();
 		$ctx->subtotal      = (float) $cart->get_subtotal(); // sin cupones/fees
+		$ctx->eligible_subtotal = $ctx->collect_eligible_subtotal( $cart );
 		$ctx->email         = $ctx->resolve_email();
 		$ctx->payment_method = $ctx->resolve_payment_method();
 		$ctx->selected_promo = (string) WC()->session->get( 'nakama_selected_promo', '' );
 		$ctx->threexthree_prices = $ctx->collect_3x2_prices( $cart );
 		return $ctx;
+	}
+
+	/** Subtotal sin productos asignados directamente a la categoria excluida. */
+	private function collect_eligible_subtotal( $cart ) {
+		$subtotal = 0.0;
+
+		foreach ( $cart->get_cart() as $item ) {
+			$product_id = isset( $item['product_id'] ) ? (int) $item['product_id'] : 0;
+			if ( $this->is_excluded_product( $product_id ) ) {
+				continue;
+			}
+
+			$subtotal += isset( $item['line_subtotal'] )
+				? (float) $item['line_subtotal']
+				: (float) $item['data']->get_price() * (int) $item['quantity'];
+		}
+
+		return max( 0, $subtotal );
+	}
+
+	/** La exclusion es solo por asignacion directa del slug, no por descendencia. */
+	private function is_excluded_product( $product_id ) {
+		return $product_id > 0
+			&& has_term( self::EXCLUDED_CATEGORY, 'product_cat', $product_id );
 	}
 
 	private function resolve_email() {
@@ -66,6 +93,10 @@ class Nakama_Context {
 
 		foreach ( $cart->get_cart() as $item ) {
 			$product_id = $item['product_id'];
+			if ( $this->is_excluded_product( $product_id ) ) {
+				continue;
+			}
+
 			$qty        = (int) $item['quantity'];
 			$unit_price = (float) $item['data']->get_price(); // precio unitario actual
 

@@ -76,6 +76,7 @@ vi.mock('../context/LanguageContext', () => ({
       'account.login.user': 'Usuario',
       'account.login.pass': 'Contraseña',
       'account.login.btn': 'Ingresar',
+      'account.login.reset': 'Restablecer contraseña',
       'account.register.first': 'Nombre',
       'account.register.last': 'Apellido',
       'account.register.email': 'Correo',
@@ -104,6 +105,7 @@ vi.mock('@/lib/wp-sso', () => ({
   openWpAdmin: vi.fn(),
   seedWpSession: vi.fn(),
   WP_ADMIN_URL: 'https://example.test/wp-admin',
+  WP_PASSWORD_RESET_URL: 'https://example.test/wp-login.php?action=lostpassword',
 }));
 vi.mock('@/lib/api-host', () => ({ apiOrigin: () => 'https://api.example.test' }));
 vi.mock('@/lib/production-api', () => ({
@@ -197,7 +199,7 @@ describe('MiCuentaPage accessibility and account navigation', () => {
       expect(panel).toHaveAttribute('aria-labelledby', tab.id);
     }
 
-    fireEvent.click(screen.getByRole('button', { name: 'Pedidos' }));
+    fireEvent.click(screen.getByText('Pedidos', { selector: '.nk-shortcut-card > span:last-child' }));
     const ordersTab = screen.getByRole('tab', { name: 'Pedidos' });
     expect(ordersTab).toHaveFocus();
     expect(ordersTab).toHaveAttribute('aria-selected', 'true');
@@ -286,7 +288,7 @@ describe('MiCuentaPage accessibility and account navigation', () => {
       }),
     ]);
     render(<MiCuentaPage />);
-    fireEvent.click(screen.getByRole('button', { name: 'Pedidos' }));
+    fireEvent.click(screen.getByRole('tab', { name: 'Pedidos' }));
 
     const quoteCard = screen.getByText('PEDIDO #NK-2048').closest('.nk-order-item');
     const ordinaryCard = screen.getByText('PEDIDO #2049').closest('.nk-order-item');
@@ -321,6 +323,23 @@ describe('MiCuentaPage accessibility and account navigation', () => {
     mocks.auth.user = createUser();
     rerender(<MiCuentaPage />);
     await waitFor(() => expect(mocks.router.replace).toHaveBeenCalledWith('/cart/'));
+  });
+
+  it('offers WordPress password recovery without exposing the entered username', () => {
+    render(<MiCuentaPage />);
+
+    const resetLink = screen.getByRole('link', { name: 'Restablecer contraseña' });
+    expect(resetLink).toHaveAttribute(
+      'href',
+      'https://example.test/wp-login.php?action=lostpassword',
+    );
+    expect(resetLink).not.toHaveAttribute('target');
+
+    fireEvent.change(screen.getByLabelText('Usuario'), { target: { value: 'luffy@example.test' } });
+    expect(resetLink.getAttribute('href')).not.toContain('luffy@example.test');
+
+    const styles = Array.from(document.querySelectorAll('style')).map((style) => style.textContent).join('\n');
+    expect(styles).toMatch(/\.nk-password-reset-link\s*{[^}]*min-height:\s*44px/);
   });
 
   it('submits trimmed registration data and associates a recoverable error', async () => {
@@ -378,6 +397,17 @@ describe('MiCuentaPage accessibility and account navigation', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
     expect(await screen.findByRole('alert')).toHaveTextContent('No hay conexión con la paquetería');
     consoleError.mockRestore();
+  });
+
+  it('shows dashboard shortcuts only from the desktop breakpoint', () => {
+    mocks.auth.user = createUser();
+    render(<MiCuentaPage />);
+
+    const styles = Array.from(document.querySelectorAll('style')).map((style) => style.textContent).join('\n');
+    expect(styles).toMatch(/\.nk-dash-shortcuts\s*{[^}]*display:\s*none/);
+    expect(styles).toMatch(
+      /@media\s*\(min-width:\s*992px\)\s*{[\s\S]*?\.nk-dash-shortcuts\s*{[^}]*display:\s*grid/,
+    );
   });
 
   it('keeps long account content wrapped and includes reduced-motion safeguards', () => {

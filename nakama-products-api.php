@@ -335,8 +335,15 @@ function nakama_products_catalog_product_link($product)
     return home_url('/product/?slug=' . rawurlencode($product->get_slug()));
 }
 
-function nakama_products_catalog_image($product)
+function nakama_products_catalog_image($product, $variation = null)
 {
+    if ($variation instanceof WC_Product && $variation->get_image_id()) {
+        $url = wp_get_attachment_url($variation->get_image_id());
+        if ($url) {
+            return $url;
+        }
+    }
+
     if ($product->get_image_id()) {
         $url = wp_get_attachment_url($product->get_image_id());
         if ($url) {
@@ -352,6 +359,39 @@ function nakama_products_catalog_write_row($row)
     echo implode(',', array_map('nakama_products_catalog_csv_cell', $row)) . "\n";
 }
 
+function nakama_products_catalog_quantity($product)
+{
+    if (function_exists('nakama_wh_effective_stock') && $product->is_type('variation')) {
+        list($stock) = nakama_wh_effective_stock($product);
+        if (is_numeric($stock)) {
+            return max(0, (int) $stock);
+        }
+    }
+
+    if ($product->managing_stock()) {
+        $stock = $product->get_stock_quantity();
+        return is_numeric($stock) ? max(0, (int) $stock) : 0;
+    }
+
+    return $product->is_in_stock() ? 1 : 0;
+}
+
+function nakama_products_catalog_variation_title($product, $variation)
+{
+    $parts = array();
+    foreach ($variation->get_variation_attributes() as $taxonomy => $value) {
+        if ('' === (string) $value) {
+            continue;
+        }
+
+        $taxonomy = str_replace('attribute_', '', (string) $taxonomy);
+        $term = taxonomy_exists($taxonomy) ? get_term_by('slug', $value, $taxonomy) : null;
+        $parts[] = $term && !is_wp_error($term) ? $term->name : $value;
+    }
+
+    return $parts ? $product->get_name() . ' - ' . implode(' / ', $parts) : $product->get_name();
+}
+
 function nakama_products_catalog_send_headers()
 {
     status_header(200);
@@ -364,14 +404,21 @@ function nakama_products_catalog_send_headers()
 
 function nakama_products_facebook_catalog($request)
 {
+    @set_time_limit(0);
+    ignore_user_abort(true);
+    while (ob_get_level() > 0) {
+        @ob_end_flush();
+    }
+
     nakama_products_catalog_send_headers();
 
-    $headers = array('id', 'title', 'description', 'availability', 'condition', 'price', 'link', 'image_link', 'brand', 'google_product_category');
+    $headers = array('id', 'item_group_id', 'title', 'description', 'availability', 'condition', 'price', 'link', 'image_link', 'brand', 'google_product_category', 'quantity_to_sell_on_facebook');
     nakama_products_catalog_write_row($headers);
 
     if ('1' === (string) $request->get_param('diagnostic')) {
         nakama_products_catalog_write_row(array(
             'NAKAMA-DIAGNOSTIC',
+            '',
             'Nakama diagnostic product',
             'Endpoint diagnostic row',
             'in stock',
@@ -381,12 +428,14 @@ function nakama_products_facebook_catalog($request)
             home_url('/favicon.ico'),
             'Nakama Bordados',
             'Apparel & Accessories > Clothing',
+            '1',
         ));
         exit;
     }
 
     $page = 1;
-    $per_page = 50;
+    $per_page = 10;
+    $rows_written = 0;
 
     do {
         $result = wc_get_products(array(
@@ -412,7 +461,10 @@ function nakama_products_facebook_catalog($request)
                 continue;
             }
 
-            nakama_products_catalog_write_product($product);
+            $rows_written += nakama_products_catalog_write_product($product);
+            if (0 === $rows_written % 100) {
+                flush();
+            }
         }
 
         $page++;
@@ -439,24 +491,64 @@ function nakama_products_catalog_write_product($product)
         'google_product_category' => 'Apparel & Accessories > Clothing',
     );
 
+    if ($product->is_type('variable')) {
+        $written = 0;
+        foreach ($product->get_children() as $variation_id) {
+            $variation = wc_get_product($variation_id);
+            if (!$variation instanceof WC_Product || !$variation->exists() || !$variation->is_purchasable()) {
+                continue;
+            }
+
+            $price = nakama_products_catalog_price($variation->get_price());
+            $image = nakama_products_catalog_image($product, $variation);
+            if ('' === $price || '' === $image) {
+                continue;
+            }
+
+            $quantity = nakama_products_catalog_quantity($variation);
+            nakama_products_catalog_write_row(array(
+                'id' => (string) $variation->get_id(),
+                'item_group_id' => (string) $product->get_id(),
+                'title' => nakama_products_catalog_variation_title($product, $variation),
+                'description' => $base['description'],
+                'availability' => $quantity > 0 ? 'in stock' : 'out of stock',
+                'condition' => $base['condition'],
+                'price' => $price,
+                'link' => $base['link'],
+                'image_link' => $image,
+                'brand' => $base['brand'],
+                'google_product_category' => $base['google_product_category'],
+                'quantity_to_sell_on_facebook' => (string) $quantity,
+            ));
+            $written++;
+        }
+
+        return $written;
+    }
+
     $price = nakama_products_catalog_price($product->get_price());
     $image = nakama_products_catalog_image($product);
     if ('' === $price || '' === $image) {
-        return;
+        return 0;
     }
 
+    $quantity = nakama_products_catalog_quantity($product);
     nakama_products_catalog_write_row(array(
         'id' => (string) $product->get_id(),
+        'item_group_id' => '',
         'title' => $product->get_name(),
         'description' => $base['description'],
-        'availability' => $product->is_in_stock() ? 'in stock' : 'out of stock',
+        'availability' => $quantity > 0 ? 'in stock' : 'out of stock',
         'condition' => $base['condition'],
         'price' => $price,
         'link' => $base['link'],
         'image_link' => $image,
         'brand' => $base['brand'],
         'google_product_category' => $base['google_product_category'],
+        'quantity_to_sell_on_facebook' => (string) $quantity,
     ));
+
+    return 1;
 }
 
 // ============================================================================

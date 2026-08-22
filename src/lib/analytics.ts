@@ -39,6 +39,7 @@ export interface TrackedProduct {
   price: number;
   currency?: string;
   quantity?: number;
+  contentType?: 'product' | 'product_group';
 }
 
 /** page_view (GA4) + PageView (Pixel) en cada navegación, incluida la inicial. */
@@ -69,7 +70,7 @@ export function trackViewContent(product: TrackedProduct): void {
     window.fbq?.('track', 'ViewContent', {
       content_ids: [String(product.id)],
       content_name: product.name,
-      content_type: 'product',
+      content_type: product.contentType || 'product',
       value: product.price,
       currency,
     });
@@ -98,7 +99,7 @@ export function trackAddToCart(product: TrackedProduct): void {
     window.fbq?.('track', 'AddToCart', {
       content_ids: [String(product.id)],
       content_name: product.name,
-      content_type: 'product',
+      content_type: product.contentType || 'product',
       value: product.price * quantity,
       currency,
     });

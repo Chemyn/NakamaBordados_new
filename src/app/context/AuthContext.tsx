@@ -218,6 +218,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             quoteEligibilityQuery,
             {},
             { Authorization: ['Bearer', token].join(' ') },
+            { optionalSchemaFields: ['nakamaQuotePaymentEligible'] },
           );
           const eligibilityNodes = eligibilityRes?.errors
             ? []

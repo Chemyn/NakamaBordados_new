@@ -154,7 +154,9 @@ class Nakama_Cart {
 		if ( $plan['msi']['months'] > 0 ) {
 			echo '<span class="nakama-badge">💳 ' . esc_html( $plan['msi']['months'] ) . ' meses sin intereses disponibles</span>';
 		}
-		if ( 'yes' === Nakama_Settings::get( 'transfer_enabled' ) && ! $plan['transfer']['applies'] ) {
+		if ( $plan['totals']['eligible_subtotal'] > 0
+			&& 'yes' === Nakama_Settings::get( 'transfer_enabled' )
+			&& ! $plan['transfer']['applies'] ) {
 			echo '<span class="nakama-badge nakama-badge--hint">' . sprintf(
 				/* translators: %s: porcentaje */
 				esc_html__( 'Paga por transferencia y obtén %s adicional', 'nakama-discounts' ),

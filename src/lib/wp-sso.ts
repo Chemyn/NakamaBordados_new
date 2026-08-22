@@ -14,6 +14,9 @@ const WP_BASE = 'https://nakamabordados.com';
 export const WP_ADMIN_URL =
   process.env.NEXT_PUBLIC_WP_ADMIN_URL || `${WP_BASE}/wp-admin`;
 
+export const WP_PASSWORD_RESET_URL =
+  process.env.NEXT_PUBLIC_WP_PASSWORD_RESET_URL || `${WP_BASE}/wp-login.php?action=lostpassword`;
+
 /**
  * Siembra las cookies de sesión de WordPress a partir del JWT guardado.
  * Se usa antes de abrir wp-admin (admins) y antes del bridge de checkout

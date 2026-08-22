@@ -13,13 +13,17 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  *   'transfer'   => ['applies'=>bool,'amount'=>float],
  *   'free_ship'  => bool,
  *   'msi'        => ['months'=>0|3|6],
- *   'totals'     => ['subtotal'=>..,'after_primary'=>..,'final'=>..],
+ *   'totals'     => [
+ *     'subtotal'=>..,'after_primary'=>..,'final'=>..,
+ *     'eligible_subtotal'=>..,'eligible_after_primary'=>..,'eligible_final'=>..
+ *   ],
  * ]
  */
 class Nakama_Engine {
 
 	public static function resolve( Nakama_Context $ctx ) {
-		$subtotal = $ctx->subtotal;
+		$subtotal          = $ctx->subtotal;
+		$eligible_subtotal = $ctx->eligible_subtotal;
 
 		// 1) Construir candidatos PRIMARIOS (grupo mutuamente excluyente A/B/C).
 		$candidates = self::build_primary_candidates( $ctx );
@@ -29,27 +33,30 @@ class Nakama_Engine {
 
 		$primary_amount = $primary ? $primary['amount'] : 0.0;
 		$after_primary  = max( 0, $subtotal - $primary_amount );
+		$eligible_after_primary = max( 0, $eligible_subtotal - $primary_amount );
 
 		// 3) Modificador E: transferencia (3% sobre subtotal ya descontado).
 		$transfer = array( 'applies' => false, 'amount' => 0.0 );
-		if ( 'yes' === Nakama_Settings::get( 'transfer_enabled' )
+		if ( $eligible_after_primary > 0
+			&& 'yes' === Nakama_Settings::get( 'transfer_enabled' )
 			&& $ctx->payment_method === Nakama_Settings::get( 'transfer_gateway_id' ) ) {
 			$rate               = (float) Nakama_Settings::get( 'transfer_rate' );
 			$transfer['applies'] = true;
-			$transfer['amount']  = round( $after_primary * $rate, 2 );
+			$transfer['amount']  = round( $eligible_after_primary * $rate, 2 );
 		}
 
-		$final = max( 0, $after_primary - $transfer['amount'] );
+		$final          = max( 0, $after_primary - $transfer['amount'] );
+		$eligible_final = max( 0, $eligible_after_primary - $transfer['amount'] );
 
 		// 4) Modificador D: envío gratis (usa total DESPUÉS de descuentos).
 		$free_ship = false;
 		if ( 'yes' === Nakama_Settings::get( 'free_ship_enabled' ) ) {
 			$threshold = Nakama_Settings::amount( 'free_ship_threshold' );
-			$free_ship = $final >= $threshold;
+			$free_ship = $eligible_final >= $threshold;
 		}
 
 		// 5) Modificador F: MSI.
-		$msi_months = self::resolve_msi( $final );
+		$msi_months = self::resolve_msi( $eligible_final );
 
 		return array(
 			'primary'   => $primary,
@@ -60,7 +67,10 @@ class Nakama_Engine {
 			'totals'    => array(
 				'subtotal'      => $subtotal,
 				'after_primary' => $after_primary,
-				'final'         => $final,
+				'final'                  => $final,
+				'eligible_subtotal'      => $eligible_subtotal,
+				'eligible_after_primary' => $eligible_after_primary,
+				'eligible_final'         => $eligible_final,
 			),
 		);
 	}
@@ -71,11 +81,11 @@ class Nakama_Engine {
 	 */
 	private static function build_primary_candidates( Nakama_Context $ctx ) {
 		$out      = array();
-		$subtotal = $ctx->subtotal;
+		$subtotal = $ctx->eligible_subtotal;
 
 		// A) Bienvenida / Fidelidad.
 		$tier = Nakama_Customer_History::get_welcome_tier( $ctx->customer_id, $ctx->email );
-		if ( $tier ) {
+		if ( $tier && $subtotal > 0 ) {
 			$out['welcome'] = array(
 				'type'       => 'welcome',
 				'label'      => $tier['label'],
@@ -87,7 +97,7 @@ class Nakama_Engine {
 		}
 
 		// B) Especial 10%.
-		if ( Nakama_Campaigns::special_10_active() ) {
+		if ( $subtotal > 0 && Nakama_Campaigns::special_10_active() ) {
 			$rate = (float) Nakama_Settings::get( 'special_10_rate' );
 			$out['special_10'] = array(
 				'type'       => 'special_10',

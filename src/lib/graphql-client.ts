@@ -1,7 +1,30 @@
 // For Server Components we can still use the direct URL, but for Client Components we use the local proxy to avoid CORS
 export const WP_GRAPHQL_URL = 'https://nakamabordados.com/graphql';
 
-export async function fetchGraphQL(query: string, variables = {}, extraHeaders: Record<string, string> = {}) {
+interface FetchGraphQLOptions {
+  optionalSchemaFields?: readonly string[];
+}
+
+interface GraphQLError {
+  message: string;
+  path?: string[];
+}
+
+function isUnavailableOptionalSchemaField(
+  error: GraphQLError,
+  optionalSchemaFields: readonly string[],
+): boolean {
+  return optionalSchemaFields.some(field =>
+    error.message.startsWith(`Cannot query field "${field}" on type `),
+  );
+}
+
+export async function fetchGraphQL(
+  query: string,
+  variables = {},
+  extraHeaders: Record<string, string> = {},
+  options: FetchGraphQLOptions = {},
+) {
   const isServer = typeof window === 'undefined';
 
   // If on server and in development, try to handle query locally with SQL
@@ -66,8 +89,13 @@ export async function fetchGraphQL(query: string, variables = {}, extraHeaders: 
     console.log(`[GraphQL-Remote] Received response status: ${response.status}. Data present: ${!!body.data}`);
 
     if (body.errors) {
-      const errors = body.errors as Array<{message: string, path?: string[]}>;
+      const errors = body.errors as GraphQLError[];
       const isHarmlessEmptyCart = errors.length === 1 && errors[0].message === 'Cart is empty';
+      const isOptionalSchemaMismatch = errors.length > 0
+        && errors.every(error => isUnavailableOptionalSchemaField(
+          error,
+          options.optionalSchemaFields || [],
+        ));
       
       // Check if this looks like a JWT authentication failure (often returns "Internal server error" on viewer/customer/cart)
       const isAuthError = errors.some(e => 
@@ -75,7 +103,7 @@ export async function fetchGraphQL(query: string, variables = {}, extraHeaders: 
         (e.path?.includes('viewer') || e.path?.includes('customer') || e.path?.includes('cart'))
       );
 
-      if (!isHarmlessEmptyCart && !isAuthError) {
+      if (!isHarmlessEmptyCart && !isAuthError && !isOptionalSchemaMismatch) {
         console.error('GraphQL Errors Details:', JSON.stringify(errors, null, 2));
         console.error('on Query:', query.substring(0, 200));
         console.error('with Variables:', JSON.stringify(variables));

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useSyncExternalStore, type ReactNode } from 'react';
 
 export type Language = 'es' | 'en';
 
@@ -171,6 +171,7 @@ const translations: Record<Language, Record<string, string>> = {
     'account.login.user': 'Usuario o Email',
     'account.login.pass': 'Contraseña',
     'account.login.btn': 'Entrar al Barco',
+    'account.login.reset': 'Restablecer contraseña',
     'account.login.error': 'Credenciales piratas inválidas',
     'account.login.no_account': '¿No tienes cuenta? Únete a la tripulación',
     'account.register.title': 'Únete a la Tripulación',
@@ -412,6 +413,7 @@ const translations: Record<Language, Record<string, string>> = {
     'account.login.user': 'Username or Email',
     'account.login.pass': 'Password',
     'account.login.btn': 'Enter Ship',
+    'account.login.reset': 'Reset password',
     'account.login.error': 'Invalid pirate credentials',
     'account.login.no_account': "Don't have an account? Join the crew",
     'account.register.title': 'Join the Crew',
@@ -504,25 +506,39 @@ const translations: Record<Language, Record<string, string>> = {
 
 const LanguageContext = createContext<LanguageContextProps | undefined>(undefined);
 
-export const LanguageProvider = ({ children }: { children: ReactNode }) => {
-  const [language, setLanguageState] = useState<Language>('es');
-  const [isClient, setIsClient] = useState(false);
+const LANGUAGE_STORAGE_KEY = 'user-language';
+const LANGUAGE_CHANGE_EVENT = 'nakama-language-change';
 
-  useEffect(() => {
-    setIsClient(true);
-    const saved = localStorage.getItem('user-language') as Language;
-    if (saved && translations[saved]) {
-      setLanguageState(saved);
-    }
-  }, []);
+const getServerLanguage = (): Language => 'es';
+
+const getStoredLanguage = (): Language => {
+  const saved = window.localStorage.getItem(LANGUAGE_STORAGE_KEY);
+  return saved === 'en' ? 'en' : 'es';
+};
+
+const subscribeToLanguage = (onStoreChange: () => void) => {
+  window.addEventListener('storage', onStoreChange);
+  window.addEventListener(LANGUAGE_CHANGE_EVENT, onStoreChange);
+
+  return () => {
+    window.removeEventListener('storage', onStoreChange);
+    window.removeEventListener(LANGUAGE_CHANGE_EVENT, onStoreChange);
+  };
+};
+
+export const LanguageProvider = ({ children }: { children: ReactNode }) => {
+  const language = useSyncExternalStore(
+    subscribeToLanguage,
+    getStoredLanguage,
+    getServerLanguage,
+  );
 
   const setLanguage = (lang: Language) => {
-    setLanguageState(lang);
-    localStorage.setItem('user-language', lang);
+    window.localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
+    window.dispatchEvent(new Event(LANGUAGE_CHANGE_EVENT));
   };
 
   const t = (key: string) => {
-    if (!isClient) return translations['es'][key] || key;
     return translations[language][key] || translations['es'][key] || key;
   };
 

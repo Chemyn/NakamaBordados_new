@@ -10,7 +10,7 @@ import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
 import MaintenanceToggle from '../components/MaintenanceToggle';
 import SocialLoginButtons from '../components/SocialLoginButtons';
-import { openWpAdmin, seedWpSession, WP_ADMIN_URL } from '@/lib/wp-sso';
+import { openWpAdmin, seedWpSession, WP_ADMIN_URL, WP_PASSWORD_RESET_URL } from '@/lib/wp-sso';
 import { apiOrigin } from '@/lib/api-host';
 import { fetchProductionAccess } from '@/lib/production-api';
 import { fetchWarehouseAccess } from '@/lib/warehouse-api';
@@ -889,6 +889,10 @@ export default function MiCuentaPage() {
                     <button type="submit" disabled={isLoggingIn} aria-busy={isLoggingIn} className="nk-btn nk-btn-block">
                       {isLoggingIn ? 'Iniciando sesión…' : t('account.login.btn')}
                     </button>
+                    <a href={WP_PASSWORD_RESET_URL} className="nk-password-reset-link">
+                      <span className="material-icons-outlined" aria-hidden="true">lock_reset</span>
+                      {t('account.login.reset')}
+                    </a>
                   </form>
               </div>
 
@@ -1223,16 +1227,12 @@ export default function MiCuentaPage() {
         }
 
         .nk-dash-shortcuts {
-          display: grid;
-          /* minmax(0,1fr): con 1fr a secas las columnas no pueden encogerse
-             por debajo del texto ("DIRECCIONES") y el grid desborda el card
-             en pantallas angostas. */
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 15px;
+          display: none;
         }
 
-        @media (min-width: 480px) {
+        @media (min-width: 992px) {
           .nk-dash-shortcuts {
+            display: grid;
             grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
             gap: 20px;
           }
@@ -1323,6 +1323,39 @@ export default function MiCuentaPage() {
           padding: 15px;
           font-size: 1.4rem;
           min-height: 48px;
+        }
+
+        .nk-password-reset-link {
+          width: 100%;
+          min-height: 44px;
+          margin-top: 12px;
+          padding: 10px 16px;
+          box-sizing: border-box;
+          border: 2px solid var(--nk-border);
+          background: var(--nk-bg-card);
+          color: var(--nk-text-main);
+          display: inline-flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+          font-family: 'Teko', sans-serif;
+          font-size: 1.15rem;
+          font-weight: 700;
+          line-height: 1.2;
+          text-transform: uppercase;
+          text-decoration: none;
+          transition: border-color 160ms ease, color 160ms ease, background-color 160ms ease;
+        }
+
+        .nk-password-reset-link .material-icons-outlined {
+          color: var(--nk-primary);
+          font-size: 20px;
+        }
+
+        .nk-password-reset-link:hover {
+          border-color: var(--nk-primary);
+          background: var(--nk-bg-wrapper);
+          color: var(--nk-primary);
         }
 
         .nk-error-msg {

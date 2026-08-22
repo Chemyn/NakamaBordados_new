@@ -19,39 +19,6 @@ interface ProductClientProps {
   relatedProducts: Product[];
 }
 
-const getMockReviewsForProduct = (dbId: number, rating: number) => {
-  const names = ["Carlos M.", "Sofía R.", "Javier T.", "Daniela G.", "Miguel A.", "Andrea L.", "Fernando B.", "Valeria H.", "Alejandro C.", "Mariana P."];
-  const comments = [
-    "¡La calidad del bordado es increíble! El diseño de Luffy se ve genial. Definitivamente volveré a comprar.",
-    "Llegó súper rápido y el empaque premium de Nakama es genial. La prenda es muy cómoda y de excelente material.",
-    "El estampado DTF tiene excelente definición y los colores son muy vivos. Recomendado al 100%.",
-    "¡El diseño superó mis expectativas! La horma y costuras son perfectas, de calidad de exportación.",
-    "Excelente atención al cliente y la calidad de la tela es de primera. Se siente muy abrigadora y premium.",
-    "Me encantó el diseño de Zoro. El bordado es grueso y no se deforma tras las lavadas. ¡Muy pirata!",
-    "La playera es fresca y el estampado resiste súper bien. Ideal para el día a día. 10/10.",
-    "Espectacular. Compré la gorra con bordado 3D y la calidad del relieve es de otro nivel. Súper recomendados.",
-    "Nakama nunca falla. Tela gruesa, buen corte y el bordado está impecable. El paquete llegó antes de lo esperado.",
-    "Los detalles son brutales. Se nota el cariño en el empaque y las etiquetas. ¡Toda una joya nakama!"
-  ];
-
-  const count = ((dbId * 3) % 5) + 4;
-  const reviewsList = [];
-  for (let i = 0; i < count; i++) {
-    const nameIdx = (dbId + i * 7) % names.length;
-    const commentIdx = (dbId + i * 11) % comments.length;
-    const reviewRating = i === 0 ? Math.ceil(rating) : (i % 3 === 0 ? Math.floor(rating) : 5);
-    const daysAgo = ((dbId + i * 13) % 25) + 2;
-    reviewsList.push({
-      id: `rev-${i}`,
-      name: names[nameIdx],
-      rating: reviewRating,
-      comment: comments[commentIdx],
-      date: `Hace ${daysAgo} días`
-    });
-  }
-  return reviewsList;
-};
-
 export default function ProductClient({ initialProduct: product, relatedProducts }: ProductClientProps) {
   const { addToCart } = useCart();
   const { formatPrice } = useCurrency();
@@ -73,8 +40,9 @@ export default function ProductClient({ initialProduct: product, relatedProducts
       name: product.name,
       price: product.price,
       currency: 'MXN',
+      contentType: product.type === 'variable' ? 'product_group' : 'product',
     });
-  }, [product.id, product.databaseId, product.name, product.price]);
+  }, [product.id, product.databaseId, product.name, product.price, product.type]);
 
   const dbReviews = product.reviews || [];
   const reviewCount = dbReviews.length;
@@ -179,6 +147,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
   ];
 
   const [currentWarning, setCurrentWarning] = useState(WARNINGS[0]);
+  const warningIndexRef = useRef(0);
 
   // Vibration
   const [vibrateBtn, setVibrateBtn] = useState(false);
@@ -305,8 +274,9 @@ export default function ProductClient({ initialProduct: product, relatedProducts
       if (Object.keys(selectedAttributes).length < attributeNames.length) {
         setVibrateBtn(true);
         setTimeout(() => setVibrateBtn(false), 500);
-        const randomWarning = WARNINGS[Math.floor(Math.random() * WARNINGS.length)];
-        setCurrentWarning(randomWarning);
+        const nextWarning = WARNINGS[warningIndexRef.current % WARNINGS.length];
+        warningIndexRef.current += 1;
+        setCurrentWarning(nextWarning);
         setLuffyModalOpen(true);
         return;
       }
