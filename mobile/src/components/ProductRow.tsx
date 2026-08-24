@@ -5,6 +5,7 @@ import MaterialIcons from '@expo/vector-icons/MaterialIcons';
 
 import type { ProdProduct } from '@/lib/api';
 import { colors, fonts, radius, spacing, TOUCH_TARGET } from '@/lib/theme';
+import { translateWarehouseColor } from '@/lib/warehouse-display';
 
 interface ProductRowProps {
   product: ProdProduct;
@@ -36,6 +37,7 @@ function ProductRowComponent({
   onOpenPdf,
 }: ProductRowProps) {
   const thumb = product.image_url || product.image_full;
+  const displayColor = translateWarehouseColor(product.color);
 
   return (
     <View style={[styles.row, product.validated && styles.rowValidated]}>
@@ -62,7 +64,7 @@ function ProductRowComponent({
             {!!product.sku && <Chip label="SKU" value={product.sku} />}
             {!!product.talla && <Chip label="Talla" value={product.talla} />}
             {!!product.estilo && <Chip label="Estilo" value={product.estilo} />}
-            {!!product.color && <Chip label="Color" value={product.color} />}
+            {!!displayColor && <Chip label="Color" value={displayColor} />}
             <Chip label="Cant" value={String(product.qty)} />
           </View>
         </View>

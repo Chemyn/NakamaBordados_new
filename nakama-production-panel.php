@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Panel de Producción
  * Description: Tablero Kanban de pedidos para el personal de producción: ver pedidos en proceso, tomarlos, validar cada producto, finalizar producción y gestionar los PDF de patrones. Sin exponer precios ni datos administrativos.
- * Version: 2.0.0
+ * Version: 2.1.0
  * Author: Nakama
  */
 
@@ -337,7 +337,8 @@ function nakama_prod_color_es( $raw ) {
         'black' => 'Negro', 'white' => 'Blanco', 'red' => 'Rojo',
         'blue' => 'Azul', 'navy' => 'Azul Marino', 'green' => 'Verde',
         'yellow' => 'Amarillo', 'pink' => 'Rosa', 'gray' => 'Gris',
-        'grey' => 'Gris', 'khaki' => 'Kaki', 'purple' => 'Morado',
+        'grey' => 'Gris', 'khaki' => 'Kaki', 'feet' => 'Kaki', 'purple' => 'Morado',
+        'bone' => 'Hueso', 'bottle green' => 'Verde botella',
         'orange' => 'Naranja', 'brown' => 'Café', 'wine' => 'Vino',
         'burgundy' => 'Vino',
     );
@@ -460,6 +461,21 @@ function nakama_prod_item_attributes( $item ) {
                         : (string) $value;
                     break 2;
                 }
+            }
+        }
+    }
+
+    // Los productos sin selector público de color reciben Estilo/Talla de Woo
+    // y su color operativo desde la relación privada creada en Almacén.
+    if ( '' === $out['color'] && function_exists( 'nakama_wh_resolve_for_item' ) ) {
+        $warehouse = nakama_wh_resolve_for_item( $item );
+        if ( $warehouse ) {
+            $out['color'] = nakama_prod_color_es( $warehouse['color'] );
+            if ( '' === $out['estilo'] ) {
+                $out['estilo'] = (string) $warehouse['prenda'];
+            }
+            if ( '' === $out['talla'] ) {
+                $out['talla'] = (string) $warehouse['talla'];
             }
         }
     }

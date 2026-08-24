@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Changelog
  * Description: Historial de cambios de Nakama en el Escritorio de WordPress y en una página exclusiva para administradores.
- * Version: 1.0.0
+ * Version: 1.1.0
  * Author: Nakama Bordados
  * Requires PHP: 7.4
  * Text Domain: nakama-changelog
@@ -11,7 +11,7 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-define( 'NAKAMA_CHANGELOG_VERSION', '1.0.0' );
+define( 'NAKAMA_CHANGELOG_VERSION', '1.1.0' );
 define( 'NAKAMA_CHANGELOG_PAGE', 'nakama-changelog' );
 
 /**
@@ -31,6 +31,46 @@ function nakama_changelog_release_id( $date ) {
  */
 function nakama_changelog_entries() {
 	return array(
+		array(
+			'id'           => nakama_changelog_release_id( '2026-08-24' ),
+			'date'         => '2026-08-24',
+			'date_display' => '24 de agosto de 2026',
+			'title'        => 'SKU internos y colores consistentes',
+			'summary'      => 'Almacén y Producción ahora reconocen productos sin selector público de color, con un flujo administrativo seguro y los mismos nombres en español en web y app.',
+			'groups'       => array(
+				array(
+					'icon'  => 'dashicons-archive',
+					'label' => 'Almacén',
+					'items' => array(
+						'Los administradores pueden buscar un producto de WooCommerce, tomar automáticamente sus estilos y tallas, y asignar un color oculto a todas sus variaciones.',
+						'Los nuevos SKU internos aparecen en el inventario sin agregar un selector de color al producto público.',
+						'Al dejar de administrar un producto, se conserva el historial y solo se eliminan los SKU manuales que ya no tengan variaciones relacionadas.',
+					),
+				),
+				array(
+					'icon'  => 'dashicons-hammer',
+					'label' => 'Producción',
+					'items' => array(
+						'Las órdenes sin color público muestran el color operativo configurado en Almacén.',
+						'Bone, Feet, Black, White y Pink se presentan como Hueso, Kaki, Negro, Blanco y Rosa; Bottle Green se muestra como Verde botella.',
+					),
+				),
+				array(
+					'icon'  => 'dashicons-smartphone',
+					'label' => 'APK de Producción',
+					'items' => array(
+						'La aplicación recibe por OTA las traducciones de colores y muestra automáticamente los SKU internos disponibles en Almacén.',
+					),
+				),
+				array(
+					'icon'  => 'dashicons-admin-plugins',
+					'label' => 'Versiones',
+					'items' => array(
+						'Nakama Almacén se actualiza a 1.3.0, Nakama Panel de Producción a 2.1.0 y Nakama Changelog a 1.1.0.',
+					),
+				),
+			),
+		),
 		array(
 			'id'           => nakama_changelog_release_id( '2026-08-22' ),
 			'date'         => '2026-08-22',

@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link';
 import { useAuth } from '../context/AuthContext';
 import {
-  fetchWarehouseAccess,
+  fetchWarehouseCapabilities,
   listWarehouseItems,
   listWarehouseAlerts,
   upsertWarehouseItem,
@@ -15,9 +15,10 @@ import {
   WhItem,
 } from '@/lib/warehouse-api';
 import { translateWarehouseColor } from '@/lib/warehouse-display';
+import ManualCatalogSkuPanel from './ManualCatalogSkuPanel';
 
 type AccessState = 'checking' | 'granted' | 'denied' | 'guest';
-type Tab = 'stock' | 'alerts';
+type Tab = 'stock' | 'alerts' | 'manual';
 /** Cambio pendiente de una fila (valores absolutos aún no enviados). */
 type Edit = { stock?: number; min_stock?: number };
 type SaveState = 'saving' | 'saved' | 'error';
@@ -40,6 +41,7 @@ export default function AlmacenPage() {
   const { user, isLoading } = useAuth();
 
   const [access, setAccess] = useState<AccessState>('checking');
+  const [canManage, setCanManage] = useState(false);
   const [tab, setTab] = useState<Tab>('stock');
 
   const [items, setItems] = useState<WhItem[]>([]);
@@ -90,12 +92,12 @@ export default function AlmacenPage() {
   // Gate de acceso.
   useEffect(() => {
     if (isLoading) return;
-    if (!user) { setAccess('guest'); return; }
+    if (!user) return;
     let alive = true;
-    setAccess('checking');
-    fetchWarehouseAccess().then(can => {
+    fetchWarehouseCapabilities().then(capabilities => {
       if (!alive) return;
-      if (can) {
+      setCanManage(capabilities.canManage);
+      if (capabilities.can) {
         setAccess('granted');
         loadItems('');
         loadAlerts();
@@ -288,7 +290,8 @@ export default function AlmacenPage() {
   };
 
   // ---- Estados de acceso ----
-  if (isLoading || access === 'checking') {
+  const effectiveAccess: AccessState = !isLoading && !user ? 'guest' : access;
+  if (isLoading || effectiveAccess === 'checking') {
     return (
       <div className="nw-gate">
         <div className="nk-spinner" />
@@ -298,7 +301,7 @@ export default function AlmacenPage() {
     );
   }
 
-  if (access === 'guest') {
+  if (effectiveAccess === 'guest') {
     return (
       <div className="nw-gate">
         <h1>Panel de Almacén</h1>
@@ -309,7 +312,7 @@ export default function AlmacenPage() {
     );
   }
 
-  if (access === 'denied') {
+  if (effectiveAccess === 'denied') {
     return (
       <div className="nw-gate">
         <h1>Acceso denegado</h1>
@@ -332,6 +335,11 @@ export default function AlmacenPage() {
           <button className={`nw-tab ${tab === 'alerts' ? 'is-active' : ''}`} onClick={() => { setTab('alerts'); loadAlerts(); }}>
             Alertas{alertCount > 0 && <span className="nw-badge">{alertCount}</span>}
           </button>
+          {canManage && (
+            <button className={`nw-tab ${tab === 'manual' ? 'is-active' : ''}`} onClick={() => setTab('manual')}>
+              Productos sin color
+            </button>
+          )}
         </div>
       </header>
 
@@ -383,6 +391,12 @@ export default function AlmacenPage() {
             onEdit={onEdit}
             onDelete={handleDelete}
           />
+        </div>
+      )}
+
+      {tab === 'manual' && canManage && (
+        <div className="nw-view">
+          <ManualCatalogSkuPanel />
         </div>
       )}
 

@@ -24,6 +24,9 @@ const approvedCases = [
   ['Wine', 'Vino'],
   ['Burgundy', 'Vino'],
   ['Beige', 'Beige'],
+  ['Bone', 'Hueso'],
+  ['Feet', 'Kaki'],
+  ['Bottle Green', 'Verde botella'],
 ];
 
 test('uses the approved Spanish color glossary in the mobile presentation', () => {

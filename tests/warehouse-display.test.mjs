@@ -24,6 +24,9 @@ test('translates every approved warehouse color alias for web presentation', () 
     ['Wine', 'Vino'],
     ['Burgundy', 'Vino'],
     ['Beige', 'Beige'],
+    ['Bone', 'Hueso'],
+    ['Feet', 'Kaki'],
+    ['Bottle Green', 'Verde botella'],
   ];
 
   for (const [raw, translated] of aliases) {

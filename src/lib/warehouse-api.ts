@@ -22,6 +22,51 @@ export interface WhItem {
   stock: number;
   min_stock: number;
   status: WhStatus;
+  origin?: 'catalog' | 'manual';
+}
+
+export interface WarehouseCapabilities {
+  can: boolean;
+  canManage: boolean;
+}
+
+export interface CatalogProduct {
+  id: number;
+  name: string;
+  slug: string;
+  sku: string;
+  image: string;
+  variation_count: number;
+  managed: boolean;
+}
+
+export interface CatalogVariationPreview {
+  variation_id: number;
+  style: string;
+  size: string;
+  public_color: string;
+  valid: boolean;
+  problem: string;
+}
+
+export interface CatalogProductPreview {
+  product: CatalogProduct;
+  variations: CatalogVariationPreview[];
+  valid: boolean;
+}
+
+export interface ManualCatalogVariation {
+  variation_id: number;
+  sku_key: string;
+  style: string;
+  size: string;
+  stock: number | null;
+}
+
+export interface ManualCatalogProduct extends CatalogProduct {
+  hidden_color: string;
+  created_at: string;
+  variations: ManualCatalogVariation[];
 }
 
 export interface WhUpsertInput {
@@ -75,14 +120,69 @@ function whUrl(path: string, params?: Record<string, string | number>): string {
 
 /** ¿El usuario actual tiene permiso para el Panel de Almacén? Nunca lanza. */
 export async function fetchWarehouseAccess(): Promise<boolean> {
+  return (await fetchWarehouseCapabilities()).can;
+}
+
+/** Permisos separados: operar stock y administrar relaciones privadas. */
+export async function fetchWarehouseCapabilities(): Promise<WarehouseCapabilities> {
   try {
     const res = await fetch(whUrl('/access'), { headers: authHeaders() });
-    if (!res.ok) return false;
+    if (!res.ok) return { can: false, canManage: false };
     const data = await res.json();
-    return !!data?.can;
+    return { can: !!data?.can, canManage: !!data?.can_manage };
   } catch {
-    return false;
+    return { can: false, canManage: false };
   }
+}
+
+async function apiError(res: Response, fallback: string): Promise<Error> {
+  try {
+    const data = await res.json();
+    return new Error(typeof data?.message === 'string' ? data.message : fallback);
+  } catch {
+    return new Error(fallback);
+  }
+}
+
+export async function searchCatalogProducts(search: string): Promise<CatalogProduct[]> {
+  const res = await fetch(whUrl('/catalog-products', { search }), { headers: authHeaders() });
+  if (!res.ok) throw await apiError(res, 'No se pudo buscar en el catálogo.');
+  const data = await res.json();
+  return data?.items || [];
+}
+
+export async function previewCatalogProduct(productId: number): Promise<CatalogProductPreview> {
+  const res = await fetch(whUrl(`/catalog-products/${productId}/variations`), { headers: authHeaders() });
+  if (!res.ok) throw await apiError(res, 'No se pudieron leer las variaciones.');
+  return res.json();
+}
+
+export async function listManualCatalogProducts(): Promise<ManualCatalogProduct[]> {
+  const res = await fetch(whUrl('/manual-products'), { headers: authHeaders() });
+  if (!res.ok) throw await apiError(res, 'No se pudieron cargar los productos administrados.');
+  const data = await res.json();
+  return data?.items || [];
+}
+
+export async function saveManualCatalogProduct(
+  productId: number,
+  hiddenColor: string,
+): Promise<ManualCatalogProduct> {
+  const res = await fetch(whUrl('/manual-products'), {
+    method: 'POST',
+    headers: authHeaders({ 'Content-Type': 'application/json' }),
+    body: JSON.stringify({ product_id: productId, hidden_color: hiddenColor }),
+  });
+  if (!res.ok) throw await apiError(res, 'No se pudo administrar el producto.');
+  return res.json();
+}
+
+export async function deleteManualCatalogProduct(productId: number): Promise<void> {
+  const res = await fetch(whUrl(`/manual-products/${productId}`), {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw await apiError(res, 'No se pudo eliminar la relación.');
 }
 
 export async function listWarehouseItems(search?: string): Promise<WhItem[]> {

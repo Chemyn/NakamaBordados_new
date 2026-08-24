@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Almacén (SKU Base)
  * Description: Inventario de materia prima compartida. El stock vive en la prenda lisa base (prenda+color+talla); muchas variaciones de diseño descuentan del mismo SKU base al pagarse el pedido. Panel de almacén y alertas de faltantes, con cascada de "agotado" a la tienda.
- * Version: 1.2
+ * Version: 1.3.0
  * Author: Nakama
  */
 
@@ -12,6 +12,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 define( 'NAKAMA_WH_CAP', 'access_warehouse' );
 define( 'NAKAMA_WH_PAGE', 'nakama-almacen' );
+define( 'NAKAMA_WH_SCHEMA_VERSION', '1.3.0' );
 
 // Compatibilidad con HPOS (pedidos en tablas propias).
 add_action( 'before_woocommerce_init', function () {
@@ -31,11 +32,17 @@ function nakama_wh_moves_table() {
     global $wpdb;
     return $wpdb->prefix . 'nakama_stock_moves';
 }
+function nakama_wh_catalog_maps_table() {
+    global $wpdb;
+    return $wpdb->prefix . 'nakama_catalog_sku_maps';
+}
 
-register_activation_hook( __FILE__, function () {
+/** Instala o actualiza el esquema sin depender de desactivar/reactivar el plugin. */
+function nakama_wh_install_schema() {
     global $wpdb;
     $table   = nakama_wh_table();
     $moves   = nakama_wh_moves_table();
+    $maps    = nakama_wh_catalog_maps_table();
     $charset = $wpdb->get_charset_collate();
 
     require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -49,9 +56,29 @@ register_activation_hook( __FILE__, function () {
         label VARCHAR(255) NOT NULL DEFAULT '',
         stock INT NOT NULL DEFAULT 0,
         min_stock INT NOT NULL DEFAULT 0,
+        origin VARCHAR(20) NOT NULL DEFAULT 'catalog',
         updated_at DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
         PRIMARY KEY (id),
         UNIQUE KEY sku_key (sku_key)
+    ) {$charset};" );
+
+    dbDelta( "CREATE TABLE {$maps} (
+        id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+        product_id BIGINT(20) UNSIGNED NOT NULL,
+        variation_id BIGINT(20) UNSIGNED NOT NULL,
+        sku_key VARCHAR(191) NOT NULL,
+        style VARCHAR(80) NOT NULL DEFAULT '',
+        size VARCHAR(40) NOT NULL DEFAULT '',
+        hidden_color VARCHAR(80) NOT NULL DEFAULT '',
+        previous_override VARCHAR(191) NOT NULL DEFAULT '',
+        previous_stock_status VARCHAR(20) NOT NULL DEFAULT 'instock',
+        created_by BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+        created_at DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
+        updated_at DATETIME NOT NULL DEFAULT '0000-00-00 00:00:00',
+        PRIMARY KEY (id),
+        UNIQUE KEY variation_id (variation_id),
+        KEY product_id (product_id),
+        KEY sku_key (sku_key)
     ) {$charset};" );
 
     dbDelta( "CREATE TABLE {$moves} (
@@ -73,7 +100,18 @@ register_activation_hook( __FILE__, function () {
             $role->add_cap( NAKAMA_WH_CAP );
         }
     }
-} );
+
+    update_option( 'nakama_wh_schema_version', NAKAMA_WH_SCHEMA_VERSION );
+    if ( function_exists( 'nakama_wh_merge_duplicates' ) ) {
+        nakama_wh_merge_duplicates();
+    }
+}
+register_activation_hook( __FILE__, 'nakama_wh_install_schema' );
+add_action( 'init', function () {
+    if ( get_option( 'nakama_wh_schema_version' ) !== NAKAMA_WH_SCHEMA_VERSION ) {
+        nakama_wh_install_schema();
+    }
+}, 1 );
 
 /* ============================================================================
  * UI DE PERMISOS: checkbox en el perfil de usuario (Usuarios → editar)
@@ -163,7 +201,9 @@ function nakama_wh_color_canonical( $raw ) {
         'amarillo' => 'Amarillo', 'amarilla' => 'Amarillo', 'yellow' => 'Amarillo',
         'rosa' => 'Rosa', 'rosado' => 'Rosa', 'rosada' => 'Rosa', 'pink' => 'Rosa',
         'gris' => 'Gris', 'gray' => 'Gris', 'grey' => 'Gris',
-        'kaki' => 'Kaki', 'caqui' => 'Kaki', 'khaki' => 'Kaki',
+        'kaki' => 'Kaki', 'caqui' => 'Kaki', 'khaki' => 'Kaki', 'feet' => 'Kaki',
+        'hueso' => 'Hueso', 'bone' => 'Hueso',
+        'verde botella' => 'Verde botella', 'bottle green' => 'Verde botella',
         'morado' => 'Morado', 'morada' => 'Morado', 'purpura' => 'Morado', 'purple' => 'Morado',
         'naranja' => 'Naranja', 'orange' => 'Naranja',
         'cafe' => 'Café', 'marron' => 'Café', 'brown' => 'Café',
@@ -602,6 +642,7 @@ function nakama_wh_apply_delta( $res, $delta, $reason, $order_id = 0 ) {
             'label'      => isset( $res['label'] ) ? $res['label'] : $key,
             'stock'      => 0,
             'min_stock'  => 0,
+            'origin'     => 'catalog',
             'updated_at' => current_time( 'mysql' ),
         ) );
         nakama_wh_log_move( $key, 0, 'seed', $order_id );
@@ -628,6 +669,7 @@ function nakama_wh_apply_delta( $res, $delta, $reason, $order_id = 0 ) {
 function nakama_wh_merge_duplicates() {
     global $wpdb;
     $table = nakama_wh_table();
+    $maps  = nakama_wh_catalog_maps_table();
     $rows  = $wpdb->get_results( "SELECT * FROM {$table}" );
     if ( empty( $rows ) ) {
         return 0;
@@ -643,7 +685,9 @@ function nakama_wh_merge_duplicates() {
     $merged = 0;
     foreach ( $groups as $canon => $group ) {
         // Nada que fusionar si es una sola fila ya con la clave canónica.
-        if ( count( $group ) === 1 && $group[0]->sku_key === $canon ) {
+        if ( count( $group ) === 1 &&
+             $group[0]->sku_key === $canon &&
+             $group[0]->color === nakama_wh_color_canonical( $group[0]->color ) ) {
             continue;
         }
 
@@ -659,9 +703,13 @@ function nakama_wh_merge_duplicates() {
         $total_stock = 0;
         $max_min     = 0;
         $canon_color = nakama_wh_color_canonical( $survivor->color );
+        $origin      = 'manual';
         foreach ( $group as $r ) {
             $total_stock += (int) $r->stock;
             $max_min      = max( $max_min, (int) $r->min_stock );
+            if ( ! isset( $r->origin ) || 'manual' !== $r->origin ) {
+                $origin = 'catalog';
+            }
         }
 
         // Actualizar la superviviente a la forma canónica con el stock sumado.
@@ -671,19 +719,28 @@ function nakama_wh_merge_duplicates() {
             'label'      => nakama_wh_label( $survivor->prenda, $canon_color, $survivor->talla ),
             'stock'      => $total_stock,
             'min_stock'  => $max_min,
+            'origin'     => $origin,
             'updated_at' => current_time( 'mysql' ),
         ), array( 'id' => (int) $survivor->id ) );
 
         // Borrar las demás filas del grupo y repuntar sus overrides al canónico.
         foreach ( $group as $r ) {
-            if ( (int) $r->id === (int) $survivor->id ) {
-                continue;
-            }
             if ( $r->sku_key !== $canon ) {
                 $wpdb->update( $wpdb->postmeta,
                     array( 'meta_value' => $canon ),
                     array( 'meta_key' => '_nakama_base_sku', 'meta_value' => $r->sku_key )
                 );
+                $wpdb->update( $wpdb->postmeta,
+                    array( 'meta_value' => $canon ),
+                    array( 'meta_key' => '_nakama_wh_key', 'meta_value' => $r->sku_key )
+                );
+                $wpdb->update( $maps,
+                    array( 'sku_key' => $canon, 'updated_at' => current_time( 'mysql' ) ),
+                    array( 'sku_key' => $r->sku_key )
+                );
+            }
+            if ( (int) $r->id === (int) $survivor->id ) {
+                continue;
             }
             $wpdb->delete( $table, array( 'id' => (int) $r->id ) );
             $merged++;
@@ -815,10 +872,16 @@ function nakama_wh_permission() {
     return current_user_can( NAKAMA_WH_CAP );
 }
 
+/** Las relaciones catálogo→SKU oculto solo pueden administrarlas administradores. */
+function nakama_wh_admin_permission() {
+    return current_user_can( 'manage_options' );
+}
+
 /** Añade el campo calculado 'status' (ok|low|out) a una fila. */
 function nakama_wh_row_out( $row ) {
     $stock = (int) $row->stock;
     $min   = (int) $row->min_stock;
+    $color = nakama_wh_color_canonical( $row->color );
     $status = 'ok';
     if ( $stock <= 0 ) {
         $status = 'out';
@@ -829,11 +892,12 @@ function nakama_wh_row_out( $row ) {
         'id'        => (int) $row->id,
         'sku_key'   => $row->sku_key,
         'prenda'    => $row->prenda,
-        'color'     => $row->color,
+        'color'     => $color,
         'talla'     => $row->talla,
-        'label'     => $row->label,
+        'label'     => nakama_wh_label( $row->prenda, $color, $row->talla ),
         'stock'     => $stock,
         'min_stock' => $min,
+        'origin'    => isset( $row->origin ) ? $row->origin : 'catalog',
         'status'    => $status,
     );
 }
@@ -845,7 +909,10 @@ add_action( 'rest_api_init', function () {
     register_rest_route( 'nakama/v1', '/warehouse/access', array(
         'methods'             => 'GET',
         'callback'            => function () {
-            return new WP_REST_Response( array( 'can' => current_user_can( NAKAMA_WH_CAP ) ), 200 );
+            return new WP_REST_Response( array(
+                'can'        => current_user_can( NAKAMA_WH_CAP ),
+                'can_manage' => current_user_can( 'manage_options' ),
+            ), 200 );
         },
         'permission_callback' => '__return_true',
     ) );
@@ -902,7 +969,388 @@ add_action( 'rest_api_init', function () {
         'callback'            => 'nakama_wh_rest_override',
         'permission_callback' => $perm,
     ) );
+
+    register_rest_route( 'nakama/v1', '/warehouse/catalog-products', array(
+        'methods'             => 'GET',
+        'callback'            => 'nakama_wh_rest_catalog_products',
+        'permission_callback' => 'nakama_wh_admin_permission',
+    ) );
+    register_rest_route( 'nakama/v1', '/warehouse/catalog-products/(?P<id>\d+)/variations', array(
+        'methods'             => 'GET',
+        'callback'            => 'nakama_wh_rest_catalog_product_variations',
+        'permission_callback' => 'nakama_wh_admin_permission',
+    ) );
+    register_rest_route( 'nakama/v1', '/warehouse/manual-products', array(
+        array(
+            'methods'             => 'GET',
+            'callback'            => 'nakama_wh_rest_manual_products',
+            'permission_callback' => 'nakama_wh_admin_permission',
+        ),
+        array(
+            'methods'             => 'POST',
+            'callback'            => 'nakama_wh_rest_manual_product_save',
+            'permission_callback' => 'nakama_wh_admin_permission',
+        ),
+    ) );
+    register_rest_route( 'nakama/v1', '/warehouse/manual-products/(?P<id>\d+)', array(
+        'methods'             => 'DELETE',
+        'callback'            => 'nakama_wh_rest_manual_product_delete',
+        'permission_callback' => 'nakama_wh_admin_permission',
+    ) );
 } );
+
+/** Datos compactos de un producto para los selectores de administración. */
+function nakama_wh_catalog_product_out( $product ) {
+    global $wpdb;
+    $maps = nakama_wh_catalog_maps_table();
+    $image_id = $product->get_image_id();
+
+    return array(
+        'id'              => (int) $product->get_id(),
+        'name'            => $product->get_name(),
+        'slug'            => $product->get_slug(),
+        'sku'             => $product->get_sku(),
+        'image'           => $image_id ? (string) wp_get_attachment_image_url( $image_id, 'thumbnail' ) : '',
+        'variation_count' => count( $product->get_children() ),
+        'managed'         => (bool) $wpdb->get_var( $wpdb->prepare(
+            "SELECT id FROM {$maps} WHERE product_id = %d LIMIT 1",
+            $product->get_id()
+        ) ),
+    );
+}
+
+/** Lee únicamente estilo y talla; el color de esta modalidad siempre es oculto. */
+function nakama_wh_manual_variation_parts( $variation ) {
+    $attrs  = nakama_wh_variation_attributes( $variation );
+    $style  = trim( (string) $attrs['estilo'] );
+    $size   = trim( (string) $attrs['talla'] );
+    $public = trim( (string) $attrs['color'] );
+    if ( '' === $style ) {
+        $style = nakama_wh_parent_estilo( $variation->get_parent_id() );
+    }
+
+    $problem = '';
+    if ( '' !== $public ) {
+        $problem = 'Esta variación ya tiene un color público.';
+    } elseif ( '' === $style || '' === $size ) {
+        $problem = 'La variación necesita Estilo y Talla para generar su SKU.';
+    }
+
+    return array(
+        'variation_id' => (int) $variation->get_id(),
+        'style'        => $style,
+        'size'         => $size,
+        'public_color' => $public,
+        'valid'        => '' === $problem,
+        'problem'      => $problem,
+    );
+}
+
+/** Devuelve el producto administrado y todas sus relaciones persistidas. */
+function nakama_wh_manual_product_out( $product_id ) {
+    global $wpdb;
+    $maps = nakama_wh_catalog_maps_table();
+    $rows = (array) $wpdb->get_results( $wpdb->prepare(
+        "SELECT * FROM {$maps} WHERE product_id = %d ORDER BY id ASC",
+        $product_id
+    ) );
+    if ( empty( $rows ) ) {
+        return null;
+    }
+
+    $product = wc_get_product( $product_id );
+    $base = $product ? nakama_wh_catalog_product_out( $product ) : array(
+        'id'              => (int) $product_id,
+        'name'            => 'Producto #' . (int) $product_id,
+        'slug'            => '',
+        'sku'             => '',
+        'image'           => '',
+        'variation_count' => count( $rows ),
+        'managed'         => true,
+    );
+    $base['hidden_color'] = nakama_wh_color_canonical( $rows[0]->hidden_color );
+    $base['created_at']   = $rows[0]->created_at;
+    $base['variations']   = array();
+    foreach ( $rows as $row ) {
+        $stock_row = nakama_wh_get_row( $row->sku_key );
+        $base['variations'][] = array(
+            'variation_id' => (int) $row->variation_id,
+            'sku_key'      => $row->sku_key,
+            'style'        => $row->style,
+            'size'         => $row->size,
+            'stock'        => $stock_row ? (int) $stock_row->stock : null,
+        );
+    }
+    return $base;
+}
+
+/** GET /warehouse/catalog-products?search= — búsqueda administrativa en Woo. */
+function nakama_wh_rest_catalog_products( WP_REST_Request $request ) {
+    global $wpdb;
+    $search = trim( sanitize_text_field( (string) $request->get_param( 'search' ) ) );
+    if ( strlen( $search ) < 2 ) {
+        return new WP_REST_Response( array( 'items' => array() ), 200 );
+    }
+
+    $like = '%' . $wpdb->esc_like( $search ) . '%';
+    $ids  = $wpdb->get_col( $wpdb->prepare(
+        "SELECT DISTINCT p.ID
+         FROM {$wpdb->posts} p
+         LEFT JOIN {$wpdb->postmeta} sku ON sku.post_id = p.ID AND sku.meta_key = '_sku'
+         WHERE p.post_type = 'product' AND p.post_status = 'publish'
+           AND (p.post_title LIKE %s OR p.post_name LIKE %s OR sku.meta_value LIKE %s)
+         ORDER BY p.post_title ASC LIMIT 20",
+        $like,
+        $like,
+        $like
+    ) );
+
+    $items = array();
+    foreach ( (array) $ids as $id ) {
+        $product = wc_get_product( (int) $id );
+        if ( $product && $product->is_type( 'variable' ) ) {
+            $items[] = nakama_wh_catalog_product_out( $product );
+        }
+    }
+    return new WP_REST_Response( array( 'items' => $items ), 200 );
+}
+
+/** GET /warehouse/catalog-products/{id}/variations — vista previa Estilo/Talla. */
+function nakama_wh_rest_catalog_product_variations( WP_REST_Request $request ) {
+    $product = wc_get_product( (int) $request['id'] );
+    if ( ! $product || ! $product->is_type( 'variable' ) ) {
+        return new WP_Error( 'not_variable', 'El producto no existe o no es variable.', array( 'status' => 404 ) );
+    }
+
+    $variations = array();
+    foreach ( $product->get_children() as $variation_id ) {
+        $variation = wc_get_product( (int) $variation_id );
+        if ( $variation && in_array( $variation->get_status(), array( 'publish', 'private' ), true ) ) {
+            $variations[] = nakama_wh_manual_variation_parts( $variation );
+        }
+    }
+    return new WP_REST_Response( array(
+        'product'    => nakama_wh_catalog_product_out( $product ),
+        'variations' => $variations,
+        'valid'      => ! empty( $variations ) && ! in_array( false, wp_list_pluck( $variations, 'valid' ), true ),
+    ), 200 );
+}
+
+/** GET /warehouse/manual-products — relaciones visibles para web y wp-admin. */
+function nakama_wh_rest_manual_products() {
+    global $wpdb;
+    $maps = nakama_wh_catalog_maps_table();
+    $ids  = (array) $wpdb->get_col( "SELECT DISTINCT product_id FROM {$maps} ORDER BY created_at DESC" );
+    $items = array();
+    foreach ( $ids as $id ) {
+        $item = nakama_wh_manual_product_out( (int) $id );
+        if ( $item ) {
+            $items[] = $item;
+        }
+    }
+    return new WP_REST_Response( array( 'items' => $items ), 200 );
+}
+
+/** POST /warehouse/manual-products — crea todas las relaciones en una transacción. */
+function nakama_wh_rest_manual_product_save( WP_REST_Request $request ) {
+    global $wpdb;
+    $product_id   = (int) $request->get_param( 'product_id' );
+    $hidden_color = nakama_wh_color_canonical( sanitize_text_field( (string) $request->get_param( 'hidden_color' ) ) );
+    $product      = wc_get_product( $product_id );
+    $maps         = nakama_wh_catalog_maps_table();
+    $table        = nakama_wh_table();
+
+    if ( ! $product || ! $product->is_type( 'variable' ) ) {
+        return new WP_Error( 'not_variable', 'Selecciona un producto variable válido.', array( 'status' => 400 ) );
+    }
+    if ( '' === trim( $hidden_color ) ) {
+        return new WP_Error( 'missing_color', 'El color oculto es obligatorio.', array( 'status' => 400 ) );
+    }
+    $existing = $wpdb->get_var( $wpdb->prepare( "SELECT hidden_color FROM {$maps} WHERE product_id = %d LIMIT 1", $product_id ) );
+    if ( null !== $existing ) {
+        if ( nakama_wh_color_canonical( $existing ) === $hidden_color ) {
+            return new WP_REST_Response( nakama_wh_manual_product_out( $product_id ), 200 );
+        }
+        return new WP_Error( 'already_managed', 'El producto ya está administrado. Elimínalo antes de cambiar su color oculto.', array( 'status' => 409 ) );
+    }
+
+    $prepared = array();
+    foreach ( $product->get_children() as $variation_id ) {
+        $variation = wc_get_product( (int) $variation_id );
+        if ( ! $variation || ! in_array( $variation->get_status(), array( 'publish', 'private' ), true ) ) {
+            continue;
+        }
+        $parts = nakama_wh_manual_variation_parts( $variation );
+        if ( ! $parts['valid'] ) {
+            return new WP_Error( 'invalid_variation', $parts['problem'], array(
+                'status'       => 400,
+                'variation_id' => (int) $variation_id,
+            ) );
+        }
+        $parts['variation'] = $variation;
+        $parts['sku_key']   = nakama_wh_key( $parts['style'], $hidden_color, $parts['size'] );
+        $parts['previous_override'] = (string) get_post_meta( $variation_id, '_nakama_base_sku', true );
+        if ( '' !== $parts['previous_override'] && $parts['previous_override'] !== $parts['sku_key'] ) {
+            return new WP_Error( 'variation_has_override', 'Una variación ya está vinculada a otro SKU base. Revísala antes de continuar.', array(
+                'status'       => 409,
+                'variation_id' => (int) $variation_id,
+            ) );
+        }
+        $prepared[] = $parts;
+    }
+    if ( empty( $prepared ) ) {
+        return new WP_Error( 'no_variations', 'El producto no tiene variaciones publicadas para administrar.', array( 'status' => 400 ) );
+    }
+
+    $touched_ids = array();
+    $wpdb->query( 'START TRANSACTION' );
+    try {
+        foreach ( $prepared as $parts ) {
+            $variation    = $parts['variation'];
+            $variation_id = (int) $parts['variation_id'];
+            $sku_key      = $parts['sku_key'];
+            $row          = nakama_wh_get_row( $sku_key );
+            if ( ! $row ) {
+                $inserted = $wpdb->insert( $table, array(
+                    'sku_key'    => $sku_key,
+                    'prenda'     => $parts['style'],
+                    'color'      => $hidden_color,
+                    'talla'      => $parts['size'],
+                    'label'      => nakama_wh_label( $parts['style'], $hidden_color, $parts['size'] ),
+                    'stock'      => 0,
+                    'min_stock'  => 0,
+                    'origin'     => 'manual',
+                    'updated_at' => current_time( 'mysql' ),
+                ) );
+                if ( false === $inserted ) {
+                    throw new RuntimeException( 'No se pudo crear el SKU base.' );
+                }
+                nakama_wh_log_move( $sku_key, 0, 'manual_seed' );
+            }
+
+            $inserted = $wpdb->insert( $maps, array(
+                'product_id'           => $product_id,
+                'variation_id'         => $variation_id,
+                'sku_key'              => $sku_key,
+                'style'                => $parts['style'],
+                'size'                 => $parts['size'],
+                'hidden_color'         => $hidden_color,
+                'previous_override'    => $parts['previous_override'],
+                'previous_stock_status'=> $variation->get_stock_status(),
+                'created_by'           => get_current_user_id(),
+                'created_at'           => current_time( 'mysql' ),
+                'updated_at'           => current_time( 'mysql' ),
+            ) );
+            if ( false === $inserted ) {
+                throw new RuntimeException( 'No se pudo relacionar una variación.' );
+            }
+            update_post_meta( $variation_id, '_nakama_base_sku', $sku_key );
+            update_post_meta( $variation_id, '_nakama_wh_key', $sku_key );
+            $touched_ids[] = $variation_id;
+        }
+        $wpdb->query( 'COMMIT' );
+    } catch ( Throwable $error ) {
+        $wpdb->query( 'ROLLBACK' );
+        foreach ( $touched_ids as $variation_id ) {
+            clean_post_cache( $variation_id );
+        }
+        nakama_wh_stock_map( true );
+        return new WP_Error( 'mapping_failed', 'No se pudieron guardar las relaciones. Intenta de nuevo.', array( 'status' => 500 ) );
+    }
+
+    nakama_wh_stock_map( true );
+    nakama_wh_sync_stock_status( array_values( array_unique( wp_list_pluck( $prepared, 'sku_key' ) ) ) );
+    if ( function_exists( 'nakama_products_bump_cache' ) ) {
+        nakama_products_bump_cache();
+    }
+    return new WP_REST_Response( nakama_wh_manual_product_out( $product_id ), 201 );
+}
+
+/** Comprueba relaciones manuales, overrides explícitos y resoluciones automáticas. */
+function nakama_wh_sku_has_variation_references( $sku_key ) {
+    global $wpdb;
+    $maps = nakama_wh_catalog_maps_table();
+    if ( $wpdb->get_var( $wpdb->prepare( "SELECT id FROM {$maps} WHERE sku_key = %s LIMIT 1", $sku_key ) ) ) {
+        return true;
+    }
+    if ( $wpdb->get_var( $wpdb->prepare(
+        "SELECT post_id FROM {$wpdb->postmeta} WHERE meta_key = '_nakama_base_sku' AND meta_value = %s LIMIT 1",
+        $sku_key
+    ) ) ) {
+        return true;
+    }
+
+    $ids = $wpdb->get_col( "SELECT ID FROM {$wpdb->posts} WHERE post_type = 'product_variation' AND post_status IN ('publish','private')" );
+    foreach ( (array) $ids as $variation_id ) {
+        $variation = wc_get_product( (int) $variation_id );
+        $resolved  = $variation ? nakama_wh_resolve_for_variation( $variation ) : null;
+        if ( $resolved && $resolved['key'] === $sku_key ) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/** DELETE /warehouse/manual-products/{id} — desvincula y limpia solo SKU huérfanos. */
+function nakama_wh_rest_manual_product_delete( WP_REST_Request $request ) {
+    global $wpdb;
+    $product_id = (int) $request['id'];
+    $maps       = nakama_wh_catalog_maps_table();
+    $table      = nakama_wh_table();
+    $rows       = (array) $wpdb->get_results( $wpdb->prepare(
+        "SELECT * FROM {$maps} WHERE product_id = %d",
+        $product_id
+    ) );
+    if ( empty( $rows ) ) {
+        return new WP_Error( 'mapping_not_found', 'El producto no está administrado.', array( 'status' => 404 ) );
+    }
+
+    $keys = array_values( array_unique( wp_list_pluck( $rows, 'sku_key' ) ) );
+    $wpdb->query( 'START TRANSACTION' );
+    try {
+        foreach ( $rows as $row ) {
+            $variation_id = (int) $row->variation_id;
+            if ( isset( $row->previous_override ) && '' !== $row->previous_override ) {
+                update_post_meta( $variation_id, '_nakama_base_sku', $row->previous_override );
+                update_post_meta( $variation_id, '_nakama_wh_key', $row->previous_override );
+            } else {
+                delete_post_meta( $variation_id, '_nakama_base_sku' );
+                delete_post_meta( $variation_id, '_nakama_wh_key' );
+            }
+            $variation = wc_get_product( $variation_id );
+            if ( $variation && in_array( $row->previous_stock_status, array( 'instock', 'outofstock', 'onbackorder' ), true ) ) {
+                $variation->set_stock_status( $row->previous_stock_status );
+                $variation->save();
+            }
+        }
+        if ( false === $wpdb->delete( $maps, array( 'product_id' => $product_id ) ) ) {
+            throw new RuntimeException( 'No se pudieron eliminar las relaciones.' );
+        }
+
+        $deleted_skus = array();
+        foreach ( $keys as $sku_key ) {
+            $row = nakama_wh_get_row( $sku_key );
+            if ( $row && isset( $row->origin ) && 'manual' === $row->origin && ! nakama_wh_sku_has_variation_references( $sku_key ) ) {
+                $wpdb->delete( $table, array( 'id' => (int) $row->id ) );
+                $deleted_skus[] = $sku_key;
+            }
+        }
+        $wpdb->query( 'COMMIT' );
+    } catch ( Throwable $error ) {
+        $wpdb->query( 'ROLLBACK' );
+        return new WP_Error( 'delete_failed', 'No se pudo eliminar la relación. Intenta de nuevo.', array( 'status' => 500 ) );
+    }
+
+    nakama_wh_stock_map( true );
+    if ( function_exists( 'nakama_products_bump_cache' ) ) {
+        nakama_products_bump_cache();
+    }
+    return new WP_REST_Response( array(
+        'deleted'      => true,
+        'product_id'   => $product_id,
+        'deleted_skus' => $deleted_skus,
+    ), 200 );
+}
 
 /** GET /warehouse/items?search=&alerts=0|1 */
 function nakama_wh_rest_items( WP_REST_Request $request ) {
@@ -960,6 +1408,7 @@ function nakama_wh_rest_upsert( WP_REST_Request $request ) {
         'label'      => $label,
         'stock'      => $stock,
         'min_stock'  => max( 0, $min ),
+        'origin'     => $existing && isset( $existing->origin ) ? $existing->origin : 'catalog',
         'updated_at' => current_time( 'mysql' ),
     );
 
@@ -1183,6 +1632,7 @@ function nakama_wh_rest_generate() {
                     'label'      => $res['label'],
                     'stock'      => 0,
                     'min_stock'  => 0,
+                    'origin'     => 'catalog',
                     'updated_at' => current_time( 'mysql' ),
                 ) );
                 nakama_wh_log_move( $key, 0, 'seed' );
@@ -1305,6 +1755,9 @@ function nakama_wh_render_page() {
             <div class="nw-tabs">
                 <button class="nw-tab is-active" data-tab="stock">Almacén</button>
                 <button class="nw-tab" data-tab="alerts">Alertas <span class="nw-badge" id="nw-alert-count" hidden>0</span></button>
+                <?php if ( current_user_can( 'manage_options' ) ) : ?>
+                    <button class="nw-tab" data-tab="manual">Productos sin color</button>
+                <?php endif; ?>
             </div>
         </header>
 
@@ -1346,6 +1799,47 @@ function nakama_wh_render_page() {
                 </table>
             </div>
         </section>
+
+        <?php if ( current_user_can( 'manage_options' ) ) : ?>
+        <section class="nw-view nw-manual" data-view="manual" hidden>
+            <div class="nw-manual-hero">
+                <div>
+                    <p class="nw-kicker">Control interno · Solo administradores</p>
+                    <h2>Productos sin color</h2>
+                    <p>Selecciona un producto variable de WooCommerce. Estilo y Talla se toman del catálogo; el color que captures solo aparecerá en Almacén y Producción.</p>
+                </div>
+                <span>SKU<br>oculto</span>
+            </div>
+
+            <div id="nw-manual-notice" class="nw-manual-notice" role="alert" hidden></div>
+
+            <form id="nw-manual-form" class="nw-manual-form">
+                <div class="nw-manual-step">01</div>
+                <div class="nw-manual-field nw-manual-search-wrap">
+                    <label for="nw-manual-product-search">Buscar producto en WooCommerce</label>
+                    <input type="search" id="nw-manual-product-search" placeholder="Nombre, slug o SKU…" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="nw-manual-results">
+                    <small>Escribe al menos 2 caracteres.</small>
+                    <div id="nw-manual-results" class="nw-manual-results" role="listbox" hidden></div>
+                </div>
+                <div class="nw-manual-rule"></div>
+                <div class="nw-manual-step">02</div>
+                <div class="nw-manual-field">
+                    <label for="nw-manual-color">Color oculto</label>
+                    <input type="text" id="nw-manual-color" placeholder="Ej. Verde botella" disabled required>
+                    <small>Se aplicará a todas las variaciones detectadas.</small>
+                </div>
+                <button type="submit" id="nw-manual-save" class="nw-btn nw-btn-primary" disabled>Crear SKU internos</button>
+            </form>
+
+            <div id="nw-manual-preview" class="nw-manual-preview" hidden></div>
+
+            <div class="nw-manual-title">
+                <div><p class="nw-kicker">Registro activo</p><h3>Productos administrados</h3></div>
+                <b id="nw-manual-count">00</b>
+            </div>
+            <div id="nw-manual-list" class="nw-manual-list"><div class="nw-manual-empty">Cargando…</div></div>
+        </section>
+        <?php endif; ?>
     </div>
 
     <?php nakama_wh_render_styles(); ?>
@@ -1445,6 +1939,33 @@ function nakama_wh_render_styles() {
     .nw-msg { margin: 12px 0; font-weight: 700; }
     .nw-msg.ok { color: #1a7f37; }
     .nw-msg.err { color: #b32d2e; }
+
+    .nw-manual { max-width: 1240px; margin: 0 auto; }
+    .nw-manual-hero { display:flex; align-items:flex-end; justify-content:space-between; gap:24px; padding:26px 30px; color:#fff; background:#1A1F2B; border:3px solid #000; border-bottom:7px solid var(--nw-primary); box-shadow:5px 5px 0 #000; }
+    .nw-manual-hero h2 { margin:0; font:600 clamp(2.7rem,6vw,4.8rem)/.82 'Teko',sans-serif; text-transform:uppercase; }
+    .nw-manual-hero p:not(.nw-kicker) { max-width:760px; margin:10px 0 0; color:#e8e5dc; line-height:1.55; }
+    .nw-manual-hero>span { flex:0 0 auto; width:88px; height:88px; display:grid; place-content:center; text-align:center; transform:rotate(3deg); color:#fff; background:var(--nw-primary); border:3px solid #fff; box-shadow:5px 5px 0 #000; font:700 1.5rem/.8 'Teko',sans-serif; text-transform:uppercase; }
+    .nw-kicker { margin:0 0 7px; color:var(--nw-primary); font-size:.72rem; font-weight:900; letter-spacing:.15em; text-transform:uppercase; }
+    .nw-manual-notice { margin-top:18px; padding:12px 15px; border:2px solid currentColor; font-weight:800; }
+    .nw-manual-notice.ok { color:#14532d; background:#d7f5dd; }.nw-manual-notice.err { color:#8d191b; background:#fde2e1; }
+    .nw-manual-form { display:grid; grid-template-columns:auto minmax(270px,1fr) 2px auto minmax(210px,.55fr) auto; gap:16px; align-items:end; margin-top:22px; padding:22px; background:#fff; border:3px solid #000; box-shadow:4px 4px 0 #000; }
+    .nw-manual-step { align-self:start; padding-top:25px; color:var(--nw-primary); font:700 1.7rem/1 'Teko',sans-serif; }
+    .nw-manual-rule { align-self:stretch; background:#000; }
+    .nw-manual-field { position:relative; min-width:0; }.nw-manual-field label { display:block; margin-bottom:7px; font-size:.76rem; font-weight:900; letter-spacing:.08em; text-transform:uppercase; }
+    .nw-manual-field input { width:100%; min-height:46px; padding:9px 12px; color:#111; background:#f7f4ed; border:2px solid #000; font-size:1rem; }
+    .nw-manual-field input:focus { outline:3px solid rgba(227,0,15,.3); outline-offset:2px; }.nw-manual-field input:disabled { opacity:.55; }
+    .nw-manual-field small { display:block; margin-top:6px; color:#666; font-size:.72rem; }
+    .nw-manual-results { position:absolute; z-index:30; top:75px; left:0; right:0; max-height:320px; overflow:auto; padding:5px; background:#fff; border:3px solid #000; box-shadow:6px 6px 0 rgba(0,0,0,.25); }
+    .nw-manual-result { width:100%; min-height:58px; display:grid; grid-template-columns:1fr auto; gap:12px; align-items:center; padding:9px; text-align:left; color:#111; background:#fff; border:0; border-bottom:1px solid #ddd; cursor:pointer; }
+    .nw-manual-result:hover:not(:disabled) { background:#fbe9e8; }.nw-manual-result:disabled { opacity:.5; cursor:not-allowed; }.nw-manual-result strong,.nw-manual-result small { display:block; }.nw-manual-result b { color:var(--nw-primary); font-size:.7rem; text-transform:uppercase; }
+    .nw-manual-preview { margin-top:18px; padding:18px; background:#fff; border:3px solid #000; }
+    .nw-manual-preview h3 { margin:0; font:600 1.8rem/1 'Teko',sans-serif; text-transform:uppercase; }.nw-manual-preview>p { margin:5px 0 14px; color:#666; }
+    .nw-manual-variations { display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px; }.nw-manual-variation { padding:10px; background:#f7f4ed; border:2px solid #000; }.nw-manual-variation.bad { background:#fde2e1; border-color:#8d191b; }.nw-manual-variation small,.nw-manual-variation strong,.nw-manual-variation span { display:block; }.nw-manual-variation small { color:#666; font-size:.66rem; }.nw-manual-variation strong { margin:3px 0; }
+    .nw-manual-title { display:flex; align-items:end; justify-content:space-between; margin:38px 0 13px; padding-bottom:8px; border-bottom:5px solid #000; }.nw-manual-title h3 { margin:0; font:600 2.3rem/.9 'Teko',sans-serif; text-transform:uppercase; }.nw-manual-title>b { color:var(--nw-primary); font:700 2.4rem/.8 'Teko',sans-serif; }
+    .nw-manual-list { display:grid; gap:12px; }.nw-manual-card { display:flex; align-items:center; gap:16px; padding:14px; background:#fff; border:3px solid #000; box-shadow:4px 4px 0 rgba(0,0,0,.22); }.nw-manual-card-main { flex:1; min-width:0; }.nw-manual-card small { color:#666; font-size:.7rem; text-transform:uppercase; }.nw-manual-card h4 { margin:2px 0 8px; font:600 1.55rem/1 'Teko',sans-serif; text-transform:uppercase; }.nw-manual-tag { display:inline-block; margin-right:6px; padding:3px 8px; background:#f7f4ed; border:1px solid #000; font-size:.75rem; font-weight:800; }.nw-manual-card p { overflow:hidden; margin:8px 0 0; color:#666; font-size:.75rem; text-overflow:ellipsis; white-space:nowrap; }.nw-manual-remove { min-height:44px; padding:8px 12px; color:#8d191b; background:#fff; border:2px solid #8d191b; font-weight:800; cursor:pointer; }.nw-manual-remove:hover { color:#fff; background:#8d191b; }
+    .nw-manual-empty { padding:34px; text-align:center; color:#666; background:#fff; border:3px dashed #000; }
+    @media (max-width:980px) { .nw-manual-form { grid-template-columns:auto 1fr; }.nw-manual-rule { display:none; }.nw-manual-form>.nw-btn { grid-column:2; } }
+    @media (max-width:640px) { .nw-tabs { width:100%; overflow:auto; }.nw-tab { flex:0 0 auto; }.nw-manual-hero { align-items:flex-start; padding:22px 17px; }.nw-manual-hero>span { width:62px; height:62px; font-size:1.05rem; }.nw-manual-form { grid-template-columns:1fr; padding:16px; }.nw-manual-step { display:none; }.nw-manual-form>.nw-btn { grid-column:1; }.nw-manual-card { flex-wrap:wrap; }.nw-manual-card-main { width:100%; }.nw-manual-remove { width:100%; } }
     </style>
     <?php
 }
@@ -1610,6 +2131,164 @@ function nakama_wh_render_script() {
                 body.innerHTML = items.map(rowHtml).join('');
                 body.querySelectorAll('tr').forEach(bindRow);
             });
+        }
+
+        /* ---- Productos sin color (solo existe para administradores) ---- */
+        var manualSearch = document.getElementById('nw-manual-product-search');
+        var manualSelected = null;
+        var manualSearchTimer;
+
+        function manualNotice(text, bad) {
+            var node = document.getElementById('nw-manual-notice');
+            if (!node) return;
+            node.textContent = text || '';
+            node.hidden = !text;
+            node.className = 'nw-manual-notice ' + (bad ? 'err' : 'ok');
+        }
+
+        function manualCard(item) {
+            var details = (item.variations || []).map(function (v) { return esc(v.style) + ' / ' + esc(v.size); }).join(' · ');
+            return '<article class="nw-manual-card" data-product-id="' + item.id + '">' +
+                '<div class="nw-manual-card-main"><small>#' + item.id + ' · ' + esc(item.slug) + '</small>' +
+                '<h4>' + esc(item.name) + '</h4>' +
+                '<span class="nw-manual-tag">● ' + esc(item.hidden_color) + '</span>' +
+                '<span class="nw-manual-tag">' + (item.variations || []).length + ' SKU internos</span>' +
+                '<p>' + details + '</p></div>' +
+                '<button type="button" class="nw-manual-remove">Dejar de administrar</button></article>';
+        }
+
+        function loadManualProducts() {
+            var list = document.getElementById('nw-manual-list');
+            if (!list) return;
+            list.innerHTML = '<div class="nw-manual-empty">Cargando…</div>';
+            api(url('/manual-products')).then(function (res) {
+                var items = (res.data && res.data.items) || [];
+                document.getElementById('nw-manual-count').textContent = String(items.length).padStart(2, '0');
+                list.innerHTML = items.length ? items.map(manualCard).join('') : '<div class="nw-manual-empty">Aún no hay productos con color oculto.</div>';
+                list.querySelectorAll('.nw-manual-card').forEach(function (card) {
+                    card.querySelector('.nw-manual-remove').addEventListener('click', function () {
+                        var productId = Number(card.dataset.productId);
+                        var name = card.querySelector('h4').textContent;
+                        if (!confirm('¿Dejar de administrar “' + name + '”?\n\nEl historial se conservará y solo se borrarán SKU manuales sin referencias.')) return;
+                        this.disabled = true;
+                        this.textContent = 'Eliminando…';
+                        api(url('/manual-products/' + productId), { method: 'DELETE' }).then(function (deleted) {
+                            if (!deleted.ok) {
+                                manualNotice((deleted.data && deleted.data.message) || 'No se pudo eliminar.', true);
+                                loadManualProducts();
+                                return;
+                            }
+                            manualNotice(name + ' dejó de usar el color oculto.', false);
+                            loadManualProducts();
+                            loadItems();
+                        });
+                    });
+                });
+            });
+        }
+
+        function renderManualPreview(data) {
+            var preview = document.getElementById('nw-manual-preview');
+            var variations = data.variations || [];
+            preview.hidden = false;
+            preview.innerHTML = '<h3>' + esc(data.product.name) + '</h3>' +
+                '<p>#' + data.product.id + ' · ' + esc(data.product.slug) + ' · ' + variations.length + ' variaciones</p>' +
+                '<div class="nw-manual-variations">' + variations.map(function (v) {
+                    return '<div class="nw-manual-variation ' + (v.valid ? '' : 'bad') + '"><small>VAR #' + v.variation_id + '</small>' +
+                        '<strong>' + esc(v.style || 'Sin estilo') + '</strong><span>Talla ' + esc(v.size || '—') + '</span>' +
+                        (v.problem ? '<small>' + esc(v.problem) + '</small>' : '') + '</div>';
+                }).join('') + '</div>';
+            document.getElementById('nw-manual-color').disabled = !data.valid;
+            document.getElementById('nw-manual-save').disabled = !data.valid || !document.getElementById('nw-manual-color').value.trim();
+            if (!data.valid) manualNotice('Revisa las variaciones marcadas antes de crear los SKU.', true);
+        }
+
+        function selectManualProduct(productId, productName) {
+            manualSearch.value = productName;
+            document.getElementById('nw-manual-results').hidden = true;
+            manualSearch.setAttribute('aria-expanded', 'false');
+            document.getElementById('nw-manual-preview').hidden = false;
+            document.getElementById('nw-manual-preview').innerHTML = 'Leyendo variaciones…';
+            api(url('/catalog-products/' + productId + '/variations')).then(function (res) {
+                if (!res.ok) {
+                    manualSelected = null;
+                    manualNotice((res.data && res.data.message) || 'No se pudieron leer las variaciones.', true);
+                    return;
+                }
+                manualSelected = res.data;
+                manualNotice('', false);
+                renderManualPreview(res.data);
+                document.getElementById('nw-manual-color').focus();
+            });
+        }
+
+        if (manualSearch) {
+            manualSearch.addEventListener('input', function () {
+                clearTimeout(manualSearchTimer);
+                manualSelected = null;
+                document.getElementById('nw-manual-color').disabled = true;
+                document.getElementById('nw-manual-save').disabled = true;
+                document.getElementById('nw-manual-preview').hidden = true;
+                var q = this.value.trim();
+                var results = document.getElementById('nw-manual-results');
+                if (q.length < 2) { results.hidden = true; this.setAttribute('aria-expanded', 'false'); return; }
+                manualSearchTimer = setTimeout(function () {
+                    results.hidden = false;
+                    results.innerHTML = '<div class="nw-manual-empty">Buscando…</div>';
+                    manualSearch.setAttribute('aria-expanded', 'true');
+                    api(url('/catalog-products', { search: q })).then(function (res) {
+                        var products = (res.data && res.data.items) || [];
+                        if (!products.length) {
+                            results.innerHTML = '<div class="nw-manual-empty">Sin coincidencias. Prueba con el slug completo o el SKU.</div>';
+                            return;
+                        }
+                        results.innerHTML = products.map(function (product) {
+                            return '<button type="button" class="nw-manual-result" data-id="' + product.id + '" data-name="' + encodeURIComponent(product.name) + '" ' + (product.managed ? 'disabled' : '') + '>' +
+                                '<span><strong>' + esc(product.name) + '</strong><small>' + esc(product.slug) + ' · ' + product.variation_count + ' variaciones</small></span>' +
+                                '<b>' + (product.managed ? 'Ya administrado' : 'Elegir') + '</b></button>';
+                        }).join('');
+                        results.querySelectorAll('.nw-manual-result:not(:disabled)').forEach(function (button) {
+                            button.addEventListener('click', function () { selectManualProduct(Number(this.dataset.id), decodeURIComponent(this.dataset.name)); });
+                        });
+                    });
+                }, 280);
+            });
+
+            document.getElementById('nw-manual-color').addEventListener('input', function () {
+                document.getElementById('nw-manual-save').disabled = !manualSelected || !manualSelected.valid || !this.value.trim();
+            });
+
+            document.getElementById('nw-manual-form').addEventListener('submit', function (event) {
+                event.preventDefault();
+                var color = document.getElementById('nw-manual-color').value.trim();
+                if (!manualSelected || !manualSelected.valid || !color) {
+                    manualNotice('Selecciona un producto compatible y escribe el color oculto.', true);
+                    return;
+                }
+                var save = document.getElementById('nw-manual-save');
+                save.disabled = true;
+                save.textContent = 'Creando SKU…';
+                api(url('/manual-products'), {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ product_id: manualSelected.product.id, hidden_color: color })
+                }).then(function (res) {
+                    save.textContent = 'Crear SKU internos';
+                    if (!res.ok) {
+                        save.disabled = false;
+                        manualNotice((res.data && res.data.message) || 'No se pudo guardar.', true);
+                        return;
+                    }
+                    manualNotice(res.data.name + ' quedó vinculado a ' + res.data.variations.length + ' SKU base.', false);
+                    manualSelected = null;
+                    manualSearch.value = '';
+                    document.getElementById('nw-manual-color').value = '';
+                    document.getElementById('nw-manual-color').disabled = true;
+                    document.getElementById('nw-manual-preview').hidden = true;
+                    loadManualProducts();
+                    loadItems();
+                });
+            });
+            loadManualProducts();
         }
 
         /* ---- Init ---- */
