@@ -141,6 +141,48 @@
     line-height: 1.6;
 }
 
+.nk-changelog-syncbar {
+    display: flex;
+    margin: -14px 0 34px;
+    padding: 14px 18px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    border: 2px solid var(--nk-cl-ink);
+    background: #fff;
+}
+
+.nk-changelog-syncbar > div {
+    display: flex;
+    min-width: 0;
+    align-items: center;
+    gap: 12px;
+}
+
+.nk-changelog-syncbar .dashicons {
+    width: 28px;
+    height: 28px;
+    color: var(--nk-cl-primary);
+    font-size: 28px;
+}
+
+.nk-changelog-syncbar p,
+.nk-changelog-syncbar strong,
+.nk-changelog-syncbar span {
+    display: block;
+    margin: 0;
+}
+
+.nk-changelog-syncbar span {
+    margin-top: 3px;
+    color: var(--nk-cl-muted);
+    font-size: 12px;
+}
+
+.nk-changelog-syncbar .button {
+    flex: 0 0 auto;
+}
+
 .nk-changelog-timeline {
     position: relative;
     display: grid;
@@ -342,6 +384,22 @@
     line-height: 1.55;
 }
 
+.nk-changelog-widget__git {
+    margin: 0 0 16px;
+    padding: 12px 14px 12px 30px;
+    border-left: 4px solid var(--nk-cl-primary);
+    background: #fff;
+}
+
+.nk-changelog-widget__git li {
+    margin: 0 0 7px;
+    line-height: 1.45;
+}
+
+.nk-changelog-widget__git li:last-child {
+    margin-bottom: 0;
+}
+
 .nk-changelog-widget .button-primary {
     min-height: 36px;
 }
@@ -379,6 +437,11 @@
     .nk-changelog-intro {
         grid-template-columns: 1fr;
         padding: 20px;
+    }
+
+    .nk-changelog-syncbar {
+        align-items: flex-start;
+        flex-direction: column;
     }
 
     .nk-changelog-entry__header {

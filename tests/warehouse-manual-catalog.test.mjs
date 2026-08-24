@@ -17,7 +17,7 @@ const changelog = fs.readFileSync(changelogPath, 'utf8');
 test('versions every WordPress plugin changed by NK-2026-08-24', () => {
   assert.match(warehouse, /Version:\s+1\.3\.0/);
   assert.match(production, /Version:\s+2\.1\.0/);
-  assert.match(changelog, /Version:\s+1\.1\.0/);
+  assert.match(changelog, /Version:\s+1\.2\.0/);
   assert.match(changelog, /nakama_changelog_release_id\( '2026-08-24' \)/);
 });
 

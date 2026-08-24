@@ -31,7 +31,28 @@ test('loads scoped local assets only on the changelog and dashboard screens', ()
   assert.match(plugin, /array\( 'index\.php', 'toplevel_page_' \. NAKAMA_CHANGELOG_PAGE \)/);
   assert.match(plugin, /plugin_dir_url\( __FILE__ \) \. 'assets\/admin\.css'/);
   assert.match(plugin, /assets\/nakama-changelog-hero\.png/);
-  assert.doesNotMatch(plugin, /https?:\/\//);
+  assert.doesNotMatch(stylesheet, /https?:\/\//);
+});
+
+test('synchronizes main branch commits without embedding credentials', () => {
+  assert.match(plugin, /Version:\s+1\.2\.0/);
+  assert.match(plugin, /api\.github\.com\/repos\/Chemyn\/NakamaBordados_new\/commits/);
+  assert.match(plugin, /'sha'\s*=>\s*'main'/);
+  assert.match(plugin, /wp_remote_get/);
+  assert.match(plugin, /set_transient\([\s\S]*?15 \* MINUTE_IN_SECONDS/);
+  assert.match(plugin, /nakama_changelog_git_snapshot/);
+  assert.match(plugin, /update_option\( NAKAMA_CHANGELOG_GIT_SNAPSHOT/);
+  assert.doesNotMatch(plugin, /Authorization['"]?\s*=>/i);
+  assert.doesNotMatch(plugin, /github_pat_|ghp_/i);
+});
+
+test('supports automatic and manual refresh with an actionable fallback', () => {
+  assert.match(plugin, /wp_schedule_event\([\s\S]*?'hourly'[\s\S]*?nakama_changelog_sync_git/);
+  assert.match(plugin, /delete_transient\( NAKAMA_CHANGELOG_GIT_CACHE \)/);
+  assert.match(plugin, /Actualizar ahora/);
+  assert.match(plugin, /NK-CHANGELOG:/);
+  assert.match(plugin, /Actividad Git/);
+  assert.match(plugin, /nk-changelog-widget__git/);
 });
 
 test('ships a wide PNG hero and responsive accessible styles', () => {

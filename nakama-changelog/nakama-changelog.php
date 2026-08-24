@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Changelog
  * Description: Historial de cambios de Nakama en el Escritorio de WordPress y en una página exclusiva para administradores.
- * Version: 1.1.0
+ * Version: 1.2.0
  * Author: Nakama Bordados
  * Requires PHP: 7.4
  * Text Domain: nakama-changelog
@@ -11,8 +11,13 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-define( 'NAKAMA_CHANGELOG_VERSION', '1.1.0' );
+define( 'NAKAMA_CHANGELOG_VERSION', '1.2.0' );
 define( 'NAKAMA_CHANGELOG_PAGE', 'nakama-changelog' );
+define( 'NAKAMA_CHANGELOG_GIT_API', 'https://api.github.com/repos/Chemyn/NakamaBordados_new/commits' );
+define( 'NAKAMA_CHANGELOG_GIT_CACHE', 'nakama_changelog_git_commits_v1' );
+define( 'NAKAMA_CHANGELOG_GIT_SNAPSHOT', 'nakama_changelog_git_snapshot' );
+define( 'NAKAMA_CHANGELOG_GIT_LAST_SYNC', 'nakama_changelog_git_last_sync' );
+define( 'NAKAMA_CHANGELOG_GIT_START', '2026-08-22T00:00:00Z' );
 
 /**
  * Convierte una fecha ISO en el identificador público de una actualización.
@@ -29,7 +34,7 @@ function nakama_changelog_release_id( $date ) {
  *
  * @return array<int, array<string, mixed>>
  */
-function nakama_changelog_entries() {
+function nakama_changelog_local_entries() {
 	return array(
 		array(
 			'id'           => nakama_changelog_release_id( '2026-08-24' ),
@@ -66,7 +71,7 @@ function nakama_changelog_entries() {
 					'icon'  => 'dashicons-admin-plugins',
 					'label' => 'Versiones',
 					'items' => array(
-						'Nakama Almacén se actualiza a 1.3.0, Nakama Panel de Producción a 2.1.0 y Nakama Changelog a 1.1.0.',
+						'Nakama Almacén se actualiza a 1.3.0, Nakama Panel de Producción a 2.1.0 y Nakama Changelog a 1.2.0.',
 					),
 				),
 			),
@@ -121,6 +126,251 @@ function nakama_changelog_entries() {
 		),
 	);
 }
+
+/** Fecha legible estable en español sin depender del idioma configurado en WP. */
+function nakama_changelog_date_display( $date ) {
+	$parts  = array_map( 'intval', explode( '-', (string) $date ) );
+	$months = array(
+		1 => 'enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+		'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre',
+	);
+	if ( 3 !== count( $parts ) || ! isset( $months[ $parts[1] ] ) ) {
+		return (string) $date;
+	}
+	return sprintf( '%d de %s de %d', $parts[2], $months[ $parts[1] ], $parts[0] );
+}
+
+/**
+ * Convierte un mensaje Git en notas para administradores.
+ *
+ * Un commit puede incluir notas explícitas:
+ * NK-CHANGELOG:
+ * - Cambio visible uno.
+ * - Cambio visible dos.
+ *
+ * Sin ese bloque se utiliza y humaniza el encabezado conventional-commit.
+ */
+function nakama_changelog_commit_items( $message ) {
+	$lines       = preg_split( '/\R/', trim( (string) $message ) );
+	$inside      = false;
+	$explicit    = array();
+	$first_line  = '';
+
+	foreach ( (array) $lines as $line ) {
+		$line = trim( wp_strip_all_tags( (string) $line ) );
+		if ( '' === $first_line && '' !== $line ) {
+			$first_line = $line;
+		}
+		if ( 'NK-CHANGELOG:' === strtoupper( $line ) ) {
+			$inside = true;
+			continue;
+		}
+		if ( $inside && preg_match( '/^[-*]\s+(.+)$/u', $line, $match ) ) {
+			$explicit[] = sanitize_text_field( $match[1] );
+		}
+	}
+
+	if ( $explicit ) {
+		return array_values( array_unique( $explicit ) );
+	}
+	if ( '' === $first_line ) {
+		return array();
+	}
+
+	$labels = array(
+		'feat'     => 'Nueva función',
+		'fix'      => 'Corrección',
+		'refactor' => 'Mejora técnica',
+		'perf'     => 'Rendimiento',
+		'docs'     => 'Documentación',
+		'test'     => 'Pruebas',
+		'build'    => 'Compilación',
+		'ci'       => 'Automatización',
+		'chore'    => 'Mantenimiento',
+	);
+	$label = 'Cambio';
+	$text  = $first_line;
+	if ( preg_match( '/^([a-z]+)(?:\([^)]*\))?!?:\s*(.+)$/i', $first_line, $match ) ) {
+		$type  = strtolower( $match[1] );
+		$label = isset( $labels[ $type ] ) ? $labels[ $type ] : 'Cambio';
+		$text  = $match[2];
+	}
+
+	return array( $label . ': ' . sanitize_text_field( $text ) );
+}
+
+/** Última copia válida de GitHub; evita que una caída borre el historial. */
+function nakama_changelog_git_snapshot() {
+	$snapshot = get_option( NAKAMA_CHANGELOG_GIT_SNAPSHOT, array() );
+	return is_array( $snapshot ) ? $snapshot : array();
+}
+
+/**
+ * Descarga los commits recientes de main y los fusiona con el snapshot local.
+ * La API es pública: deliberadamente no se envía ni almacena ningún token.
+ */
+function nakama_changelog_git_commits( $force = false ) {
+	if ( ! $force ) {
+		$cached = get_transient( NAKAMA_CHANGELOG_GIT_CACHE );
+		if ( false !== $cached && is_array( $cached ) ) {
+			return $cached;
+		}
+	}
+
+	$url = add_query_arg(
+		array(
+			'sha'      => 'main',
+			'per_page' => 50,
+		),
+		NAKAMA_CHANGELOG_GIT_API
+	);
+	$response = wp_remote_get(
+		$url,
+		array(
+			'timeout'             => 7,
+			'redirection'         => 2,
+			'limit_response_size' => 2 * MB_IN_BYTES,
+			'headers'             => array(
+				'Accept'               => 'application/vnd.github+json',
+				'X-GitHub-Api-Version' => '2022-11-28',
+				'User-Agent'           => 'Nakama-Changelog/' . NAKAMA_CHANGELOG_VERSION,
+			),
+		)
+	);
+
+	$snapshot = nakama_changelog_git_snapshot();
+	if ( is_wp_error( $response ) || 200 !== (int) wp_remote_retrieve_response_code( $response ) ) {
+		set_transient( NAKAMA_CHANGELOG_GIT_CACHE, $snapshot, 5 * MINUTE_IN_SECONDS );
+		return $snapshot;
+	}
+
+	$payload = json_decode( wp_remote_retrieve_body( $response ), true );
+	if ( ! is_array( $payload ) ) {
+		set_transient( NAKAMA_CHANGELOG_GIT_CACHE, $snapshot, 5 * MINUTE_IN_SECONDS );
+		return $snapshot;
+	}
+
+	$by_sha = array();
+	foreach ( $snapshot as $commit ) {
+		if ( is_array( $commit ) && ! empty( $commit['sha'] ) ) {
+			$by_sha[ $commit['sha'] ] = $commit;
+		}
+	}
+
+	$start = strtotime( NAKAMA_CHANGELOG_GIT_START );
+	foreach ( $payload as $raw ) {
+		$sha     = isset( $raw['sha'] ) ? strtolower( (string) $raw['sha'] ) : '';
+		$message = isset( $raw['commit']['message'] ) ? (string) $raw['commit']['message'] : '';
+		$iso     = isset( $raw['commit']['author']['date'] ) ? (string) $raw['commit']['author']['date'] : '';
+		$stamp   = strtotime( $iso );
+		if ( ! preg_match( '/^[a-f0-9]{40}$/', $sha ) || '' === $message || ! $stamp || $stamp < $start ) {
+			continue;
+		}
+		$date = function_exists( 'wp_date' ) ? wp_date( 'Y-m-d', $stamp, wp_timezone() ) : gmdate( 'Y-m-d', $stamp );
+		$by_sha[ $sha ] = array(
+			'sha'     => $sha,
+			'date'    => $date,
+			'message' => sanitize_textarea_field( $message ),
+		);
+	}
+
+	$snapshot = array_values( $by_sha );
+	usort( $snapshot, function ( $a, $b ) {
+		return strcmp( $b['date'], $a['date'] );
+	} );
+	$snapshot = array_slice( $snapshot, 0, 500 );
+
+	update_option( NAKAMA_CHANGELOG_GIT_SNAPSHOT, $snapshot, false );
+	update_option( NAKAMA_CHANGELOG_GIT_LAST_SYNC, current_time( 'mysql' ), false );
+	set_transient( NAKAMA_CHANGELOG_GIT_CACHE, $snapshot, 15 * MINUTE_IN_SECONDS );
+	return $snapshot;
+}
+
+/** Combina las entradas editoriales incluidas en el plugin con la actividad Git. */
+function nakama_changelog_merge_git_entries( $entries, $commits ) {
+	$index = array();
+	foreach ( $entries as $position => $entry ) {
+		$index[ $entry['date'] ] = $position;
+	}
+
+	$by_date = array();
+	foreach ( $commits as $commit ) {
+		if ( ! is_array( $commit ) || empty( $commit['date'] ) || empty( $commit['message'] ) ) {
+			continue;
+		}
+		foreach ( nakama_changelog_commit_items( $commit['message'] ) as $item ) {
+			$short = ! empty( $commit['sha'] ) ? substr( $commit['sha'], 0, 7 ) : '';
+			$note  = $item . ( $short ? ' · Git ' . $short : '' );
+			$by_date[ $commit['date'] ][] = $note;
+		}
+	}
+
+	foreach ( $by_date as $date => $items ) {
+		$group = array(
+			'icon'  => 'dashicons-randomize',
+			'label' => 'Actividad Git',
+			'items' => array_values( array_unique( $items ) ),
+		);
+		if ( isset( $index[ $date ] ) ) {
+			$entries[ $index[ $date ] ]['groups'][] = $group;
+			continue;
+		}
+		$entries[] = array(
+			'id'           => nakama_changelog_release_id( $date ),
+			'date'         => $date,
+			'date_display' => nakama_changelog_date_display( $date ),
+			'title'        => 'Actualización automática desde Git',
+			'summary'      => 'Cambios publicados en la rama principal y sincronizados automáticamente con WordPress.',
+			'groups'       => array( $group ),
+		);
+	}
+
+	usort( $entries, function ( $a, $b ) {
+		return strcmp( $b['date'], $a['date'] );
+	} );
+	return $entries;
+}
+
+/** Fuente final del widget y de la pestaña de administración. */
+function nakama_changelog_entries() {
+	return nakama_changelog_merge_git_entries(
+		nakama_changelog_local_entries(),
+		nakama_changelog_git_commits()
+	);
+}
+
+/** Sincronización horaria aunque ningún administrador abra el Escritorio. */
+function nakama_changelog_refresh_git_snapshot() {
+	nakama_changelog_git_commits( true );
+}
+add_action( 'nakama_changelog_sync_git', 'nakama_changelog_refresh_git_snapshot' );
+
+function nakama_changelog_schedule_sync() {
+	if ( ! wp_next_scheduled( 'nakama_changelog_sync_git' ) ) {
+		wp_schedule_event( time() + MINUTE_IN_SECONDS, 'hourly', 'nakama_changelog_sync_git' );
+	}
+}
+add_action( 'init', 'nakama_changelog_schedule_sync' );
+
+register_deactivation_hook( __FILE__, function () {
+	wp_clear_scheduled_hook( 'nakama_changelog_sync_git' );
+} );
+
+/** Actualización manual autenticada para validar un push sin esperar al caché. */
+function nakama_changelog_handle_manual_refresh() {
+	if ( ! is_admin() || ! current_user_can( 'manage_options' ) || ! isset( $_GET['nakama_changelog_refresh'] ) ) {
+		return;
+	}
+	check_admin_referer( 'nakama_changelog_refresh_git' );
+	delete_transient( NAKAMA_CHANGELOG_GIT_CACHE );
+	nakama_changelog_git_commits( true );
+	wp_safe_redirect( add_query_arg(
+		array( 'page' => NAKAMA_CHANGELOG_PAGE, 'git-refreshed' => '1' ),
+		admin_url( 'admin.php' )
+	) );
+	exit;
+}
+add_action( 'admin_init', 'nakama_changelog_handle_manual_refresh' );
 
 /** Registra la página de historial exclusiva para administradores. */
 function nakama_changelog_register_page() {
@@ -181,6 +431,13 @@ function nakama_changelog_render_dashboard_widget() {
 	if ( ! $latest ) {
 		return;
 	}
+	$git_items = array();
+	foreach ( $latest['groups'] as $group ) {
+		if ( 'Actividad Git' === $group['label'] ) {
+			$git_items = array_slice( $group['items'], 0, 3 );
+			break;
+		}
+	}
 	?>
 	<div class="nk-changelog-widget">
 		<div class="nk-changelog-widget__meta">
@@ -189,6 +446,13 @@ function nakama_changelog_render_dashboard_widget() {
 		</div>
 		<h3><?php echo esc_html( $latest['title'] ); ?></h3>
 		<p><?php echo esc_html( $latest['summary'] ); ?></p>
+		<?php if ( $git_items ) : ?>
+			<ul class="nk-changelog-widget__git">
+				<?php foreach ( $git_items as $item ) : ?>
+					<li><?php echo esc_html( $item ); ?></li>
+				<?php endforeach; ?>
+			</ul>
+		<?php endif; ?>
 		<a class="button button-primary" href="<?php echo esc_url( admin_url( 'admin.php?page=' . NAKAMA_CHANGELOG_PAGE ) ); ?>">
 			Ver historial completo
 		</a>
@@ -202,7 +466,16 @@ function nakama_changelog_render_page() {
 		wp_die( esc_html__( 'No tienes permiso para consultar el historial de cambios.', 'nakama-changelog' ) );
 	}
 
-	$entries = nakama_changelog_entries();
+	$entries     = nakama_changelog_entries();
+	$last_sync   = (string) get_option( NAKAMA_CHANGELOG_GIT_LAST_SYNC, '' );
+	$sync_label  = $last_sync ? 'Última sincronización: ' . $last_sync : 'La primera sincronización está pendiente.';
+	$refresh_url = wp_nonce_url(
+		add_query_arg(
+			array( 'page' => NAKAMA_CHANGELOG_PAGE, 'nakama_changelog_refresh' => '1' ),
+			admin_url( 'admin.php' )
+		),
+		'nakama_changelog_refresh_git'
+	);
 	?>
 	<div class="wrap nk-changelog">
 		<section class="nk-changelog-hero" aria-labelledby="nk-changelog-title">
@@ -224,6 +497,17 @@ function nakama_changelog_render_page() {
 				<span class="dashicons dashicons-visibility" aria-hidden="true"></span>
 			</div>
 			<p>Cada bloque resume cambios visibles y operativos. El identificador usa el formato <strong>NK-AAAA-MM-DD</strong> para facilitar soporte, validación y seguimiento.</p>
+		</div>
+
+		<div class="nk-changelog-syncbar" role="status">
+			<div>
+				<span class="dashicons dashicons-update" aria-hidden="true"></span>
+				<p>
+					<strong>Git conectado · rama main</strong>
+					<span><?php echo esc_html( $sync_label ); ?></span>
+				</p>
+			</div>
+			<a class="button button-secondary" href="<?php echo esc_url( $refresh_url ); ?>">Actualizar ahora</a>
 		</div>
 
 		<div class="nk-changelog-timeline">
