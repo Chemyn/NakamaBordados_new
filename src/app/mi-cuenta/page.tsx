@@ -18,6 +18,7 @@ import AccountProgress from './AccountProgress';
 import AccountSectionNav, { type AccountSectionId } from './AccountSectionNav';
 import AuthModeTabs from './AuthModeTabs';
 import TrackingFeedback from './TrackingFeedback';
+import QuotePaymentDialog from './QuotePaymentDialog';
 import { canShowQuotePaymentActions } from '@/lib/quote-payment';
 
 /* Estados de pedido de WooCommerce en español. GraphQL los entrega como enum
@@ -136,7 +137,13 @@ export default function MiCuentaPage() {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [registerData, setRegisterData] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '' });
   const [isRegistering, setIsRegistering] = useState(false);
+  const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const router = useRouter();
+
+  const selectedQuote = user?.orders?.nodes.find(
+    order => order.id === selectedQuoteId && canShowQuotePaymentActions(order),
+  ) || null;
+  const closeQuotePaymentDialog = React.useCallback(() => setSelectedQuoteId(null), []);
 
   // ?return=/cart/ — el gate de compra manda aquí a autenticarse y al terminar
   // se regresa a esa ruta. Se lee de window.location (useSearchParams exigiría
@@ -539,60 +546,23 @@ export default function MiCuentaPage() {
                                 </div>
                               </div>
 
-                              {/* Pedido pendiente de pago (p. ej. cotización con
-                                  precio ya asignado): pagar solo, o mandarla al
-                                  carrito para pagarla junto con otros artículos. */}
-                              {(String(order.orderNumber || '').startsWith('NK-') ? canShowQuotePaymentActions(order) : (order.needsPayment && order.databaseId && order.orderKey)) && (
+                              {/* La decisión server-side distingue una solicitud de
+                                  cotización original de un pedido ordinario pendiente
+                                  (p. ej. transferencia) o de uno ya convertido/pagado. */}
+                              {canShowQuotePaymentActions(order) && (
                                 <div className="nk-order-payment">
                                   <p className="nk-order-payment-copy">
-                                    {String(order.orderNumber || '').startsWith('NK-')
-                                      ? 'Tu cotización ya tiene precio: págala ahora o agrégala al carrito para pagarla junto con otros artículos.'
-                                      : 'Este pedido está pendiente de pago. Puedes completar el pago ahora.'}
+                                    Tu cotización ya tiene precio. Elige cómo quieres completar el pago.
                                   </p>
-                                  <div className="nk-order-payment-actions">
                                   <button
                                     className="nk-btn nk-order-payment-action"
-                                    onClick={async () => {
-                                      // Sembrar la sesión de WP para que el checkout
-                                      // reconozca al cliente, y pagar por el CHECKOUT
-                                      // NORMAL (pide envío, calcula paquetería y acepta
-                                      // cupones; order-pay de Woo no lo hace).
-                                      // currency: sin él, el snippet de moneda de WP
-                                      // decide solo (geo-IP) y convertía a USD sin
-                                      // que el cliente lo hubiera seleccionado.
-                                      // No toca el carrito local: pay-quote vacía solo
-                                      // el carrito de WC. Si esta cotización también
-                                      // estaba agregada al carrito, el guard del server
-                                      // la expulsará cuando ya esté pagada.
-                                      await seedWpSession();
-                                      window.location.href = `https://nakamabordados.com/index.php?nk_bridge=pay-quote&order=${order.databaseId}&key=${order.orderKey}&currency=${currencyInfo.currency}`;
-                                    }}
+                                    type="button"
+                                    aria-haspopup="dialog"
+                                    onClick={() => setSelectedQuoteId(order.id)}
                                   >
                                     <span className="material-icons-outlined" aria-hidden="true">payments</span>
-                                    PAGAR AHORA
+                                    PAGAR COTIZACIÓN
                                   </button>
-                                  {/* Solo cotizaciones (folio NK-): un pedido normal
-                                      pendiente se paga directo, no viaja al carrito. */}
-                                  {String(order.orderNumber || '').startsWith('NK-') && (
-                                    <button
-                                      className="nk-account-secondary-action nk-order-payment-action"
-                                      disabled={isQuoteInCart(order.databaseId!)}
-                                      onClick={() => addQuoteToCart({
-                                        orderId: order.databaseId!,
-                                        orderKey: order.orderKey!,
-                                        folio: String(order.orderNumber),
-                                        // Mismo parseo del total que el render de arriba;
-                                        // las cotizaciones siempre se emiten en MXN.
-                                        totalMXN: parseFloat(String(order.total || '0').replace(/[^0-9.-]/g, '')) || 0,
-                                      })}
-                                    >
-                                      <span className="material-icons-outlined" aria-hidden="true">
-                                        {isQuoteInCart(order.databaseId!) ? 'check' : 'add_shopping_cart'}
-                                      </span>
-                                      {isQuoteInCart(order.databaseId!) ? 'EN EL CARRITO' : 'AGREGAR AL CARRITO'}
-                                    </button>
-                                  )}
-                                  </div>
                                 </div>
                               )}
                             </div>
@@ -1002,6 +972,29 @@ export default function MiCuentaPage() {
         </div>
 
         <div className="nk-login-protocol">NAKAMA SECURITY PROTOCOL // GRAND LINE</div>
+
+        {selectedQuote && (
+          <QuotePaymentDialog
+            folio={String(selectedQuote.orderNumber)}
+            total={parseFloat(String(selectedQuote.total || '0').replace(/[^0-9.-]/g, '')) || 0}
+            currency={selectedQuote.currency || 'MXN'}
+            isInCart={isQuoteInCart(selectedQuote.databaseId!)}
+            onClose={closeQuotePaymentDialog}
+            onPayNow={async () => {
+              // pay-quote usa el checkout normal (envío, paquetería y cupones),
+              // pero necesita primero la cookie de sesión de WordPress.
+              const seeded = await seedWpSession();
+              if (!seeded) throw new Error('No se pudo sembrar la sesión de WordPress.');
+              window.location.href = `https://nakamabordados.com/index.php?nk_bridge=pay-quote&order=${selectedQuote.databaseId}&key=${selectedQuote.orderKey}&currency=${currencyInfo.currency}`;
+            }}
+            onAddToCart={() => addQuoteToCart({
+              orderId: selectedQuote.databaseId!,
+              orderKey: selectedQuote.orderKey!,
+              folio: String(selectedQuote.orderNumber),
+              totalMXN: parseFloat(String(selectedQuote.total || '0').replace(/[^0-9.-]/g, '')) || 0,
+            })}
+          />
+        )}
       </div>
 
       <style jsx>{`
@@ -1496,12 +1489,6 @@ export default function MiCuentaPage() {
           font-weight: 700;
         }
 
-        .nk-order-payment-actions {
-          display: grid;
-          grid-template-columns: minmax(0, 1fr);
-          gap: 8px;
-        }
-
         .nk-order-payment-action {
           width: 100%;
           min-height: 48px;
@@ -1515,12 +1502,6 @@ export default function MiCuentaPage() {
         }
 
         .nk-order-payment-action .material-icons-outlined { font-size: 18px; }
-
-        @media (min-width: 600px) {
-          .nk-order-payment-actions {
-            grid-template-columns: repeat(2, minmax(0, 1fr));
-          }
-        }
 
         .nk-account-secondary-action {
           min-height: 44px;

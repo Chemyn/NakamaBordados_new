@@ -8,6 +8,7 @@ interface TestOrder {
   databaseId?: number;
   orderKey?: string;
   needsPayment?: boolean;
+  nakamaQuotePaymentEligible?: boolean;
   orderNumber: string;
   status: string;
   total: string;
@@ -269,7 +270,7 @@ describe('MiCuentaPage accessibility and account navigation', () => {
     await act(async () => { resolveSecond(trackingResponse('TRACK-B')); });
   });
 
-  it('distinguishes payable quotes from ordinary payable orders without changing eligibility', () => {
+  it('offers the payment chooser only for a server-eligible quote', () => {
     mocks.auth.user = createUser([
       createOrder({
         id: 'quote-order',
@@ -286,19 +287,63 @@ describe('MiCuentaPage accessibility and account navigation', () => {
         databaseId: 2049,
         orderKey: 'wc_order_ordinary',
       }),
+      createOrder({
+        id: 'converted-quote',
+        orderNumber: 'NK-2050',
+        status: 'on-hold',
+        needsPayment: true,
+        databaseId: 2050,
+        orderKey: 'wc_order_converted',
+        nakamaQuotePaymentEligible: false,
+      }),
     ]);
     render(<MiCuentaPage />);
     fireEvent.click(screen.getByRole('tab', { name: 'Pedidos' }));
 
     const quoteCard = screen.getByText('PEDIDO #NK-2048').closest('.nk-order-item');
     const ordinaryCard = screen.getByText('PEDIDO #2049').closest('.nk-order-item');
+    const convertedCard = screen.getByText('PEDIDO #NK-2050').closest('.nk-order-item');
     expect(quoteCard).not.toBeNull();
     expect(ordinaryCard).not.toBeNull();
-    expect(within(quoteCard as HTMLElement).getByText(/tu cotización ya tiene precio/i)).toBeVisible();
-    expect(within(quoteCard as HTMLElement).getByRole('button', { name: /agregar al carrito/i })).toBeVisible();
-    expect(within(ordinaryCard as HTMLElement).getByText(/este pedido está pendiente de pago/i)).toBeVisible();
-    expect(within(ordinaryCard as HTMLElement).queryByText(/cotización|carrito/i)).not.toBeInTheDocument();
-    expect(within(ordinaryCard as HTMLElement).getByRole('button', { name: /pagar ahora/i })).toBeVisible();
+    expect(convertedCard).not.toBeNull();
+
+    const chooserButton = within(quoteCard as HTMLElement).getByRole('button', { name: /pagar cotización/i });
+    expect(chooserButton).toBeVisible();
+    expect(within(ordinaryCard as HTMLElement).queryByRole('button', { name: /pagar/i })).not.toBeInTheDocument();
+    expect(within(convertedCard as HTMLElement).queryByRole('button', { name: /pagar/i })).not.toBeInTheDocument();
+
+    fireEvent.click(chooserButton);
+    const dialog = screen.getByRole('dialog', { name: /elige cómo pagar/i });
+    expect(within(dialog).getByText('NK-2048')).toBeVisible();
+    expect(within(dialog).getByRole('button', { name: /pagar solo esta cotización/i })).toBeVisible();
+
+    fireEvent.click(within(dialog).getByRole('button', { name: /agregar al carrito/i }));
+    expect(mocks.cart.addQuoteToCart).toHaveBeenCalledWith({
+      orderId: 2048,
+      orderKey: 'wc_order_quote',
+      folio: 'NK-2048',
+      totalMXN: 1200,
+    });
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('disables adding an eligible quote when it is already in the cart', () => {
+    mocks.cart.isQuoteInCart.mockReturnValue(true);
+    mocks.auth.user = createUser([
+      createOrder({
+        id: 'quote-in-cart',
+        orderNumber: 'NK-3000',
+        needsPayment: true,
+        databaseId: 3000,
+        orderKey: 'wc_order_in_cart',
+        nakamaQuotePaymentEligible: true,
+      }),
+    ]);
+    render(<MiCuentaPage />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Pedidos' }));
+    fireEvent.click(screen.getByRole('button', { name: /pagar cotización/i }));
+
+    expect(screen.getByRole('button', { name: /ya está en el carrito/i })).toBeDisabled();
   });
 
   it('preserves return navigation and exposes one associated login error', async () => {
