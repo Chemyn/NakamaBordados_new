@@ -1,5 +1,6 @@
 import { jsPDF } from 'jspdf';
 import type { ClientDetails, GarmentCustomization, PatchCustomization, CapCustomization } from '../types';
+import { GARMENT_REFERENCE_MARKER_SIZE, getGarmentPlacementPoint } from './placementGeometry';
 
 export function generateQuotePDF(
   client: ClientDetails,
@@ -477,49 +478,31 @@ function drawTshirtSilhouette(doc: jsPDF, x: number, y: number, size: number, hi
   doc.stroke();
 
   // Position highlight spot
-  doc.setFillColor(255, 51, 51);
   doc.setDrawColor(255, 51, 51);
   doc.setLineWidth(0.4);
 
-  let px = 50;
-  let py = 50;
-
-  switch (highlightedPos) {
-    case 'Pecho Izquierdo':
-      px = 38.5;
-      py = 32.5;
-      break;
-    case 'Pecho Derecho':
-      px = 61.5;
-      py = 32.5;
-      break;
-    case 'Pecho en Medio':
-      px = 50;
-      py = 33.5;
-      break;
-    case 'Enfrente':
-      px = 50;
-      py = 61;
-      break;
-    case 'Espalda':
-      px = 50;
-      py = 53;
-      break;
-    case 'Manga Izquierda':
-      px = 21.75;
-      py = 35.25;
-      break;
-    case 'Manga Derecha':
-      px = 78.25;
-      py = 35.25;
-      break;
-  }
+  // La misma geometría alimenta el visualizador y el PDF. En vista frontal,
+  // los lados se ven en espejo: el pecho izquierdo aparece a la derecha.
+  const { x: px, y: py } = getGarmentPlacementPoint(highlightedPos);
 
   const pdfX = x + px * scale;
   const pdfY = y + py * scale;
+  const markerSize = GARMENT_REFERENCE_MARKER_SIZE * scale;
 
-  doc.circle(pdfX, pdfY, 2.5, 'F');
-  doc.circle(pdfX, pdfY, 3.8, 'S');
+  // Replica el área cuadrada punteada que el cliente confirmó en el
+  // visualizador, en lugar del antiguo círculo que podía sugerir otra zona.
+  doc.setFillColor(255, 238, 238);
+  doc.setLineDashPattern([1.5 * scale, 1.1 * scale], 0);
+  doc.roundedRect(
+    pdfX - markerSize / 2,
+    pdfY - markerSize / 2,
+    markerSize,
+    markerSize,
+    1.5 * scale,
+    1.5 * scale,
+    'FD'
+  );
+  doc.setLineDashPattern([], 0);
 
   doc.setFont('Helvetica', 'bold');
   doc.setFontSize(7);

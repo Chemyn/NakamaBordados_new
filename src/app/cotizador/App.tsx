@@ -1187,6 +1187,7 @@ _Adjunto se encuentra el PDF de la cotización formal y el archivo ZIP con todas
 
             {/* VISUALIZADOR INTERACTIVO */}
             <Visualizer
+              key={activeProduct}
               productType={activeProduct}
               selectedPositions={getActivePositionsArray()}
               onPositionToggle={handlePositionToggle}

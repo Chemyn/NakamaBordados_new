@@ -2,6 +2,7 @@
 
 import React from 'react';
 import type { ProductType } from '../types';
+import { GARMENT_PLACEMENT_POINTS, GARMENT_REFERENCE_MARKER_SIZE } from '../utils/placementGeometry';
 
 interface VisualizerProps {
   productType: ProductType;
@@ -28,12 +29,6 @@ export const Visualizer: React.FC<VisualizerProps> = ({
   // Zona ya activa sobre la que se hizo clic: abre el mini-menú Editar/Quitar
   // para poder deseleccionarla in-situ (sin bajar al panel de áreas activas).
   const [managingZone, setManagingZone] = React.useState<string | null>(null);
-
-  // Reset popups if product type changes
-  React.useEffect(() => {
-    setPendingZone(null);
-    setManagingZone(null);
-  }, [productType]);
 
   const isPositionActive = (pos: string) => selectedPositions.includes(pos);
   const isPositionEditing = (pos: string) => selectedEditingPosition === pos;
@@ -83,6 +78,12 @@ export const Visualizer: React.FC<VisualizerProps> = ({
   const renderRopaVisualizer = () => {
     const shirtFrontPath = "M 40 16 Q 50 23 60 16 L 74 21 L 88 36 L 80 46 L 71 38 L 71 88 Q 50 92 29 88 L 29 38 L 20 46 L 12 36 L 26 21 Z";
     const shirtBackPath = "M 40 16 Q 50 19 60 16 L 74 21 L 88 36 L 80 46 L 71 38 L 71 88 Q 50 92 29 88 L 29 38 L 20 46 L 12 36 L 26 21 Z";
+    const rightChest = GARMENT_PLACEMENT_POINTS['Pecho Derecho'];
+    const leftChest = GARMENT_PLACEMENT_POINTS['Pecho Izquierdo'];
+    const centerChest = GARMENT_PLACEMENT_POINTS['Pecho en Medio'];
+    const fullFront = GARMENT_PLACEMENT_POINTS.Enfrente;
+    const fullBack = GARMENT_PLACEMENT_POINTS.Espalda;
+    const chestMarkerRadius = GARMENT_REFERENCE_MARKER_SIZE / 2;
 
     return (
       <div className="row g-4 justify-content-center text-center">
@@ -107,22 +108,22 @@ export const Visualizer: React.FC<VisualizerProps> = ({
                   cae a la IZQUIERDA de la imagen y viceversa. Por eso el rect de
                   la izquierda se etiqueta 'Pecho Derecho' y el de la derecha
                   'Pecho Izquierdo'. */}
-              <rect x="29.5" y="23.5" width="18" height="18" fill="transparent" style={{ cursor: 'pointer' }} onClick={(e) => handleZoneClick('Pecho Derecho', e)} />
-              <rect x="52.5" y="23.5" width="18" height="18" fill="transparent" style={{ cursor: 'pointer' }} onClick={(e) => handleZoneClick('Pecho Izquierdo', e)} />
-              <rect x="41" y="24.5" width="18" height="18" fill="transparent" style={{ cursor: 'pointer' }} onClick={(e) => handleZoneClick('Pecho en Medio', e)} />
+              <rect x={rightChest.x - 9} y={rightChest.y - 9} width="18" height="18" fill="transparent" style={{ cursor: 'pointer' }} onClick={(e) => handleZoneClick('Pecho Derecho', e)} />
+              <rect x={leftChest.x - 9} y={leftChest.y - 9} width="18" height="18" fill="transparent" style={{ cursor: 'pointer' }} onClick={(e) => handleZoneClick('Pecho Izquierdo', e)} />
+              <rect x={centerChest.x - 9} y={centerChest.y - 9} width="18" height="18" fill="transparent" style={{ cursor: 'pointer' }} onClick={(e) => handleZoneClick('Pecho en Medio', e)} />
 
               {/* Clickable Overlay Zones */}
               {/* Pecho Derecho (lado izquierdo de la imagen, vista espejo) */}
-              <rect x="33" y="27" width="11" height="11" rx="2" {...getZoneStyles('Pecho Derecho')} onClick={(e) => handleZoneClick('Pecho Derecho', e)} />
+              <rect x={rightChest.x - chestMarkerRadius} y={rightChest.y - chestMarkerRadius} width={GARMENT_REFERENCE_MARKER_SIZE} height={GARMENT_REFERENCE_MARKER_SIZE} rx="2" {...getZoneStyles('Pecho Derecho')} onClick={(e) => handleZoneClick('Pecho Derecho', e)} />
 
               {/* Pecho Izquierdo (lado derecho de la imagen, vista espejo) */}
-              <rect x="56" y="27" width="11" height="11" rx="2" {...getZoneStyles('Pecho Izquierdo')} onClick={(e) => handleZoneClick('Pecho Izquierdo', e)} />
+              <rect x={leftChest.x - chestMarkerRadius} y={leftChest.y - chestMarkerRadius} width={GARMENT_REFERENCE_MARKER_SIZE} height={GARMENT_REFERENCE_MARKER_SIZE} rx="2" {...getZoneStyles('Pecho Izquierdo')} onClick={(e) => handleZoneClick('Pecho Izquierdo', e)} />
 
               {/* Pecho en Medio */}
-              <rect x="45" y="29" width="10" height="9" rx="2" {...getZoneStyles('Pecho en Medio')} onClick={(e) => handleZoneClick('Pecho en Medio', e)} />
+              <rect x={centerChest.x - 5} y={centerChest.y - 4.5} width="10" height="9" rx="2" {...getZoneStyles('Pecho en Medio')} onClick={(e) => handleZoneClick('Pecho en Medio', e)} />
               
               {/* Frente Completo */}
-              <rect x="31" y="44" width="38" height="34" rx="3" {...getZoneStyles('Enfrente')} onClick={(e) => handleZoneClick('Enfrente', e)} />
+              <rect x={fullFront.x - 19} y={fullFront.y - 17} width="38" height="34" rx="3" {...getZoneStyles('Enfrente')} onClick={(e) => handleZoneClick('Enfrente', e)} />
               
               {/* Manga Derecha (lado izquierdo de la imagen, vista espejo) */}
               {garmentModel !== 'Tank Top' && (
@@ -151,7 +152,7 @@ export const Visualizer: React.FC<VisualizerProps> = ({
               <path d="M 71 38 L 80 46" fill="none" stroke="#94A3B8" strokeWidth="0.8" strokeDasharray="1 1" />
 
               {/* Clickable Zone Espalda */}
-              <rect x="28" y="28" width="44" height="50" rx="3" {...getZoneStyles('Espalda')} onClick={(e) => handleZoneClick('Espalda', e)} />
+              <rect x={fullBack.x - 22} y={fullBack.y - 25} width="44" height="50" rx="3" {...getZoneStyles('Espalda')} onClick={(e) => handleZoneClick('Espalda', e)} />
             </svg>
           </div>
         </div>
