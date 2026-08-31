@@ -17,6 +17,7 @@ import { fetchWarehouseAccess } from '@/lib/warehouse-api';
 import AccountProgress from './AccountProgress';
 import AccountSectionNav, { type AccountSectionId } from './AccountSectionNav';
 import AuthModeTabs from './AuthModeTabs';
+import LuffyCharacter from './LuffyCharacter';
 import TrackingFeedback from './TrackingFeedback';
 import QuotePaymentDialog from './QuotePaymentDialog';
 import { canShowQuotePaymentActions } from '@/lib/quote-payment';
@@ -138,6 +139,7 @@ export default function MiCuentaPage() {
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [registerData, setRegisterData] = useState({ firstName: '', lastName: '', email: '', phone: '', password: '' });
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
   const [selectedQuoteId, setSelectedQuoteId] = useState<string | null>(null);
   const router = useRouter();
 
@@ -827,6 +829,10 @@ export default function MiCuentaPage() {
                   <h1 id="account-story-title">Tu cuenta,<br />sin complicaciones.</h1>
                   <p>Consulta el avance de tus bordados, organiza tus compras y retoma tus pedidos cuando quieras.</p>
                 </div>
+                <LuffyCharacter
+                  expression={error ? 'shocked' : null}
+                  isPasswordFocused={isPasswordFocused}
+                />
                 <ul className="nk-login-benefits" aria-label="Beneficios de tu cuenta">
                   <li><span className="material-icons-outlined" aria-hidden="true">local_shipping</span> Rastreo claro de cada envío</li>
                   <li><span className="material-icons-outlined" aria-hidden="true">receipt_long</span> Pedidos y cotizaciones reunidos</li>
@@ -836,7 +842,6 @@ export default function MiCuentaPage() {
 
               <section className="nk-login-form-wrapper" aria-label="Acceso a tu cuenta">
                 <div className="nk-login-header">
-                  <span className="nk-login-mobile-mark" aria-hidden="true">N</span>
                   <span className="nk-account-eyebrow">Bienvenido de nuevo</span>
                   <h2 className="nk-section-title">
                     {authMode === 'login' ? t('account.login.title') : t('account.register.title')}
@@ -889,6 +894,8 @@ export default function MiCuentaPage() {
                         name="password"
                         value={userCredentials.password}
                         onChange={handleInputChange}
+                        onFocus={() => setIsPasswordFocused(true)}
+                        onBlur={() => setIsPasswordFocused(false)}
                         required
                         className="nk-manga-input"
                         autoComplete="current-password"
@@ -981,6 +988,8 @@ export default function MiCuentaPage() {
                         name="password"
                         value={registerData.password}
                         onChange={handleRegisterChange}
+                        onFocus={() => setIsPasswordFocused(true)}
+                        onBlur={() => setIsPasswordFocused(false)}
                         required
                         minLength={6}
                         className="nk-manga-input"

@@ -134,18 +134,6 @@
   color: #fff;
 }
 
-.accountPage :global(.nk-login-story)::after {
-  content: "N";
-  position: absolute;
-  right: -0.08em;
-  bottom: -0.3em;
-  color: rgba(255, 255, 255, 0.08);
-  font-size: clamp(14rem, 33vw, 28rem);
-  font-weight: 900;
-  line-height: 1;
-  letter-spacing: -0.12em;
-  pointer-events: none;
-}
 
 .accountPage :global(.nk-login-story > *) {
   position: relative;
@@ -242,18 +230,6 @@
   line-height: 1.5;
 }
 
-.accountPage :global(.nk-login-mobile-mark) {
-  width: 3rem;
-  height: 3rem;
-  margin-bottom: 1.35rem;
-  border-radius: 0.95rem;
-  display: none;
-  place-items: center;
-  background: var(--nk-primary);
-  color: #fff;
-  font-size: 1.35rem;
-  font-weight: 850;
-}
 
 .accountPage :global(.nk-auth-tabs) {
   margin-bottom: 1.45rem;
@@ -1146,9 +1122,6 @@
     display: none;
   }
 
-  .accountPage :global(.nk-login-mobile-mark) {
-    display: grid;
-  }
 
   .accountPage :global(.nk-account-overview) {
     grid-template-columns: 1fr;
