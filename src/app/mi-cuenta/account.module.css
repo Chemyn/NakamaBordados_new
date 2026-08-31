@@ -1,0 +1,1211 @@
+.accountPage {
+  --account-canvas: #f3f3f6;
+  --account-surface: rgba(255, 255, 255, 0.8);
+  --account-surface-solid: #ffffff;
+  --account-surface-muted: rgba(247, 247, 249, 0.88);
+  --account-text: #171719;
+  --account-text-secondary: #626269;
+  --account-line: rgba(23, 23, 25, 0.12);
+  --account-line-strong: rgba(23, 23, 25, 0.2);
+  --account-brand: #e90017;
+  --account-brand-deep: #a80012;
+  --account-on-accent: #ffffff;
+  --account-accent-soft: color-mix(in srgb, var(--nk-primary) 11%, transparent);
+  --account-shadow: 0 24px 70px rgba(21, 21, 26, 0.12), 0 2px 10px rgba(21, 21, 26, 0.05);
+  --account-shadow-small: 0 12px 34px rgba(21, 21, 26, 0.09), 0 1px 4px rgba(21, 21, 26, 0.05);
+  position: relative;
+  isolation: isolate;
+  min-height: 100vh;
+  padding: calc(var(--header-padding) + clamp(1.25rem, 4vw, 3.5rem)) clamp(0.75rem, 3vw, 2rem) clamp(3rem, 7vw, 6rem);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 8% 18%, color-mix(in srgb, var(--nk-primary) 13%, transparent) 0, transparent 27rem),
+    radial-gradient(circle at 94% 76%, rgba(27, 27, 31, 0.07) 0, transparent 30rem),
+    var(--account-canvas);
+  color: var(--account-text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+  font-optical-sizing: auto;
+}
+
+:global(html.dark) .accountPage {
+  --account-canvas: #12151c;
+  --account-surface: rgba(35, 41, 54, 0.78);
+  --account-surface-solid: #252b38;
+  --account-surface-muted: rgba(27, 32, 43, 0.88);
+  --account-text: #f7f5f2;
+  --account-text-secondary: #c7cbd2;
+  --account-line: rgba(255, 255, 255, 0.12);
+  --account-line-strong: rgba(255, 255, 255, 0.22);
+  --account-brand: #e21b31;
+  --account-brand-deep: #9d0012;
+  --account-on-accent: #171a22;
+  --account-shadow: 0 28px 80px rgba(0, 0, 0, 0.34), 0 2px 12px rgba(0, 0, 0, 0.2);
+  --account-shadow-small: 0 14px 34px rgba(0, 0, 0, 0.25);
+}
+
+.accountPage::before,
+.accountPage::after {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  border-radius: 999px;
+  filter: blur(3px);
+  pointer-events: none;
+}
+
+.accountPage::before {
+  width: min(38rem, 75vw);
+  height: min(38rem, 75vw);
+  top: 5rem;
+  left: min(-17rem, -18vw);
+  background: color-mix(in srgb, var(--nk-primary) 9%, transparent);
+}
+
+.accountPage::after {
+  width: min(30rem, 65vw);
+  height: min(30rem, 65vw);
+  right: min(-13rem, -14vw);
+  bottom: 2rem;
+  background: rgba(90, 90, 100, 0.07);
+}
+
+.accountPage :global(.nk-container) {
+  width: min(100%, 1240px);
+  margin: 0 auto;
+  padding-inline: 0 !important;
+}
+
+.accountPage :global(.nk-account-card.nk-manga-border) {
+  width: 100%;
+  padding: 0;
+  overflow: clip;
+  border: 1px solid rgba(255, 255, 255, 0.72) !important;
+  border-radius: clamp(1.5rem, 4vw, 2.25rem);
+  background: var(--account-surface);
+  box-shadow: var(--account-shadow);
+  -webkit-backdrop-filter: blur(28px) saturate(150%);
+  backdrop-filter: blur(28px) saturate(150%);
+}
+
+:global(html.dark) .accountPage :global(.nk-account-card.nk-manga-border) {
+  border-color: var(--account-line-strong) !important;
+}
+
+.accountPage :global(.nk-section-title) {
+  margin: 0;
+  color: var(--account-text);
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif !important;
+  font-size: clamp(2rem, 5vw, 3.35rem) !important;
+  font-weight: 760;
+  line-height: 1.02 !important;
+  letter-spacing: -0.045em;
+  text-transform: none;
+}
+
+.accountPage :global(.nk-account-eyebrow) {
+  display: block;
+  margin-bottom: 0.55rem;
+  color: var(--nk-primary);
+  font-size: 0.76rem;
+  font-weight: 780;
+  line-height: 1.2;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+/* Signed-out experience */
+.accountPage :global(.nk-login-shell) {
+  display: grid;
+  min-height: min(720px, calc(100vh - var(--header-padding) - 5rem));
+}
+
+.accountPage :global(.nk-login-story) {
+  position: relative;
+  overflow: hidden;
+  min-height: 21rem;
+  padding: clamp(1.75rem, 6vw, 4.75rem);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 2.25rem;
+  background:
+    radial-gradient(circle at 84% 8%, rgba(255, 255, 255, 0.22), transparent 24rem),
+    linear-gradient(145deg, color-mix(in srgb, var(--account-brand) 88%, var(--account-brand-deep)), var(--account-brand));
+  color: #fff;
+}
+
+.accountPage :global(.nk-login-story)::after {
+  content: "N";
+  position: absolute;
+  right: -0.08em;
+  bottom: -0.3em;
+  color: rgba(255, 255, 255, 0.08);
+  font-size: clamp(14rem, 33vw, 28rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.12em;
+  pointer-events: none;
+}
+
+.accountPage :global(.nk-login-story > *) {
+  position: relative;
+  z-index: 1;
+}
+
+.accountPage :global(.nk-login-story-brand) {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+}
+
+.accountPage :global(.nk-login-story-brand .nk-logo-img) {
+  width: 8.75rem;
+  height: auto;
+  object-fit: contain;
+  filter: brightness(0) invert(1);
+}
+
+.accountPage :global(.nk-login-story-brand > span) {
+  padding-left: 0.9rem;
+  border-left: 1px solid rgba(255, 255, 255, 0.4);
+  font-size: 0.84rem;
+  font-weight: 720;
+  letter-spacing: 0.04em;
+}
+
+.accountPage :global(.nk-login-story .nk-account-eyebrow) {
+  color: rgba(255, 255, 255, 0.76);
+}
+
+.accountPage :global(.nk-login-story h1) {
+  max-width: 12ch;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif !important;
+  font-size: clamp(2.55rem, 4.3vw, 4rem);
+  font-weight: 760;
+  line-height: 0.94;
+  letter-spacing: -0.065em;
+  text-transform: none !important;
+}
+
+.accountPage :global(.nk-login-story p) {
+  max-width: 35rem;
+  margin: 1.3rem 0 0;
+  color: rgba(255, 255, 255, 0.82);
+  font-size: clamp(1rem, 2vw, 1.14rem);
+  line-height: 1.58;
+}
+
+.accountPage :global(.nk-login-benefits) {
+  max-width: 34rem;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.72rem;
+  list-style: none;
+}
+
+.accountPage :global(.nk-login-benefits li) {
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.94rem;
+  font-weight: 620;
+}
+
+.accountPage :global(.nk-login-benefits .material-icons-outlined) {
+  font-size: 1.2rem;
+}
+
+.accountPage :global(.nk-login-form-wrapper) {
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  padding: clamp(1.75rem, 6vw, 4.75rem);
+  align-self: stretch;
+}
+
+.accountPage :global(.nk-login-form-wrapper > *) {
+  width: min(100%, 30rem);
+  margin-inline: auto;
+}
+
+.accountPage :global(.nk-login-header) {
+  margin-bottom: 1.65rem;
+  text-align: left;
+}
+
+.accountPage :global(.nk-login-header > p) {
+  margin: 0.75rem 0 0;
+  color: var(--account-text-secondary);
+  line-height: 1.5;
+}
+
+.accountPage :global(.nk-login-mobile-mark) {
+  width: 3rem;
+  height: 3rem;
+  margin-bottom: 1.35rem;
+  border-radius: 0.95rem;
+  display: none;
+  place-items: center;
+  background: var(--nk-primary);
+  color: #fff;
+  font-size: 1.35rem;
+  font-weight: 850;
+}
+
+.accountPage :global(.nk-auth-tabs) {
+  margin-bottom: 1.45rem;
+  padding: 0.25rem;
+  gap: 0.25rem;
+  border: 1px solid var(--account-line);
+  border-radius: 0.95rem;
+  background: color-mix(in srgb, var(--account-text) 6%, transparent);
+}
+
+.accountPage :global(.nk-auth-tabs button) {
+  min-height: 2.8rem;
+  padding: 0.6rem 0.75rem;
+  border: 0 !important;
+  border-radius: 0.72rem !important;
+  background: transparent !important;
+  color: var(--account-text-secondary) !important;
+  font-family: inherit !important;
+  font-size: 0.92rem !important;
+  font-weight: 680 !important;
+  text-transform: none !important;
+  box-shadow: none !important;
+  transition: color 160ms ease, background-color 160ms ease, box-shadow 160ms ease, transform 100ms ease-out;
+}
+
+.accountPage :global(.nk-auth-tabs button[aria-selected="true"]) {
+  background: var(--account-surface-solid) !important;
+  color: var(--account-text) !important;
+  box-shadow: 0 1px 5px rgba(20, 20, 24, 0.12) !important;
+}
+
+.accountPage :global(.nk-auth-tabs button:active),
+.accountPage :global(.nk-btn:active),
+.accountPage :global(.nk-home-link:active),
+.accountPage :global(.nk-account-tab:active),
+.accountPage :global(.nk-shortcut-card:active),
+.accountPage :global(.nk-account-secondary-action:active),
+.accountPage :global(.nk-logout-btn:active) {
+  transform: scale(0.97);
+}
+
+.accountPage :global(.nk-form-group) {
+  margin-bottom: 1.05rem;
+}
+
+.accountPage :global(.nk-login-form-wrapper .nk-form-group label) {
+  margin-bottom: 0.48rem;
+  color: var(--account-text);
+  font-family: inherit !important;
+  font-size: 0.83rem !important;
+  font-weight: 680 !important;
+  letter-spacing: 0;
+  text-transform: none !important;
+}
+
+.accountPage :global(.nk-manga-input) {
+  width: 100%;
+  min-height: 3.25rem;
+  padding: 0.78rem 0.95rem;
+  border: 1px solid var(--account-line-strong) !important;
+  border-radius: 0.85rem !important;
+  background: color-mix(in srgb, var(--account-surface-solid) 86%, transparent) !important;
+  color: var(--account-text) !important;
+  font: inherit !important;
+  box-shadow: inset 0 1px 2px rgba(20, 20, 24, 0.04) !important;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+
+.accountPage :global(.nk-manga-input:hover) {
+  border-color: color-mix(in srgb, var(--account-text) 35%, transparent);
+}
+
+.accountPage :global(.nk-manga-input:focus) {
+  border-color: var(--nk-primary) !important;
+  outline: 0;
+  box-shadow: 0 0 0 4px var(--account-accent-soft) !important;
+}
+
+.accountPage :global(.nk-btn) {
+  min-height: 3.2rem;
+  border: 0;
+  border-radius: 0.9rem;
+  background: var(--nk-primary);
+  color: #fff;
+  font-family: inherit !important;
+  font-size: 0.95rem !important;
+  font-weight: 740;
+  line-height: 1.2;
+  letter-spacing: 0;
+  text-transform: none;
+  box-shadow: 0 9px 24px color-mix(in srgb, var(--nk-primary) 24%, transparent);
+  transition: filter 160ms ease, box-shadow 160ms ease, transform 100ms ease-out;
+}
+
+.accountPage :global(.nk-btn:hover:not(:disabled)) {
+  background: var(--nk-primary);
+  filter: brightness(0.92);
+  transform: translateY(-1px);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--nk-primary) 30%, transparent);
+}
+
+.accountPage :global(.nk-btn-block) {
+  width: 100%;
+  padding: 0.85rem 1rem;
+}
+
+.accountPage :global(.nk-btn:disabled) {
+  opacity: 0.58;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.accountPage :global(.nk-password-reset-link),
+.accountPage :global(.nk-home-link),
+.accountPage :global(.nk-account-secondary-action) {
+  min-height: 2.75rem;
+  border: 0 !important;
+  border-radius: 0.8rem !important;
+  background: transparent !important;
+  color: var(--account-text-secondary) !important;
+  font-family: inherit !important;
+  font-size: 0.9rem !important;
+  font-weight: 680 !important;
+  line-height: 1.3;
+  letter-spacing: 0;
+  text-transform: none !important;
+  box-shadow: none !important;
+  transition: color 160ms ease, background-color 160ms ease, transform 100ms ease-out;
+}
+
+.accountPage :global(.nk-password-reset-link:hover),
+.accountPage :global(.nk-home-link:hover),
+.accountPage :global(.nk-account-secondary-action:hover:not(:disabled)) {
+  border-color: transparent !important;
+  background: var(--account-accent-soft) !important;
+  color: var(--nk-primary) !important;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+.accountPage :global(.nk-login-footer) {
+  margin-top: 1.4rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--account-line) !important;
+  text-align: center;
+}
+
+.accountPage :global(.nk-login-form-wrapper a[href*="loginSocial"]) {
+  min-height: 3rem !important;
+  padding: 0.72rem 1rem !important;
+  border: 1px solid var(--account-line-strong) !important;
+  border-radius: 0.85rem !important;
+  background: var(--account-surface-solid) !important;
+  color: var(--account-text) !important;
+  font-family: inherit !important;
+  font-size: 0.9rem !important;
+  font-weight: 680 !important;
+  box-shadow: 0 1px 3px rgba(20, 20, 24, 0.05) !important;
+  transition: border-color 160ms ease, background-color 160ms ease, transform 100ms ease-out !important;
+}
+
+.accountPage :global(.nk-login-form-wrapper a[href*="loginSocial"]:hover) {
+  border-color: color-mix(in srgb, var(--nk-primary) 45%, transparent) !important;
+  background: var(--account-accent-soft) !important;
+}
+
+.accountPage :global(.nk-login-form-wrapper a[href*="loginSocial"]:active) {
+  transform: scale(0.98);
+}
+
+.accountPage :global(.nk-login-footer .nk-home-link) {
+  padding: 0.65rem 1rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+}
+
+.accountPage :global(.nk-error-msg),
+.accountPage :global(.nk-return-notice),
+.accountPage :global(.nk-social-notice) {
+  margin-bottom: 1rem;
+  padding: 0.85rem 0.95rem;
+  border: 1px solid var(--account-line);
+  border-radius: 0.8rem;
+  background: var(--account-surface-muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.accountPage :global(.nk-error-msg) {
+  border-color: color-mix(in srgb, var(--nk-danger) 48%, transparent);
+  background: color-mix(in srgb, var(--nk-danger) 9%, var(--account-surface-solid));
+}
+
+.accountPage :global(.nk-return-notice),
+.accountPage :global(.nk-social-notice) {
+  border-left: 3px solid var(--nk-primary);
+}
+
+.accountPage :global(.nk-login-protocol) {
+  margin-top: 1.25rem;
+  padding-inline: 1rem;
+  color: var(--account-text-secondary);
+  font-size: 0.68rem;
+  font-weight: 650;
+  letter-spacing: 0.13em;
+}
+
+/* Signed-in workspace */
+.accountPage :global(.nk-dashboard-grid) {
+  display: grid;
+  gap: 0;
+}
+
+.accountPage :global(.nk-dashboard-sidebar) {
+  padding: clamp(1.15rem, 3vw, 2rem);
+  background: color-mix(in srgb, var(--account-text) 4%, transparent);
+  border-bottom: 1px solid var(--account-line);
+}
+
+.accountPage :global(.nk-sidebar-header) {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  margin: 0 0 1rem;
+  padding: 0 0 1rem;
+  border-bottom: 1px solid var(--account-line);
+}
+
+.accountPage :global(.nk-user-avatar) {
+  width: 3.25rem;
+  height: 3.25rem;
+  border: 0;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, var(--account-brand), var(--account-brand-deep));
+  color: #fff;
+  box-shadow: 0 8px 18px color-mix(in srgb, var(--nk-primary) 25%, transparent);
+}
+
+.accountPage :global(.nk-user-avatar .material-icons-outlined) {
+  font-size: 1.55rem;
+}
+
+.accountPage :global(.nk-user-meta) {
+  min-width: 0;
+}
+
+.accountPage :global(.nk-user-meta h3) {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--account-text);
+  font-family: inherit;
+  font-size: 1rem;
+  font-weight: 740;
+  line-height: 1.25;
+  letter-spacing: -0.015em;
+}
+
+.accountPage :global(.nk-user-meta p) {
+  margin: 0.15rem 0 0;
+  overflow-wrap: anywhere;
+  color: var(--account-text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.35;
+}
+
+.accountPage :global(.nk-logout-btn) {
+  width: 2.75rem;
+  height: 2.75rem;
+  min-width: 2.75rem;
+  min-height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.8rem;
+  display: grid;
+  place-items: center;
+  background: transparent;
+  color: var(--account-text-secondary);
+  font: inherit;
+  cursor: pointer;
+  transition: color 160ms ease, background-color 160ms ease, transform 100ms ease-out;
+}
+
+.accountPage :global(.nk-logout-btn > span:last-child) {
+  display: none;
+}
+
+.accountPage :global(.nk-logout-btn:hover) {
+  background: color-mix(in srgb, var(--nk-danger) 10%, transparent);
+  color: var(--nk-danger);
+}
+
+.accountPage :global(.nk-account-tabs) {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.4rem;
+}
+
+.accountPage :global(.nk-account-tab) {
+  min-width: 0;
+  min-height: 3.4rem;
+  padding: 0.52rem 0.28rem;
+  border: 1px solid transparent !important;
+  border-radius: 0.9rem !important;
+  background: transparent !important;
+  color: var(--account-text-secondary) !important;
+  font-family: inherit !important;
+  font-size: 0.75rem !important;
+  font-weight: 680 !important;
+  line-height: 1.15;
+  letter-spacing: 0;
+  text-transform: none !important;
+  transition: background-color 160ms ease, color 160ms ease, border-color 160ms ease, transform 100ms ease-out;
+}
+
+.accountPage :global(.nk-account-tab .material-icons-outlined) {
+  font-size: 1.2rem;
+}
+
+.accountPage :global(.nk-account-tab.active) {
+  border-color: color-mix(in srgb, var(--nk-primary) 18%, transparent) !important;
+  background: var(--account-accent-soft) !important;
+  color: var(--nk-primary) !important;
+  box-shadow: none !important;
+}
+
+.accountPage :global(.nk-account-tab:hover:not(.active)) {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--account-text) 6%, transparent);
+  color: var(--account-text);
+}
+
+.accountPage :global(.nk-work-access) {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--account-line);
+}
+
+.accountPage :global(.nk-work-access h4) {
+  margin: 0 0 0.55rem;
+  color: var(--account-text-secondary);
+  font-size: 0.7rem;
+  font-weight: 750;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.accountPage :global(.nk-work-access ul) {
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 0.35rem;
+  list-style: none;
+}
+
+.accountPage :global(.nk-work-link) {
+  min-height: 2.75rem;
+  padding: 0.6rem 0.75rem;
+  border: 0;
+  border-radius: 0.75rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  background: transparent;
+  color: var(--account-text-secondary);
+  font-size: 0.82rem;
+  font-weight: 670;
+  text-decoration: none;
+}
+
+.accountPage :global(.nk-work-link:hover) {
+  background: var(--account-accent-soft);
+  color: var(--nk-primary);
+}
+
+.accountPage :global(.nk-dashboard-content) {
+  min-width: 0;
+  padding: clamp(1.5rem, 5vw, 3.75rem);
+  border: 0;
+}
+
+.accountPage :global(.nk-account-panel:focus-visible) {
+  outline: 2px solid var(--nk-primary);
+  outline-offset: 0.45rem;
+  border-radius: 1rem;
+}
+
+.accountPage :global(.nk-tab-pane) {
+  transform-origin: top center;
+}
+
+.accountPage :global(.nk-dash-animate) {
+  animation: accountMaterialize 300ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.accountPage :global(.nk-account-welcome) {
+  max-width: 45rem;
+}
+
+.accountPage :global(.nk-tab-intro) {
+  max-width: 42rem;
+  margin: 0.9rem 0 1.75rem;
+  color: var(--account-text-secondary);
+  font-size: clamp(0.96rem, 1.7vw, 1.08rem);
+  line-height: 1.62;
+}
+
+.accountPage :global(.nk-account-overview) {
+  margin: 0 0 1.25rem;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.accountPage :global(.nk-overview-item) {
+  min-width: 0;
+  padding: clamp(0.85rem, 2.4vw, 1.2rem);
+  border: 1px solid var(--account-line);
+  border-radius: 1.15rem;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 0.12rem 0.55rem;
+  background: var(--account-surface-muted);
+}
+
+.accountPage :global(.nk-overview-item .material-icons-outlined) {
+  grid-row: 1 / 3;
+  align-self: center;
+  color: var(--nk-primary);
+  font-size: 1.35rem;
+}
+
+.accountPage :global(.nk-overview-item strong) {
+  overflow-wrap: anywhere;
+  color: var(--account-text);
+  font-size: clamp(0.95rem, 2vw, 1.18rem);
+  font-weight: 760;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.accountPage :global(.nk-overview-item > span:last-child) {
+  overflow-wrap: anywhere;
+  color: var(--account-text-secondary);
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.accountPage :global(.nk-dash-shortcuts) {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.accountPage :global(.nk-shortcut-card.nk-manga-border) {
+  min-height: 7.5rem;
+  padding: 1rem;
+  border: 1px solid var(--account-line) !important;
+  border-radius: 1.15rem;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1.4rem;
+  background: var(--account-surface-solid);
+  color: var(--account-text);
+  text-align: left;
+  box-shadow: var(--account-shadow-small);
+  transition: border-color 180ms ease, box-shadow 180ms ease, transform 100ms ease-out;
+}
+
+.accountPage :global(.nk-shortcut-card:hover) {
+  border-color: color-mix(in srgb, var(--nk-primary) 48%, transparent) !important;
+  color: var(--account-text);
+  box-shadow: 0 16px 38px color-mix(in srgb, var(--nk-primary) 11%, rgba(20, 20, 24, 0.08));
+}
+
+.accountPage :global(.nk-shortcut-card > .material-icons-outlined) {
+  width: 2.4rem;
+  height: 2.4rem;
+  border-radius: 0.78rem;
+  display: grid;
+  place-items: center;
+  background: var(--account-accent-soft);
+  color: var(--nk-primary);
+  font-size: 1.25rem;
+}
+
+.accountPage :global(.nk-shortcut-card > span:last-child) {
+  margin: 0;
+  font-family: inherit;
+  font-size: 0.92rem;
+  font-weight: 720;
+  line-height: 1.2;
+  text-transform: none;
+}
+
+/* Content surfaces */
+.accountPage :global(.nk-order-item.nk-manga-border),
+.accountPage :global(.nk-tracking-card.nk-manga-border),
+.accountPage :global(.nk-commission-card.nk-manga-border),
+.accountPage :global(.nk-address-box.nk-manga-border),
+.accountPage :global(.nk-info-box.nk-manga-border) {
+  margin-bottom: 0.9rem;
+  padding: clamp(1rem, 3vw, 1.55rem);
+  border: 1px solid var(--account-line) !important;
+  border-radius: 1.2rem;
+  background: var(--account-surface-solid);
+  box-shadow: var(--account-shadow-small);
+}
+
+.accountPage :global(.nk-order-header),
+.accountPage :global(.nk-tracking-header) {
+  padding-bottom: 0.9rem;
+  margin-bottom: 0.95rem;
+  border-bottom: 1px solid var(--account-line);
+}
+
+.accountPage :global(.nk-order-number),
+.accountPage :global(.nk-track-order) {
+  color: var(--account-text);
+  font-size: 0.9rem;
+  font-weight: 760;
+  letter-spacing: -0.01em;
+}
+
+.accountPage :global(.nk-order-date),
+.accountPage :global(.nk-track-carrier),
+.accountPage :global(.nk-order-payment-copy),
+.accountPage :global(.nk-profile-item dt),
+.accountPage :global(.nk-readonly-note) {
+  color: var(--account-text-secondary);
+}
+
+.accountPage :global(.nk-order-status [class^="nk-status-"]) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.8rem;
+  padding: 0.32rem 0.62rem;
+  border-radius: 999px;
+  font-size: 0.72rem;
+  font-weight: 740;
+}
+
+.accountPage :global(.nk-order-details),
+.accountPage :global(.nk-order-payment-copy),
+.accountPage :global(.nk-order-details li) {
+  font-size: 0.92rem;
+  line-height: 1.55;
+}
+
+.accountPage :global(.nk-order-total) {
+  margin-top: 0.8rem;
+  color: var(--account-text);
+  font-size: 0.9rem;
+  font-weight: 780;
+}
+
+.accountPage :global(.nk-order-payment) {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--account-line);
+}
+
+.accountPage :global(.nk-order-payment-action) {
+  width: 100%;
+}
+
+.accountPage :global(.nk-track-input-area.nk-manga-border) {
+  margin-bottom: 1rem;
+  padding: 0.9rem;
+  border: 1px solid var(--account-line) !important;
+  border-radius: 0.95rem;
+  background: var(--account-surface-muted);
+}
+
+.accountPage :global(.nk-track-code) {
+  color: var(--account-text);
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: 0.84rem;
+  font-weight: 690;
+}
+
+.accountPage :global(.nk-tracking-details) {
+  padding: 1rem;
+  border: 0;
+  border-radius: 1rem;
+  background: var(--account-surface-muted);
+}
+
+.accountPage :global(.nk-track-status) {
+  color: var(--nk-primary);
+  font-size: 0.9rem;
+  font-weight: 760;
+  letter-spacing: 0.02em;
+  text-transform: none;
+}
+
+.accountPage :global(.nk-account-progress-step:not(:first-child)::before) {
+  border-color: var(--account-line-strong);
+  border-style: solid;
+}
+
+.accountPage :global(.nk-account-progress-marker) {
+  border: 1px solid var(--account-line-strong);
+  background: var(--account-surface-solid);
+  color: var(--account-text-secondary);
+  box-shadow: 0 2px 7px rgba(20, 20, 24, 0.08);
+}
+
+.accountPage :global(.nk-account-progress-step.is-done .nk-account-progress-marker) {
+  border-color: var(--nk-primary);
+  background: var(--nk-primary);
+  color: var(--account-on-accent);
+}
+
+.accountPage :global(.nk-account-progress-step.is-current .nk-account-progress-marker) {
+  outline-color: var(--account-accent-soft);
+}
+
+.accountPage :global(.nk-account-progress-label) {
+  color: var(--account-text-secondary);
+  font-size: 0.72rem;
+  font-weight: 680;
+  text-transform: none;
+}
+
+.accountPage :global(.nk-account-progress-state) {
+  font-size: 0.7rem;
+}
+
+.accountPage :global(.nk-track-timeline) {
+  margin-top: 1rem;
+  border-left: 2px solid var(--account-line-strong);
+}
+
+.accountPage :global(.nk-track-event-dot) {
+  background: var(--account-line-strong);
+}
+
+.accountPage :global(.nk-track-event-latest .nk-track-event-dot) {
+  background: var(--nk-primary);
+  box-shadow: 0 0 0 4px var(--account-accent-soft);
+}
+
+.accountPage :global(.nk-tracking-error) {
+  border: 1px solid color-mix(in srgb, var(--nk-danger) 45%, transparent);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--nk-danger) 8%, var(--account-surface-solid));
+}
+
+.accountPage :global(.nk-empty-state),
+.accountPage :global(.nk-tracking-empty) {
+  min-height: 18rem;
+  padding: 2rem;
+  border: 1px dashed var(--account-line-strong);
+  border-radius: 1.2rem;
+  align-items: center;
+  text-align: center;
+  background: var(--account-surface-muted);
+}
+
+.accountPage :global(.nk-profile-grid) {
+  gap: 1.25rem;
+}
+
+.accountPage :global(.nk-profile-item) {
+  min-width: 0;
+  padding: 0.95rem;
+  border-radius: 0.9rem;
+  background: var(--account-surface-muted);
+}
+
+.accountPage :global(.nk-profile-item dt) {
+  margin-bottom: 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 720;
+  letter-spacing: 0.06em;
+}
+
+.accountPage :global(.nk-profile-item dd) {
+  margin: 0;
+  overflow-wrap: anywhere;
+  color: var(--account-text);
+  font-size: 0.92rem;
+}
+
+.accountPage :global(.nk-readonly-note) {
+  margin-top: 1.1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--account-line);
+  font-size: 0.78rem;
+}
+
+/* Payment sheet */
+.accountPage :global(.nk-quote-payment-dialog) {
+  width: min(38rem, calc(100vw - 1.5rem));
+  color: var(--account-text);
+}
+
+.accountPage :global(.nk-quote-payment-dialog)::backdrop {
+  background: rgba(12, 12, 15, 0.48);
+  -webkit-backdrop-filter: blur(12px) saturate(125%);
+  backdrop-filter: blur(12px) saturate(125%);
+}
+
+.accountPage :global(.nk-quote-payment-panel.nk-manga-border) {
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border: 1px solid rgba(255, 255, 255, 0.5) !important;
+  border-radius: 1.5rem;
+  background: var(--account-surface);
+  box-shadow: 0 28px 80px rgba(0, 0, 0, 0.28);
+  -webkit-backdrop-filter: blur(30px) saturate(160%);
+  backdrop-filter: blur(30px) saturate(160%);
+  animation: accountSheetIn 360ms cubic-bezier(0.2, 0.85, 0.2, 1);
+}
+
+.accountPage :global(.nk-quote-payment-header) {
+  border-bottom: 1px solid var(--account-line);
+}
+
+.accountPage :global(.nk-quote-payment-header h2) {
+  font-family: inherit;
+  font-size: clamp(1.85rem, 7vw, 2.65rem);
+  font-weight: 760;
+  line-height: 1;
+  letter-spacing: -0.045em;
+  text-transform: none;
+}
+
+.accountPage :global(.nk-quote-payment-close) {
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--account-text) 8%, transparent);
+}
+
+.accountPage :global(.nk-quote-payment-summary) {
+  border: 0;
+  border-radius: 0.9rem;
+  background: var(--account-surface-muted);
+}
+
+.accountPage :global(.nk-quote-payment-option) {
+  border: 1px solid var(--account-line);
+  border-radius: 1rem;
+  transition: border-color 180ms ease, background-color 180ms ease, color 180ms ease, transform 100ms ease-out;
+}
+
+.accountPage :global(.nk-quote-payment-option:active) {
+  transform: scale(0.98);
+}
+
+.accountPage :global(.nk-quote-payment-option-primary) {
+  border-color: transparent;
+  color: var(--account-on-accent);
+}
+
+.accountPage :global(.nk-quote-payment-option strong) {
+  font-family: inherit;
+  font-size: 0.92rem;
+  letter-spacing: 0;
+}
+
+@keyframes accountMaterialize {
+  from {
+    opacity: 0;
+    transform: translateY(0.45rem) scale(0.995);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes accountSheetIn {
+  from {
+    opacity: 0;
+    transform: translateY(1rem) scale(0.97);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+@media (min-width: 820px) {
+  .accountPage :global(.nk-dash-shortcuts) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 960px) {
+  .accountPage :global(.nk-login-shell) {
+    grid-template-columns: minmax(0, 1.03fr) minmax(25rem, 0.97fr);
+  }
+
+  .accountPage :global(.nk-login-form-wrapper) {
+    padding-block: 3.25rem;
+  }
+}
+
+@media (min-width: 992px) {
+  .accountPage :global(.nk-dashboard-grid) {
+    grid-template-columns: 17rem minmax(0, 1fr);
+    min-height: 42rem;
+  }
+
+  .accountPage :global(.nk-dashboard-sidebar) {
+    position: relative;
+    padding: 1.7rem 1rem;
+    border-right: 1px solid var(--account-line);
+    border-bottom: 0;
+  }
+
+  .accountPage :global(.nk-sidebar-header),
+  .accountPage :global(.nk-account-section-nav),
+  .accountPage :global(.nk-work-access) {
+    position: sticky;
+    z-index: 1;
+  }
+
+  .accountPage :global(.nk-sidebar-header) {
+    top: calc(var(--header-padding) + 1.25rem);
+  }
+
+  .accountPage :global(.nk-account-section-nav) {
+    top: calc(var(--header-padding) + 6.7rem);
+  }
+
+  .accountPage :global(.nk-account-tabs) {
+    display: flex;
+    flex-direction: column;
+    gap: 0.3rem;
+  }
+
+  .accountPage :global(.nk-account-tab) {
+    width: 100%;
+    min-height: 2.85rem;
+    padding: 0.68rem 0.75rem;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 0.65rem;
+    font-size: 0.86rem;
+  }
+
+  .accountPage :global(.nk-work-access) {
+    top: calc(var(--header-padding) + 25rem);
+  }
+
+  .accountPage :global(.nk-dashboard-content) {
+    padding: clamp(2.5rem, 5vw, 4.5rem);
+  }
+}
+
+@media (max-width: 819px) {
+  .accountPage :global(.nk-login-story) {
+    min-height: auto;
+  }
+
+  .accountPage :global(.nk-login-story-brand .nk-logo-img) {
+    width: 7rem;
+  }
+
+  .accountPage :global(.nk-login-story h1) {
+    font-size: clamp(2.5rem, 8vw, 4rem);
+  }
+
+  .accountPage :global(.nk-login-benefits) {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .accountPage {
+    padding-inline: 0.55rem !important;
+  }
+
+  .accountPage :global(.nk-account-card.nk-manga-border) {
+    border-radius: 1.35rem;
+  }
+
+  .accountPage :global(.nk-login-story) {
+    display: none;
+  }
+
+  .accountPage :global(.nk-login-mobile-mark) {
+    display: grid;
+  }
+
+  .accountPage :global(.nk-account-overview) {
+    grid-template-columns: 1fr;
+  }
+
+  .accountPage :global(.nk-overview-item) {
+    grid-template-columns: 2rem auto minmax(0, 1fr);
+    align-items: center;
+  }
+
+  .accountPage :global(.nk-overview-item .material-icons-outlined) {
+    grid-row: auto;
+  }
+
+  .accountPage :global(.nk-overview-item > span:last-child) {
+    justify-self: end;
+    text-align: right;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .accountPage,
+  .accountPage *,
+  .accountPage *::before,
+  .accountPage *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+
+  .accountPage :global(.nk-dash-animate),
+  .accountPage :global(.nk-quote-payment-panel),
+  .accountPage :global(.nk-btn:hover),
+  .accountPage :global(.nk-shortcut-card:hover) {
+    transform: none !important;
+    filter: none !important;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .accountPage :global(.nk-account-card.nk-manga-border),
+  .accountPage :global(.nk-quote-payment-panel.nk-manga-border) {
+    background: var(--account-surface-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .accountPage {
+    --account-surface: var(--account-surface-solid);
+    --account-line: color-mix(in srgb, var(--account-text) 45%, transparent);
+    --account-line-strong: color-mix(in srgb, var(--account-text) 65%, transparent);
+  }
+
+  .accountPage :global(.nk-account-card.nk-manga-border) {
+    border-color: var(--account-line-strong) !important;
+  }
+}

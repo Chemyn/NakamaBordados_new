@@ -5704,3 +5704,11 @@ img.wp-smiley {
   background: none !important;
   padding: 0 !important;
 }
+
+/* El acceso de Mi Cuenta ya concentra sus vías de ayuda y autenticación.
+   En móvil, el asistente flotante cubriría los botones de acceso social. */
+@media (max-width: 560px) {
+  body:has(.nk-login-shell) .nk-whatsapp-wrapper {
+    display: none !important;
+  }
+}

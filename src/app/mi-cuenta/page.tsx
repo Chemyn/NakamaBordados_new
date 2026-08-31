@@ -20,6 +20,7 @@ import AuthModeTabs from './AuthModeTabs';
 import TrackingFeedback from './TrackingFeedback';
 import QuotePaymentDialog from './QuotePaymentDialog';
 import { canShowQuotePaymentActions } from '@/lib/quote-payment';
+import styles from './account.module.css';
 
 /* Estados de pedido de WooCommerce en español. GraphQL los entrega como enum
    (ON_HOLD) y REST como slug (on-hold); se canonicaliza a slug antes de mapear. */
@@ -384,7 +385,7 @@ export default function MiCuentaPage() {
   }
 
   return (
-    <div className="nk-account-page">
+    <div className={`${styles.accountPage} nk-account-page`}>
       <div className="nk-container">
         <div className="nk-account-card nk-manga-border">
           {user ? (
@@ -466,10 +467,31 @@ export default function MiCuentaPage() {
                     className="nk-account-panel"
                   >
                     <div className="nk-tab-pane nk-dash-animate">
-                      <h2 className="nk-section-title">Hola, {user.firstName || user.username}</h2>
-                      <p className="nk-tab-intro">
-                        Desde el centro de mando puedes gestionar tus tesoros y tu configuración pirata.
-                      </p>
+                      <div className="nk-account-welcome">
+                        <span className="nk-account-eyebrow">Tu espacio Nakama</span>
+                        <h2 className="nk-section-title">Hola, {user.firstName || user.username}</h2>
+                        <p className="nk-tab-intro">
+                          Revisa tus pedidos, sigue tus envíos y consulta los datos de tu cuenta desde un solo lugar.
+                        </p>
+                      </div>
+
+                      <div className="nk-account-overview" role="group" aria-label="Resumen de tu cuenta">
+                        <div className="nk-overview-item">
+                          <span className="material-icons-outlined" aria-hidden="true">shopping_bag</span>
+                          <strong>{user.orders?.nodes.length || 0}</strong>
+                          <span>Pedidos</span>
+                        </div>
+                        <div className="nk-overview-item">
+                          <span className="material-icons-outlined" aria-hidden="true">local_shipping</span>
+                          <strong>{user.orders?.nodes.filter((order) => order.enviaTrackingCode).length || 0}</strong>
+                          <span>Envíos con guía</span>
+                        </div>
+                        <div className="nk-overview-item">
+                          <span className="material-icons-outlined" aria-hidden="true">verified_user</span>
+                          <strong>Activa</strong>
+                          <span>Sesión protegida</span>
+                        </div>
+                      </div>
                       
                       <div className="nk-dash-shortcuts">
                         <button type="button" className="nk-manga-border nk-shortcut-card" onClick={() => activateAccountTab('orders')}>
@@ -794,13 +816,33 @@ export default function MiCuentaPage() {
               </div>
             </div>
           ) : (
-            <div className="nk-login-form-wrapper">
-              <div className="nk-login-header">
-                <Image src="https://nakamabordados.com/wp-content/uploads/2025/11/LOGO-NAKAMA-scaled-2048x926.png" alt="Nakama" width={150} height={70} className="nk-logo-img" />
-                <h2 className="nk-section-title">
-                  {authMode === 'login' ? t('account.login.title') : t('account.register.title')}
-                </h2>
-              </div>
+            <div className="nk-login-shell">
+              <section className="nk-login-story" aria-labelledby="account-story-title">
+                <div className="nk-login-story-brand">
+                  <Image src="https://nakamabordados.com/wp-content/uploads/2025/11/LOGO-NAKAMA-scaled-2048x926.png" alt="Nakama" width={180} height={82} className="nk-logo-img" />
+                  <span>Mi cuenta</span>
+                </div>
+                <div>
+                  <span className="nk-account-eyebrow">Todo en un solo lugar</span>
+                  <h1 id="account-story-title">Tu cuenta,<br />sin complicaciones.</h1>
+                  <p>Consulta el avance de tus bordados, organiza tus compras y retoma tus pedidos cuando quieras.</p>
+                </div>
+                <ul className="nk-login-benefits" aria-label="Beneficios de tu cuenta">
+                  <li><span className="material-icons-outlined" aria-hidden="true">local_shipping</span> Rastreo claro de cada envío</li>
+                  <li><span className="material-icons-outlined" aria-hidden="true">receipt_long</span> Pedidos y cotizaciones reunidos</li>
+                  <li><span className="material-icons-outlined" aria-hidden="true">lock</span> Acceso seguro a tus datos</li>
+                </ul>
+              </section>
+
+              <section className="nk-login-form-wrapper" aria-label="Acceso a tu cuenta">
+                <div className="nk-login-header">
+                  <span className="nk-login-mobile-mark" aria-hidden="true">N</span>
+                  <span className="nk-account-eyebrow">Bienvenido de nuevo</span>
+                  <h2 className="nk-section-title">
+                    {authMode === 'login' ? t('account.login.title') : t('account.register.title')}
+                  </h2>
+                  <p>{authMode === 'login' ? 'Ingresa para continuar donde te quedaste.' : 'Crea tu cuenta y mantén todo organizado.'}</p>
+                </div>
 
               <AuthModeTabs mode={authMode} onChange={switchAuthMode} />
 
@@ -961,12 +1003,13 @@ export default function MiCuentaPage() {
                 backPath={returnTo ? `/mi-cuenta/?return=${encodeURIComponent(returnTo)}` : '/mi-cuenta/'}
               />
 
-              <div className="nk-login-footer">
-                <Link href="/" className="nk-home-link">
-                  <span className="material-icons-outlined" aria-hidden="true">home</span>
-                  {t('nav.home')}
-                </Link>
-              </div>
+                <div className="nk-login-footer">
+                  <Link href="/" className="nk-home-link">
+                    <span className="material-icons-outlined" aria-hidden="true">arrow_back</span>
+                    {t('nav.home')}
+                  </Link>
+                </div>
+              </section>
             </div>
           )}
         </div>
