@@ -4,6 +4,7 @@ import { useLocalSearchParams, useNavigation } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
 import { ImageViewerModal } from '@/components/ImageViewerModal';
@@ -277,7 +278,7 @@ export default function OrderDetailScreen() {
       </ScrollView>
 
       {order.status === 'processing' && (
-        <View style={styles.footer}>
+        <SafeAreaView edges={['bottom']} style={styles.footer}>
           <AppButton
             label="Tomar pedido"
             icon="pan-tool-alt"
@@ -285,11 +286,11 @@ export default function OrderDetailScreen() {
             loading={take.isPending}
             style={styles.footerButton}
           />
-        </View>
+        </SafeAreaView>
       )}
 
       {order.status === 'fabricando' && order.is_cycle_owner && (
-        <View style={styles.footer}>
+        <SafeAreaView edges={['bottom']} style={styles.footer}>
           <AppButton
             label={complete ? 'Finalizar producción' : 'Valida todos los productos'}
             icon="check"
@@ -298,7 +299,7 @@ export default function OrderDetailScreen() {
             disabled={!complete}
             style={styles.footerButton}
           />
-        </View>
+        </SafeAreaView>
       )}
 
       <ImageViewerModal product={viewing} onClose={() => setViewing(null)} onOpenPdf={openPdf} />

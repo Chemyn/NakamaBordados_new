@@ -119,6 +119,30 @@ export interface ProdReviewItemInput {
   comment: string;
 }
 
+export interface ProdPdf {
+  id: number;
+  product_id: number;
+  product_name: string;
+  sku?: string;
+  pdf_url: string;
+  uploaded_at: string;
+}
+
+export interface ProdUploadResult {
+  success: boolean;
+  product_name?: string;
+  sku?: string;
+  pdf_url?: string;
+  message?: string;
+  suggestions?: string[];
+}
+
+export interface ProdUploadFile {
+  uri: string;
+  name: string;
+  mimeType?: string | null;
+}
+
 /** Columnas del tablero. 'tomados' es la vista de los pedidos en fabricación. */
 export type ProdColumn = 'processing' | 'tomados' | 'pendiente-guia';
 
@@ -197,9 +221,50 @@ export async function reassignProductionOrder(orderId: number, reason: string): 
   );
 }
 
-// El alta y baja de patrones se administra desde la web: subir un PDF exige
-// teclear el SKU exacto, algo incómodo en el teléfono. La app sigue mostrando
-// el patrón de cada producto desde el detalle del pedido (ProdProduct.pdf_url).
+export async function listProductionPdfs(): Promise<ProdPdf[]> {
+  const data = await request<{ pdfs?: ProdPdf[] }>(
+    '/pdfs',
+    {},
+    'No se pudieron cargar los patrones.',
+  );
+  return data.pdfs ?? [];
+}
+
+/** Sube un PDF elegido con DocumentPicker al endpoint multipart existente. */
+export async function uploadProductionPdf(file: ProdUploadFile): Promise<ProdUploadResult> {
+  const form = new FormData();
+  form.append(
+    'file',
+    {
+      uri: file.uri,
+      name: file.name,
+      type: file.mimeType || 'application/pdf',
+    } as unknown as Blob,
+  );
+
+  const res = await send('/pdfs', { method: 'POST', form });
+  let data: Partial<ProdUploadResult> | null = null;
+  try {
+    data = (await res.json()) as Partial<ProdUploadResult>;
+  } catch {
+    /* El servidor normalmente responde JSON; se usa el fallback de abajo. */
+  }
+
+  // Un SKU sin coincidencia es un resultado recuperable del lote: no debe
+  // impedir que los demás archivos continúen subiendo.
+  if (data && typeof data.success === 'boolean') return data as ProdUploadResult;
+  if (data?.message) throw new Error(data.message);
+  if (!res.ok) throw new Error('No se pudo subir el patrón.');
+  throw new Error('El servidor devolvió una respuesta inesperada.');
+}
+
+export async function deleteProductionPdf(id: number): Promise<void> {
+  await request(
+    `/pdfs/${id}`,
+    { method: 'DELETE' },
+    'No se pudo eliminar el patrón.',
+  );
+}
 
 /** Registra el token de notificaciones de este dispositivo (plugin >= 1.4.0). */
 export async function registerPushToken(token: string): Promise<void> {

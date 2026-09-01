@@ -65,6 +65,16 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="patrones"
+        options={{
+          title: 'Patrones',
+          headerTitle: 'Patrones PDF',
+          tabBarIcon: ({ color, size }) => (
+            <MaterialIcons name="picture-as-pdf" size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
         name="ajustes"
         options={{
           title: 'Ajustes',

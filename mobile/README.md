@@ -117,6 +117,7 @@ src/
 │   ├── login.tsx           Usuario/contraseña + Google/Facebook
 │   ├── (tabs)/index.tsx    Tablero: En espera · Fabricando · Pendiente de guía
 │   ├── (tabs)/almacen.tsx  Existencias y faltantes (solo con permiso de almacén)
+│   ├── (tabs)/patrones.tsx Carga múltiple y administración de patrones PDF
 │   ├── (tabs)/ajustes.tsx  Usuario, notificaciones, cerrar sesión
 │   └── order/[id].tsx      Detalle: validar productos, tomar, finalizar
 ├── components/             UI compartida
@@ -133,13 +134,9 @@ src/
 
 ## Notas
 
-- La gestión de patrones (subir/borrar PDFs) vive solo en la web: subir uno
-  exige teclear el SKU exacto como nombre de archivo, algo incómodo en el
-  teléfono. La app sigue mostrando el patrón de cada producto en el detalle del
-  pedido. `expo-document-picker` sigue instalado a propósito aunque ya no se
-  use: quitarlo cambia la huella nativa del proyecto y los APK instalados
-  dejarían de recibir actualizaciones automáticas. Se retirará cuando toque
-  compilar un APK nuevo por otro motivo.
+- La pestaña Patrones permite seleccionar y subir varios PDF en un lote. Cada
+  archivo debe conservar el SKU exacto como nombre (`<SKU>.pdf`); si uno falla,
+  los demás continúan y la app muestra el detalle para poder corregirlo.
 - `npx expo-doctor` avisa de un "duplicate dependency" de React (19.2.3 aquí,
   19.2.4 en el proyecto web del directorio padre). Es esperado: son dos proyectos
   independientes con su propio `node_modules`, y Metro resuelve primero el de

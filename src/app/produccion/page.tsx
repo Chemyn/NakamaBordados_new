@@ -23,6 +23,7 @@ import {
 } from '@/lib/production-api';
 import { ProductionReviewPanel } from './ProductionReviewPanel';
 import { ProductionReports } from './ProductionReports';
+import { uploadProductionPdfBatch } from '@/lib/production-pdf-batch';
 
 type AccessState = 'checking' | 'granted' | 'denied' | 'guest';
 type ColState = { orders: ProdCard[]; page: number; hasMore: boolean; loading: boolean };
@@ -69,6 +70,8 @@ export default function ProduccionPage() {
   const [pdfsLoading, setPdfsLoading] = useState(false);
   const [pdfMsg, setPdfMsg] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [selectedPdfCount, setSelectedPdfCount] = useState(0);
+  const [uploadProgress, setUploadProgress] = useState({ done: 0, total: 0 });
   const fileRef = useRef<HTMLInputElement>(null);
   // ¿Se validó algún producto en el detalle abierto? Si sí, al cerrar refrescamos
   // las columnas de processing para actualizar los chips de progreso de las tarjetas.
@@ -252,28 +255,38 @@ export default function ProduccionPage() {
   };
 
   const handleUpload = async () => {
-    const file = fileRef.current?.files?.[0];
-    if (!file) { setPdfMsg({ type: 'err', text: 'Selecciona un PDF.' }); return; }
+    const files = Array.from(fileRef.current?.files ?? []);
+    if (!files.length) { setPdfMsg({ type: 'err', text: 'Selecciona uno o varios PDF.' }); return; }
     setUploading(true);
+    setUploadProgress({ done: 0, total: files.length });
     setPdfMsg(null);
-    try {
-      const res = await uploadProductionPdf(file);
-      if (res.success) {
-        setPdfMsg({ type: 'ok', text: `✓ PDF vinculado a "${res.product_name}".` });
-        if (fileRef.current) fileRef.current.value = '';
-        loadPdfs();
-      } else {
-        let text = res.message || 'Error al subir.';
-        if (res.suggestions && res.suggestions.length) {
-          text += ` ¿Quisiste decir?: ${res.suggestions.join(' · ')}`;
-        }
-        setPdfMsg({ type: 'err', text });
-      }
-    } catch {
-      setPdfMsg({ type: 'err', text: 'Error de red al subir el PDF.' });
-    } finally {
-      setUploading(false);
+    const result = await uploadProductionPdfBatch(files, uploadProductionPdf, (done, total) => {
+      setUploadProgress({ done, total });
+    });
+
+    if (fileRef.current) fileRef.current.value = '';
+    setSelectedPdfCount(0);
+    setUploading(false);
+
+    if (result.uploaded > 0) {
+      void loadPdfs();
     }
+
+    if (result.failures.length === 0) {
+      setPdfMsg({
+        type: 'ok',
+        text: `✓ ${result.uploaded} ${result.uploaded === 1 ? 'patrón subido' : 'patrones subidos'} correctamente.`,
+      });
+      return;
+    }
+
+    const details = result.failures
+      .map(({ fileName, message }) => `${fileName}: ${message}`)
+      .join(' | ');
+    setPdfMsg({
+      type: 'err',
+      text: `${result.uploaded} de ${files.length} archivos se subieron. Fallaron: ${details}`,
+    });
   };
 
   const handleDeletePdf = async (id: number) => {
@@ -362,13 +375,36 @@ export default function ProduccionPage() {
       {tab === 'pdfs' && (
         <div className="np-pdfs">
           <div className="np-pdf-upload">
-            <h2>Subir patrón (PDF)</h2>
-            <p>El nombre del archivo debe coincidir con el <strong>SKU del producto</strong>. Ej: <code>HOD-001.pdf</code></p>
-            <input type="file" accept="application/pdf" ref={fileRef} />
-            <button className="nk-btn" onClick={handleUpload} disabled={uploading}>
-              {uploading ? 'Subiendo…' : 'Subir PDF'}
+            <h2>Subir patrones (PDF)</h2>
+            <p id="np-pdf-upload-help">Selecciona uno o varios archivos. Cada nombre debe coincidir con el <strong>SKU del producto</strong>. Ej: <code>HOD-001.pdf</code></p>
+            <input
+              type="file"
+              accept=".pdf,application/pdf"
+              multiple
+              ref={fileRef}
+              disabled={uploading}
+              aria-describedby="np-pdf-upload-help"
+              onChange={(event) => {
+                setSelectedPdfCount(event.currentTarget.files?.length ?? 0);
+                setPdfMsg(null);
+              }}
+            />
+            <button className="nk-btn" onClick={handleUpload} disabled={uploading || selectedPdfCount === 0}>
+              {uploading
+                ? `Subiendo ${uploadProgress.done}/${uploadProgress.total}…`
+                : selectedPdfCount > 0
+                  ? `Subir ${selectedPdfCount} ${selectedPdfCount === 1 ? 'PDF' : 'PDFs'}`
+                  : 'Subir PDFs'}
             </button>
-            {pdfMsg && <div className={`np-pdf-msg ${pdfMsg.type}`}>{pdfMsg.text}</div>}
+            {pdfMsg && (
+              <div
+                className={`np-pdf-msg ${pdfMsg.type}`}
+                role="status"
+                aria-live="polite"
+              >
+                {pdfMsg.text}
+              </div>
+            )}
           </div>
 
           <div className="np-pdf-list">
