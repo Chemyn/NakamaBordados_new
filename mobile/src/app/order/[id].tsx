@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useLocalSearchParams, useNavigation } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import * as WebBrowser from 'expo-web-browser';
 import MaterialIcons from '@expo/vector-icons/MaterialIcons';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { AppButton } from '@/components/AppButton';
 import { ImageViewerModal } from '@/components/ImageViewerModal';
@@ -14,6 +14,7 @@ import { QualityReviewPanel } from '@/components/QualityReviewPanel';
 import { StateMessage } from '@/components/StateMessage';
 import { useOrderDetail } from '@/hooks/useOrderDetail';
 import type { ProdProduct, ProdReviewItemInput } from '@/lib/api';
+import { bottomActionPadding } from '@/lib/safe-area';
 import { colors, fonts, radius, shadow, spacing } from '@/lib/theme';
 
 function formatDuration(seconds: number): string {
@@ -25,6 +26,7 @@ function formatDuration(seconds: number): string {
 export default function OrderDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const orderId = Number(params.id);
 
   const { detail, validate, take, finish, review, reassign } = useOrderDetail(orderId);
@@ -37,6 +39,10 @@ export default function OrderDetailScreen() {
   const inProduction = !!order && (order.status === 'processing' || order.status === 'fabricando');
   const canValidate = !!order && order.status === 'fabricando' && order.is_cycle_owner;
   const complete = !!order && order.progress.pct >= 100;
+  const footerStyle = [
+    styles.footer,
+    { paddingBottom: bottomActionPadding(Platform.OS, insets.bottom, spacing.lg) },
+  ];
 
   const openPdf = (url: string) => {
     void WebBrowser.openBrowserAsync(url);
@@ -278,7 +284,7 @@ export default function OrderDetailScreen() {
       </ScrollView>
 
       {order.status === 'processing' && (
-        <SafeAreaView edges={['bottom']} style={styles.footer}>
+        <View style={footerStyle}>
           <AppButton
             label="Tomar pedido"
             icon="pan-tool-alt"
@@ -286,11 +292,11 @@ export default function OrderDetailScreen() {
             loading={take.isPending}
             style={styles.footerButton}
           />
-        </SafeAreaView>
+        </View>
       )}
 
       {order.status === 'fabricando' && order.is_cycle_owner && (
-        <SafeAreaView edges={['bottom']} style={styles.footer}>
+        <View style={footerStyle}>
           <AppButton
             label={complete ? 'Finalizar producción' : 'Valida todos los productos'}
             icon="check"
@@ -299,7 +305,7 @@ export default function OrderDetailScreen() {
             disabled={!complete}
             style={styles.footerButton}
           />
-        </SafeAreaView>
+        </View>
       )}
 
       <ImageViewerModal product={viewing} onClose={() => setViewing(null)} onOpenPdf={openPdf} />
