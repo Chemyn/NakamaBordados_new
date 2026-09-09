@@ -10,6 +10,7 @@
 import { apiOrigin } from './api-host';
 
 const WP_BASE = 'https://nakamabordados.com';
+const SSO_TIMEOUT_MS = 3_500;
 
 export const WP_ADMIN_URL =
   process.env.NEXT_PUBLIC_WP_ADMIN_URL || `${WP_BASE}/wp-admin`;
@@ -24,17 +25,26 @@ export const WP_PASSWORD_RESET_URL =
  * Nunca lanza: si no hay token o el endpoint falla, simplemente no hay SSO.
  */
 export async function seedWpSession(): Promise<boolean> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+
   try {
     const token =
       typeof window !== 'undefined' ? localStorage.getItem('wp-jwt') : null;
     if (!token) return false;
+    const controller = new AbortController();
+    timeoutId = setTimeout(() => controller.abort(), SSO_TIMEOUT_MS);
     const res = await fetch(`${apiOrigin()}/?rest_route=/nakama/v1/sso&nkcb=${Date.now()}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
+      credentials: 'same-origin',
+      cache: 'no-store',
+      signal: controller.signal,
     });
     return res.ok;
   } catch {
     return false;
+  } finally {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
   }
 }
 

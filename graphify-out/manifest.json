@@ -1008,9 +1008,9 @@
     "semantic_hash": ""
   },
   "src/lib/wp-sso.ts": {
-    "mtime": 1788806043.7018104,
-    "seen": 1788975528.5750408,
-    "ast_hash": "78f449414f6d204e7cdfc09d2e128b89",
+    "mtime": 1788977420.685632,
+    "seen": 1788977542.8406732,
+    "ast_hash": "cb67fc2984680a9d6274af4241203ac8",
     "semantic_hash": ""
   },
   "src/types/product.ts": {
@@ -2001,6 +2001,12 @@
     "mtime": 1788806043.7078109,
     "seen": 1788975528.5752378,
     "ast_hash": "5b57aab86424ae365622bb024929b1b0",
+    "semantic_hash": ""
+  },
+  "src/lib/wp-sso.test.ts": {
+    "mtime": 1788977380.6679895,
+    "seen": 1788977542.8406708,
+    "ast_hash": "864d0e1b80b0fac1572f5569d666dcbc",
     "semantic_hash": ""
   }
 }
