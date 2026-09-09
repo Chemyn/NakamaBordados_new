@@ -294,9 +294,9 @@
     "semantic_hash": ""
   },
   "nakama-checkout-tools.php": {
-    "mtime": 1788981666.1468198,
-    "seen": 1788981749.6517608,
-    "ast_hash": "052a0eb3014129f7ec0c51a087cdb70f",
+    "mtime": 1788983798.7685788,
+    "seen": 1788984263.2718136,
+    "ast_hash": "7f744877fdfb90e870441476766c9f5a",
     "semantic_hash": ""
   },
   "nakama-discounts/assets/js/checkout.js": {
@@ -1056,9 +1056,9 @@
     "semantic_hash": ""
   },
   "tests/nakama-checkout-tools-test.php": {
-    "mtime": 1788981638.5725367,
-    "seen": 1788981749.6521046,
-    "ast_hash": "a483931af3da2b1ceb537e90374e7bf5",
+    "mtime": 1788983744.1032665,
+    "seen": 1788984263.2720983,
+    "ast_hash": "5c93d3e32d7ed74cda94f9e6b4133118",
     "semantic_hash": ""
   },
   "tests/prepare-static-deployment.test.mjs": {
@@ -2007,6 +2007,24 @@
     "mtime": 1788977380.6679895,
     "seen": 1788977542.8406708,
     "ast_hash": "864d0e1b80b0fac1572f5569d666dcbc",
+    "semantic_hash": ""
+  },
+  "src/app/pedido-confirmado/layout.tsx": {
+    "mtime": 1788983838.096347,
+    "seen": 1788984263.2720084,
+    "ast_hash": "92ca37d0eb1fa35a39871d8def0c81ad",
+    "semantic_hash": ""
+  },
+  "src/app/pedido-confirmado/page.test.tsx": {
+    "mtime": 1788983750.8195899,
+    "seen": 1788984263.2720118,
+    "ast_hash": "1bf57d338f59b49f4b43fb1dc8d1f95f",
+    "semantic_hash": ""
+  },
+  "src/app/pedido-confirmado/page.tsx": {
+    "mtime": 1788983974.4698355,
+    "seen": 1788984263.272014,
+    "ast_hash": "ac221b1e6e6beb33b693b4ad894534c9",
     "semantic_hash": ""
   }
 }

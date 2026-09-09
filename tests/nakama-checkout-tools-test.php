@@ -10,13 +10,22 @@ define('COOKIEPATH', '/');
 define('COOKIE_DOMAIN', '');
 
 $actions = [];
+$filters = [];
+$registeredRestRoutes = [];
 $registeredGraphqlFields = [];
 $testWooEndpoint = '';
 function add_action(...$args): void {
     global $actions;
     $actions[$args[0]][] = $args[1];
 }
-function add_filter(...$args): void {}
+function add_filter(...$args): void {
+    global $filters;
+    $filters[$args[0]][] = $args[1];
+}
+function register_rest_route(string $namespace, string $route, array $args): void {
+    global $registeredRestRoutes;
+    $registeredRestRoutes[$namespace . $route] = $args;
+}
 function register_graphql_field(string $typeName, string $fieldName, array $config): void {
     global $registeredGraphqlFields;
     $registeredGraphqlFields[$typeName][$fieldName] = $config;
@@ -65,6 +74,10 @@ function rest_ensure_response(mixed $value): FakeResponse { return new FakeRespo
 function home_url(string $path = ''): string { return 'https://example.test' . $path; }
 function esc_url(mixed $value): string { return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8'); }
 function esc_html(mixed $value): string { return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8'); }
+function wp_strip_all_tags(mixed $value): string { return strip_tags((string) $value); }
+function add_query_arg(array $args, string $url): string {
+    return $url . '?' . http_build_query($args, '', '&', PHP_QUERY_RFC3986);
+}
 function wc_add_notice(string $message, string $type = 'success'): void {}
 function is_wc_endpoint_url(string $endpoint = ''): bool {
     global $testWooEndpoint;
@@ -78,6 +91,7 @@ function wc_get_order(int $id): mixed {
 class WP_REST_Request {
     public function __construct(private array $params = []) {}
     public function get_json_params(): array { return $this->params; }
+    public function get_param(string $key): mixed { return $this->params[$key] ?? null; }
 }
 class WP_User {}
 class WC_Abstract_Order {}
@@ -112,7 +126,10 @@ final class FakeOrder extends WC_Abstract_Order {
         private array $fees = [],
         private string $paymentMethod = '',
         private int $id = 1,
-        private string $orderKey = 'wc_order_test'
+        private string $orderKey = 'wc_order_test',
+        private string $orderNumber = '1',
+        private string $paymentTitle = 'Método de prueba',
+        private string $firstName = 'Cliente'
     ) {}
 
     public function get_meta(string $key): mixed {
@@ -149,6 +166,15 @@ final class FakeOrder extends WC_Abstract_Order {
 
     public function is_paid(): bool {
         return ! $this->needsPayment;
+    }
+
+    public function get_order_number(): string { return $this->orderNumber; }
+    public function get_payment_method_title(): string { return $this->paymentTitle; }
+    public function get_billing_first_name(): string { return $this->firstName; }
+    public function get_date_created(): object {
+        return new class {
+            public function date(string $format): string { return '2026-09-09T12:00:00+00:00'; }
+        };
     }
 
     public function get_items(string $type = ''): array {
@@ -263,64 +289,81 @@ function assert_same(mixed $expected, mixed $actual, string $message): void {
 
 require dirname(__DIR__) . '/nakama-checkout-tools.php';
 
-$ordersById[303] = new FakeOrder(paymentMethod: 'bacs', id: 303);
-ob_start();
-foreach ($actions['woocommerce_before_thankyou'] ?? [] as $callback) {
-    $callback(303);
-}
-echo '<section data-test="bank-transfer-instructions">Bank transfer instructions</section>';
-foreach ($actions['woocommerce_thankyou_bacs'] ?? [] as $callback) {
-    $callback(303);
-}
-foreach ($actions['woocommerce_thankyou'] ?? [] as $callback) {
-    $callback(303);
-}
-$transferThankYou = (string) ob_get_clean();
-$journeyPosition = strpos($transferThankYou, 'Tu pedido ya está en marcha');
-$bankInstructionsPosition = strpos($transferThankYou, 'Bank transfer instructions');
+$testOptions['woocommerce_bacs_accounts'] = [[
+    'account_name' => 'Nakama Bordados',
+    'bank_name' => 'Banco de prueba',
+    'account_number' => '1234567890',
+    'iban' => '',
+    'bic' => '',
+    'sort_code' => '',
+]];
+$testOptions['woocommerce_bacs_settings'] = [
+    'instructions' => '<strong>Incluye tu número de pedido como referencia.</strong>',
+];
+$confirmationOrder = new FakeOrder(
+    status: 'on-hold',
+    needsPayment: true,
+    total: '610.41',
+    currency: 'MXN',
+    paymentMethod: 'bacs',
+    id: 115,
+    orderKey: 'wc_order_secret',
+    orderNumber: '115',
+    paymentTitle: 'Transferencia bancaria',
+    firstName: 'Samantha'
+);
+$ordersById[115] = $confirmationOrder;
+
+$returnUrlFilter = $filters['woocommerce_get_return_url'][0] ?? null;
 assert_same(
-    true,
-    false !== $journeyPosition
-        && false !== $bankInstructionsPosition
-        && $journeyPosition < $bankInstructionsPosition,
-    'The order journey appears before payment-specific bank transfer instructions.'
+    'https://example.test/pedido-confirmado/#order=115&key=wc_order_secret',
+    is_callable($returnUrlFilter)
+        ? $returnUrlFilter('https://example.test/finalizar-compra/order-received/115/', $confirmationOrder)
+        : null,
+    'Every payment gateway returns to the headless order confirmation page.'
 );
 
-$testWooEndpoint = 'order-received';
-ob_start();
-foreach ($actions['woocommerce_login_form_start'] ?? [] as $callback) {
-    $callback();
-}
-$orderReceivedLoginGuidance = (string) ob_get_clean();
-$testWooEndpoint = '';
-assert_same(
-    true,
-    str_contains($orderReceivedLoginGuidance, 'Estos son los pasos que verás')
-        && str_contains($orderReceivedLoginGuidance, 'https://example.test/mi-cuenta/'),
-    'The protected order-received login screen shows the safe journey and Mi Cuenta link.'
+$confirmationResponse = nakama_get_order_confirmation(
+    new WP_REST_Request(['order' => 115, 'key' => 'wc_order_secret'])
 );
-
-ob_start();
-nakama_render_order_received_guidance(301, new FakeOrder(needsPayment: false));
-$paidThankYou = (string) ob_get_clean();
 assert_same(
-    true,
-    str_contains($paidThankYou, 'Tu pedido ya está en marcha')
-        && str_contains($paidThankYou, 'Pago recibido')
-        && str_contains($paidThankYou, 'En fabricación')
-        && str_contains($paidThankYou, 'Preparando guía')
-        && str_contains($paidThankYou, 'Enviado')
-        && str_contains($paidThankYou, 'https://example.test/mi-cuenta/'),
-    'The WooCommerce order-received page explains tracking and links to Mi Cuenta.'
+    [
+        'orderNumber' => '115',
+        'status' => 'on-hold',
+        'isPaid' => false,
+        'total' => '610.41',
+        'currency' => 'MXN',
+        'dateCreated' => '2026-09-09T12:00:00+00:00',
+        'paymentMethod' => 'bacs',
+        'paymentTitle' => 'Transferencia bancaria',
+        'firstName' => 'Samantha',
+        'transferInstructions' => 'Incluye tu número de pedido como referencia.',
+        'bankAccounts' => [[
+            'accountName' => 'Nakama Bordados',
+            'bankName' => 'Banco de prueba',
+            'accountNumber' => '1234567890',
+            'iban' => '',
+            'bic' => '',
+            'sortCode' => '',
+        ]],
+    ],
+    $confirmationResponse instanceof FakeResponse ? $confirmationResponse->data : null,
+    'A valid order key exposes only the confirmation details needed by the headless page.'
 );
-
-ob_start();
-nakama_render_order_received_guidance(302, new FakeOrder(needsPayment: true));
-$pendingThankYou = (string) ob_get_clean();
 assert_same(
     true,
-    str_contains($pendingThankYou, 'Pago pendiente de confirmación'),
-    'The first tracking step reflects an order whose payment is still pending.'
+    nakama_get_order_confirmation(new WP_REST_Request(['order' => 115, 'key' => 'wrong'])) instanceof WP_Error,
+    'The confirmation endpoint rejects an invalid order key.'
+);
+assert_same(
+    'https://example.test/pedido-confirmado/#order=115&key=wc_order_secret',
+    nakama_legacy_confirmation_destination(115, 'wc_order_secret'),
+    'A direct visit to the legacy WooCommerce thank-you URL can return to the headless page.'
+);
+assert_same(
+    '',
+    nakama_legacy_confirmation_destination(115, 'wrong'),
+    'The legacy redirect never forwards an invalid order key.'
 );
 
 $testTransients = [];

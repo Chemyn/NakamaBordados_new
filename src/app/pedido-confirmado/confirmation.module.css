@@ -1,0 +1,369 @@
+.page {
+  position: relative;
+  min-height: 75vh;
+  overflow: hidden;
+  padding: clamp(3rem, 7vw, 6rem) 0;
+  background:
+    radial-gradient(circle at 12% 8%, color-mix(in srgb, var(--nk-primary) 10%, transparent), transparent 30rem),
+    var(--nk-bg-wrapper);
+}
+
+.ambient {
+  position: absolute;
+  top: 7rem;
+  right: -9rem;
+  width: 24rem;
+  height: 24rem;
+  border: 1px solid color-mix(in srgb, var(--nk-primary) 20%, transparent);
+  border-radius: 50%;
+  opacity: .55;
+  pointer-events: none;
+}
+
+.ambient::before,
+.ambient::after {
+  position: absolute;
+  content: '';
+  border: inherit;
+  border-radius: inherit;
+  inset: 3rem;
+}
+
+.ambient::after { inset: 7rem; }
+
+.container {
+  position: relative;
+  z-index: 1;
+  max-width: 1120px;
+}
+
+.hero,
+.summary,
+.transferCard,
+.journeyCard,
+.trackingCard,
+.stateCard {
+  border: 1px solid color-mix(in srgb, var(--nk-border) 22%, transparent);
+  background: color-mix(in srgb, var(--nk-bg-card) 88%, transparent);
+  box-shadow: 0 20px 60px rgba(15, 23, 42, .09);
+  backdrop-filter: blur(22px) saturate(145%);
+  -webkit-backdrop-filter: blur(22px) saturate(145%);
+}
+
+.hero {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: clamp(1rem, 3vw, 1.75rem);
+  padding: clamp(1.5rem, 5vw, 3.25rem);
+  border-top: 5px solid var(--nk-primary);
+  border-radius: 1.5rem;
+}
+
+.successMark {
+  display: grid;
+  width: clamp(3.5rem, 9vw, 4.75rem);
+  height: clamp(3.5rem, 9vw, 4.75rem);
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--nk-primary);
+  box-shadow: 0 12px 28px color-mix(in srgb, var(--nk-primary) 28%, transparent);
+}
+
+.successMark span { font-size: clamp(1.75rem, 5vw, 2.5rem); }
+
+.eyebrow {
+  margin: 0 0 .35rem;
+  color: var(--nk-primary);
+  font-size: .75rem;
+  font-weight: 800;
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+
+.hero h1,
+.sectionHeading h2,
+.trackingCard h2,
+.stateCard h1 {
+  margin: 0;
+  color: var(--nk-text-main);
+  text-transform: none;
+  letter-spacing: -.025em;
+}
+
+.hero h1 {
+  font-size: clamp(2.35rem, 6vw, 4.1rem);
+  line-height: .95;
+}
+
+.lead {
+  max-width: 42rem;
+  margin: .85rem 0 0;
+  color: var(--nk-text-sec);
+  font-size: clamp(.95rem, 2vw, 1.08rem);
+  line-height: 1.65;
+}
+
+.orderChip {
+  align-self: start;
+  padding: .65rem .9rem;
+  border: 1px solid color-mix(in srgb, var(--nk-border) 28%, transparent);
+  border-radius: 999px;
+  color: var(--nk-text-main);
+  background: var(--nk-bg-card);
+  font-size: .78rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 1rem 0;
+  padding: .4rem clamp(1rem, 4vw, 2rem);
+  border-radius: 1.15rem;
+}
+
+.summary > div {
+  min-width: 0;
+  padding: 1.1rem clamp(.75rem, 2vw, 1.5rem);
+}
+
+.summary > div + div { border-left: 1px solid color-mix(in srgb, var(--nk-border) 16%, transparent); }
+.summary span { display: block; margin-bottom: .35rem; color: var(--nk-text-sec); font-size: .7rem; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+.summary strong { display: block; overflow-wrap: anywhere; color: var(--nk-text-main); font-size: .93rem; line-height: 1.35; }
+.summary .total { color: var(--nk-primary); font-size: 1.05rem; }
+
+.transferCard,
+.journeyCard {
+  margin-top: 1rem;
+  padding: clamp(1.4rem, 4vw, 2.5rem);
+  border-radius: 1.5rem;
+}
+
+.transferCard { border-left: 4px solid #22c55e; }
+
+.sectionHeading {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.75rem;
+}
+
+.sectionIcon {
+  display: grid;
+  flex: 0 0 auto;
+  width: 2.8rem;
+  height: 2.8rem;
+  place-items: center;
+  border-radius: .85rem;
+  color: var(--nk-primary);
+  background: color-mix(in srgb, var(--nk-primary) 10%, var(--nk-bg-card));
+}
+
+.sectionHeading h2,
+.trackingCard h2 { font-size: clamp(1.75rem, 4vw, 2.35rem); line-height: 1; }
+.sectionHeading p:last-child,
+.trackingCard p { max-width: 44rem; margin: .45rem 0 0; color: var(--nk-text-sec); line-height: 1.6; }
+
+.accounts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 1rem;
+}
+
+.account {
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--nk-border) 18%, transparent);
+  border-radius: 1rem;
+  background: color-mix(in srgb, var(--nk-bg-wrapper) 72%, transparent);
+}
+
+.accountTitle { padding: 1rem 1.1rem; border-bottom: 1px solid color-mix(in srgb, var(--nk-border) 14%, transparent); }
+.accountTitle span { display: block; color: var(--nk-text-sec); font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.accountTitle strong { display: block; margin-top: .2rem; color: var(--nk-text-main); }
+.account dl { display: grid; grid-template-columns: minmax(6.5rem, auto) 1fr; gap: .55rem 1rem; padding: 1rem 1.1rem; }
+.account dt { color: var(--nk-text-sec); font-size: .76rem; }
+.account dd { min-width: 0; color: var(--nk-text-main); font-size: .86rem; font-weight: 700; overflow-wrap: anywhere; }
+
+.copyRow { display: flex; align-items: center; justify-content: space-between; gap: .5rem; }
+.copyRow button {
+  display: grid;
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border: 0;
+  border-radius: .55rem;
+  color: var(--nk-primary);
+  background: color-mix(in srgb, var(--nk-primary) 10%, transparent);
+  cursor: pointer;
+}
+.copyRow button:active { transform: scale(.94); }
+.copyRow button:focus-visible,
+.accountLink:focus-visible,
+.secondaryButton:focus-visible,
+.whatsappButton:focus-visible { outline: 3px solid #72aef8; outline-offset: 3px; }
+
+.whatsappButton {
+  display: inline-flex;
+  align-items: center;
+  gap: .6rem;
+  margin-top: 1.25rem;
+  padding: .85rem 1.1rem;
+  border-radius: .8rem;
+  color: #082b18;
+  background: #27d366;
+  font-size: .9rem;
+  font-weight: 800;
+  text-decoration: none;
+  box-shadow: 0 9px 24px rgba(39, 211, 102, .2);
+}
+.whatsappButton:active { transform: scale(.98); }
+
+.journey {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step { position: relative; display: grid; grid-template-columns: 1fr; min-width: 0; padding-right: 1rem; }
+.stepRail { position: relative; height: 2.8rem; }
+.stepRail::after { position: absolute; top: 1.3rem; right: 0; left: 2.6rem; height: 2px; content: ''; background: color-mix(in srgb, var(--nk-border) 18%, transparent); }
+.step:last-child .stepRail::after { display: none; }
+.stepMark {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 2.65rem;
+  height: 2.65rem;
+  place-items: center;
+  border: 2px solid color-mix(in srgb, var(--nk-border) 24%, transparent);
+  border-radius: 50%;
+  color: var(--nk-text-sec);
+  background: var(--nk-bg-card);
+}
+.stepMark span { font-size: 1.15rem; }
+.done .stepMark,
+.current .stepMark { border-color: var(--nk-primary); color: #fff; background: var(--nk-primary); }
+.done .stepRail::after { background: var(--nk-primary); }
+.current .stepMark { box-shadow: 0 0 0 6px color-mix(in srgb, var(--nk-primary) 12%, transparent); }
+.stepNumber { display: block; margin: .75rem 0 .35rem; color: var(--nk-primary); font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.step h3 { margin: 0 .75rem .4rem 0; color: var(--nk-text-main); font-size: 1rem; line-height: 1.25; letter-spacing: 0; text-transform: none; }
+.step p { margin: 0 .8rem 0 0; color: var(--nk-text-sec); font-size: .8rem; line-height: 1.55; }
+
+.trackingCard {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1.1rem;
+  margin-top: 1rem;
+  padding: clamp(1.25rem, 4vw, 2rem);
+  border-color: color-mix(in srgb, #0a66d8 36%, transparent);
+  border-radius: 1.25rem;
+  background: color-mix(in srgb, #eaf4ff 68%, var(--nk-bg-card));
+}
+.trackingIcon { color: #0a66d8; font-size: 2rem; }
+.accountLink { color: #0a66d8; font-weight: 800; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 4px; white-space: nowrap; }
+
+.actions { display: flex; align-items: center; justify-content: center; gap: 1rem; margin-top: 2rem; }
+.secondaryButton { padding: .85rem 1.2rem; border-radius: .65rem; color: var(--nk-text-main); font-weight: 800; text-decoration: none; }
+.secondaryButton:hover { background: color-mix(in srgb, var(--nk-border) 8%, transparent); }
+
+.stateCard {
+  display: flex;
+  max-width: 38rem;
+  min-height: 25rem;
+  margin: 0 auto;
+  padding: clamp(2rem, 6vw, 4rem);
+  border-radius: 1.5rem;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+.stateCard h1 { font-size: clamp(2.25rem, 7vw, 3.5rem); line-height: 1; }
+.stateCard p:not(.eyebrow) { max-width: 30rem; margin: 1rem 0 1.75rem; color: var(--nk-text-sec); line-height: 1.65; }
+.stateIcon { margin-bottom: 1rem; color: var(--nk-primary); font-size: 3.5rem; }
+.loader { width: 3rem; height: 3rem; margin-bottom: 1.25rem; border: 3px solid color-mix(in srgb, var(--nk-border) 14%, transparent); border-top-color: var(--nk-primary); border-radius: 50%; animation: spin .8s linear infinite; }
+
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes arrive { from { opacity: 0; transform: translateY(.6rem) scale(.99); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  .hero,
+  .summary,
+  .transferCard,
+  .journeyCard,
+  .trackingCard { animation: arrive .4s cubic-bezier(.22, 1, .36, 1) both; }
+  .summary { animation-delay: 50ms; }
+  .transferCard,
+  .journeyCard { animation-delay: 90ms; }
+  .trackingCard { animation-delay: 130ms; }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .hero,
+  .summary,
+  .transferCard,
+  .journeyCard,
+  .trackingCard,
+  .stateCard { background: var(--nk-bg-card); backdrop-filter: none; -webkit-backdrop-filter: none; }
+}
+
+@media (prefers-contrast: more) {
+  .hero,
+  .summary,
+  .transferCard,
+  .journeyCard,
+  .trackingCard,
+  .stateCard { border-width: 2px; border-color: var(--nk-border); }
+}
+
+:global(html.dark) .successMark,
+:global(html.dark) .done .stepMark,
+:global(html.dark) .current .stepMark { color: #1a1f2b; }
+:global(html.dark) .trackingCard { background: color-mix(in srgb, #16375c 55%, var(--nk-bg-card)); }
+:global(html.dark) .trackingIcon,
+:global(html.dark) .accountLink { color: #7db8ff; }
+
+@media (max-width: 800px) {
+  .hero { grid-template-columns: auto 1fr; }
+  .orderChip { grid-column: 2; justify-self: start; }
+  .summary { grid-template-columns: 1fr 1fr; }
+  .summary > div + div { border-left: 0; }
+  .summary > div:nth-child(even) { border-left: 1px solid color-mix(in srgb, var(--nk-border) 16%, transparent); }
+  .summary > div:nth-child(n + 3) { border-top: 1px solid color-mix(in srgb, var(--nk-border) 16%, transparent); }
+  .journey { grid-template-columns: 1fr; }
+  .step { grid-template-columns: 3.5rem 1fr; min-height: 8.5rem; padding: 0; }
+  .stepRail { height: 100%; }
+  .stepRail::after { top: 2.65rem; bottom: 0; left: 1.3rem; width: 2px; height: auto; }
+  .step:last-child { min-height: auto; }
+  .stepNumber { margin-top: .55rem; }
+  .trackingCard { grid-template-columns: auto 1fr; }
+  .accountLink { grid-column: 2; justify-self: start; white-space: normal; }
+}
+
+@media (max-width: 520px) {
+  .page { padding: 1.25rem 0 3.5rem; }
+  .container { padding-inline: .8rem; }
+  .hero { grid-template-columns: 1fr; text-align: left; }
+  .successMark { width: 3.35rem; height: 3.35rem; }
+  .orderChip { grid-column: 1; }
+  .summary { grid-template-columns: 1fr; padding: .35rem 1rem; }
+  .summary > div:nth-child(even) { border-left: 0; }
+  .summary > div + div { border-top: 1px solid color-mix(in srgb, var(--nk-border) 16%, transparent); }
+  .sectionHeading { align-items: flex-start; }
+  .sectionIcon { width: 2.5rem; height: 2.5rem; }
+  .account dl { grid-template-columns: 1fr; gap: .25rem; }
+  .account dd { margin-bottom: .65rem; }
+  .whatsappButton { width: 100%; justify-content: center; text-align: center; }
+  .trackingCard { grid-template-columns: 1fr; }
+  .accountLink { grid-column: 1; }
+  .actions { flex-direction: column; }
+  .actions :global(.nk-btn),
+  .secondaryButton { width: 100%; text-align: center; }
+}
