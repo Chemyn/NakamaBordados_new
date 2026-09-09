@@ -263,6 +263,29 @@ function assert_same(mixed $expected, mixed $actual, string $message): void {
 
 require dirname(__DIR__) . '/nakama-checkout-tools.php';
 
+$ordersById[303] = new FakeOrder(paymentMethod: 'bacs', id: 303);
+ob_start();
+foreach ($actions['woocommerce_before_thankyou'] ?? [] as $callback) {
+    $callback(303);
+}
+echo '<section data-test="bank-transfer-instructions">Bank transfer instructions</section>';
+foreach ($actions['woocommerce_thankyou_bacs'] ?? [] as $callback) {
+    $callback(303);
+}
+foreach ($actions['woocommerce_thankyou'] ?? [] as $callback) {
+    $callback(303);
+}
+$transferThankYou = (string) ob_get_clean();
+$journeyPosition = strpos($transferThankYou, 'Tu pedido ya está en marcha');
+$bankInstructionsPosition = strpos($transferThankYou, 'Bank transfer instructions');
+assert_same(
+    true,
+    false !== $journeyPosition
+        && false !== $bankInstructionsPosition
+        && $journeyPosition < $bankInstructionsPosition,
+    'The order journey appears before payment-specific bank transfer instructions.'
+);
+
 $testWooEndpoint = 'order-received';
 ob_start();
 foreach ($actions['woocommerce_login_form_start'] ?? [] as $callback) {
