@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO, social login, pedidos de cotización, registro de clientes y sincronización de base de datos local (Next.js).
- * Version: 3.0
+ * Version: 3.1
  * Author: Nakama
  */
 
@@ -787,6 +787,18 @@ function nakama_render_order_received_guidance( $order_id, $order = null ) {
     echo '<script>try{["nakama_cart","nakama_quote_cart","nakama_coupon","nakama_discount","nakama_discount_type"].forEach(function(k){window.localStorage.removeItem(k);});}catch(e){}</script>';
 }
 add_action( 'woocommerce_thankyou', 'nakama_render_order_received_guidance', 20, 1 );
+
+// WooCommerce solicita acceso antes de cargar la plantilla thankyou para los
+// pedidos ligados a una cuenta. Mostrar aquí la orientación general permite
+// verla en ese paso sin revelar información privada del pedido.
+function nakama_render_order_received_login_guidance() {
+    if ( ! function_exists( 'is_wc_endpoint_url' ) || ! is_wc_endpoint_url( 'order-received' ) ) {
+        return;
+    }
+
+    nakama_render_order_received_guidance( 0 );
+}
+add_action( 'woocommerce_before_customer_login_form', 'nakama_render_order_received_login_guidance', 5 );
 
 function nakama_sso_set_cookie() {
     $user_id = get_current_user_id();

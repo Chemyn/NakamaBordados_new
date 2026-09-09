@@ -11,6 +11,7 @@ define('COOKIE_DOMAIN', '');
 
 $actions = [];
 $registeredGraphqlFields = [];
+$testWooEndpoint = '';
 function add_action(...$args): void {
     global $actions;
     $actions[$args[0]][] = $args[1];
@@ -65,6 +66,10 @@ function home_url(string $path = ''): string { return 'https://example.test' . $
 function esc_url(mixed $value): string { return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8'); }
 function esc_html(mixed $value): string { return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8'); }
 function wc_add_notice(string $message, string $type = 'success'): void {}
+function is_wc_endpoint_url(string $endpoint = ''): bool {
+    global $testWooEndpoint;
+    return $endpoint === $testWooEndpoint;
+}
 function wc_get_order(int $id): mixed {
     global $ordersById;
     return $ordersById[$id] ?? false;
@@ -257,6 +262,20 @@ function assert_same(mixed $expected, mixed $actual, string $message): void {
 }
 
 require dirname(__DIR__) . '/nakama-checkout-tools.php';
+
+$testWooEndpoint = 'order-received';
+ob_start();
+foreach ($actions['woocommerce_before_customer_login_form'] ?? [] as $callback) {
+    $callback();
+}
+$orderReceivedLoginGuidance = (string) ob_get_clean();
+$testWooEndpoint = '';
+assert_same(
+    true,
+    str_contains($orderReceivedLoginGuidance, 'Estos son los pasos que verás')
+        && str_contains($orderReceivedLoginGuidance, 'https://example.test/mi-cuenta/'),
+    'The protected order-received login screen shows the safe journey and Mi Cuenta link.'
+);
 
 ob_start();
 nakama_render_order_received_guidance(301, new FakeOrder(needsPayment: false));

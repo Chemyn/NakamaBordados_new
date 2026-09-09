@@ -5,8 +5,19 @@ import { fileURLToPath } from 'node:url';
 export async function prepareStaticDeployment({ rootDir, buildId }) {
   const outDir = path.join(rootDir, 'out');
   const appMetadataDir = path.join(outDir, 'app');
+  const checkoutPluginDir = path.join(
+    outDir,
+    'wp-content',
+    'plugins',
+    'nakama-checkout-tools',
+  );
   await mkdir(appMetadataDir, { recursive: true });
+  await mkdir(checkoutPluginDir, { recursive: true });
   await copyFile(path.join(rootDir, '.htaccess'), path.join(outDir, '.htaccess'));
+  await copyFile(
+    path.join(rootDir, 'nakama-checkout-tools.php'),
+    path.join(checkoutPluginDir, 'nakama-checkout-tools.php'),
+  );
   await writeFile(
     path.join(appMetadataDir, 'web-version.json'),
     `${JSON.stringify({ buildId })}\n`,
