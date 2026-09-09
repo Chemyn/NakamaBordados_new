@@ -294,9 +294,9 @@
     "semantic_hash": ""
   },
   "nakama-checkout-tools.php": {
-    "mtime": 1788978745.9506211,
-    "seen": 1788979023.985969,
-    "ast_hash": "e952f0c8b5c9db93eb629eac42e2a68f",
+    "mtime": 1788980013.7212558,
+    "seen": 1788980091.5974944,
+    "ast_hash": "644d425ebc21dc445d692f5a65f6fdb8",
     "semantic_hash": ""
   },
   "nakama-discounts/assets/js/checkout.js": {
@@ -1056,9 +1056,9 @@
     "semantic_hash": ""
   },
   "tests/nakama-checkout-tools-test.php": {
-    "mtime": 1788978682.35727,
-    "seen": 1788979023.9861546,
-    "ast_hash": "e52565413dbaff8544477a396b3df63a",
+    "mtime": 1788979986.0696754,
+    "seen": 1788980091.5978906,
+    "ast_hash": "684df23e49ee73a9fb6b90efcfda468d",
     "semantic_hash": ""
   },
   "tests/prepare-static-deployment.test.mjs": {

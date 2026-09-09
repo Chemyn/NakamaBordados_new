@@ -265,7 +265,7 @@ require dirname(__DIR__) . '/nakama-checkout-tools.php';
 
 $testWooEndpoint = 'order-received';
 ob_start();
-foreach ($actions['woocommerce_before_customer_login_form'] ?? [] as $callback) {
+foreach ($actions['woocommerce_login_form_start'] ?? [] as $callback) {
     $callback();
 }
 $orderReceivedLoginGuidance = (string) ob_get_clean();
