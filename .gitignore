@@ -42,5 +42,13 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# Graphify: conservar el grafo compartido, excluir cachés y rutas locales.
+/graphify-out/cache/
+/graphify-out/20??-??-??/
+/graphify-out/.graphify_python
+/graphify-out/.graphify_root
+/src/graphify-out/
+/mobile/graphify-out/
+
 # local test scripts (may contain secrets/infra)
 test-*.js

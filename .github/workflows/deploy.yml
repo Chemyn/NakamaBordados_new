@@ -25,6 +25,8 @@ jobs:
         run: npm run build
         env:
           NEXT_PUBLIC_DISCORD_WEBHOOK_URL: ${{ secrets.NEXT_PUBLIC_DISCORD_WEBHOOK_URL }}
+          NEXT_PUBLIC_BUILD_ID: ${{ github.sha }}
+          NEXT_DEPLOYMENT_ID: ${{ github.sha }}
 
       - name: Desplegar hacia cPanel vía FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5

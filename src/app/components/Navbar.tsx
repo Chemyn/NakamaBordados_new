@@ -21,7 +21,7 @@ export default function Navbar() {
   const { cartCount } = useCart();
   const { isAdmin } = useAuth();
   const { language, setLanguage, t } = useLanguage();
-  const { currencyInfo, setCurrencyManual } = useCurrency();
+  const { currencySelection, rateStatus, currencyMessage, setCurrencyManual } = useCurrency();
 
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [menuOpen, setMenuOpen] = useState(false);
@@ -372,7 +372,8 @@ export default function Navbar() {
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px' }}>
                   <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--nk-text-sec)' }}>{t('nav.currency') || 'Moneda'}</span>
                   <select 
-                    value={currencyInfo.currency} 
+                    value={currencySelection}
+                    aria-busy={rateStatus === 'loading'}
                     onChange={(e) => { setCurrencyManual(e.target.value); setMenuOpen(false); }}
                     className="nk-manga-input"
                     style={{ padding: '5px 10px', fontSize: '1rem', width: '120px' }}
@@ -404,7 +405,8 @@ export default function Navbar() {
             </select>
 
             <select 
-              value={currencyInfo.currency} 
+              value={currencySelection}
+              aria-busy={rateStatus === 'loading'}
               onChange={(e) => setCurrencyManual(e.target.value)}
               className="nk-manga-input"
               style={{ padding: '2px 5px', fontSize: '0.8rem', height: 'auto', border: '2px solid var(--nk-border)' }}
@@ -434,6 +436,14 @@ export default function Navbar() {
           </button>
         </div>
       </div>
+      {currencyMessage && (
+        <div className={`nk-currency-notice ${rateStatus === 'unavailable' ? 'is-error' : ''}`} role="status" aria-live="polite">
+          <span className="material-icons-outlined" aria-hidden="true">
+            {rateStatus === 'unavailable' ? 'cloud_off' : 'schedule'}
+          </span>
+          {currencyMessage}
+        </div>
+      )}
     </nav>
   );
 }

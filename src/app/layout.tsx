@@ -11,6 +11,7 @@ import WhatsAppButton from "./components/WhatsAppButton";
 import MaintenanceWrapper from "./components/MaintenanceWrapper";
 import Analytics from "./components/Analytics";
 import CookieBanner from "./components/CookieBanner";
+import BuildUpdateNotice from "./components/BuildUpdateNotice";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -90,6 +91,7 @@ export default function RootLayout({
                   <Footer />
                   <WhatsAppButton />
                   <CookieBanner />
+                  <BuildUpdateNotice currentBuildId={process.env.NEXT_PUBLIC_BUILD_ID || "local"} />
                 </MaintenanceWrapper>
               </CartProvider>
             </CurrencyProvider>

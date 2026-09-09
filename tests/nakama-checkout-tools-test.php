@@ -25,12 +25,35 @@ function sanitize_text_field(mixed $value): string { return trim((string) $value
 function sanitize_textarea_field(mixed $value): string { return trim((string) $value); }
 function sanitize_email(mixed $value): string { return trim((string) $value); }
 function get_option(string $key, mixed $default = false): mixed {
+    global $testOptions;
+    if (array_key_exists($key, $testOptions)) return $testOptions[$key];
     return match ($key) {
         'nakama_quote_folio_counter' => 9999,
         'woocommerce_currency' => 'MXN',
         'nakama_quote_product_id' => 777,
         default => $default,
     };
+}
+function update_option(string $key, mixed $value, bool $autoload = true): bool {
+    global $testOptions;
+    $testOptions[$key] = $value;
+    return true;
+}
+function get_transient(string $key): mixed {
+    global $testTransients;
+    return $testTransients[$key] ?? false;
+}
+function set_transient(string $key, mixed $value, int $expiration): bool {
+    global $testTransients;
+    $testTransients[$key] = $value;
+    return true;
+}
+function wp_remote_get(string $url, array $args = []): mixed {
+    global $testRemoteResponse;
+    return $testRemoteResponse;
+}
+function wp_remote_retrieve_body(mixed $response): string {
+    return is_array($response) ? (string) ($response['body'] ?? '') : '';
 }
 function get_post_status(int $id): string { return 'publish'; }
 function wc_get_orders(array $args): array { return []; }
@@ -39,6 +62,8 @@ function get_user_by(string $field, mixed $value): mixed { return false; }
 function is_wp_error(mixed $value): bool { return $value instanceof WP_Error; }
 function rest_ensure_response(mixed $value): FakeResponse { return new FakeResponse($value); }
 function home_url(string $path = ''): string { return 'https://example.test' . $path; }
+function esc_url(mixed $value): string { return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8'); }
+function esc_html(mixed $value): string { return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8'); }
 function wc_add_notice(string $message, string $type = 'success'): void {}
 function wc_get_order(int $id): mixed {
     global $ordersById;
@@ -117,6 +142,10 @@ final class FakeOrder extends WC_Abstract_Order {
         return $this->orderKey;
     }
 
+    public function is_paid(): bool {
+        return ! $this->needsPayment;
+    }
+
     public function get_items(string $type = ''): array {
         return $type === 'fee' ? $this->fees : [];
     }
@@ -140,6 +169,9 @@ final class FakeCreatedOrder extends WC_Abstract_Order {
 }
 
 $createdOrder = new FakeCreatedOrder();
+$testOptions = [];
+$testTransients = [];
+$testRemoteResponse = new WP_Error();
 function wc_create_order(array $args): FakeCreatedOrder {
     global $createdOrder;
     return $createdOrder;
@@ -225,6 +257,49 @@ function assert_same(mixed $expected, mixed $actual, string $message): void {
 }
 
 require dirname(__DIR__) . '/nakama-checkout-tools.php';
+
+ob_start();
+nakama_render_order_received_guidance(301, new FakeOrder(needsPayment: false));
+$paidThankYou = (string) ob_get_clean();
+assert_same(
+    true,
+    str_contains($paidThankYou, 'Tu pedido ya está en marcha')
+        && str_contains($paidThankYou, 'Pago recibido')
+        && str_contains($paidThankYou, 'En fabricación')
+        && str_contains($paidThankYou, 'Preparando guía')
+        && str_contains($paidThankYou, 'Enviado')
+        && str_contains($paidThankYou, 'https://example.test/mi-cuenta/'),
+    'The WooCommerce order-received page explains tracking and links to Mi Cuenta.'
+);
+
+ob_start();
+nakama_render_order_received_guidance(302, new FakeOrder(needsPayment: true));
+$pendingThankYou = (string) ob_get_clean();
+assert_same(
+    true,
+    str_contains($pendingThankYou, 'Pago pendiente de confirmación'),
+    'The first tracking step reflects an order whose payment is still pending.'
+);
+
+$testTransients = [];
+$testRemoteResponse = ['body' => json_encode(['conversion_rate' => 0.05])];
+$liveRate = nakama_get_usd_rate_details();
+assert_same('live', $liveRate['source'] ?? null, 'A successful provider response is identified as live.');
+assert_same(
+    $liveRate['rate'] ?? null,
+    $testOptions['nakama_last_valid_usd_rate_v1']['rate'] ?? null,
+    'Every successful exchange rate is persisted beyond the short transient cache.'
+);
+
+$testTransients = [];
+$testRemoteResponse = new WP_Error();
+$testOptions['nakama_last_valid_usd_rate_v1'] = ['rate' => 0.057, 'updated_at' => 1700000000];
+$staleRate = nakama_get_usd_rate_details();
+assert_same(
+    ['rate' => 0.057, 'source' => 'stale', 'updated_at' => 1700000000],
+    $staleRate,
+    'The endpoint keeps serving the last known good rate when the provider is down.'
+);
 
 assert_same(
     ['eligible' => false, 'code' => 'invalid_order'],

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO, social login, pedidos de cotización, registro de clientes y sincronización de base de datos local (Next.js).
- * Version: 2.9
+ * Version: 3.0
  * Author: Nakama
  */
 
@@ -722,14 +722,71 @@ function nakama_quote_email_payment_url( $url, $order = null ) {
 add_filter( 'woocommerce_get_checkout_payment_url', 'nakama_quote_email_payment_url', 10, 2 );
 
 // ------------------------------------------------------------------
-// Vaciar el carrito del frontend tras una compra exitosa.
-// El carrito del sitio Next vive en localStorage y la compra termina en
-// la página de gracias de WooCommerce; como AMBOS comparten el origen
-// nakamabordados.com, este script limpia las llaves directamente.
+// Orientación posterior a la compra en la página order-received de
+// WooCommerce. No afecta /cotizador/gracias, que pertenece a Next.js.
+// También vacía el carrito del frontend, conservando el comportamiento
+// previo del hook.
 // ------------------------------------------------------------------
-add_action( 'woocommerce_thankyou', function () {
+function nakama_render_order_received_guidance( $order_id, $order = null ) {
+    if ( ! $order && $order_id ) {
+        $order = wc_get_order( (int) $order_id );
+    }
+
+    $is_paid = $order && method_exists( $order, 'is_paid' ) && $order->is_paid();
+    $status  = $order && method_exists( $order, 'get_status' ) ? (string) $order->get_status() : 'pending';
+    $current = match ( $status ) {
+        'completed'       => 3,
+        'pendiente-guia'  => 2,
+        'fabricando'      => 1,
+        default           => 0,
+    };
+
+    $steps = array(
+        array(
+            $is_paid ? 'Pago recibido' : 'Pago pendiente de confirmación',
+            $is_paid
+                ? 'Tu pago quedó registrado y el pedido ya puede avanzar.'
+                : 'Estamos esperando la confirmación del banco o la pasarela de pago.',
+        ),
+        array(
+            'En fabricación',
+            'Preparamos materiales y trabajamos tu bordado con el acabado solicitado.',
+        ),
+        array(
+            'Preparando guía',
+            'Empacamos tu pedido y generamos la guía con la paquetería disponible.',
+        ),
+        array(
+            'Enviado',
+            'Cuando salga del taller podrás consultar la guía y seguir su recorrido.',
+        ),
+    );
+
+    echo '<style>
+    .nakama-order-journey{box-sizing:border-box;max-width:980px;margin:32px auto;padding:clamp(24px,4vw,44px);color:#111;background:#fff;border:1px solid #e5e7eb;border-top:5px solid #e3000f;border-radius:20px;box-shadow:0 18px 50px rgba(17,24,39,.09);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+    .nakama-order-journey *{box-sizing:border-box}.nakama-order-journey__eyebrow{margin:0 0 5px;color:#e3000f;font-size:.76rem;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.nakama-order-journey h2{margin:0;font-family:Teko,Inter,sans-serif;font-size:clamp(2rem,5vw,3.25rem);font-weight:600;line-height:1}.nakama-order-journey__intro{max-width:680px;margin:12px 0 0;color:#4b5563;line-height:1.65}.nakama-order-journey__steps{display:grid;grid-template-columns:repeat(4,1fr);gap:0;margin:34px 0 30px;padding:0;list-style:none;counter-reset:nakama-step}.nakama-order-journey__step{position:relative;min-width:0;padding:0 20px 0 0;counter-increment:nakama-step}.nakama-order-journey__step:not(:last-child):after{content:"";position:absolute;top:17px;right:0;left:36px;height:2px;background:#d7dce2}.nakama-order-journey__number{position:relative;z-index:1;display:grid;width:36px;height:36px;margin-bottom:14px;place-items:center;color:#5b6470;background:#f3f4f6;border:2px solid #d7dce2;border-radius:50%;font-weight:800}.nakama-order-journey__number:before{content:counter(nakama-step)}.nakama-order-journey__step.is-done .nakama-order-journey__number,.nakama-order-journey__step.is-current .nakama-order-journey__number{color:#fff;background:#e3000f;border-color:#e3000f}.nakama-order-journey__step.is-done .nakama-order-journey__number:before{content:"✓"}.nakama-order-journey__step.is-done:not(:last-child):after{background:#e3000f}.nakama-order-journey__step h3{margin:0 12px 7px 0;font-size:.96rem;line-height:1.35}.nakama-order-journey__step p{margin:0 16px 0 0;color:#626b77;font-size:.82rem;line-height:1.55}.nakama-order-journey__account{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px 20px;background:#f8f9fa;border-radius:14px}.nakama-order-journey__account p{margin:0;color:#374151;font-size:.92rem;line-height:1.55}.nakama-order-journey__account a{flex:0 0 auto;color:#0b63ce;font-weight:800;text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:3px}.nakama-order-journey__account a:hover{color:#084b9a}.nakama-order-journey__account a:focus-visible{outline:3px solid #8fbdff;outline-offset:4px;border-radius:3px}
+    @media(max-width:700px){.nakama-order-journey{margin:24px 12px;padding:24px 20px;border-radius:16px}.nakama-order-journey__steps{grid-template-columns:1fr;gap:0;margin:28px 0}.nakama-order-journey__step{min-height:104px;padding:0 0 24px 54px}.nakama-order-journey__step:not(:last-child):after{top:36px;bottom:0;left:17px;width:2px;height:auto}.nakama-order-journey__number{position:absolute;top:0;left:0}.nakama-order-journey__step p{margin-right:0}.nakama-order-journey__account{align-items:flex-start;flex-direction:column;gap:10px}}
+    @media(prefers-reduced-motion:no-preference){.nakama-order-journey{animation:nakama-journey-in .38s ease-out both}.nakama-order-journey__step{animation:nakama-step-in .32s ease-out both;animation-delay:calc(var(--nakama-step) * 70ms)}@keyframes nakama-journey-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}@keyframes nakama-step-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}}
+    </style>';
+
+    echo '<section class="nakama-order-journey" aria-labelledby="nakama-order-journey-title">';
+    echo '<p class="nakama-order-journey__eyebrow">Pedido confirmado</p>';
+    echo '<h2 id="nakama-order-journey-title">Tu pedido ya está en marcha</h2>';
+    echo '<p class="nakama-order-journey__intro">Cada pieza pasa por un proceso cuidadoso. Estos son los pasos que verás mientras preparamos y enviamos tu compra.</p>';
+    echo '<ol class="nakama-order-journey__steps" aria-label="Etapas de tu pedido">';
+    foreach ( $steps as $index => $step ) {
+        $state = $index < $current ? 'is-done' : ( $index === $current ? 'is-current' : 'is-upcoming' );
+        echo '<li class="nakama-order-journey__step ' . $state . '" style="--nakama-step:' . (int) $index . '">';
+        echo '<span class="nakama-order-journey__number" aria-hidden="true"></span>';
+        echo '<h3>' . esc_html( $step[0] ) . '</h3><p>' . esc_html( $step[1] ) . '</p></li>';
+    }
+    echo '</ol>';
+    echo '<div class="nakama-order-journey__account"><p><strong>Consulta el avance cuando quieras.</strong><br>En Mi Cuenta encontrarás el estado actualizado y, cuando esté disponible, tu número de guía.</p>';
+    echo '<a href="' . esc_url( home_url( '/mi-cuenta/' ) ) . '">Ver seguimiento en Mi Cuenta</a></div>';
+    echo '</section>';
     echo '<script>try{["nakama_cart","nakama_quote_cart","nakama_coupon","nakama_discount","nakama_discount_type"].forEach(function(k){window.localStorage.removeItem(k);});}catch(e){}</script>';
-} );
+}
+add_action( 'woocommerce_thankyou', 'nakama_render_order_received_guidance', 20, 1 );
 
 function nakama_sso_set_cookie() {
     $user_id = get_current_user_id();
@@ -753,16 +810,23 @@ function nakama_sso_set_cookie() {
 
 /**
  * Tipo de cambio MXN->USD con el margen del snippet "ImperioDev Currency
- * Global V15.7" (mismo transient, misma API, mismo -2 pesos). Devuelve
- * false si no hay caché y la API no responde.
+ * Global V15.7". Además del transient corto, conserva el último valor válido
+ * para poder operar cuando el proveedor externo tenga una caída temporal.
  */
-function nakama_get_usd_rate() {
+function nakama_get_usd_rate_details() {
     $base = get_option( 'woocommerce_currency', 'MXN' );
 
     // Mismo transient que el snippet v15.7 (compatibilidad con v15.6 por si acaso).
     $usd_rate = get_transient( 'id_rate_v15_7_USD' );
     if ( false === $usd_rate ) {
         $usd_rate = get_transient( 'id_rate_v15_6_USD' );
+    }
+    if ( is_numeric( $usd_rate ) && (float) $usd_rate > 0 ) {
+        return array(
+            'rate'       => (float) $usd_rate,
+            'source'     => 'transient',
+            'updated_at' => time(),
+        );
     }
 
     // Si el caché expiró, calcular EXACTAMENTE como el snippet para que
@@ -781,22 +845,51 @@ function nakama_get_usd_rate() {
             }
             if ( $rate > 0 ) {
                 set_transient( 'id_rate_v15_7_USD', $rate, 6 * HOUR_IN_SECONDS );
-                $usd_rate = $rate;
+                $updated_at = time();
+                update_option( 'nakama_last_valid_usd_rate_v1', array(
+                    'rate'       => $rate,
+                    'updated_at' => $updated_at,
+                ), false );
+                return array(
+                    'rate'       => $rate,
+                    'source'     => 'live',
+                    'updated_at' => $updated_at,
+                );
             }
         }
     }
 
-    return ( false === $usd_rate ) ? false : (float) $usd_rate;
+    $last_valid = get_option( 'nakama_last_valid_usd_rate_v1', array() );
+    if (
+        is_array( $last_valid )
+        && isset( $last_valid['rate'] )
+        && is_numeric( $last_valid['rate'] )
+        && (float) $last_valid['rate'] > 0
+    ) {
+        return array(
+            'rate'       => (float) $last_valid['rate'],
+            'source'     => 'stale',
+            'updated_at' => isset( $last_valid['updated_at'] ) ? (int) $last_valid['updated_at'] : 0,
+        );
+    }
+
+    return false;
+}
+
+function nakama_get_usd_rate() {
+    $details = nakama_get_usd_rate_details();
+    return false === $details ? false : (float) $details['rate'];
 }
 
 function nakama_currency_info() {
-    $base     = get_option( 'woocommerce_currency', 'MXN' );
-    $usd_rate = nakama_get_usd_rate();
+    $base         = get_option( 'woocommerce_currency', 'MXN' );
+    $rate_details = nakama_get_usd_rate_details();
 
     $response = rest_ensure_response( array(
         'baseCurrency' => $base,
-        // null => sin caché y sin respuesta de la API; el frontend usa su fallback.
-        'usdRate' => ( false === $usd_rate ) ? null : (float) $usd_rate,
+        'usdRate'      => ( false === $rate_details ) ? null : (float) $rate_details['rate'],
+        'rateSource'   => ( false === $rate_details ) ? 'unavailable' : $rate_details['source'],
+        'rateUpdatedAt'=> ( false === $rate_details ) ? null : (int) $rate_details['updated_at'],
     ) );
     $response->header( 'Access-Control-Allow-Origin', '*' );
     $response->header( 'X-LiteSpeed-Cache-Control', 'no-cache' );
