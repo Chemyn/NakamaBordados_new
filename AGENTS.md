@@ -16,3 +16,20 @@ Rules:
 - If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
 - Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
 - After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+
+## Cambios NK
+
+Every commit that changes the project must include a user-facing release block in
+its body so the WordPress `Cambios NK` plugin can render a complete card:
+
+```text
+NK-RELEASE:
+Resumen: Una frase breve que explique el beneficio general.
+
+Grupo: Nombre del área
+- Cambio visible, verificable y escrito en español.
+```
+
+Use one `Grupo:` section per affected area and add only relevant user-facing or
+operational notes. Never include credentials, internal debugging data, or raw
+implementation details in this block.

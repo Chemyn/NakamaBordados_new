@@ -288,9 +288,9 @@
     "semantic_hash": ""
   },
   "nakama-changelog/nakama-changelog.php": {
-    "mtime": 1788806042.660793,
-    "seen": 1788975528.5748954,
-    "ast_hash": "2afd678560ff8267c68deeab34519aa9",
+    "mtime": 1789416919.0359313,
+    "seen": 1789416962.7654772,
+    "ast_hash": "3da0e69f0b6ad52c1aba52e0b9ee1faf",
     "semantic_hash": ""
   },
   "nakama-checkout-tools.php": {
@@ -1050,9 +1050,9 @@
     "semantic_hash": ""
   },
   "tests/nakama-changelog.test.mjs": {
-    "mtime": 1788806043.720981,
-    "seen": 1788975528.5750525,
-    "ast_hash": "29b54169eb927e2b3bfcbb9d5ec512cc",
+    "mtime": 1789416796.1219654,
+    "seen": 1789416962.7657883,
+    "ast_hash": "c3ba4f103587f1ccb5f275aa92d5e0dc",
     "semantic_hash": ""
   },
   "tests/nakama-checkout-tools-test.php": {
@@ -1176,9 +1176,9 @@
     "semantic_hash": ""
   },
   "AGENTS.md": {
-    "mtime": 1788971145.9909537,
-    "seen": 1788975528.575077,
-    "ast_hash": "d98f8cdafab917a725e0f54441c12136",
+    "mtime": 1789416884.8958142,
+    "seen": 1789416962.7658381,
+    "ast_hash": "f3f55d7843ea3dfd2a728dd557e0ced0",
     "semantic_hash": ""
   },
   "AGENT_CONTEXT.md": {
@@ -1248,9 +1248,9 @@
     "semantic_hash": ""
   },
   "docs/git-changelog-workflow.md": {
-    "mtime": 1788806042.448607,
-    "seen": 1788975528.5750914,
-    "ast_hash": "1ccc275e83172e82f79e07b4b6f9cb59",
+    "mtime": 1789416876.347318,
+    "seen": 1789416962.765864,
+    "ast_hash": "ce57613c06bb0a2813b9825eb3d04547",
     "semantic_hash": ""
   },
   "docs/manual-catalog-sku-mapping-design.md": {

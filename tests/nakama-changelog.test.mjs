@@ -35,7 +35,7 @@ test('loads scoped local assets only on the changelog and dashboard screens', ()
 });
 
 test('synchronizes main branch commits without embedding credentials', () => {
-  assert.match(plugin, /Version:\s+1\.2\.0/);
+  assert.match(plugin, /Version:\s+1\.3\.0/);
   assert.match(plugin, /api\.github\.com\/repos\/Chemyn\/NakamaBordados_new\/commits/);
   assert.match(plugin, /'sha'\s*=>\s*'main'/);
   assert.match(plugin, /wp_remote_get/);
@@ -46,13 +46,38 @@ test('synchronizes main branch commits without embedding credentials', () => {
   assert.doesNotMatch(plugin, /github_pat_|ghp_/i);
 });
 
+test('promotes every post-cutoff commit to an independent release card', () => {
+  assert.match(plugin, /NAKAMA_CHANGELOG_RICH_START_SHA[\s\S]*?8083ed43b722808eb0c2c7c37f8e642413e3bae2/);
+  assert.match(plugin, /function nakama_changelog_is_rich_commit\s*\(/);
+  assert.match(plugin, /function nakama_changelog_git_entry\s*\(/);
+  assert.match(plugin, /function nakama_changelog_commit_release_id\s*\(/);
+  assert.match(plugin, /substr\(\s*\$sha,\s*0,\s*7\s*\)/);
+  assert.match(plugin, /\$entries\[\]\s*=\s*nakama_changelog_git_entry\(\s*\$commit\s*\)/);
+});
+
+test('supports presentable summaries and grouped notes in commit messages', () => {
+  assert.match(plugin, /function nakama_changelog_release_metadata\s*\(/);
+  assert.match(plugin, /NK-RELEASE:/);
+  assert.match(plugin, /Resumen:/);
+  assert.match(plugin, /Grupo:/);
+  assert.match(plugin, /function nakama_changelog_group_presentation\s*\(/);
+  assert.match(plugin, /function nakama_changelog_commit_paragraphs\s*\(/);
+});
+
+test('dashboard widget previews the first notes from any release card', () => {
+  assert.match(plugin, /\$preview_items\s*=\s*array\(\)/);
+  assert.match(plugin, /array_slice\(\s*\$group\['items'\],\s*0,\s*3\s*\)/);
+  assert.match(plugin, /nk-changelog-widget__items/);
+});
+
 test('supports automatic and manual refresh with an actionable fallback', () => {
   assert.match(plugin, /wp_schedule_event\([\s\S]*?'hourly'[\s\S]*?nakama_changelog_sync_git/);
   assert.match(plugin, /delete_transient\( NAKAMA_CHANGELOG_GIT_CACHE \)/);
   assert.match(plugin, /Actualizar ahora/);
   assert.match(plugin, /NK-CHANGELOG:/);
+  assert.match(plugin, /NK-RELEASE:/);
   assert.match(plugin, /Actividad Git/);
-  assert.match(plugin, /nk-changelog-widget__git/);
+  assert.match(plugin, /nk-changelog-widget__items/);
 });
 
 test('ships a wide PNG hero and responsive accessible styles', () => {

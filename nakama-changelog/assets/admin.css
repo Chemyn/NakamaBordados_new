@@ -384,19 +384,19 @@
     line-height: 1.55;
 }
 
-.nk-changelog-widget__git {
+.nk-changelog-widget__items {
     margin: 0 0 16px;
     padding: 12px 14px 12px 30px;
     border-left: 4px solid var(--nk-cl-primary);
     background: #fff;
 }
 
-.nk-changelog-widget__git li {
+.nk-changelog-widget__items li {
     margin: 0 0 7px;
     line-height: 1.45;
 }
 
-.nk-changelog-widget__git li:last-child {
+.nk-changelog-widget__items li:last-child {
     margin-bottom: 0;
 }
 

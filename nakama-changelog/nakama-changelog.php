@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Changelog
  * Description: Historial de cambios de Nakama en el Escritorio de WordPress y en una página exclusiva para administradores.
- * Version: 1.2.0
+ * Version: 1.3.0
  * Author: Nakama Bordados
  * Requires PHP: 7.4
  * Text Domain: nakama-changelog
@@ -11,13 +11,15 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-define( 'NAKAMA_CHANGELOG_VERSION', '1.2.0' );
+define( 'NAKAMA_CHANGELOG_VERSION', '1.3.0' );
 define( 'NAKAMA_CHANGELOG_PAGE', 'nakama-changelog' );
 define( 'NAKAMA_CHANGELOG_GIT_API', 'https://api.github.com/repos/Chemyn/NakamaBordados_new/commits' );
-define( 'NAKAMA_CHANGELOG_GIT_CACHE', 'nakama_changelog_git_commits_v1' );
+define( 'NAKAMA_CHANGELOG_GIT_CACHE', 'nakama_changelog_git_commits_v2' );
 define( 'NAKAMA_CHANGELOG_GIT_SNAPSHOT', 'nakama_changelog_git_snapshot' );
 define( 'NAKAMA_CHANGELOG_GIT_LAST_SYNC', 'nakama_changelog_git_last_sync' );
 define( 'NAKAMA_CHANGELOG_GIT_START', '2026-08-22T00:00:00Z' );
+define( 'NAKAMA_CHANGELOG_RICH_START_SHA', '8083ed43b722808eb0c2c7c37f8e642413e3bae2' );
+define( 'NAKAMA_CHANGELOG_RICH_START_AT', '2026-09-14T19:42:46Z' );
 
 /**
  * Convierte una fecha ISO en el identificador público de una actualización.
@@ -27,6 +29,11 @@ define( 'NAKAMA_CHANGELOG_GIT_START', '2026-08-22T00:00:00Z' );
  */
 function nakama_changelog_release_id( $date ) {
 	return 'NK-' . $date;
+}
+
+/** Identificador único para una ficha generada por un commit. */
+function nakama_changelog_commit_release_id( $date, $sha ) {
+	return nakama_changelog_release_id( $date ) . '-' . substr( $sha, 0, 7 );
 }
 
 /**
@@ -138,6 +145,226 @@ function nakama_changelog_date_display( $date ) {
 		return (string) $date;
 	}
 	return sprintf( '%d de %s de %d', $parts[2], $months[ $parts[1] ], $parts[0] );
+}
+
+/** Separa el tipo, el área y el título legible de un conventional commit. */
+function nakama_changelog_commit_subject( $message ) {
+	$lines      = preg_split( '/\R/', trim( (string) $message ) );
+	$first_line = '';
+	foreach ( (array) $lines as $line ) {
+		$line = trim( wp_strip_all_tags( (string) $line ) );
+		if ( '' !== $line ) {
+			$first_line = $line;
+			break;
+		}
+	}
+
+	$type  = '';
+	$scope = '';
+	$title = $first_line;
+	if ( preg_match( '/^([a-z]+)(?:\(([^)]+)\))?!?:\s*(.+)$/iu', $first_line, $match ) ) {
+		$type  = strtolower( $match[1] );
+		$scope = isset( $match[2] ) ? strtolower( $match[2] ) : '';
+		$title = $match[3];
+	}
+
+	$title = sanitize_text_field( $title );
+	if ( '' === $title ) {
+		$title = 'Actualización del proyecto';
+	}
+
+	return array(
+		'type'  => $type,
+		'scope' => $scope,
+		'title' => ucfirst( $title ),
+	);
+}
+
+/** Obtiene los párrafos editoriales del cuerpo anterior a los bloques NK. */
+function nakama_changelog_commit_paragraphs( $message ) {
+	$lines        = preg_split( '/\R/', trim( (string) $message ) );
+	$seen_subject = false;
+	$current      = array();
+	$paragraphs   = array();
+
+	foreach ( (array) $lines as $line ) {
+		$line = trim( wp_strip_all_tags( (string) $line ) );
+		if ( ! $seen_subject ) {
+			if ( '' !== $line ) {
+				$seen_subject = true;
+			}
+			continue;
+		}
+		if ( in_array( strtoupper( $line ), array( 'NK-RELEASE:', 'NK-CHANGELOG:' ), true ) ) {
+			break;
+		}
+		if ( '' === $line ) {
+			if ( $current ) {
+				$paragraphs[] = sanitize_text_field( implode( ' ', $current ) );
+				$current = array();
+			}
+			continue;
+		}
+		$current[] = $line;
+	}
+
+	if ( $current ) {
+		$paragraphs[] = sanitize_text_field( implode( ' ', $current ) );
+	}
+
+	return array_values( array_filter( array_unique( $paragraphs ) ) );
+}
+
+/** Asigna un nombre e icono consistentes a cada área editorial. */
+function nakama_changelog_group_presentation( $label = '', $scope = '', $type = '' ) {
+	$presentations = array(
+		'mi-cuenta'          => array( 'Mi Cuenta', 'dashicons-admin-users' ),
+		'account'            => array( 'Mi Cuenta', 'dashicons-admin-users' ),
+		'cuenta'             => array( 'Mi Cuenta', 'dashicons-admin-users' ),
+		'checkout'           => array( 'Checkout y pagos', 'dashicons-cart' ),
+		'pagos'              => array( 'Checkout y pagos', 'dashicons-cart' ),
+		'produccion'         => array( 'Producción', 'dashicons-hammer' ),
+		'production'         => array( 'Producción', 'dashicons-hammer' ),
+		'almacen'            => array( 'Almacén', 'dashicons-archive' ),
+		'warehouse'          => array( 'Almacén', 'dashicons-archive' ),
+		'sesion-y-seguridad' => array( 'Sesión y seguridad', 'dashicons-lock' ),
+		'auth'               => array( 'Sesión y seguridad', 'dashicons-lock' ),
+		'session'            => array( 'Sesión y seguridad', 'dashicons-lock' ),
+		'catalogo'           => array( 'Catálogo', 'dashicons-products' ),
+		'productos'          => array( 'Catálogo', 'dashicons-products' ),
+		'cambios-nk'         => array( 'Cambios NK', 'dashicons-backup' ),
+		'changelog'          => array( 'Cambios NK', 'dashicons-backup' ),
+		'pruebas-y-calidad'  => array( 'Pruebas y calidad', 'dashicons-yes-alt' ),
+		'tests'              => array( 'Pruebas y calidad', 'dashicons-yes-alt' ),
+	);
+	$type_defaults = array(
+		'fix'      => array( 'Correcciones', 'dashicons-admin-tools' ),
+		'feat'     => array( 'Nuevas funciones', 'dashicons-star-filled' ),
+		'perf'     => array( 'Rendimiento', 'dashicons-performance' ),
+		'test'     => array( 'Pruebas y calidad', 'dashicons-yes-alt' ),
+		'docs'     => array( 'Documentación', 'dashicons-media-document' ),
+		'build'    => array( 'Versiones', 'dashicons-admin-plugins' ),
+		'ci'       => array( 'Automatización', 'dashicons-controls-repeat' ),
+		'refactor' => array( 'Mejoras internas', 'dashicons-admin-tools' ),
+		'chore'    => array( 'Mantenimiento', 'dashicons-admin-generic' ),
+	);
+
+	$explicit_label = sanitize_text_field( $label );
+	$key_source     = '' !== $explicit_label ? $explicit_label : $scope;
+	$key            = sanitize_title( $key_source );
+	if ( isset( $presentations[ $key ] ) ) {
+		return array(
+			'label' => '' !== $explicit_label ? $explicit_label : $presentations[ $key ][0],
+			'icon'  => $presentations[ $key ][1],
+		);
+	}
+	if ( '' !== $explicit_label ) {
+		return array( 'label' => $explicit_label, 'icon' => 'dashicons-admin-generic' );
+	}
+	if ( isset( $type_defaults[ $type ] ) ) {
+		return array( 'label' => $type_defaults[ $type ][0], 'icon' => $type_defaults[ $type ][1] );
+	}
+	return array( 'label' => 'Proyecto', 'icon' => 'dashicons-admin-generic' );
+}
+
+/**
+ * Convierte NK-RELEASE en una ficha y genera un fallback presentable si falta.
+ *
+ * NK-RELEASE:
+ * Resumen: Explicación breve para administradores.
+ * Grupo: Mi Cuenta
+ * - Cambio visible y verificable.
+ */
+function nakama_changelog_release_metadata( $message ) {
+	$subject       = nakama_changelog_commit_subject( $message );
+	$paragraphs    = nakama_changelog_commit_paragraphs( $message );
+	$fallback      = $paragraphs ? array_shift( $paragraphs ) : 'La actualización ya está disponible para los administradores.';
+	$summary       = '';
+	$groups        = array();
+	$current_group = -1;
+	$inside        = false;
+	$lines         = preg_split( '/\R/', trim( (string) $message ) );
+
+	foreach ( (array) $lines as $line ) {
+		$line = trim( wp_strip_all_tags( (string) $line ) );
+		if ( 'NK-RELEASE:' === strtoupper( $line ) ) {
+			$inside = true;
+			continue;
+		}
+		if ( ! $inside ) {
+			continue;
+		}
+		if ( preg_match( '/^Resumen:\s*(.+)$/iu', $line, $match ) ) {
+			$summary = sanitize_text_field( $match[1] );
+			continue;
+		}
+		if ( preg_match( '/^Grupo:\s*(.+)$/iu', $line, $match ) ) {
+			$presentation = nakama_changelog_group_presentation( $match[1], $subject['scope'], $subject['type'] );
+			$groups[] = array(
+				'icon'  => $presentation['icon'],
+				'label' => $presentation['label'],
+				'items' => array(),
+			);
+			$current_group = count( $groups ) - 1;
+			continue;
+		}
+		if ( preg_match( '/^[-*]\s+(.+)$/u', $line, $match ) ) {
+			if ( $current_group < 0 ) {
+				$presentation = nakama_changelog_group_presentation( '', $subject['scope'], $subject['type'] );
+				$groups[] = array(
+					'icon'  => $presentation['icon'],
+					'label' => $presentation['label'],
+					'items' => array(),
+				);
+				$current_group = 0;
+			}
+			$groups[ $current_group ]['items'][] = sanitize_text_field( $match[1] );
+		}
+	}
+
+	$groups = array_values( array_filter( $groups, function ( $group ) {
+		return ! empty( $group['items'] );
+	} ) );
+	if ( ! $groups ) {
+		$presentation = nakama_changelog_group_presentation( '', $subject['scope'], $subject['type'] );
+		$groups[] = array(
+			'icon'  => $presentation['icon'],
+			'label' => $presentation['label'],
+			'items' => $paragraphs ? $paragraphs : array( $fallback ),
+		);
+	}
+
+	return array(
+		'title'   => $subject['title'],
+		'summary' => '' !== $summary ? $summary : $fallback,
+		'groups'  => $groups,
+	);
+}
+
+/** Solo los commits posteriores a 8083ed4 usan una ficha independiente. */
+function nakama_changelog_is_rich_commit( $commit ) {
+	if ( ! is_array( $commit ) || empty( $commit['sha'] ) || NAKAMA_CHANGELOG_RICH_START_SHA === $commit['sha'] ) {
+		return false;
+	}
+	$stamp  = ! empty( $commit['timestamp'] ) ? strtotime( $commit['timestamp'] ) : false;
+	$cutoff = strtotime( NAKAMA_CHANGELOG_RICH_START_AT );
+	return $stamp && $cutoff && $stamp > $cutoff;
+}
+
+/** Construye la entrada completa de un único commit. */
+function nakama_changelog_git_entry( $commit ) {
+	$metadata = nakama_changelog_release_metadata( $commit['message'] );
+	return array(
+		'id'           => nakama_changelog_commit_release_id( $commit['date'], $commit['sha'] ),
+		'date'         => $commit['date'],
+		'date_display' => nakama_changelog_date_display( $commit['date'] ),
+		'timestamp'    => $commit['timestamp'],
+		'title'        => $metadata['title'],
+		'summary'      => $metadata['summary'],
+		'groups'       => $metadata['groups'],
+		'source_sha'   => $commit['sha'],
+		'source_url'   => isset( $commit['url'] ) ? $commit['url'] : '',
+	);
 }
 
 /**
@@ -261,22 +488,28 @@ function nakama_changelog_git_commits( $force = false ) {
 	foreach ( $payload as $raw ) {
 		$sha     = isset( $raw['sha'] ) ? strtolower( (string) $raw['sha'] ) : '';
 		$message = isset( $raw['commit']['message'] ) ? (string) $raw['commit']['message'] : '';
-		$iso     = isset( $raw['commit']['author']['date'] ) ? (string) $raw['commit']['author']['date'] : '';
+		$iso     = isset( $raw['commit']['committer']['date'] )
+			? (string) $raw['commit']['committer']['date']
+			: ( isset( $raw['commit']['author']['date'] ) ? (string) $raw['commit']['author']['date'] : '' );
 		$stamp   = strtotime( $iso );
 		if ( ! preg_match( '/^[a-f0-9]{40}$/', $sha ) || '' === $message || ! $stamp || $stamp < $start ) {
 			continue;
 		}
 		$date = function_exists( 'wp_date' ) ? wp_date( 'Y-m-d', $stamp, wp_timezone() ) : gmdate( 'Y-m-d', $stamp );
 		$by_sha[ $sha ] = array(
-			'sha'     => $sha,
-			'date'    => $date,
-			'message' => sanitize_textarea_field( $message ),
+			'sha'       => $sha,
+			'date'      => $date,
+			'timestamp' => gmdate( 'c', $stamp ),
+			'message'   => sanitize_textarea_field( $message ),
+			'url'       => isset( $raw['html_url'] ) ? esc_url_raw( $raw['html_url'] ) : '',
 		);
 	}
 
 	$snapshot = array_values( $by_sha );
 	usort( $snapshot, function ( $a, $b ) {
-		return strcmp( $b['date'], $a['date'] );
+		$a_time = isset( $a['timestamp'] ) ? $a['timestamp'] : $a['date'];
+		$b_time = isset( $b['timestamp'] ) ? $b['timestamp'] : $b['date'];
+		return strcmp( $b_time, $a_time );
 	} );
 	$snapshot = array_slice( $snapshot, 0, 500 );
 
@@ -296,6 +529,10 @@ function nakama_changelog_merge_git_entries( $entries, $commits ) {
 	$by_date = array();
 	foreach ( $commits as $commit ) {
 		if ( ! is_array( $commit ) || empty( $commit['date'] ) || empty( $commit['message'] ) ) {
+			continue;
+		}
+		if ( nakama_changelog_is_rich_commit( $commit ) ) {
+			$entries[] = nakama_changelog_git_entry( $commit );
 			continue;
 		}
 		foreach ( nakama_changelog_commit_items( $commit['message'] ) as $item ) {
@@ -326,7 +563,10 @@ function nakama_changelog_merge_git_entries( $entries, $commits ) {
 	}
 
 	usort( $entries, function ( $a, $b ) {
-		return strcmp( $b['date'], $a['date'] );
+		$a_time = isset( $a['timestamp'] ) ? $a['timestamp'] : $a['date'] . 'T00:00:00Z';
+		$b_time = isset( $b['timestamp'] ) ? $b['timestamp'] : $b['date'] . 'T00:00:00Z';
+		$by_time = strcmp( $b_time, $a_time );
+		return 0 !== $by_time ? $by_time : strcmp( $b['id'], $a['id'] );
 	} );
 	return $entries;
 }
@@ -431,10 +671,10 @@ function nakama_changelog_render_dashboard_widget() {
 	if ( ! $latest ) {
 		return;
 	}
-	$git_items = array();
+	$preview_items = array();
 	foreach ( $latest['groups'] as $group ) {
-		if ( 'Actividad Git' === $group['label'] ) {
-			$git_items = array_slice( $group['items'], 0, 3 );
+		if ( ! empty( $group['items'] ) ) {
+			$preview_items = array_slice( $group['items'], 0, 3 );
 			break;
 		}
 	}
@@ -446,9 +686,9 @@ function nakama_changelog_render_dashboard_widget() {
 		</div>
 		<h3><?php echo esc_html( $latest['title'] ); ?></h3>
 		<p><?php echo esc_html( $latest['summary'] ); ?></p>
-		<?php if ( $git_items ) : ?>
-			<ul class="nk-changelog-widget__git">
-				<?php foreach ( $git_items as $item ) : ?>
+		<?php if ( $preview_items ) : ?>
+			<ul class="nk-changelog-widget__items">
+				<?php foreach ( $preview_items as $item ) : ?>
 					<li><?php echo esc_html( $item ); ?></li>
 				<?php endforeach; ?>
 			</ul>
@@ -488,7 +728,7 @@ function nakama_changelog_render_page() {
 				<span class="nk-changelog-eyebrow">Bitácora de producto</span>
 				<h1 id="nk-changelog-title">Cambios Nakama</h1>
 				<p>El registro oficial de mejoras publicadas en la tienda y sus herramientas operativas.</p>
-				<span class="nk-changelog-format">Sistema: NK + fecha</span>
+				<span class="nk-changelog-format">Sistema: una ficha por commit</span>
 			</div>
 		</section>
 
@@ -496,7 +736,7 @@ function nakama_changelog_render_page() {
 			<div>
 				<span class="dashicons dashicons-visibility" aria-hidden="true"></span>
 			</div>
-			<p>Cada bloque resume cambios visibles y operativos. El identificador usa el formato <strong>NK-AAAA-MM-DD</strong> para facilitar soporte, validación y seguimiento.</p>
+			<p>Cada ficha resume un commit con sus cambios visibles y operativos. Los nuevos identificadores usan <strong>NK-AAAA-MM-DD-GIT</strong> para facilitar soporte, validación y seguimiento.</p>
 		</div>
 
 		<div class="nk-changelog-syncbar" role="status">
