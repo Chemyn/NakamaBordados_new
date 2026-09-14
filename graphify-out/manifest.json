@@ -294,9 +294,9 @@
     "semantic_hash": ""
   },
   "nakama-checkout-tools.php": {
-    "mtime": 1788983798.7685788,
-    "seen": 1788984263.2718136,
-    "ast_hash": "7f744877fdfb90e870441476766c9f5a",
+    "mtime": 1789414434.5933208,
+    "seen": 1789414623.2601707,
+    "ast_hash": "2728fb9bc864f52fddd5c81ca7fa8900",
     "semantic_hash": ""
   },
   "nakama-discounts/assets/js/checkout.js": {
@@ -594,9 +594,9 @@
     "semantic_hash": ""
   },
   "src/app/context/AuthContext.tsx": {
-    "mtime": 1788806043.4989712,
-    "seen": 1788975528.574959,
-    "ast_hash": "f4161ab9d97257b15e1d1609b78376ea",
+    "mtime": 1789413688.6347046,
+    "seen": 1789414623.2603447,
+    "ast_hash": "db1490f8bfe3726025f90d5a69434ec3",
     "semantic_hash": ""
   },
   "src/app/context/CartContext.tsx": {
@@ -810,15 +810,15 @@
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/page.test.tsx": {
-    "mtime": 1788806043.6186357,
-    "seen": 1788975528.5750012,
-    "ast_hash": "dcc0fb7e0c8d3a1124694d81a581902c",
+    "mtime": 1789413939.4047844,
+    "seen": 1789414623.2604764,
+    "ast_hash": "474472e2801b0307830440e6b98375b4",
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/page.tsx": {
-    "mtime": 1788806043.6186357,
-    "seen": 1788975528.5750027,
-    "ast_hash": "ab5eb793a3a4c7eadfc4997467beaec0",
+    "mtime": 1789413787.6033342,
+    "seen": 1789414623.26048,
+    "ast_hash": "6e3d11f843b7e9a5edda3e477b94f4a6",
     "semantic_hash": ""
   },
   "src/app/page.tsx": {
@@ -960,9 +960,9 @@
     "semantic_hash": ""
   },
   "src/lib/production-api.ts": {
-    "mtime": 1788806043.6828048,
-    "seen": 1788975528.5750313,
-    "ast_hash": "2860fe8b5b69fe8e16875fddb101fe43",
+    "mtime": 1789413830.9933157,
+    "seen": 1789414623.260595,
+    "ast_hash": "322ee72a5eb5ede94c89c56d8dc24038",
     "semantic_hash": ""
   },
   "src/lib/production-pdf-batch.ts": {
@@ -996,9 +996,9 @@
     "semantic_hash": ""
   },
   "src/lib/warehouse-api.ts": {
-    "mtime": 1788806043.6967432,
-    "seen": 1788975528.5750382,
-    "ast_hash": "acc3608fff87827bbae64c9b56dc72af",
+    "mtime": 1789413838.5584457,
+    "seen": 1789414623.260615,
+    "ast_hash": "64fd8127b036dc514950887374a75ddb",
     "semantic_hash": ""
   },
   "src/lib/warehouse-display.ts": {
@@ -1056,9 +1056,9 @@
     "semantic_hash": ""
   },
   "tests/nakama-checkout-tools-test.php": {
-    "mtime": 1788983744.1032665,
-    "seen": 1788984263.2720983,
-    "ast_hash": "5c93d3e32d7ed74cda94f9e6b4133118",
+    "mtime": 1789414028.5353355,
+    "seen": 1789414623.2606523,
+    "ast_hash": "72fbeacd9a842b25e5e84f46b31e2d10",
     "semantic_hash": ""
   },
   "tests/prepare-static-deployment.test.mjs": {
@@ -2025,6 +2025,30 @@
     "mtime": 1788983974.4698355,
     "seen": 1788984263.272014,
     "ast_hash": "ac221b1e6e6beb33b693b4ad894534c9",
+    "semantic_hash": ""
+  },
+  "src/app/mi-cuenta/AccountEditors.tsx": {
+    "mtime": 1789413664.9065847,
+    "seen": 1789414623.2604294,
+    "ast_hash": "9103684e9d0e9c831927a30c0e3c9ed0",
+    "semantic_hash": ""
+  },
+  "src/lib/account-api.test.ts": {
+    "mtime": 1789413510.875964,
+    "seen": 1789414623.260534,
+    "ast_hash": "002ff2a4a0682f2f613e0c3580427f14",
+    "semantic_hash": ""
+  },
+  "src/lib/account-api.ts": {
+    "mtime": 1789414127.6103487,
+    "seen": 1789414623.2605371,
+    "ast_hash": "f6f96982ec654c61400091151a96709d",
+    "semantic_hash": ""
+  },
+  "src/lib/privileged-api-session.test.ts": {
+    "mtime": 1789414015.99818,
+    "seen": 1789414623.2605793,
+    "ast_hash": "e8725ebbf7356940c39c2eaed448403f",
     "semantic_hash": ""
   }
 }

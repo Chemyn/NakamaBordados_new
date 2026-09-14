@@ -20,6 +20,7 @@ import AuthModeTabs from './AuthModeTabs';
 import LuffyCharacter from './LuffyCharacter';
 import TrackingFeedback from './TrackingFeedback';
 import QuotePaymentDialog from './QuotePaymentDialog';
+import { PersonalDetailsEditor, ShippingAddressEditor } from './AccountEditors';
 import { canShowQuotePaymentActions } from '@/lib/quote-payment';
 import styles from './account.module.css';
 
@@ -123,7 +124,7 @@ const formatEventTime = (iso: string): string => {
 };
 
 export default function MiCuentaPage() {
-  const { user, login, register, logout, refreshUser, isLoading, isAdmin } = useAuth();
+  const { user, login, register, logout, updateProfile, refreshUser, isLoading, isAdmin } = useAuth();
   const { addQuoteToCart, isQuoteInCart } = useCart();
   const { formatPrice, currencyInfo } = useCurrency();
   const { t } = useLanguage();
@@ -211,7 +212,7 @@ export default function MiCuentaPage() {
   // ¿El usuario tiene permiso para el Panel de Producción? (admin o capability
   // access_production_dashboard). Decide si se muestra el botón de acceso.
   const [productionAccess, setProductionAccess] = useState({ userId: '', can: false });
-  const canProduction = Boolean(user && productionAccess.userId === user.id && productionAccess.can);
+  const canProduction = Boolean(user && (isAdmin || (productionAccess.userId === user.id && productionAccess.can)));
   useEffect(() => {
     if (!user) return;
     let alive = true;
@@ -225,7 +226,7 @@ export default function MiCuentaPage() {
   // ¿El usuario tiene permiso para el Panel de Almacén? (capability
   // access_warehouse). Decide si se muestra el botón de acceso.
   const [warehouseAccess, setWarehouseAccess] = useState({ userId: '', can: false });
-  const canWarehouse = Boolean(user && warehouseAccess.userId === user.id && warehouseAccess.can);
+  const canWarehouse = Boolean(user && (isAdmin || (warehouseAccess.userId === user.id && warehouseAccess.can)));
   useEffect(() => {
     if (!user) return;
     let alive = true;
@@ -403,10 +404,6 @@ export default function MiCuentaPage() {
                       <h3>{user.firstName || user.username}</h3>
                       <p>{user.email}</p>
                     </div>
-                    <button type="button" onClick={logout} className="nk-logout-btn">
-                      <span className="material-icons-outlined" aria-hidden="true">logout</span>
-                      <span>Cerrar sesión</span>
-                    </button>
                   </div>
 
                   <AccountSectionNav
@@ -456,6 +453,18 @@ export default function MiCuentaPage() {
                       </ul>
                     </section>
                   )}
+
+                  <div className="nk-sidebar-footer">
+                    <button
+                      type="button"
+                      onClick={() => { void logout(); }}
+                      className="nk-logout-btn"
+                      aria-label="Cerrar sesión"
+                    >
+                      <span className="material-icons-outlined" aria-hidden="true">logout</span>
+                      <span>Cerrar sesión</span>
+                    </button>
+                  </div>
                 </aside>
 
                 {/* Main Content Area */}
@@ -757,24 +766,7 @@ export default function MiCuentaPage() {
                     className="nk-account-panel"
                   >
                     <div className="nk-tab-pane nk-dash-animate">
-                      <h2 className="nk-section-title">Direcciones</h2>
-                      <div className="nk-manga-border nk-address-box">
-                        <p className="nk-address-title">Dirección de Envío Principal</p>
-                        <p className="nk-address-text">
-                          {user.shipping?.address1 ? (
-                            <>
-                              {user.shipping.address1}<br />
-                              {user.shipping.city}, {user.shipping.state}<br />
-                              CP: {user.shipping.postcode}<br />
-                              {user.shipping.country}
-                            </>
-                          ) : 'No has configurado una dirección de envío aún.'}
-                        </p>
-                        <p className="nk-readonly-note">
-                          <span className="material-icons-outlined" aria-hidden="true">lock</span>
-                          Tus datos se muestran en modo de solo lectura.
-                        </p>
-                      </div>
+                      <ShippingAddressEditor shipping={user.shipping} onSave={updateProfile} />
                     </div>
                   </section>
 
@@ -787,31 +779,7 @@ export default function MiCuentaPage() {
                     className="nk-account-panel"
                   >
                     <div className="nk-tab-pane nk-dash-animate">
-                      <h2 className="nk-section-title">Detalles de la Cuenta</h2>
-                      <div className="nk-info-box nk-manga-border">
-                        <dl className="nk-profile-grid">
-                          <div className="nk-profile-item">
-                            <dt>Nombre Completo</dt>
-                            <dd>{user.firstName} {user.lastName || ''}</dd>
-                          </div>
-                          <div className="nk-profile-item">
-                            <dt>Email</dt>
-                            <dd>{user.email}</dd>
-                          </div>
-                          <div className="nk-profile-item">
-                            <dt>Usuario</dt>
-                            <dd>{user.username}</dd>
-                          </div>
-                          <div className="nk-profile-item">
-                            <dt>Rol</dt>
-                            <dd className="nk-role-tag">{user.role?.toUpperCase() || 'NAKAMA'}</dd>
-                          </div>
-                        </dl>
-                        <p className="nk-readonly-note">
-                          <span className="material-icons-outlined" aria-hidden="true">lock</span>
-                          Tus datos se muestran en modo de solo lectura.
-                        </p>
-                      </div>
+                      <PersonalDetailsEditor user={user} onSave={updateProfile} />
                     </div>
                   </section>
                 </main>
@@ -1126,7 +1094,7 @@ export default function MiCuentaPage() {
 
         .nk-sidebar-header {
           display: grid;
-          grid-template-columns: 48px minmax(0, 1fr) auto;
+          grid-template-columns: 48px minmax(0, 1fr);
           align-items: center;
           gap: 12px;
           margin-bottom: 16px;
@@ -1181,6 +1149,19 @@ export default function MiCuentaPage() {
         }
 
         .nk-logout-btn > span:last-child { display: none; }
+
+        .nk-sidebar-footer {
+          margin-top: 20px;
+          padding-top: 16px;
+          border-top: 2px solid var(--nk-border);
+        }
+
+        .nk-sidebar-footer .nk-logout-btn {
+          width: 100%;
+          justify-content: flex-start;
+        }
+
+        .nk-sidebar-footer .nk-logout-btn > span:last-child { display: inline; }
 
         .nk-work-access {
           margin-top: 24px;

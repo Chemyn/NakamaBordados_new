@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO, social login, pedidos de cotización, registro de clientes y sincronización de base de datos local (Next.js).
- * Version: 3.2.0
+ * Version: 3.3.0
  * Author: Nakama
  */
 
@@ -81,6 +81,22 @@ add_action( 'rest_api_init', function () {
         'methods' => 'POST',
         'callback' => 'nakama_register_customer',
         'permission_callback' => '__return_true'
+    ) );
+
+    // Edición de la cuenta propia. La identidad se toma exclusivamente de la
+    // sesión autenticada; el cliente no puede enviar un ID, correo o rol.
+    register_rest_route( 'nakama/v1', '/account/profile', array(
+        'methods'             => 'POST',
+        'callback'            => 'nakama_update_account_profile',
+        'permission_callback' => 'is_user_logged_in',
+    ) );
+
+    // Cierre remoto de la cookie sembrada por /sso. Es público porque borrar
+    // una cookie solo afecta al navegador que realiza la petición.
+    register_rest_route( 'nakama/v1', '/logout', array(
+        'methods'             => 'POST',
+        'callback'            => 'nakama_logout_session',
+        'permission_callback' => '__return_true',
     ) );
 
     // Datos mínimos para la confirmación headless. El order key funciona como
@@ -919,6 +935,134 @@ function nakama_get_usd_rate_details() {
 
     return false;
 }
+
+/** Actualiza solamente los datos editables del usuario autenticado. */
+function nakama_update_account_profile( WP_REST_Request $request ) {
+    $user_id = get_current_user_id();
+    if ( ! $user_id ) {
+        return new WP_Error( 'nakama_account_unauthorized', 'Tu sesión ya no es válida.', array( 'status' => 401 ) );
+    }
+    if ( ! class_exists( 'WC_Customer' ) ) {
+        return new WP_Error( 'nakama_account_unavailable', 'La cuenta no está disponible temporalmente.', array( 'status' => 503 ) );
+    }
+
+    $params = $request->get_json_params();
+    $params = is_array( $params ) ? $params : array();
+    $user_update = array( 'ID' => $user_id );
+    $has_change = false;
+
+    if ( array_key_exists( 'firstName', $params ) ) {
+        $first_name = sanitize_text_field( wp_unslash( (string) $params['firstName'] ) );
+        if ( '' === $first_name ) {
+            return new WP_Error( 'nakama_account_first_name', 'El nombre es obligatorio.', array( 'status' => 400 ) );
+        }
+        $user_update['first_name'] = $first_name;
+        $has_change = true;
+    }
+    if ( array_key_exists( 'lastName', $params ) ) {
+        $user_update['last_name'] = sanitize_text_field( wp_unslash( (string) $params['lastName'] ) );
+        $has_change = true;
+    }
+
+    $billing_phone = null;
+    if ( array_key_exists( 'billingPhone', $params ) ) {
+        $billing_phone = sanitize_text_field( wp_unslash( (string) $params['billingPhone'] ) );
+        $has_change = true;
+    }
+
+    $shipping = null;
+    if ( array_key_exists( 'shipping', $params ) ) {
+        if ( ! is_array( $params['shipping'] ) ) {
+            return new WP_Error( 'nakama_account_shipping', 'La dirección no es válida.', array( 'status' => 400 ) );
+        }
+        $shipping = array();
+        foreach ( array( 'address1', 'address2', 'city', 'state', 'postcode', 'country' ) as $key ) {
+            $shipping[ $key ] = sanitize_text_field( wp_unslash( (string) ( $params['shipping'][ $key ] ?? '' ) ) );
+        }
+        foreach ( array( 'address1', 'city', 'state', 'postcode', 'country' ) as $required ) {
+            if ( '' === $shipping[ $required ] ) {
+                return new WP_Error( 'nakama_account_shipping_required', 'Completa todos los datos obligatorios de la dirección.', array( 'status' => 400 ) );
+            }
+        }
+        $shipping['country'] = strtoupper( $shipping['country'] );
+        if ( 2 !== strlen( $shipping['country'] ) ) {
+            return new WP_Error( 'nakama_account_country', 'Usa el código de país de dos letras.', array( 'status' => 400 ) );
+        }
+        $has_change = true;
+    }
+
+    if ( ! $has_change ) {
+        return new WP_Error( 'nakama_account_empty', 'No se recibieron cambios para guardar.', array( 'status' => 400 ) );
+    }
+
+    if ( count( $user_update ) > 1 ) {
+        $updated = wp_update_user( $user_update );
+        if ( is_wp_error( $updated ) ) {
+            return new WP_Error( 'nakama_account_user_update', 'No se pudieron guardar los datos personales.', array( 'status' => 400 ) );
+        }
+    }
+
+    try {
+        $customer = new WC_Customer( $user_id );
+        if ( null !== $billing_phone ) {
+            $customer->set_billing_phone( $billing_phone );
+        }
+        if ( is_array( $shipping ) ) {
+            $customer->set_shipping_address_1( $shipping['address1'] );
+            $customer->set_shipping_address_2( $shipping['address2'] );
+            $customer->set_shipping_city( $shipping['city'] );
+            $customer->set_shipping_state( $shipping['state'] );
+            $customer->set_shipping_postcode( $shipping['postcode'] );
+            $customer->set_shipping_country( $shipping['country'] );
+        }
+        $customer->save();
+    } catch ( Throwable $error ) {
+        return new WP_Error( 'nakama_account_customer_update', 'No se pudieron guardar los datos de la cuenta.', array( 'status' => 500 ) );
+    }
+
+    $user = get_userdata( $user_id );
+    $fresh_customer = new WC_Customer( $user_id );
+    $response = rest_ensure_response( array(
+        'success' => true,
+        'profile' => array(
+            'firstName'    => (string) $user->first_name,
+            'lastName'     => (string) $user->last_name,
+            'billingPhone' => (string) $fresh_customer->get_billing_phone(),
+            'shipping'     => array(
+                'address1' => (string) $fresh_customer->get_shipping_address_1(),
+                'address2' => (string) $fresh_customer->get_shipping_address_2(),
+                'city'     => (string) $fresh_customer->get_shipping_city(),
+                'state'    => (string) $fresh_customer->get_shipping_state(),
+                'postcode' => (string) $fresh_customer->get_shipping_postcode(),
+                'country'  => (string) $fresh_customer->get_shipping_country(),
+            ),
+        ),
+    ) );
+    $response->header( 'X-LiteSpeed-Cache-Control', 'no-cache' );
+    $response->header( 'Cache-Control', 'no-store' );
+    return $response;
+}
+
+/** Elimina la sesión nativa de WordPress de este navegador. */
+function nakama_logout_session() {
+    wp_clear_auth_cookie();
+    wp_set_current_user( 0 );
+    $response = rest_ensure_response( array( 'success' => true ) );
+    $response->header( 'X-LiteSpeed-Cache-Control', 'no-cache' );
+    $response->header( 'Cache-Control', 'no-store' );
+    return $response;
+}
+
+// Una cookie antigua puede fallar el nonce antes de llegar al endpoint que la
+// borra. Solo para /logout permitimos continuar: la operación no concede acceso.
+add_filter( 'rest_authentication_errors', function ( $result ) {
+    if ( is_wp_error( $result ) && method_exists( $result, 'get_error_code' ) &&
+        'rest_cookie_invalid_nonce' === $result->get_error_code() &&
+        isset( $_SERVER['REQUEST_URI'] ) && false !== strpos( $_SERVER['REQUEST_URI'], '/nakama/v1/logout' ) ) {
+        return null;
+    }
+    return $result;
+}, 100 );
 
 function nakama_get_usd_rate() {
     $details = nakama_get_usd_rate_details();

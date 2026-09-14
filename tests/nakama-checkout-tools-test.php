@@ -67,10 +67,33 @@ function wp_remote_retrieve_body(mixed $response): string {
 }
 function get_post_status(int $id): string { return 'publish'; }
 function wc_get_orders(array $args): array { return []; }
-function get_current_user_id(): int { return 0; }
+function get_current_user_id(): int {
+    global $testCurrentUserId;
+    return $testCurrentUserId;
+}
 function get_user_by(string $field, mixed $value): mixed { return false; }
 function is_wp_error(mixed $value): bool { return $value instanceof WP_Error; }
 function rest_ensure_response(mixed $value): FakeResponse { return new FakeResponse($value); }
+function wp_unslash(mixed $value): mixed { return $value; }
+function wp_update_user(array $data): int|WP_Error {
+    global $testUserUpdate, $testUser;
+    $testUserUpdate = $data;
+    if (isset($data['first_name'])) $testUser->first_name = $data['first_name'];
+    if (isset($data['last_name'])) $testUser->last_name = $data['last_name'];
+    return (int) $data['ID'];
+}
+function get_userdata(int $id): object {
+    global $testUser;
+    return $testUser;
+}
+function wp_clear_auth_cookie(): void {
+    global $testClearedAuthCookie;
+    $testClearedAuthCookie = true;
+}
+function wp_set_current_user(int $id): void {
+    global $testCurrentUserId;
+    $testCurrentUserId = $id;
+}
 function home_url(string $path = ''): string { return 'https://example.test' . $path; }
 function esc_url(mixed $value): string { return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8'); }
 function esc_html(mixed $value): string { return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8'); }
@@ -96,6 +119,33 @@ class WP_REST_Request {
 class WP_User {}
 class WC_Abstract_Order {}
 class WP_Error {}
+
+final class WC_Customer {
+    public function __construct(private int $id) {}
+    private function set(string $key, string $value): void {
+        global $testCustomerData;
+        $testCustomerData[$key] = $value;
+    }
+    private function get(string $key): string {
+        global $testCustomerData;
+        return (string) ($testCustomerData[$key] ?? '');
+    }
+    public function set_billing_phone(string $value): void { $this->set('billing_phone', $value); }
+    public function set_shipping_address_1(string $value): void { $this->set('shipping_address_1', $value); }
+    public function set_shipping_address_2(string $value): void { $this->set('shipping_address_2', $value); }
+    public function set_shipping_city(string $value): void { $this->set('shipping_city', $value); }
+    public function set_shipping_state(string $value): void { $this->set('shipping_state', $value); }
+    public function set_shipping_postcode(string $value): void { $this->set('shipping_postcode', $value); }
+    public function set_shipping_country(string $value): void { $this->set('shipping_country', $value); }
+    public function get_billing_phone(): string { return $this->get('billing_phone'); }
+    public function get_shipping_address_1(): string { return $this->get('shipping_address_1'); }
+    public function get_shipping_address_2(): string { return $this->get('shipping_address_2'); }
+    public function get_shipping_city(): string { return $this->get('shipping_city'); }
+    public function get_shipping_state(): string { return $this->get('shipping_state'); }
+    public function get_shipping_postcode(): string { return $this->get('shipping_postcode'); }
+    public function get_shipping_country(): string { return $this->get('shipping_country'); }
+    public function save(): void {}
+}
 
 final class WC_Order_Item_Fee {
     public function set_name(string $name): void {}
@@ -203,6 +253,19 @@ $createdOrder = new FakeCreatedOrder();
 $testOptions = [];
 $testTransients = [];
 $testRemoteResponse = new WP_Error();
+$testCurrentUserId = 0;
+$testClearedAuthCookie = false;
+$testUserUpdate = [];
+$testUser = (object) ['first_name' => 'Monkey D.', 'last_name' => 'Luffy'];
+$testCustomerData = [
+    'billing_phone' => '6621234567',
+    'shipping_address_1' => '',
+    'shipping_address_2' => '',
+    'shipping_city' => '',
+    'shipping_state' => '',
+    'shipping_postcode' => '',
+    'shipping_country' => '',
+];
 function wc_create_order(array $args): FakeCreatedOrder {
     global $createdOrder;
     return $createdOrder;
@@ -288,6 +351,56 @@ function assert_same(mixed $expected, mixed $actual, string $message): void {
 }
 
 require dirname(__DIR__) . '/nakama-checkout-tools.php';
+
+assert_same(
+    'nakama_update_account_profile',
+    $registeredRestRoutes['nakama/v1/account/profile']['callback'] ?? null,
+    'The authenticated account profile route is registered.'
+);
+
+$testCurrentUserId = 42;
+$profileResponse = nakama_update_account_profile(new WP_REST_Request([
+    'firstName' => '  Nico  ',
+    'lastName' => '  Robin  ',
+    'billingPhone' => '  662 555 0101  ',
+    'email' => 'attacker@example.test',
+    'role' => 'administrator',
+    'shipping' => [
+        'address1' => '  Going Merry 42  ',
+        'address2' => '  Muelle 3  ',
+        'city' => '  Water 7  ',
+        'state' => '  Grand Line  ',
+        'postcode' => '  85000  ',
+        'country' => '  mx  ',
+    ],
+]));
+assert_same(
+    ['ID' => 42, 'first_name' => 'Nico', 'last_name' => 'Robin'],
+    $testUserUpdate,
+    'Profile updates whitelist names and never accept email or role.'
+);
+assert_same(
+    [
+        'firstName' => 'Nico',
+        'lastName' => 'Robin',
+        'billingPhone' => '662 555 0101',
+        'shipping' => [
+            'address1' => 'Going Merry 42',
+            'address2' => 'Muelle 3',
+            'city' => 'Water 7',
+            'state' => 'Grand Line',
+            'postcode' => '85000',
+            'country' => 'MX',
+        ],
+    ],
+    $profileResponse instanceof FakeResponse ? ($profileResponse->data['profile'] ?? null) : null,
+    'The profile endpoint returns the canonical saved customer data.'
+);
+
+$testClearedAuthCookie = false;
+nakama_logout_session();
+assert_same(true, $testClearedAuthCookie, 'Signing out clears the WordPress authentication cookie.');
+$testCurrentUserId = 0;
 
 $testOptions['woocommerce_bacs_accounts'] = [[
     'account_name' => 'Nakama Bordados',

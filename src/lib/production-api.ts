@@ -186,6 +186,11 @@ function authHeaders(extra?: Record<string, string>): Record<string, string> {
   return headers;
 }
 
+/** Evita que una cookie antigua de wp-admin suplante la identidad del JWT actual. */
+function authenticatedFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(input, { ...init, credentials: 'omit', cache: 'no-store' });
+}
+
 function prodUrl(path: string, params?: Record<string, string | number>): string {
   let url = `${apiOrigin()}/?rest_route=/nakama/v1/production${path}`;
   if (params) {
@@ -207,7 +212,7 @@ async function responseError(res: Response, fallback: string): Promise<Error> {
 
 export async function fetchProductionAccess(): Promise<ProdAccess> {
   try {
-    const res = await fetch(prodUrl('/access'), { headers: authHeaders() });
+    const res = await authenticatedFetch(prodUrl('/access'), { headers: authHeaders() });
     if (!res.ok) return { can: false, can_review: false };
     const data = await res.json();
     return { can: !!data?.can, can_review: !!data?.can_review };
@@ -217,19 +222,19 @@ export async function fetchProductionAccess(): Promise<ProdAccess> {
 }
 
 export async function fetchProductionOrders(column: ProdColumn, page: number): Promise<ProdOrdersResponse> {
-  const res = await fetch(prodUrl('/orders', { column, page }), { headers: authHeaders() });
+  const res = await authenticatedFetch(prodUrl('/orders', { column, page }), { headers: authHeaders() });
   if (!res.ok) throw await responseError(res, 'No se pudieron cargar los pedidos.');
   return res.json();
 }
 
 export async function fetchProductionOrderDetail(id: number): Promise<ProdOrderDetail> {
-  const res = await fetch(prodUrl(`/orders/${id}`), { headers: authHeaders() });
+  const res = await authenticatedFetch(prodUrl(`/orders/${id}`), { headers: authHeaders() });
   if (!res.ok) throw await responseError(res, 'No se pudo cargar el detalle del pedido.');
   return res.json();
 }
 
 export async function takeProductionOrder(orderId: number): Promise<void> {
-  const res = await fetch(prodUrl('/take'), {
+  const res = await authenticatedFetch(prodUrl('/take'), {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ order_id: orderId }),
@@ -238,7 +243,7 @@ export async function takeProductionOrder(orderId: number): Promise<void> {
 }
 
 export async function finishProductionOrder(orderId: number): Promise<void> {
-  const res = await fetch(prodUrl('/finish'), {
+  const res = await authenticatedFetch(prodUrl('/finish'), {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ order_id: orderId }),
@@ -251,7 +256,7 @@ export async function validateProductionItem(
   itemId: number,
   validated: boolean,
 ): Promise<ProdProgress> {
-  const res = await fetch(prodUrl('/validate'), {
+  const res = await authenticatedFetch(prodUrl('/validate'), {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ order_id: orderId, item_id: itemId, validated }),
@@ -266,7 +271,7 @@ export async function reviewProductionOrder(
   decision: 'approved' | 'rework',
   items: ProdReviewItemInput[] = [],
 ): Promise<{ completed: boolean }> {
-  const res = await fetch(prodUrl('/review'), {
+  const res = await authenticatedFetch(prodUrl('/review'), {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ order_id: orderId, decision, items }),
@@ -276,7 +281,7 @@ export async function reviewProductionOrder(
 }
 
 export async function reassignProductionOrder(orderId: number, reason: string): Promise<void> {
-  const res = await fetch(prodUrl('/reassign'), {
+  const res = await authenticatedFetch(prodUrl('/reassign'), {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ order_id: orderId, reason }),
@@ -285,13 +290,13 @@ export async function reassignProductionOrder(orderId: number, reason: string): 
 }
 
 export async function fetchProductionReport(period: ProdReportPeriod, anchor: string): Promise<ProdReport> {
-  const res = await fetch(prodUrl('/reports', { period, anchor }), { headers: authHeaders() });
+  const res = await authenticatedFetch(prodUrl('/reports', { period, anchor }), { headers: authHeaders() });
   if (!res.ok) throw await responseError(res, 'No se pudo cargar el reporte.');
   return res.json();
 }
 
 export async function listProductionPdfs(): Promise<ProdPdf[]> {
-  const res = await fetch(prodUrl('/pdfs'), { headers: authHeaders() });
+  const res = await authenticatedFetch(prodUrl('/pdfs'), { headers: authHeaders() });
   if (!res.ok) throw await responseError(res, 'No se pudieron cargar los patrones.');
   const data = await res.json();
   return data?.pdfs || [];
@@ -300,11 +305,11 @@ export async function listProductionPdfs(): Promise<ProdPdf[]> {
 export async function uploadProductionPdf(file: File): Promise<ProdUploadResult> {
   const data = new FormData();
   data.append('file', file);
-  const res = await fetch(prodUrl('/pdfs'), { method: 'POST', headers: authHeaders(), body: data });
+  const res = await authenticatedFetch(prodUrl('/pdfs'), { method: 'POST', headers: authHeaders(), body: data });
   return res.json();
 }
 
 export async function deleteProductionPdf(id: number): Promise<void> {
-  const res = await fetch(prodUrl(`/pdfs/${id}`), { method: 'DELETE', headers: authHeaders() });
+  const res = await authenticatedFetch(prodUrl(`/pdfs/${id}`), { method: 'DELETE', headers: authHeaders() });
   if (!res.ok) throw await responseError(res, 'No se pudo eliminar el patron.');
 }

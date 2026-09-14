@@ -106,6 +106,11 @@ function authHeaders(extra?: Record<string, string>): Record<string, string> {
   return headers;
 }
 
+/** Usa el JWT como única identidad aunque el navegador conserve cookies de wp-admin. */
+function authenticatedFetch(input: string, init: RequestInit = {}): Promise<Response> {
+  return fetch(input, { ...init, credentials: 'omit', cache: 'no-store' });
+}
+
 /** Construye la URL del endpoint vía ?rest_route= (para el no-cache del .htaccess). */
 function whUrl(path: string, params?: Record<string, string | number>): string {
   let url = `${apiOrigin()}/?rest_route=/nakama/v1/warehouse${path}`;
@@ -126,7 +131,7 @@ export async function fetchWarehouseAccess(): Promise<boolean> {
 /** Permisos separados: operar stock y administrar relaciones privadas. */
 export async function fetchWarehouseCapabilities(): Promise<WarehouseCapabilities> {
   try {
-    const res = await fetch(whUrl('/access'), { headers: authHeaders() });
+    const res = await authenticatedFetch(whUrl('/access'), { headers: authHeaders() });
     if (!res.ok) return { can: false, canManage: false };
     const data = await res.json();
     return { can: !!data?.can, canManage: !!data?.can_manage };
@@ -145,20 +150,20 @@ async function apiError(res: Response, fallback: string): Promise<Error> {
 }
 
 export async function searchCatalogProducts(search: string): Promise<CatalogProduct[]> {
-  const res = await fetch(whUrl('/catalog-products', { search }), { headers: authHeaders() });
+  const res = await authenticatedFetch(whUrl('/catalog-products', { search }), { headers: authHeaders() });
   if (!res.ok) throw await apiError(res, 'No se pudo buscar en el catálogo.');
   const data = await res.json();
   return data?.items || [];
 }
 
 export async function previewCatalogProduct(productId: number): Promise<CatalogProductPreview> {
-  const res = await fetch(whUrl(`/catalog-products/${productId}/variations`), { headers: authHeaders() });
+  const res = await authenticatedFetch(whUrl(`/catalog-products/${productId}/variations`), { headers: authHeaders() });
   if (!res.ok) throw await apiError(res, 'No se pudieron leer las variaciones.');
   return res.json();
 }
 
 export async function listManualCatalogProducts(): Promise<ManualCatalogProduct[]> {
-  const res = await fetch(whUrl('/manual-products'), { headers: authHeaders() });
+  const res = await authenticatedFetch(whUrl('/manual-products'), { headers: authHeaders() });
   if (!res.ok) throw await apiError(res, 'No se pudieron cargar los productos administrados.');
   const data = await res.json();
   return data?.items || [];
@@ -168,7 +173,7 @@ export async function saveManualCatalogProduct(
   productId: number,
   hiddenColor: string,
 ): Promise<ManualCatalogProduct> {
-  const res = await fetch(whUrl('/manual-products'), {
+  const res = await authenticatedFetch(whUrl('/manual-products'), {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ product_id: productId, hidden_color: hiddenColor }),
@@ -178,7 +183,7 @@ export async function saveManualCatalogProduct(
 }
 
 export async function deleteManualCatalogProduct(productId: number): Promise<void> {
-  const res = await fetch(whUrl(`/manual-products/${productId}`), {
+  const res = await authenticatedFetch(whUrl(`/manual-products/${productId}`), {
     method: 'DELETE',
     headers: authHeaders(),
   });
@@ -186,21 +191,21 @@ export async function deleteManualCatalogProduct(productId: number): Promise<voi
 }
 
 export async function listWarehouseItems(search?: string): Promise<WhItem[]> {
-  const res = await fetch(whUrl('/items', search ? { search } : undefined), { headers: authHeaders() });
+  const res = await authenticatedFetch(whUrl('/items', search ? { search } : undefined), { headers: authHeaders() });
   if (!res.ok) throw new Error('No se pudieron cargar los SKU base.');
   const data = await res.json();
   return data?.items || [];
 }
 
 export async function listWarehouseAlerts(): Promise<WhItem[]> {
-  const res = await fetch(whUrl('/alerts'), { headers: authHeaders() });
+  const res = await authenticatedFetch(whUrl('/alerts'), { headers: authHeaders() });
   if (!res.ok) throw new Error('No se pudieron cargar las alertas.');
   const data = await res.json();
   return data?.items || [];
 }
 
 export async function upsertWarehouseItem(input: WhUpsertInput): Promise<WhItem> {
-  const res = await fetch(whUrl('/items'), {
+  const res = await authenticatedFetch(whUrl('/items'), {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(input),
@@ -210,7 +215,7 @@ export async function upsertWarehouseItem(input: WhUpsertInput): Promise<WhItem>
 }
 
 export async function adjustWarehouseStock(id: number, input: WhAdjustInput): Promise<WhItem> {
-  const res = await fetch(whUrl('/adjust'), {
+  const res = await authenticatedFetch(whUrl('/adjust'), {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ id, ...input }),
@@ -220,7 +225,7 @@ export async function adjustWarehouseStock(id: number, input: WhAdjustInput): Pr
 }
 
 export async function deleteWarehouseItem(id: number): Promise<void> {
-  const res = await fetch(whUrl(`/items/${id}`), {
+  const res = await authenticatedFetch(whUrl(`/items/${id}`), {
     method: 'DELETE',
     headers: authHeaders(),
   });
@@ -228,7 +233,7 @@ export async function deleteWarehouseItem(id: number): Promise<void> {
 }
 
 export async function generateFromCatalog(): Promise<WhGenerateResult> {
-  const res = await fetch(whUrl('/generate'), {
+  const res = await authenticatedFetch(whUrl('/generate'), {
     method: 'POST',
     headers: authHeaders(),
   });
@@ -254,7 +259,7 @@ export async function generateFromCatalog(): Promise<WhGenerateResult> {
 export async function bulkAdjustWarehouse(
   items: WhBulkChange[],
 ): Promise<{ items: WhItem[]; keys: string[] }> {
-  const res = await fetch(whUrl('/bulk'), {
+  const res = await authenticatedFetch(whUrl('/bulk'), {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify({ items }),
@@ -266,7 +271,7 @@ export async function bulkAdjustWarehouse(
 
 /** Sincroniza la cascada de "agotado" una sola vez (solo las claves indicadas). */
 export async function syncWarehouse(keys?: string[]): Promise<number> {
-  const res = await fetch(whUrl('/sync'), {
+  const res = await authenticatedFetch(whUrl('/sync'), {
     method: 'POST',
     headers: authHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(keys && keys.length ? { keys } : {}),

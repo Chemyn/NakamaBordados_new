@@ -27,6 +27,7 @@ interface TestUser {
   firstName: string;
   lastName: string;
   email: string;
+  billingPhone?: string;
   role: string;
   orders: { nodes: TestOrder[] };
   shipping: {
@@ -46,6 +47,7 @@ const mocks = vi.hoisted(() => ({
     login: vi.fn(),
     register: vi.fn(),
     logout: vi.fn(),
+    updateProfile: vi.fn(),
     refreshUser: vi.fn(),
     isLoading: false,
     isAdmin: false,
@@ -124,6 +126,7 @@ function createUser(orders: TestOrder[] = []): TestUser {
     firstName: 'Monkey D.',
     lastName: 'Luffy',
     email: 'captain@example.test',
+    billingPhone: '6621234567',
     role: 'customer',
     orders: { nodes: orders },
     shipping: {
@@ -176,6 +179,7 @@ beforeEach(() => {
   mocks.auth.login.mockReset();
   mocks.auth.register.mockReset();
   mocks.auth.logout.mockReset();
+  mocks.auth.updateProfile.mockReset().mockResolvedValue({ success: true });
   mocks.auth.refreshUser.mockReset();
   mocks.cart.addQuoteToCart.mockReset();
   mocks.cart.isQuoteInCart.mockReset().mockReturnValue(false);
@@ -186,6 +190,98 @@ beforeEach(() => {
 });
 
 describe('MiCuentaPage accessibility and account navigation', () => {
+  it('edits personal data while keeping email, username, and role read-only', async () => {
+    mocks.auth.user = createUser();
+    render(<MiCuentaPage />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Cuenta' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Editar datos personales' }));
+
+    expect(screen.queryByRole('textbox', { name: 'Correo electrónico' })).not.toBeInTheDocument();
+    expect(screen.getAllByText('captain@example.test')).toHaveLength(2);
+    expect(screen.getByText('luffy')).toBeVisible();
+    expect(screen.getByText('CUSTOMER')).toBeVisible();
+
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: '  Nico  ' } });
+    fireEvent.change(screen.getByLabelText('Apellidos'), { target: { value: '  Robin  ' } });
+    fireEvent.change(screen.getByLabelText('Teléfono'), { target: { value: '  662 555 0101  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar datos' }));
+
+    await waitFor(() => expect(mocks.auth.updateProfile).toHaveBeenCalledWith({
+      firstName: 'Nico',
+      lastName: 'Robin',
+      billingPhone: '662 555 0101',
+    }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Datos personales actualizados');
+  });
+
+  it('keeps the personal editor open with recoverable feedback when saving fails', async () => {
+    mocks.auth.user = createUser();
+    mocks.auth.updateProfile.mockResolvedValue({ success: false, error: 'No se pudo guardar' });
+    render(<MiCuentaPage />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Cuenta' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Editar datos personales' }));
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Nami' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar datos' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo guardar');
+    expect(screen.getByLabelText('Nombre')).toHaveValue('Nami');
+  });
+
+  it('edits and cancels the main shipping address without changing account identifiers', async () => {
+    mocks.auth.user = createUser();
+    render(<MiCuentaPage />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Dirección' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Editar dirección de envío' }));
+    fireEvent.change(screen.getByLabelText('Calle y número'), { target: { value: '  Going Merry 42  ' } });
+    fireEvent.change(screen.getByLabelText('Interior o referencia'), { target: { value: '  Muelle 3  ' } });
+    fireEvent.change(screen.getByLabelText('Ciudad'), { target: { value: '  Water 7  ' } });
+    fireEvent.change(screen.getByLabelText('Estado'), { target: { value: '  Grand Line  ' } });
+    fireEvent.change(screen.getByLabelText('Código postal'), { target: { value: '  85000  ' } });
+    fireEvent.change(screen.getByLabelText('País'), { target: { value: '  MX  ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar dirección' }));
+
+    await waitFor(() => expect(mocks.auth.updateProfile).toHaveBeenCalledWith({
+      shipping: {
+        address1: 'Going Merry 42',
+        address2: 'Muelle 3',
+        city: 'Water 7',
+        state: 'Grand Line',
+        postcode: '85000',
+        country: 'MX',
+      },
+    }));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Editar dirección de envío' }));
+    fireEvent.change(screen.getByLabelText('Ciudad'), { target: { value: 'Enies Lobby' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar edición de dirección' }));
+    expect(screen.queryByLabelText('Ciudad')).not.toBeInTheDocument();
+  });
+
+  it('shows production and warehouse immediately for admins even if capability checks fail closed', () => {
+    mocks.auth.user = { ...createUser(), role: 'administrator' };
+    mocks.auth.isAdmin = true;
+    mocks.fetchProductionAccess.mockResolvedValue({ can: false });
+    mocks.fetchWarehouseAccess.mockResolvedValue(false);
+    render(<MiCuentaPage />);
+
+    expect(screen.getByRole('link', { name: 'Panel de Producción' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Panel de Almacén' })).toBeVisible();
+  });
+
+  it('places sign out in the sidebar footer, away from the identity header', () => {
+    mocks.auth.user = createUser();
+    render(<MiCuentaPage />);
+
+    const logoutButton = screen.getByRole('button', { name: 'Cerrar sesión' });
+    expect(logoutButton.closest('.nk-sidebar-header')).toBeNull();
+    expect(logoutButton.closest('.nk-sidebar-footer')).not.toBeNull();
+    fireEvent.click(logoutButton);
+    expect(mocks.auth.logout).toHaveBeenCalledOnce();
+  });
+
   it('keeps every account tab panel mounted and moves focus for internal navigation', () => {
     mocks.auth.user = createUser();
     render(<MiCuentaPage />);

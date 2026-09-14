@@ -4,6 +4,11 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { fetchGraphQL } from '@/lib/graphql-client';
 import { apiOrigin } from '@/lib/api-host';
 import { mergeQuotePaymentEligibility } from '@/lib/quote-payment';
+import {
+  clearWordPressSession,
+  updateAccountProfile,
+  type AccountProfileInput,
+} from '@/lib/account-api';
 
 interface OrderMeta {
   key: string;
@@ -79,7 +84,9 @@ interface AuthContextType {
   login: (username: string, password: string) => Promise<{ success: boolean; error?: string }>;
   /** Crea una cuenta de cliente en WooCommerce y luego inicia sesión con ella. */
   register: (input: RegisterInput) => Promise<{ success: boolean; error?: string }>;
-  logout: () => void;
+  logout: () => Promise<void>;
+  /** Actualiza exclusivamente los datos editables de la cuenta autenticada. */
+  updateProfile: (input: AccountProfileInput) => Promise<{ success: boolean; error?: string }>;
   /** Vuelve a consultar viewer/pedidos con el token vigente (p. ej. al entrar a Mi Cuenta). */
   refreshUser: () => void;
   isLoading: boolean;
@@ -97,10 +104,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // administrador es 'administrator'. Solo controla la UI (botón al escritorio de WP).
   const isAdmin = user?.role === 'administrator' || user?.role === 'admin';
 
-  const logout = React.useCallback(() => {
+  const logout = React.useCallback(async () => {
+    const token = localStorage.getItem('wp-jwt');
     setAuthToken(null);
     setUser(null);
     localStorage.removeItem('wp-jwt');
+    await clearWordPressSession(token);
   }, []);
 
   const fetchCustomerData = React.useCallback(async (token: string) => {
@@ -377,8 +386,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [fetchCustomerData]);
 
+  const updateProfile = React.useCallback(async (input: AccountProfileInput) => {
+    const result = await updateAccountProfile(input);
+    if (!result.success) return { success: false, error: result.error };
+
+    setUser(current => {
+      if (!current) return current;
+      const profile = result.profile;
+      return {
+        ...current,
+        firstName: profile?.firstName ?? input.firstName ?? current.firstName,
+        lastName: profile?.lastName ?? input.lastName ?? current.lastName,
+        billingPhone: profile?.billingPhone ?? input.billingPhone ?? current.billingPhone,
+        shipping: profile?.shipping ?? input.shipping ?? current.shipping,
+      };
+    });
+    return { success: true };
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, authToken, login, register, logout, refreshUser, isLoading, isAdmin }}>
+    <AuthContext.Provider value={{ user, authToken, login, register, logout, updateProfile, refreshUser, isLoading, isAdmin }}>
       {children}
     </AuthContext.Provider>
   );
