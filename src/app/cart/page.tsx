@@ -19,7 +19,17 @@ export default function CartPage() {
   const [showEmptyModal, setShowEmptyModal] = React.useState(false);
   const [isRedirecting, setIsRedirecting] = React.useState(false);
   const [loadingMessage, setLoadingMessage] = React.useState('Levantando el ancla...');
+  const [quoteCheckoutError, setQuoteCheckoutError] = React.useState(false);
   const router = useRouter();
+
+  React.useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const timer = window.setTimeout(() => {
+      setQuoteCheckoutError(params.get('quote_error') === 'unavailable');
+    }, 0);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   React.useEffect(() => {
     if (cart.length === 0 && quoteItems.length === 0) {
@@ -98,6 +108,24 @@ export default function CartPage() {
     <div className="nk-cart-page" style={{ padding: '120px 0 80px', background: 'var(--nk-bg-body)', minHeight: '100vh' }}>
       <div className="nk-container">
         <h1 className="nk-section-title" style={{ marginBottom: '40px', textAlign: 'center' }}>{t('cart.page_title')}</h1>
+
+        {quoteCheckoutError && (
+          <div
+            role="alert"
+            className="nk-manga-border"
+            style={{
+              margin: '0 auto 28px',
+              maxWidth: '900px',
+              padding: '18px 20px',
+              background: '#fff3f3',
+              borderColor: 'var(--nk-primary)',
+              color: 'var(--nk-text)',
+              fontWeight: 700,
+            }}
+          >
+            No pudimos preparar una de tus cotizaciones y detuvimos el checkout para no cobrarte un carrito incompleto. No se realizó ningún cobro. Actualiza Mi Cuenta y vuelve a agregar la cotización.
+          </div>
+        )}
         
         <div className="nk-cart-grid">
           {/* Table of products */}

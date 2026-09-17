@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO, social login, pedidos de cotización, registro de clientes y sincronización de base de datos local (Next.js).
- * Version: 3.3.0
+ * Version: 3.3.1
  * Author: Nakama
  */
 
@@ -506,10 +506,18 @@ function nakama_quote_payment_eligibility( $order ) {
         return array( 'eligible' => false, 'code' => 'not_quote' );
     }
 
-    if (
-        ! in_array( $order->get_status(), array( 'pending', 'failed' ), true )
-        || ! $order->needs_payment()
-    ) {
+    $status = $order->get_status();
+    $is_standard_payable = in_array( $status, array( 'pending', 'failed' ), true )
+        && $order->needs_payment();
+    // Las solicitudes nacen "En espera" mientras el taller les asigna
+    // precio. WooCommerce no considera ese estado needs_payment(), aunque una
+    // cotización original ya valorizada y sin método de pago todavía debe
+    // poder entrar al checkout normal.
+    $is_priced_on_hold_quote = 'on-hold' === $status
+        && ! $order->is_paid()
+        && '' === trim( (string) $order->get_payment_method() );
+
+    if ( ! $is_standard_payable && ! $is_priced_on_hold_quote ) {
         return array( 'eligible' => false, 'code' => 'not_payable_status' );
     }
 
@@ -1235,26 +1243,30 @@ function nakama_cart_bridge_handler() {
         }
     }
 
-    // 2.4 Cotizaciones del carrito mixto. Cada una se valida por su order_key
-    //     (misma exigencia que pay-quote); las que ya no procedan se OMITEN
-    //     con un aviso en el checkout en vez de tumbar todo el carrito — el
-    //     caso típico es una cotización pagada en otra pestaña.
+    // 2.4 Cotizaciones del carrito mixto. Todas deben entrar: continuar solo
+    //     con los productos físicos cobraría un pedido distinto al que el
+    //     cliente revisó en el carrito headless.
     if ( '' !== $quotes_param ) {
-        $seen_quotes = array();
-        foreach ( explode( ',', $quotes_param ) as $quote_str ) {
-            $parts = explode( ':', $quote_str, 2 );
-            if ( count( $parts ) < 2 ) continue;
-
-            $quote_id  = absint( $parts[0] );
-            $quote_key = trim( $parts[1] );
-            if ( $quote_id <= 0 || '' === $quote_key || isset( $seen_quotes[ $quote_id ] ) ) continue;
-            $seen_quotes[ $quote_id ] = true;
-
-            $result = nakama_add_quote_to_wc_cart( $quote_id, $quote_key );
-            if ( true !== $result ) {
-                wc_add_notice( sprintf( 'Se omitió una cotización del carrito: %s.', $result ), 'notice' );
+        $quote_batch = nakama_add_quote_batch_to_wc_cart( $quotes_param );
+        foreach ( $quote_batch['errors'] as $error ) {
+            wc_add_notice( sprintf( 'No se pudo preparar una cotización: %s.', $error ), 'error' );
+        }
+        if ( $debug ) {
+            foreach ( $quote_batch['attempts'] as $attempt ) {
+                echo 'Cotización ' . (int) $attempt['order_id'] . ': '
+                    . ( true === $attempt['result'] ? 'OK' : esc_html( $attempt['result'] ) ) . '<br>';
             }
-            if ( $debug ) echo "Cotización $quote_id: " . ( true === $result ? 'OK' : esc_html( $result ) ) . "<br>";
+        }
+        if ( ! $quote_batch['ok'] ) {
+            if ( $debug ) {
+                echo 'Checkout detenido: al menos una cotización fue rechazada.';
+                exit;
+            }
+            wp_safe_redirect( add_query_arg(
+                array( 'quote_error' => 'unavailable' ),
+                home_url( '/cart/' )
+            ) );
+            exit;
         }
     }
 
@@ -1375,6 +1387,59 @@ function nakama_add_quote_to_wc_cart( $order_id, $key ) {
     );
 
     return $added ? true : 'no se pudo añadir al carrito';
+}
+
+/**
+ * Añade todas las cotizaciones solicitadas o rechaza el lote completo.
+ *
+ * El carrito de WooCommerce ya fue reconstruido con los productos físicos al
+ * llegar aquí. Si una sola cotización falla, se vacía para impedir que el
+ * cliente continúe y pague únicamente esos productos.
+ *
+ * @return array{ok:bool,attempts:array<int,array{order_id:int,result:true|string}>,errors:string[]}
+ */
+function nakama_add_quote_batch_to_wc_cart( $quotes_param ) {
+    $attempts   = array();
+    $errors     = array();
+    $seen_quotes = array();
+
+    foreach ( explode( ',', (string) $quotes_param ) as $quote_str ) {
+        $quote_str = trim( $quote_str );
+        if ( '' === $quote_str ) {
+            continue;
+        }
+
+        $parts = explode( ':', $quote_str, 2 );
+        $quote_id  = isset( $parts[0] ) ? absint( $parts[0] ) : 0;
+        $quote_key = isset( $parts[1] ) ? trim( $parts[1] ) : '';
+
+        if ( $quote_id <= 0 || '' === $quote_key ) {
+            $message    = 'la referencia está incompleta';
+            $attempts[] = array( 'order_id' => $quote_id, 'result' => $message );
+            $errors[]   = $message;
+            continue;
+        }
+        if ( isset( $seen_quotes[ $quote_id ] ) ) {
+            continue;
+        }
+        $seen_quotes[ $quote_id ] = true;
+
+        $result     = nakama_add_quote_to_wc_cart( $quote_id, $quote_key );
+        $attempts[] = array( 'order_id' => $quote_id, 'result' => $result );
+        if ( true !== $result ) {
+            $errors[] = $result;
+        }
+    }
+
+    if ( ! empty( $errors ) ) {
+        WC()->cart->empty_cart();
+    }
+
+    return array(
+        'ok'       => empty( $errors ),
+        'attempts' => $attempts,
+        'errors'   => $errors,
+    );
 }
 
 /**

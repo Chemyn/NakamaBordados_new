@@ -34,6 +34,7 @@ function register_graphql_field(string $typeName, string $fieldName, array $conf
 function sanitize_text_field(mixed $value): string { return trim((string) $value); }
 function sanitize_textarea_field(mixed $value): string { return trim((string) $value); }
 function sanitize_email(mixed $value): string { return trim((string) $value); }
+function absint(mixed $value): int { return abs((int) $value); }
 function get_option(string $key, mixed $default = false): mixed {
     global $testOptions;
     if (array_key_exists($key, $testOptions)) return $testOptions[$key];
@@ -179,7 +180,8 @@ final class FakeOrder extends WC_Abstract_Order {
         private string $orderKey = 'wc_order_test',
         private string $orderNumber = '1',
         private string $paymentTitle = 'Método de prueba',
-        private string $firstName = 'Cliente'
+        private string $firstName = 'Cliente',
+        private bool $paid = false
     ) {}
 
     public function get_meta(string $key): mixed {
@@ -215,7 +217,7 @@ final class FakeOrder extends WC_Abstract_Order {
     }
 
     public function is_paid(): bool {
-        return ! $this->needsPayment;
+        return $this->paid;
     }
 
     public function get_order_number(): string { return $this->orderNumber; }
@@ -283,6 +285,7 @@ final class FakeCart {
 
     public function get_cart(): array { return $this->items; }
     public function is_empty(): bool { return $this->items === []; }
+    public function empty_cart(): void { $this->items = []; }
     public function remove_cart_item(string $key): void { unset($this->items[$key]); }
     public function set_quantity(string $key, int $quantity, bool $refresh): void {
         $this->items[$key]['quantity'] = $quantity;
@@ -351,6 +354,10 @@ function assert_same(mixed $expected, mixed $actual, string $message): void {
 }
 
 require dirname(__DIR__) . '/nakama-checkout-tools.php';
+
+foreach ($actions['rest_api_init'] ?? [] as $registerRestRoutes) {
+    $registerRestRoutes();
+}
 
 assert_same(
     'nakama_update_account_profile',
@@ -524,12 +531,25 @@ assert_same(
 
 $onHoldOrder = new FakeOrder(
     meta: ['_nakama_quote_request' => 'yes'],
-    status: 'on-hold'
+    status: 'on-hold',
+    needsPayment: false
+);
+assert_same(
+    ['eligible' => true, 'code' => 'eligible'],
+    nakama_quote_payment_eligibility($onHoldOrder),
+    'A priced original quote left on hold by the workshop remains payable.'
+);
+
+$onHoldBacsOrder = new FakeOrder(
+    meta: ['_nakama_quote_request' => 'yes'],
+    status: 'on-hold',
+    needsPayment: false,
+    paymentMethod: 'bacs'
 );
 assert_same(
     ['eligible' => false, 'code' => 'not_payable_status'],
-    nakama_quote_payment_eligibility($onHoldOrder),
-    'A quote under review is not released for payment.'
+    nakama_quote_payment_eligibility($onHoldBacsOrder),
+    'An on-hold quote with a payment method already selected is not charged again.'
 );
 
 $paidOrder = new FakeOrder(
@@ -627,6 +647,21 @@ assert_same(
     0,
     $fakeCart->addCalls,
     'Rejecting a normal order does not create a quote placeholder.'
+);
+
+$fakeCart->items = ['physical-product' => ['quantity' => 1]];
+$failedMixedBatch = function_exists('nakama_add_quote_batch_to_wc_cart')
+    ? nakama_add_quote_batch_to_wc_cart('77:wc_order_valid')
+    : ['ok' => true];
+assert_same(
+    false,
+    $failedMixedBatch['ok'] ?? true,
+    'A mixed checkout is rejected when any requested quote cannot be added.'
+);
+assert_same(
+    [],
+    $fakeCart->items,
+    'A rejected quote clears the rebuilt WooCommerce cart instead of continuing with products only.'
 );
 
 $cartBeforeDirectRejection = $fakeCart->items;
