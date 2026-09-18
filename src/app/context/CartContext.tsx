@@ -50,6 +50,48 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
+type ValidatedCoupon =
+  | { success: true; code: string; discount: number; type: 'percent' | 'fixed' }
+  | { success: false; message: string };
+
+async function validateNativeCoupon(code: string): Promise<ValidatedCoupon> {
+  const normalized = code.trim().toUpperCase();
+
+  if (!normalized) {
+    return { success: false, message: 'Escribe el código que recibiste.' };
+  }
+
+  try {
+    // Este campo solo admite cupones nativos de recuperación. WooCommerce es
+    // la autoridad y el navegador nunca reconstruye el descuento por su cuenta.
+    const res = await fetch(`${apiOrigin()}/?rest_route=/nakama/v1/check-coupon&code=${normalized}`);
+    if (!res.ok) {
+      return { success: false, message: 'No pudimos validar el cupón. Inténtalo de nuevo.' };
+    }
+
+    const data = await res.json();
+    if (!data.valid) {
+      return { success: false, message: data.message || 'Cupón inválido' };
+    }
+
+    const amount = Number(data.amount);
+    if (!Number.isFinite(amount) || amount < 0) {
+      return { success: false, message: 'No pudimos validar el cupón. Inténtalo de nuevo.' };
+    }
+
+    const type = data.type === 'percent' ? 'percent' : 'fixed';
+    return {
+      success: true,
+      code: normalized,
+      discount: type === 'percent' ? amount / 100 : amount,
+      type,
+    };
+  } catch (error) {
+    console.warn('No se pudo validar el cupón con WooCommerce', error);
+    return { success: false, message: 'No pudimos validar el cupón. Inténtalo de nuevo.' };
+  }
+}
+
 /**
  * Lee un atributo de la variación tolerando los nombres reales de WooCommerce:
  * la talla llega como "Size" (no "Talla"), y las claves pueden variar de
@@ -86,10 +128,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     const savedCart = localStorage.getItem('nakama_cart');
     const savedQuotes = localStorage.getItem('nakama_quote_cart');
     const savedCoupon = localStorage.getItem('nakama_coupon');
-    const savedDiscount = localStorage.getItem('nakama_discount');
-    const savedType = localStorage.getItem('nakama_discount_type');
+    let cancelled = false;
 
-    setTimeout(() => {
+    const timeoutId = window.setTimeout(() => {
       if (savedCart) {
         try {
           setCart(JSON.parse(savedCart));
@@ -104,12 +145,29 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           console.error(e);
         }
       }
-      if (savedCoupon && savedDiscount) {
-        setCouponCode(savedCoupon);
-        setDiscount(parseFloat(savedDiscount));
-        setDiscountType((savedType as 'percent' | 'fixed') || 'percent');
+      if (savedCoupon) {
+        void validateNativeCoupon(savedCoupon).then(result => {
+          if (cancelled) return;
+          if (!result.success) {
+            localStorage.removeItem('nakama_coupon');
+            localStorage.removeItem('nakama_discount');
+            localStorage.removeItem('nakama_discount_type');
+            return;
+          }
+
+          setCouponCode(result.code);
+          setDiscount(result.discount);
+          setDiscountType(result.type);
+          localStorage.setItem('nakama_discount', result.discount.toString());
+          localStorage.setItem('nakama_discount_type', result.type);
+        });
       }
     }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timeoutId);
+    };
   }, []);
 
   // Save cart to localStorage on change
@@ -202,54 +260,16 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   };
 
   const applyCoupon = async (code: string): Promise<{ success: boolean; message?: string }> => {
-    const normalized = code.trim().toUpperCase();
-    
-    try {
-      // Intentar validar usando la API real (requiere nakama-checkout-tools.php)
-      const res = await fetch(`${apiOrigin()}/?rest_route=/nakama/v1/check-coupon&code=${normalized}`);
-      
-      if (res.ok) {
-        const data = await res.json();
-        if (data.valid) {
-          setCouponCode(normalized);
-          // percentage or fixed_cart
-          const type = data.type === 'percent' ? 'percent' : 'fixed';
-          const amt = data.type === 'percent' ? (data.amount / 100) : data.amount;
-          
-          setDiscount(amt);
-          setDiscountType(type);
-          
-          localStorage.setItem('nakama_coupon', normalized);
-          localStorage.setItem('nakama_discount', amt.toString());
-          localStorage.setItem('nakama_discount_type', type);
-          return { success: true };
-        } else {
-          return { success: false, message: data.message || 'Cupón inválido' };
-        }
-      }
-    } catch (e) {
-      console.warn("Fallo API cupones, usando fallback local", e);
-    }
+    const result = await validateNativeCoupon(code);
+    if (!result.success) return result;
 
-    // Fallback local hardcoded si la API falla
-    if (normalized === 'NAKAMA10' || normalized === 'CREADOR10') {
-      setCouponCode(normalized);
-      setDiscount(0.1); 
-      setDiscountType('percent');
-      localStorage.setItem('nakama_coupon', normalized);
-      localStorage.setItem('nakama_discount', '0.1');
-      localStorage.setItem('nakama_discount_type', 'percent');
-      return { success: true };
-    } else if (normalized === 'NAKAMA20') {
-      setCouponCode(normalized);
-      setDiscount(0.2); 
-      setDiscountType('percent');
-      localStorage.setItem('nakama_coupon', normalized);
-      localStorage.setItem('nakama_discount', '0.2');
-      localStorage.setItem('nakama_discount_type', 'percent');
-      return { success: true };
-    }
-    return { success: false, message: 'Cupón no encontrado' };
+    setCouponCode(result.code);
+    setDiscount(result.discount);
+    setDiscountType(result.type);
+    localStorage.setItem('nakama_coupon', result.code);
+    localStorage.setItem('nakama_discount', result.discount.toString());
+    localStorage.setItem('nakama_discount_type', result.type);
+    return { success: true };
   };
 
   const removeCoupon = () => {

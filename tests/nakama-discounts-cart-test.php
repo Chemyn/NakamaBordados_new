@@ -1,0 +1,178 @@
+<?php
+declare(strict_types=1);
+
+define( 'ABSPATH', __DIR__ . '/' );
+
+$registered_actions = array();
+
+function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
+	global $registered_actions;
+	$registered_actions[ $hook ][] = $callback;
+}
+
+function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) {}
+function get_current_user_id() { return 0; }
+function has_term( $term, $taxonomy, $product_id ) { return false; }
+function sanitize_text_field( $value ) { return trim( (string) $value ); }
+function wp_unslash( $value ) { return $value; }
+function __( $text, $domain = null ) { return $text; }
+function esc_attr( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
+function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
+function esc_html__( $text, $domain = null ) { return esc_html( $text ); }
+function wp_kses_post( $value ) { return (string) $value; }
+function wc_price( $amount ) { return '$' . number_format( (float) $amount, 2 ); }
+
+class Nakama_Settings {
+	public static $values = array(
+		'transfer_enabled' => 'yes',
+		'transfer_rate'    => 0.05,
+	);
+	public static function get( $key, $fallback = null ) {
+		if ( 'special_3x2_categories' === $key ) {
+			return array();
+		}
+		return array_key_exists( $key, self::$values ) ? self::$values[ $key ] : $fallback;
+	}
+	public static function amount( $key ) { return 0.0; }
+	public static function pct( $rate ) { return (string) ( (float) $rate * 100 ) . '%'; }
+}
+
+final class FakeDiscountSession {
+	public $values = array();
+	public function get( $key, $fallback = '' ) {
+		return array_key_exists( $key, $this->values ) ? $this->values[ $key ] : $fallback;
+	}
+	public function set( $key, $value ) { $this->values[ $key ] = $value; }
+}
+
+final class FakeDiscountCart {
+	public $coupons = array( 'RECUPERA20' );
+	public $remove_calls = 0;
+	public function get_subtotal() { return 1000.0; }
+	public function get_cart() { return array(); }
+	public function get_applied_coupons() { return $this->coupons; }
+	public function get_discount_total() { return 200.0; }
+	public function remove_coupons() {
+		$this->coupons = array();
+		$this->remove_calls++;
+	}
+}
+
+final class FakeDiscountWooCommerce {
+	public $session;
+	public $cart;
+	public $customer = null;
+	public function __construct() {
+		$this->session = new FakeDiscountSession();
+		$this->cart = new FakeDiscountCart();
+	}
+}
+
+final class FakeDiscountOrder {
+	public $meta = array();
+	public function update_meta_data( $key, $value ) { $this->meta[ $key ] = $value; }
+}
+
+$fake_discount_wc = new FakeDiscountWooCommerce();
+function WC() {
+	global $fake_discount_wc;
+	return $fake_discount_wc;
+}
+
+function assert_same( $expected, $actual, $message ) {
+	if ( $expected !== $actual ) {
+		throw new RuntimeException( sprintf(
+			"%s\nExpected: %s\nActual: %s",
+			$message,
+			var_export( $expected, true ),
+			var_export( $actual, true )
+		) );
+	}
+}
+
+require dirname( __DIR__ ) . '/nakama-discounts/includes/class-context.php';
+require dirname( __DIR__ ) . '/nakama-discounts/includes/class-cart.php';
+
+$context = Nakama_Context::build( WC()->cart );
+assert_same( array( 'RECUPERA20' ), $context->native_coupon_codes, 'The engine context sees native abandoned-cart coupons.' );
+assert_same( 200.0, $context->native_coupon_amount, 'The engine context sees the native coupon discount.' );
+
+$options = array(
+	'public_code:combo' => array( 'type' => 'public_code', 'code' => 'PUBLICO15' ),
+);
+assert_same(
+	true,
+	Nakama_Cart::apply_selection( 'public_code:combo', $options ),
+	'A valid Nakama selection is accepted.'
+);
+assert_same( array(), WC()->cart->coupons, 'Selecting Nakama removes the abandoned-cart coupon.' );
+assert_same( 1, WC()->cart->remove_calls, 'Native coupons are removed exactly once.' );
+assert_same( 'public_code:combo', WC()->session->get( 'nakama_selected_promo' ), 'The confirmed Nakama selection is stored in session.' );
+
+Nakama_Cart::clear_selected_promo( 'RECUPERA20' );
+assert_same( '', WC()->session->get( 'nakama_selected_promo' ), 'Applying a native coupon clears the Nakama selection.' );
+
+WC()->cart->coupons = array( 'RECUPERA20' );
+assert_same(
+	false,
+	Nakama_Cart::apply_selection( 'public_code:missing', $options ),
+	'An unavailable promotion cannot be selected by forging its key.'
+);
+assert_same( array( 'RECUPERA20' ), WC()->cart->coupons, 'A rejected selection does not remove the current coupon.' );
+
+$render_plan = array(
+	'primary' => array(
+		'type'            => 'public_code',
+		'selection_key'   => 'public_code:combo',
+		'id'              => 'combo',
+		'code'            => 'PUBLICO15',
+		'rate'            => 0.15,
+		'amount'          => 150.0,
+		'allow_modifiers' => true,
+	),
+	'options' => array(
+		'public_code:combo' => array(
+			'type'            => 'public_code',
+			'selection_key'   => 'public_code:combo',
+			'code'            => 'PUBLICO15',
+			'label'           => 'Código PUBLICO15 (15%)',
+			'amount'          => 150.0,
+			'allow_modifiers' => true,
+			'auto'            => false,
+		),
+	),
+	'free_ship' => false,
+	'msi' => array( 'months' => 0 ),
+	'transfer' => array( 'applies' => false, 'amount' => 0.0 ),
+	'allows_modifiers' => true,
+	'totals' => array( 'eligible_subtotal' => 1000.0 ),
+);
+$plan_property = new ReflectionProperty( Nakama_Cart::class, 'plan' );
+$plan_property->setValue( null, $render_plan );
+ob_start();
+Nakama_Cart::render_promo_ui();
+$promo_html = ob_get_clean();
+assert_same( true, false !== strpos( $promo_html, 'PUBLICO15' ), 'The checkout renders every eligible public code.' );
+assert_same( true, false !== strpos( $promo_html, 'aria-pressed="true"' ), 'The selected public code exposes its accessible state.' );
+assert_same( true, false !== strpos( $promo_html, 'Conserva transferencia, envío gratis y MSI' ), 'The customer can see what a combinable code preserves.' );
+
+$render_plan['primary']['allow_modifiers'] = false;
+$render_plan['options']['public_code:combo']['allow_modifiers'] = false;
+$render_plan['allows_modifiers'] = false;
+$plan_property->setValue( null, $render_plan );
+ob_start();
+Nakama_Cart::render_promo_ui();
+$exclusive_html = ob_get_clean();
+assert_same( false, false !== strpos( $exclusive_html, 'Paga por transferencia' ), 'A non-combinable code never advertises an unavailable transfer benefit.' );
+
+$render_plan['primary']['allow_modifiers'] = true;
+$render_plan['options']['public_code:combo']['allow_modifiers'] = true;
+$render_plan['allows_modifiers'] = true;
+$plan_property->setValue( null, $render_plan );
+$order = new FakeDiscountOrder();
+Nakama_Cart::save_order_meta( $order, array() );
+assert_same( 'PUBLICO15', $order->meta['_nakama_public_code'] ?? null, 'The order snapshots the selected public code.' );
+assert_same( 0.15, $order->meta['_nakama_primary_rate'] ?? null, 'The order snapshots the selected percentage.' );
+assert_same( 'yes', $order->meta['_nakama_primary_combinable'] ?? null, 'The order snapshots whether complementary benefits were allowed.' );
+
+echo "PHP Nakama Discounts cart integration tests passed.\n";

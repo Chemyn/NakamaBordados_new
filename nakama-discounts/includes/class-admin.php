@@ -28,6 +28,9 @@ class Nakama_Admin {
 		register_setting( 'nakama_discounts_group', NAKAMA_DISC_OPTION, array(
 			'sanitize_callback' => array( __CLASS__, 'sanitize' ),
 		) );
+		register_setting( 'nakama_discounts_group', NAKAMA_DISC_CODES_OPTION, array(
+			'sanitize_callback' => array( 'Nakama_Discount_Codes', 'sanitize' ),
+		) );
 	}
 
 	public static function sanitize( $input ) {
@@ -99,14 +102,98 @@ class Nakama_Admin {
 	public static function render() {
 		$s   = Nakama_Settings::all();
 		$opt = NAKAMA_DISC_OPTION;
+		$codes = Nakama_Discount_Codes::all();
+		$codes_opt = NAKAMA_DISC_CODES_OPTION;
 		$cb  = function ( $key ) use ( $s ) {
 			return checked( 'yes', $s[ $key ], false );
 		};
 		?>
 		<div class="wrap">
 			<h1>Nakama Descuentos</h1>
+			<?php settings_errors( NAKAMA_DISC_CODES_OPTION ); ?>
 			<form method="post" action="options.php">
 				<?php settings_fields( 'nakama_discounts_group' ); ?>
+
+				<!-- ================= CÓDIGOS PÚBLICOS ================= -->
+				<section class="nakama-code-admin" aria-labelledby="nakama-public-codes-title">
+					<div class="nakama-code-admin__heading">
+						<div>
+							<h2 id="nakama-public-codes-title">Códigos públicos</h2>
+							<p class="description">Aparecen como opciones en checkout. Solo una promoción principal puede aplicarse por pedido.</p>
+						</div>
+					</div>
+
+					<?php if ( empty( $codes ) ) : ?>
+						<p class="nakama-code-empty">Todavía no hay códigos públicos. Crea el primero cuando quieras publicar un descuento porcentual.</p>
+					<?php else : ?>
+						<div class="nakama-code-list">
+							<?php foreach ( $codes as $id => $code ) :
+								$status = Nakama_Discount_Codes::status( $code );
+								$status_labels = array(
+									'active'    => 'Activo ahora',
+									'scheduled' => 'Programado',
+									'expired'   => 'Expirado',
+									'inactive'  => 'Inactivo',
+								);
+								$field = $codes_opt . '[items][' . $id . ']';
+							?>
+								<article class="nakama-code-card">
+									<div class="nakama-code-card__top">
+										<strong><?php echo esc_html( $code['code'] ); ?></strong>
+										<span class="nakama-code-status nakama-code-status--<?php echo esc_attr( $status ); ?>">
+											<?php echo esc_html( $status_labels[ $status ] ); ?>
+										</span>
+									</div>
+									<input type="hidden" name="<?php echo esc_attr( $field ); ?>[id]" value="<?php echo esc_attr( $id ); ?>">
+									<div class="nakama-code-fields">
+										<label>Código
+											<input type="text" name="<?php echo esc_attr( $field ); ?>[code]" value="<?php echo esc_attr( $code['code'] ); ?>" pattern="[A-Za-z0-9_-]+" autocomplete="off">
+										</label>
+										<label>Porcentaje
+											<input type="number" name="<?php echo esc_attr( $field ); ?>[percentage]" value="<?php echo esc_attr( round( (float) $code['rate'] * 100, 4 ) ); ?>" min="0.01" max="100" step="0.01">
+										</label>
+										<label>Inicia
+											<input type="date" name="<?php echo esc_attr( $field ); ?>[start]" value="<?php echo esc_attr( $code['start'] ); ?>">
+										</label>
+										<label>Termina
+											<input type="date" name="<?php echo esc_attr( $field ); ?>[end]" value="<?php echo esc_attr( $code['end'] ); ?>">
+										</label>
+									</div>
+									<div class="nakama-code-toggles">
+										<label><input type="checkbox" name="<?php echo esc_attr( $field ); ?>[enabled]" <?php checked( 'yes', $code['enabled'] ); ?>> Activo</label>
+										<label><input type="checkbox" name="<?php echo esc_attr( $field ); ?>[allow_modifiers]" <?php checked( 'yes', $code['allow_modifiers'] ); ?>> Permitir transferencia, envío gratis y MSI</label>
+										<label class="nakama-code-remove"><input type="checkbox" name="<?php echo esc_attr( $field ); ?>[remove]" value="yes"> Retirar código</label>
+									</div>
+								</article>
+							<?php endforeach; ?>
+						</div>
+					<?php endif; ?>
+
+					<details class="nakama-code-create">
+						<summary>Crear código</summary>
+						<div class="nakama-code-card nakama-code-card--new">
+							<p class="description">Las fechas son opcionales. Si las dejas vacías, el código seguirá vigente hasta que lo desactives.</p>
+							<div class="nakama-code-fields">
+								<label>Código
+									<input type="text" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][code]" pattern="[A-Za-z0-9_-]+" autocomplete="off" placeholder="VERANO15">
+								</label>
+								<label>Porcentaje
+									<input type="number" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][percentage]" min="0.01" max="100" step="0.01" placeholder="15">
+								</label>
+								<label>Inicia
+									<input type="date" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][start]">
+								</label>
+								<label>Termina
+									<input type="date" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][end]">
+								</label>
+							</div>
+							<div class="nakama-code-toggles">
+								<label><input type="checkbox" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][enabled]" checked> Activo</label>
+								<label><input type="checkbox" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][allow_modifiers]" checked> Permitir transferencia, envío gratis y MSI</label>
+							</div>
+						</div>
+					</details>
+				</section>
 
 				<!-- ================= CAMPAÑAS ESPECIALES ================= -->
 				<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:18px 20px;margin:16px 0;">
@@ -195,6 +282,38 @@ class Nakama_Admin {
 
 				<?php submit_button(); ?>
 			</form>
+			<style>
+				.nakama-code-admin { background:#fff; border:1px solid #dcdcde; border-radius:10px; padding:20px; margin:16px 0; }
+				.nakama-code-admin h2 { margin:0 0 4px; }
+				.nakama-code-empty { padding:14px; background:#f6f7f7; border-radius:8px; }
+				.nakama-code-list { display:grid; gap:12px; margin:18px 0; }
+				.nakama-code-card { border:1px solid #dcdcde; border-radius:8px; padding:16px; background:#fff; }
+				.nakama-code-card--new { margin-top:12px; background:#f6f7f7; }
+				.nakama-code-card__top { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:14px; }
+				.nakama-code-card__top strong { font-size:16px; }
+				.nakama-code-status { display:inline-flex; align-items:center; min-height:28px; padding:0 10px; border-radius:999px; font-size:12px; font-weight:700; }
+				.nakama-code-status--active { background:#dcfce7; color:#166534; }
+				.nakama-code-status--scheduled { background:#dbeafe; color:#1e40af; }
+				.nakama-code-status--expired, .nakama-code-status--inactive { background:#f3f4f6; color:#4b5563; }
+				.nakama-code-fields { display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:12px; }
+				.nakama-code-fields label { display:grid; gap:6px; font-weight:600; }
+				.nakama-code-fields input { width:100%; min-height:40px; }
+				.nakama-code-toggles { display:flex; flex-wrap:wrap; gap:12px 22px; margin-top:14px; }
+				.nakama-code-toggles label { display:inline-flex; align-items:center; min-height:44px; }
+				.nakama-code-remove { color:#b32d2e; }
+				.nakama-code-create { margin-top:16px; }
+				.nakama-code-create summary { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:0 16px; border:1px solid #2271b1; border-radius:4px; color:#2271b1; font-weight:600; cursor:pointer; }
+				.nakama-code-create summary:focus-visible, .nakama-code-admin input:focus-visible { outline:3px solid #72aee6; outline-offset:2px; }
+				@media (max-width:900px) { .nakama-code-fields { grid-template-columns:1fr 1fr; } }
+				@media (max-width:600px) { .nakama-code-fields { grid-template-columns:1fr; } }
+			</style>
+			<script>
+				document.currentScript.closest('.wrap').querySelector('form').addEventListener('submit', function (event) {
+					if (this.querySelector('.nakama-code-remove input:checked') && !window.confirm('¿Retirar los códigos seleccionados? Esta acción no afecta pedidos anteriores.')) {
+						event.preventDefault();
+					}
+				});
+			</script>
 		</div>
 		<?php
 	}

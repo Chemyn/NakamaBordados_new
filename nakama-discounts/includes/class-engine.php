@@ -28,16 +28,24 @@ class Nakama_Engine {
 		// 1) Construir candidatos PRIMARIOS (grupo mutuamente excluyente A/B/C).
 		$candidates = self::build_primary_candidates( $ctx );
 
-		// 2) Elegir UNA primaria.
-		$primary = self::choose_primary( $candidates, $ctx );
+		// 2) Elegir UNA primaria. Un cupón nativo (recuperación de carrito)
+		// ocupa el mismo lugar y por ello suspende cualquier primaria Nakama.
+		$has_native_coupon = ! empty( $ctx->native_coupon_codes );
+		$selection_valid = ! $ctx->selected_promo || isset( $candidates[ $ctx->selected_promo ] );
+		$primary = $has_native_coupon ? null : self::choose_primary( $candidates, $ctx );
 
-		$primary_amount = $primary ? $primary['amount'] : 0.0;
-		$after_primary  = max( 0, $subtotal - $primary_amount );
-		$eligible_after_primary = max( 0, $eligible_subtotal - $primary_amount );
+		$primary_amount       = $primary ? $primary['amount'] : 0.0;
+		$native_coupon_amount = $has_native_coupon ? max( 0, (float) $ctx->native_coupon_amount ) : 0.0;
+		$after_primary        = max( 0, $subtotal - $primary_amount - $native_coupon_amount );
+		$eligible_after_primary = max( 0, $eligible_subtotal - $primary_amount - $native_coupon_amount );
+		$allows_modifiers = ! $primary
+			|| 'public_code' !== $primary['type']
+			|| ! empty( $primary['allow_modifiers'] );
 
 		// 3) Modificador E: transferencia (3% sobre subtotal ya descontado).
 		$transfer = array( 'applies' => false, 'amount' => 0.0 );
-		if ( $eligible_after_primary > 0
+		if ( $allows_modifiers
+			&& $eligible_after_primary > 0
 			&& 'yes' === Nakama_Settings::get( 'transfer_enabled' )
 			&& $ctx->payment_method === Nakama_Settings::get( 'transfer_gateway_id' ) ) {
 			$rate               = (float) Nakama_Settings::get( 'transfer_rate' );
@@ -50,17 +58,24 @@ class Nakama_Engine {
 
 		// 4) Modificador D: envío gratis (usa total DESPUÉS de descuentos).
 		$free_ship = false;
-		if ( 'yes' === Nakama_Settings::get( 'free_ship_enabled' ) ) {
+		if ( $allows_modifiers && 'yes' === Nakama_Settings::get( 'free_ship_enabled' ) ) {
 			$threshold = Nakama_Settings::amount( 'free_ship_threshold' );
 			$free_ship = $eligible_final >= $threshold;
 		}
 
 		// 5) Modificador F: MSI.
-		$msi_months = self::resolve_msi( $eligible_final );
+		$msi_months = $allows_modifiers ? self::resolve_msi( $eligible_final ) : 0;
 
 		return array(
 			'primary'   => $primary,
 			'options'   => $candidates, // para pintar botones
+			'selection_valid' => $selection_valid,
+			'native_coupon' => array(
+				'applies' => $has_native_coupon,
+				'codes'   => $has_native_coupon ? $ctx->native_coupon_codes : array(),
+				'amount'  => $native_coupon_amount,
+			),
+			'allows_modifiers' => $allows_modifiers,
 			'transfer'  => $transfer,
 			'free_ship' => $free_ship,
 			'msi'       => array( 'months' => $msi_months ),
@@ -124,6 +139,35 @@ class Nakama_Engine {
 			}
 		}
 
+		// D) Códigos públicos creados desde Nakama Descuentos. Son opciones
+		// visibles y nunca se registran como cupones nativos de WooCommerce.
+		if ( $subtotal > 0 ) {
+			foreach ( Nakama_Discount_Codes::active() as $id => $code ) {
+				$rate = isset( $code['rate'] ) ? (float) $code['rate'] : 0.0;
+				if ( $rate <= 0 ) {
+					continue;
+				}
+				$key = Nakama_Discount_Codes::selection_key( $id );
+				$out[ $key ] = array(
+					'type'            => 'public_code',
+					'selection_key'   => $key,
+					'id'              => isset( $code['id'] ) ? $code['id'] : $id,
+					'code'            => isset( $code['code'] ) ? $code['code'] : '',
+					'label'           => sprintf(
+						/* translators: 1: public code, 2: percentage */
+						__( 'Código %1$s (%2$s)', 'nakama-discounts' ),
+						isset( $code['code'] ) ? $code['code'] : '',
+						Nakama_Settings::pct( $rate )
+					),
+					'rate'            => $rate,
+					'amount'          => round( $subtotal * $rate, 2 ),
+					'free_items'      => array(),
+					'auto'            => false,
+					'allow_modifiers' => 'yes' === ( isset( $code['allow_modifiers'] ) ? $code['allow_modifiers'] : 'no' ),
+				);
+			}
+		}
+
 		return $out;
 	}
 
@@ -145,10 +189,17 @@ class Nakama_Engine {
 		}
 
 		if ( 'yes' === Nakama_Settings::get( 'special_auto_if_better' ) ) {
-			uasort( $candidates, function ( $a, $b ) {
+			$automatic_candidates = array_filter( $candidates, function ( $candidate ) {
+				// Los códigos públicos siempre exigen una elección explícita del
+				// cliente, aunque la campaña automática esté habilitada.
+				return 'public_code' !== $candidate['type'];
+			} );
+			uasort( $automatic_candidates, function ( $a, $b ) {
 				return $b['amount'] <=> $a['amount'];
 			} );
-			return reset( $candidates );
+			if ( ! empty( $automatic_candidates ) ) {
+				return reset( $automatic_candidates );
+			}
 		}
 
 		// Default: bienvenida es automática; las especiales requieren botón.

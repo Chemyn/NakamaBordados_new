@@ -10,6 +10,7 @@ import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { seedWpSession } from '@/lib/wp-sso';
+import AbandonedCartCoupon from '../components/AbandonedCartCoupon';
 
 export default function CartPage() {
   const { cart, quoteItems, removeQuoteFromCart, subtotal, shipping, discount, total, removeFromCart, updateQuantity, couponCode } = useCart();
@@ -265,6 +266,8 @@ export default function CartPage() {
                   <span>{formatPrice(total)}</span>
                 </div>
               </div>
+
+              <AbandonedCartCoupon />
 
               <div style={{ marginTop: '30px' }}>
                 {(() => {

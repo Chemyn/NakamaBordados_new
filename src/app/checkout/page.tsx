@@ -9,9 +9,10 @@ import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { seedWpSession } from '@/lib/wp-sso';
+import AbandonedCartCoupon from '../components/AbandonedCartCoupon';
 
 export default function CheckoutPage() {
-  const { cart, quoteItems, subtotal, shipping, discount, total, couponCode, applyCoupon, removeCoupon, clearCart } = useCart();
+  const { cart, quoteItems, subtotal, shipping, discount, total, couponCode } = useCart();
   const { formatPrice, currencyInfo } = useCurrency();
   const { t } = useLanguage();
   const { user, isLoading: authLoading } = useAuth();
@@ -30,8 +31,6 @@ export default function CheckoutPage() {
     country: 'MX'
   });
 
-  const [couponInput, setCouponInput] = useState('');
-  const [loading, setLoading] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [redirecting, setRedirecting] = useState(false);
 
@@ -71,15 +70,6 @@ export default function CheckoutPage() {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setLocalFormData({ ...formData, [e.target.name]: e.target.value });
-  };
-
-  const handleApplyCoupon = async () => {
-    if (!couponInput) return;
-    setLoading(true);
-    const res = await applyCoupon(couponInput);
-    setLoading(false);
-    if (res.success) setCouponInput('');
-    else alert(res.message);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -232,29 +222,7 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
-              <div className="nk-coupon-section">
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  {/* minWidth 0: sin esto el min-width intrínseco del input
-                      (~180px) + el botón desbordan la tarjeta en 360px */}
-                  <input
-                    type="text"
-                    placeholder={t('checkout.coupon.placeholder')}
-                    value={couponInput}
-                    onChange={(e) => setCouponInput(e.target.value)}
-                    className="nk-manga-input"
-                    style={{ flex: 1, minWidth: 0 }}
-                  />
-                  <button type="button" onClick={handleApplyCoupon} disabled={loading} className="nk-btn" style={{ padding: '0 14px', fontSize: '1.1rem', flexShrink: 0 }}>
-                    {loading ? '...' : t('checkout.coupon.apply')}
-                  </button>
-                </div>
-                {couponCode && (
-                  <div className="nk-active-coupon">
-                    <span>{couponCode}</span>
-                    <button type="button" onClick={removeCoupon}><span className="material-icons-outlined">close</span></button>
-                  </div>
-                )}
-              </div>
+              <AbandonedCartCoupon />
 
               <div className="nk-summary-totals">
                 <div className="nk-total-line">
@@ -430,30 +398,6 @@ export default function CheckoutPage() {
         .nk-summary-price {
           font-weight: 800;
           font-family: 'Teko', sans-serif;
-        }
-        .nk-coupon-section {
-          padding: 20px 0;
-          border-top: 1px dashed var(--nk-border);
-          border-bottom: 1px dashed var(--nk-border);
-          margin-bottom: 20px;
-        }
-        .nk-active-coupon {
-          display: inline-flex;
-          align-items: center;
-          gap: 8px;
-          background: var(--nk-border);
-          color: var(--nk-bg-body);
-          padding: 5px 12px;
-          margin-top: 10px;
-          font-size: 0.8rem;
-          font-weight: bold;
-        }
-        .nk-active-coupon button {
-          background: none;
-          border: none;
-          color: inherit;
-          padding: 0;
-          cursor: pointer;
         }
         .nk-total-line {
           display: flex;

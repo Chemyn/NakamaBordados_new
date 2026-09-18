@@ -11,7 +11,13 @@ vi.mock('../context/AuthContext', () => ({
   useAuth: () => ({ user: { id: 'customer-1' }, isLoading: false }),
 }));
 vi.mock('../context/LanguageContext', () => ({
-  useLanguage: () => ({ t: (key: string) => key }),
+  useLanguage: () => ({
+    t: (key: string) => ({
+      'checkout.coupon.toggle': '¿Tienes otro código?',
+      'checkout.coupon.abandoned_help': 'Usa el código que recibiste para recuperar tu carrito.',
+      'checkout.coupon.label': 'Código de carrito abandonado',
+    }[key] || key),
+  }),
 }));
 vi.mock('../context/CurrencyContext', () => ({
   useCurrency: () => ({
@@ -33,6 +39,8 @@ vi.mock('../context/CartContext', () => ({
     removeFromCart: vi.fn(),
     updateQuantity: vi.fn(),
     couponCode: '',
+    applyCoupon: vi.fn(async () => ({ success: false, message: 'Cupón inválido' })),
+    removeCoupon: vi.fn(),
   }),
 }));
 
@@ -53,5 +61,13 @@ describe('CartPage quote checkout recovery', () => {
     expect(alert).toHaveTextContent(
       /no se realizó ningún cobro/i,
     );
+  });
+
+  it('offers the abandoned-cart coupon field before leaving for WooCommerce', () => {
+    render(<CartPage />);
+
+    const disclosure = screen.getByText('¿Tienes otro código?');
+    expect(disclosure.closest('details')).not.toHaveAttribute('open');
+    expect(screen.getByLabelText('Código de carrito abandonado')).toBeInTheDocument();
   });
 });

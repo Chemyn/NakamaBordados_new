@@ -31,6 +31,9 @@ class Nakama_Cart {
 		add_action( 'wp_ajax_nakama_select_promo', array( __CLASS__, 'ajax_select_promo' ) );
 		add_action( 'wp_ajax_nopriv_nakama_select_promo', array( __CLASS__, 'ajax_select_promo' ) );
 
+		// Un cupón nativo de carrito abandonado reemplaza la primaria Nakama.
+		add_action( 'woocommerce_applied_coupon', array( __CLASS__, 'clear_selected_promo' ) );
+
 		// Persistir metadatos del descuento en el pedido (útil para CFDI/reportes).
 		add_action( 'woocommerce_checkout_create_order', array( __CLASS__, 'save_order_meta' ), 10, 2 );
 
@@ -44,6 +47,15 @@ class Nakama_Cart {
 		if ( null === self::$plan && WC()->cart ) {
 			$ctx        = Nakama_Context::build( WC()->cart );
 			self::$plan = Nakama_Engine::resolve( $ctx );
+			if ( ! self::$plan['selection_valid'] && $ctx->selected_promo ) {
+				WC()->session->set( 'nakama_selected_promo', '' );
+				if ( function_exists( 'wc_add_notice' ) ) {
+					wc_add_notice(
+						__( 'La promoción seleccionada ya no está disponible. Actualizamos tus opciones.', 'nakama-discounts' ),
+						'notice'
+					);
+				}
+			}
 		}
 		return self::$plan;
 	}
@@ -95,7 +107,9 @@ class Nakama_Cart {
 
 		$options = $plan['options'];
 		// Promo que el motor aplica ahora (para resaltar el botón correcto).
-		$applied = ! empty( $plan['primary'] ) ? $plan['primary']['type'] : '';
+		$applied = ! empty( $plan['primary'] )
+			? ( isset( $plan['primary']['selection_key'] ) ? $plan['primary']['selection_key'] : $plan['primary']['type'] )
+			: '';
 
 		echo '<tr class="nakama-promo-ui"><td colspan="2">';
 
@@ -110,8 +124,14 @@ class Nakama_Cart {
 		}
 
 		if ( $has_specials ) {
-			// Orden fijo de presentación: fidelidad, 10%, 3x2.
+			// Las promociones históricas conservan su orden; los códigos públicos
+			// se añaden después en el orden estable definido en administración.
 			$order  = array( 'welcome', 'special_10', 'special_3x2' );
+			foreach ( array_keys( $options ) as $key ) {
+				if ( ! in_array( $key, $order, true ) ) {
+					$order[] = $key;
+				}
+			}
 			$labels = array(
 				'welcome'     => 'Descuento de fidelidad',
 				'special_10'  => 'Descuento especial 10%',
@@ -120,7 +140,10 @@ class Nakama_Cart {
 
 			echo '<div class="nakama-promos"><strong>Elige tu promoción</strong>';
 			echo '<p class="nakama-note">Solo puedes usar una a la vez. Selecciona la que prefieras.</p>';
-			echo '<div class="nakama-promo-group">';
+			if ( ! empty( $plan['native_coupon']['applies'] ) ) {
+				echo '<p class="nakama-current-coupon">Tu cupón de carrito abandonado está activo. Elegir otra promoción lo sustituirá.</p>';
+			}
+			echo '<div class="nakama-promo-group" role="group" aria-label="Opciones de promoción">';
 
 			foreach ( $order as $key ) {
 				if ( ! isset( $options[ $key ] ) ) {
@@ -130,20 +153,27 @@ class Nakama_Cart {
 				$name    = isset( $labels[ $key ] ) ? $labels[ $key ] : $opt['label'];
 				$is_on   = ( $applied === $key );
 				$active  = $is_on ? ' is-active' : '';
+				$detail  = '';
+				if ( 'public_code' === $opt['type'] ) {
+					$detail = ! empty( $opt['allow_modifiers'] )
+						? __( 'Conserva transferencia, envío gratis y MSI', 'nakama-discounts' )
+						: __( 'No acumulable', 'nakama-discounts' );
+				}
 				printf(
 					'<button type="button" class="nakama-promo-btn%s" data-promo="%s" aria-pressed="%s">
 						<span class="nakama-promo-name">%s</span>
-						<span class="nakama-promo-amount">−%s</span>
+						<span class="nakama-promo-amount">−%s</span>%s
 					</button>',
 					esc_attr( $active ),
 					esc_attr( $key ),
 					$is_on ? 'true' : 'false',
 					esc_html( $name ),
-					wp_kses_post( wc_price( $opt['amount'] ) )
+					wp_kses_post( wc_price( $opt['amount'] ) ),
+					$detail ? '<span class="nakama-promo-detail">' . esc_html( $detail ) . '</span>' : ''
 				);
 			}
 
-			echo '</div></div>';
+			echo '</div><p class="nakama-promo-feedback" role="status" aria-live="polite"></p></div>';
 		}
 
 		// Badges informativos.
@@ -155,6 +185,7 @@ class Nakama_Cart {
 			echo '<span class="nakama-badge">💳 ' . esc_html( $plan['msi']['months'] ) . ' meses sin intereses disponibles</span>';
 		}
 		if ( $plan['totals']['eligible_subtotal'] > 0
+			&& ! empty( $plan['allows_modifiers'] )
 			&& 'yes' === Nakama_Settings::get( 'transfer_enabled' )
 			&& ! $plan['transfer']['applies'] ) {
 			echo '<span class="nakama-badge nakama-badge--hint">' . sprintf(
@@ -178,19 +209,52 @@ class Nakama_Cart {
 			'ajax_url' => admin_url( 'admin-ajax.php' ),
 			'nonce'    => wp_create_nonce( 'nakama_select_promo' ),
 			'is_checkout' => is_checkout() ? 1 : 0,
+			'messages' => array(
+				'updating' => __( 'Actualizando promoción…', 'nakama-discounts' ),
+				'updated'  => __( 'Promoción actualizada.', 'nakama-discounts' ),
+				'error'    => __( 'No pudimos cambiar la promoción. Inténtalo de nuevo.', 'nakama-discounts' ),
+			),
 		) );
 	}
 
 	public static function ajax_select_promo() {
 		check_ajax_referer( 'nakama_select_promo', 'nonce' );
 		$promo = isset( $_POST['promo'] ) ? sanitize_text_field( wp_unslash( $_POST['promo'] ) ) : '';
-		$allowed = array( '', 'welcome', 'special_10', 'special_3x2' );
-		if ( ! in_array( $promo, $allowed, true ) ) {
-			$promo = '';
+		$plan = self::get_plan();
+		$options = $plan && isset( $plan['options'] ) ? $plan['options'] : array();
+		if ( ! self::apply_selection( $promo, $options ) ) {
+			wp_send_json_error(
+				array( 'message' => __( 'Esta promoción ya no está disponible.', 'nakama-discounts' ) ),
+				400
+			);
+		}
+		wp_send_json_success( array( 'promo' => $promo ) );
+	}
+
+	/**
+	 * Confirma una promoción disponible y retira cualquier cupón nativo.
+	 * La lista de opciones procede del plan calculado por el servidor, por lo
+	 * que una clave inventada por el navegador nunca llega a la sesión.
+	 */
+	public static function apply_selection( $promo, array $options ) {
+		if ( '' !== $promo && ! isset( $options[ $promo ] ) ) {
+			return false;
+		}
+
+		if ( '' !== $promo && WC()->cart && method_exists( WC()->cart, 'remove_coupons' ) ) {
+			WC()->cart->remove_coupons();
 		}
 		WC()->session->set( 'nakama_selected_promo', $promo );
 		self::flush_plan();
-		wp_send_json_success( array( 'promo' => $promo ) );
+		return true;
+	}
+
+	/** Cuando WooCommerce aplica un cupón, este pasa a ser la primaria. */
+	public static function clear_selected_promo( $coupon_code = '' ) {
+		if ( WC()->session ) {
+			WC()->session->set( 'nakama_selected_promo', '' );
+		}
+		self::flush_plan();
 	}
 
 	/**
@@ -275,6 +339,17 @@ class Nakama_Cart {
 		if ( ! empty( $plan['primary'] ) ) {
 			$order->update_meta_data( '_nakama_primary_type', $plan['primary']['type'] );
 			$order->update_meta_data( '_nakama_primary_amount', $plan['primary']['amount'] );
+			if ( isset( $plan['primary']['rate'] ) ) {
+				$order->update_meta_data( '_nakama_primary_rate', $plan['primary']['rate'] );
+			}
+			if ( 'public_code' === $plan['primary']['type'] ) {
+				$order->update_meta_data( '_nakama_public_code_id', $plan['primary']['id'] );
+				$order->update_meta_data( '_nakama_public_code', $plan['primary']['code'] );
+				$order->update_meta_data(
+					'_nakama_primary_combinable',
+					! empty( $plan['primary']['allow_modifiers'] ) ? 'yes' : 'no'
+				);
+			}
 		}
 		$order->update_meta_data( '_nakama_transfer', $plan['transfer']['amount'] );
 		$order->update_meta_data( '_nakama_free_ship', $plan['free_ship'] ? 'yes' : 'no' );
