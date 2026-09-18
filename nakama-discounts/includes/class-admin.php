@@ -162,34 +162,57 @@ class Nakama_Admin {
 									<div class="nakama-code-toggles">
 										<label><input type="checkbox" name="<?php echo esc_attr( $field ); ?>[enabled]" <?php checked( 'yes', $code['enabled'] ); ?>> Activo</label>
 										<label><input type="checkbox" name="<?php echo esc_attr( $field ); ?>[allow_modifiers]" <?php checked( 'yes', $code['allow_modifiers'] ); ?>> Permitir transferencia, envío gratis y MSI</label>
-										<label class="nakama-code-remove"><input type="checkbox" name="<?php echo esc_attr( $field ); ?>[remove]" value="yes"> Retirar código</label>
+									</div>
+									<div class="nakama-code-actions">
+										<button type="submit" class="button button-secondary">Guardar cambios</button>
+										<button
+											type="submit"
+											class="button-link-delete nakama-code-delete"
+											name="<?php echo esc_attr( $field ); ?>[remove]"
+											value="yes"
+											formnovalidate
+											data-nakama-delete-code
+											data-code="<?php echo esc_attr( $code['code'] ); ?>"
+										>Eliminar código</button>
 									</div>
 								</article>
 							<?php endforeach; ?>
 						</div>
 					<?php endif; ?>
 
-					<details class="nakama-code-create">
-						<summary>Crear código</summary>
+					<details class="nakama-code-create" data-nakama-create-panel>
+						<summary>Crear nuevo código</summary>
 						<div class="nakama-code-card nakama-code-card--new">
-							<p class="description">Las fechas son opcionales. Si las dejas vacías, el código seguirá vigente hasta que lo desactives.</p>
+							<p class="description">Código y porcentaje son obligatorios. Las fechas son opcionales; si las dejas vacías, seguirá vigente hasta que lo desactives.</p>
 							<div class="nakama-code-fields">
-								<label>Código
-									<input type="text" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][code]" pattern="[A-Za-z0-9_-]+" autocomplete="off" placeholder="VERANO15">
-								</label>
-								<label>Porcentaje
-									<input type="number" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][percentage]" min="0.01" max="100" step="0.01" placeholder="15">
-								</label>
-								<label>Inicia
-									<input type="date" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][start]">
-								</label>
-								<label>Termina
-									<input type="date" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][end]">
-								</label>
+								<div class="nakama-code-field">
+									<label for="nakama-new-code">Código <span aria-hidden="true">*</span></label>
+									<input id="nakama-new-code" type="text" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][code]" pattern="[A-Za-z0-9_-]+" autocomplete="off" placeholder="VERANO15" aria-required="true" aria-describedby="nakama-new-code-help nakama-new-code-error" data-nakama-required="code">
+									<p id="nakama-new-code-help" class="description">Usa letras, números, guiones o guiones bajos.</p>
+									<p id="nakama-new-code-error" class="nakama-field-error" role="alert" data-nakama-field-error="code" hidden></p>
+								</div>
+								<div class="nakama-code-field">
+									<label for="nakama-new-percentage">Porcentaje <span aria-hidden="true">*</span></label>
+									<input id="nakama-new-percentage" type="number" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][percentage]" min="0.01" max="100" step="0.01" placeholder="15" aria-required="true" aria-describedby="nakama-new-percentage-help nakama-new-percentage-error" data-nakama-required="percentage">
+									<p id="nakama-new-percentage-help" class="description">Ingresa un valor mayor que 0 y hasta 100.</p>
+									<p id="nakama-new-percentage-error" class="nakama-field-error" role="alert" data-nakama-field-error="percentage" hidden></p>
+								</div>
+								<div class="nakama-code-field">
+									<label for="nakama-new-start">Inicia</label>
+									<input id="nakama-new-start" type="date" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][start]">
+								</div>
+								<div class="nakama-code-field">
+									<label for="nakama-new-end">Termina</label>
+									<input id="nakama-new-end" type="date" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][end]">
+								</div>
 							</div>
 							<div class="nakama-code-toggles">
-								<label><input type="checkbox" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][enabled]" checked> Activo</label>
+								<label><input type="checkbox" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][enabled]" checked data-nakama-new-enabled> Activo y visible en checkout</label>
 								<label><input type="checkbox" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][allow_modifiers]" checked> Permitir transferencia, envío gratis y MSI</label>
+							</div>
+							<div class="nakama-code-actions">
+								<button type="submit" class="button button-primary" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][create]" value="yes" formnovalidate data-nakama-create-code>Guardar y activar código</button>
+								<button type="button" class="button button-secondary" data-nakama-cancel-create>Cancelar</button>
 							</div>
 						</div>
 					</details>
@@ -296,23 +319,125 @@ class Nakama_Admin {
 				.nakama-code-status--scheduled { background:#dbeafe; color:#1e40af; }
 				.nakama-code-status--expired, .nakama-code-status--inactive { background:#f3f4f6; color:#4b5563; }
 				.nakama-code-fields { display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:12px; }
-				.nakama-code-fields label { display:grid; gap:6px; font-weight:600; }
+				.nakama-code-fields label, .nakama-code-field { display:grid; gap:6px; font-weight:600; }
 				.nakama-code-fields input { width:100%; min-height:40px; }
+				.nakama-code-field .description { margin:0; font-weight:400; }
+				.nakama-field-error { margin:0; color:#b32d2e; font-weight:600; }
+				.nakama-code-field input[aria-invalid="true"] { border-color:#b32d2e; box-shadow:0 0 0 1px #b32d2e; }
 				.nakama-code-toggles { display:flex; flex-wrap:wrap; gap:12px 22px; margin-top:14px; }
 				.nakama-code-toggles label { display:inline-flex; align-items:center; min-height:44px; }
-				.nakama-code-remove { color:#b32d2e; }
+				.nakama-code-actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:16px; }
+				.nakama-code-actions .button, .nakama-code-delete { min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
+				.nakama-code-delete { color:#b32d2e; cursor:pointer; }
 				.nakama-code-create { margin-top:16px; }
 				.nakama-code-create summary { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:0 16px; border:1px solid #2271b1; border-radius:4px; color:#2271b1; font-weight:600; cursor:pointer; }
-				.nakama-code-create summary:focus-visible, .nakama-code-admin input:focus-visible { outline:3px solid #72aee6; outline-offset:2px; }
+				.nakama-code-create summary:focus-visible, .nakama-code-admin input:focus-visible, .nakama-code-admin button:focus-visible { outline:3px solid #72aee6; outline-offset:2px; }
 				@media (max-width:900px) { .nakama-code-fields { grid-template-columns:1fr 1fr; } }
 				@media (max-width:600px) { .nakama-code-fields { grid-template-columns:1fr; } }
 			</style>
 			<script>
-				document.currentScript.closest('.wrap').querySelector('form').addEventListener('submit', function (event) {
-					if (this.querySelector('.nakama-code-remove input:checked') && !window.confirm('¿Retirar los códigos seleccionados? Esta acción no afecta pedidos anteriores.')) {
-						event.preventDefault();
+				(function () {
+					var root = document.currentScript.closest('.wrap');
+					var form = root.querySelector('form');
+					var panel = root.querySelector('[data-nakama-create-panel]');
+					var createButton = root.querySelector('[data-nakama-create-code]');
+					var cancelButton = root.querySelector('[data-nakama-cancel-create]');
+					var enabledInput = root.querySelector('[data-nakama-new-enabled]');
+
+					function showFieldError(field, message) {
+						var error = panel.querySelector('[data-nakama-field-error="' + field.dataset.nakamaRequired + '"]');
+						field.setAttribute('aria-invalid', 'true');
+						error.textContent = message;
+						error.hidden = false;
 					}
-				});
+
+					function clearFieldError(field) {
+						var error = panel.querySelector('[data-nakama-field-error="' + field.dataset.nakamaRequired + '"]');
+						field.removeAttribute('aria-invalid');
+						error.textContent = '';
+						error.hidden = true;
+					}
+
+					function validateCreation() {
+						var code = panel.querySelector('[data-nakama-required="code"]');
+						var percentage = panel.querySelector('[data-nakama-required="percentage"]');
+						var firstInvalid = null;
+						var codeValue = code.value.trim();
+						var percentageValue = percentage.value.trim();
+						var numericPercentage = Number(percentageValue);
+
+						clearFieldError(code);
+						clearFieldError(percentage);
+						if (!codeValue) {
+							showFieldError(code, 'Escribe el código que verá el cliente.');
+							firstInvalid = code;
+						} else if (!/^[A-Za-z0-9_-]+$/.test(codeValue)) {
+							showFieldError(code, 'Usa solo letras, números, guiones o guiones bajos.');
+							firstInvalid = code;
+						}
+						if (!percentageValue) {
+							showFieldError(percentage, 'Indica el porcentaje de descuento.');
+							firstInvalid = firstInvalid || percentage;
+						} else if (!Number.isFinite(numericPercentage) || numericPercentage <= 0 || numericPercentage > 100) {
+							showFieldError(percentage, 'Ingresa un porcentaje mayor que 0 y hasta 100.');
+							firstInvalid = firstInvalid || percentage;
+						}
+
+						if (firstInvalid) {
+							panel.open = true;
+							firstInvalid.focus();
+							return false;
+						}
+						return true;
+					}
+
+					function updateCreateLabel() {
+						createButton.textContent = enabledInput.checked
+							? 'Guardar y activar código'
+							: 'Guardar código inactivo';
+					}
+
+					form.addEventListener('submit', function (event) {
+						var submitter = event.submitter;
+						if (submitter && submitter.matches('[data-nakama-delete-code]')) {
+							var code = submitter.dataset.code || 'este código';
+							if (!window.confirm('¿Eliminar ' + code + '? Dejará de aparecer en checkout; los pedidos anteriores no cambian.')) {
+								event.preventDefault();
+							}
+							return;
+						}
+						if (submitter && submitter.matches('[data-nakama-create-code]') && !validateCreation()) {
+							event.preventDefault();
+						}
+					});
+
+					panel.querySelectorAll('[data-nakama-required]').forEach(function (field) {
+						field.addEventListener('input', function () {
+							if (field.getAttribute('aria-invalid') === 'true') {
+								clearFieldError(field);
+							}
+						});
+					});
+
+					cancelButton.addEventListener('click', function () {
+						panel.querySelectorAll('input').forEach(function (field) {
+							if (field.type === 'checkbox') {
+								field.checked = field.defaultChecked;
+							} else {
+								field.value = '';
+							}
+							if (field.dataset.nakamaRequired) {
+								clearFieldError(field);
+							}
+						});
+						updateCreateLabel();
+						panel.open = false;
+						panel.querySelector('summary').focus();
+					});
+
+					enabledInput.addEventListener('change', updateCreateLabel);
+					updateCreateLabel();
+				})();
 			</script>
 		</div>
 		<?php

@@ -97,6 +97,40 @@ $rejected = Nakama_Discount_Codes::sanitize( array(
 assert_same( $sanitized, $rejected, 'An invalid form preserves the previously published collection.' );
 assert_same( true, count( $test_settings_errors ) >= 2, 'Invalid percentages and duplicate codes produce visible admin errors.' );
 
+$test_settings_errors = array();
+$missing_required = Nakama_Discount_Codes::sanitize( array(
+	'items' => array(
+		'new' => array(
+			'create'     => 'yes',
+			'code'       => '',
+			'percentage' => '',
+		),
+	),
+) );
+$required_messages = array_column( $test_settings_errors, 'message' );
+assert_same( $sanitized, $missing_required, 'Submitting the create action without required fields preserves published codes.' );
+assert_same( true, in_array( 'Escribe un código.', $required_messages, true ), 'An explicit create action reports the missing code.' );
+assert_same( true, in_array( 'Indica un porcentaje de descuento.', $required_messages, true ), 'An explicit create action reports the missing percentage.' );
+
+$published_id = array_key_first( $sanitized['items'] );
+$test_settings_errors = array();
+$deleted_with_draft = Nakama_Discount_Codes::sanitize( array(
+	'items' => array(
+		$published_id => array(
+			'id'         => $published_id,
+			'code'       => 'VERANO-15',
+			'percentage' => '15',
+			'remove'     => 'yes',
+		),
+		'new' => array(
+			'code'       => 'BORRADOR',
+			'percentage' => '',
+		),
+	),
+) );
+assert_same( array(), $deleted_with_draft['items'], 'Deleting a saved code is not blocked by an unfinished creation draft.' );
+assert_same( array(), $test_settings_errors, 'The ignored creation draft does not add validation errors during deletion.' );
+
 $active_record = array(
 	'id'              => 'summer',
 	'code'            => 'VERANO-15',

@@ -61,6 +61,13 @@ class Nakama_Discount_Codes {
 		$out = array();
 		$seen = array();
 		$has_errors = false;
+		$removal_requested = false;
+		foreach ( $rows as $row_key => $row ) {
+			if ( 0 !== strpos( (string) $row_key, 'new' ) && is_array( $row ) && ! empty( $row['remove'] ) ) {
+				$removal_requested = true;
+				break;
+			}
+		}
 
 		foreach ( $rows as $row_key => $row ) {
 			if ( ! is_array( $row ) ) {
@@ -71,27 +78,40 @@ class Nakama_Discount_Codes {
 			}
 
 			$is_new = 0 === strpos( (string) $row_key, 'new' );
+			$create_requested = $is_new && ! empty( $row['create'] );
 			$code = isset( $row['code'] )
 				? strtoupper( preg_replace( '/\s+/', '', sanitize_text_field( $row['code'] ) ) )
 				: '';
+			$raw_percentage = isset( $row['percentage'] ) ? trim( (string) $row['percentage'] ) : '';
+			$start = isset( $row['start'] ) ? sanitize_text_field( $row['start'] ) : '';
+			$end   = isset( $row['end'] ) ? sanitize_text_field( $row['end'] ) : '';
+			$has_creation_values = '' !== $code || '' !== $raw_percentage || '' !== $start || '' !== $end;
+
+			// Una eliminación explícita no debe quedar bloqueada por un borrador
+			// incompleto que también viaje en el mismo formulario.
+			if ( $is_new && $removal_requested && ! $create_requested ) {
+				continue;
+			}
 
 			// La fila vacía del formulario de creación no representa un error.
-			if ( $is_new && '' === $code ) {
+			if ( $is_new && ! $create_requested && ! $has_creation_values ) {
 				continue;
 			}
 
 			$row_errors = array();
-			if ( '' === $code || ! preg_match( '/^[A-Z0-9_-]+$/', $code ) ) {
+			if ( '' === $code ) {
+				$row_errors[] = __( 'Escribe un código.', 'nakama-discounts' );
+			} elseif ( ! preg_match( '/^[A-Z0-9_-]+$/', $code ) ) {
 				$row_errors[] = __( 'Usa letras, números, guiones o guiones bajos en el código.', 'nakama-discounts' );
 			}
 
-			$percentage = isset( $row['percentage'] ) ? (float) $row['percentage'] : 0.0;
-			if ( $percentage <= 0 || $percentage > 100 ) {
+			$percentage = (float) $raw_percentage;
+			if ( '' === $raw_percentage ) {
+				$row_errors[] = __( 'Indica un porcentaje de descuento.', 'nakama-discounts' );
+			} elseif ( $percentage <= 0 || $percentage > 100 ) {
 				$row_errors[] = __( 'El porcentaje debe ser mayor que 0 y no superar 100.', 'nakama-discounts' );
 			}
 
-			$start = isset( $row['start'] ) ? sanitize_text_field( $row['start'] ) : '';
-			$end   = isset( $row['end'] ) ? sanitize_text_field( $row['end'] ) : '';
 			if ( ( $start && ! self::valid_date( $start ) ) || ( $end && ! self::valid_date( $end ) ) ) {
 				$row_errors[] = __( 'La vigencia debe usar fechas válidas.', 'nakama-discounts' );
 			}
