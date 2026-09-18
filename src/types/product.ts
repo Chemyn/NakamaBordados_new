@@ -1,3 +1,5 @@
+import type { DropCampaign } from './drop';
+
 export interface Variation {
   id: string;
   databaseId?: number;
@@ -47,6 +49,8 @@ export interface Product {
   rating: number;
   salesCount: number;
   reviews?: Review[];
+  /** Snapshot público del DROP, conservado también al añadir al carrito. */
+  drop?: DropCampaign;
 }
 
 export interface Category {

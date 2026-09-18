@@ -1,0 +1,38 @@
+.nakama-drops-admin { max-width: 1180px; }
+.nakama-drops-admin__header { display: flex; align-items: end; justify-content: space-between; gap: 24px; padding: 28px 0 20px; }
+.nakama-drops-admin__header h1 { margin: 0; font-size: 32px; letter-spacing: -.03em; }
+.nakama-drops-admin__header > p { max-width: 520px; margin: 0 0 4px; color: #50575e; }
+.nakama-drops-admin__eyebrow { margin: 0 0 6px; color: #d63638; font-size: 11px; font-weight: 800; letter-spacing: .18em; }
+.nakama-drops-panel { margin: 0 0 24px; padding: 24px; border: 1px solid #dcdcde; border-radius: 16px; background: #fff; box-shadow: 0 12px 32px rgba(0,0,0,.04); }
+.nakama-drops-panel h2 { margin-top: 0; }
+.nakama-drops-product-loader { display: grid; grid-template-columns: minmax(260px, 1fr) auto; align-items: end; gap: 8px; max-width: 720px; }
+.nakama-drops-product-loader label { grid-column: 1 / -1; font-weight: 600; }
+.nakama-drops-product-loader .select2-container { width: 100% !important; }
+.nakama-drops-form { margin-top: 28px; border-top: 1px solid #eee; padding-top: 24px; }
+.nakama-drops-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(240px, 1fr); gap: 32px; }
+.nakama-drops-grid label, .nakama-drops-price-row label, .nakama-drops-price-bulk label { display: grid; gap: 6px; margin: 0 0 16px; font-weight: 600; }
+.nakama-drops-grid input:not([type=checkbox]), .nakama-drops-grid select, .nakama-drops-price-row input, .nakama-drops-price-bulk input { min-height: 40px; }
+.nakama-drops-grid aside { align-self: start; padding: 20px; border-radius: 14px; background: #f6f7f7; }
+.nakama-drops-grid aside ol { margin: 0 0 0 18px; }
+.nakama-drops-grid aside li { margin-bottom: 12px; }
+.nakama-drops-check { display: flex !important; align-items: center; }
+.nakama-drops-prices { margin-top: 28px; }
+.nakama-drops-price-bulk, .nakama-drops-price-row { display: grid; grid-template-columns: minmax(180px, 1fr) minmax(150px, .45fr) minmax(150px, .45fr) auto; align-items: end; gap: 16px; padding: 16px; border: 1px solid #e2e4e7; }
+.nakama-drops-price-row + .nakama-drops-price-row { border-top: 0; }
+.nakama-drops-price-bulk { grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) auto; margin-bottom: 16px; border-radius: 12px; background: #f6f7f7; }
+.nakama-drops-price-row:first-child { border-radius: 12px 12px 0 0; }
+.nakama-drops-price-row:last-child { border-radius: 0 0 12px 12px; }
+.nakama-drops-price-row:only-child { border-radius: 12px; }
+.nakama-drops-price-row label, .nakama-drops-price-bulk label { margin: 0; }
+.nakama-drops-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 24px; }
+.nakama-drops-table { overflow-x: auto; }
+.nakama-drop-state { display: inline-flex; margin-right: 8px; padding: 4px 9px; border-radius: 999px; background: #f0f0f1; font-weight: 700; }
+.nakama-drop-state--scheduled { background: #fff2c8; color: #6e4d00; }
+.nakama-drop-state--released { background: #d7f5df; color: #135e2c; }
+.nakama-drop-state--error { background: #fbeaea; color: #8a2424; }
+.nakama-drops-table small { display: block; max-width: 320px; color: #b32d2e; }
+@media (max-width: 782px) {
+  .nakama-drops-admin__header, .nakama-drops-grid { display: block; }
+  .nakama-drops-admin__header > p { margin-top: 12px; }
+  .nakama-drops-price-row, .nakama-drops-price-bulk { grid-template-columns: 1fr; }
+}

@@ -15,6 +15,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Nav
     'nav.home': 'Inicio',
     'nav.store': 'Tienda',
+    'nav.drops': 'DROPS',
     'nav.embroidery': 'Bordados',
     'nav.combo': 'C/Estampado',
     'nav.prints': 'Estampado',
@@ -271,6 +272,7 @@ const translations: Record<Language, Record<string, string>> = {
     // Nav
     'nav.home': 'Home',
     'nav.store': 'Store',
+    'nav.drops': 'DROPS',
     'nav.embroidery': 'Embroidery',
     'nav.combo': 'W/Prints',
     'nav.prints': 'Prints',

@@ -52,3 +52,7 @@ next-env.d.ts
 
 # local test scripts (may contain secrets/infra)
 test-*.js
+
+# local Codex design previews and portable test runtimes
+/.superpowers/
+/.tools/

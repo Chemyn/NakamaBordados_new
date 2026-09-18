@@ -11,17 +11,20 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { seedWpSession } from '@/lib/wp-sso';
 import AbandonedCartCoupon from '../components/AbandonedCartCoupon';
+import { hasMixedPresaleCart, latestPresaleLaunch } from '@/lib/drops';
 
 export default function CartPage() {
   const { cart, quoteItems, removeQuoteFromCart, subtotal, shipping, discount, total, removeFromCart, updateQuantity, couponCode } = useCart();
   const { formatPrice, formatQuotePrice, currencyInfo } = useCurrency();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const { user, isLoading: authLoading } = useAuth();
   const [showEmptyModal, setShowEmptyModal] = React.useState(false);
   const [isRedirecting, setIsRedirecting] = React.useState(false);
   const [loadingMessage, setLoadingMessage] = React.useState('Levantando el ancla...');
   const [quoteCheckoutError, setQuoteCheckoutError] = React.useState(false);
   const router = useRouter();
+  const latestDropLaunch = latestPresaleLaunch(cart);
+  const mixedPresaleCart = hasMixedPresaleCart(cart);
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -109,6 +112,14 @@ export default function CartPage() {
     <div className="nk-cart-page" style={{ padding: '120px 0 80px', background: 'var(--nk-bg-body)', minHeight: '100vh' }}>
       <div className="nk-container">
         <h1 className="nk-section-title" style={{ marginBottom: '40px', textAlign: 'center' }}>{t('cart.page_title')}</h1>
+
+        {latestDropLaunch && (
+          <aside role="note" style={{ maxWidth: 900, margin: '0 auto 28px', padding: '18px 20px', border: '1px solid rgba(220,30,35,.35)', borderRadius: 16, background: 'var(--nk-bg-card)', boxShadow: '0 10px 30px rgba(0,0,0,.05)', lineHeight: 1.5 }}>
+            <strong style={{ display: 'block', marginBottom: 5, color: 'var(--nk-primary)' }}>{language === 'es' ? 'Este pedido contiene una preventa.' : 'This order contains a presale item.'}</strong>
+            {language === 'es' ? 'La elaboración comenzará a partir del lanzamiento más tardío' : 'Production will start from the latest launch'} ({new Intl.DateTimeFormat(language === 'es' ? 'es-MX' : 'en-US', { dateStyle: 'long', timeStyle: 'short' }).format(new Date(latestDropLaunch))}).
+            {mixedPresaleCart && <span> {language === 'es' ? 'Para recibir antes los demás productos, te recomendamos realizar dos pedidos distintos.' : 'To receive the other products sooner, we recommend placing two separate orders.'}</span>}
+          </aside>
+        )}
 
         {quoteCheckoutError && (
           <div

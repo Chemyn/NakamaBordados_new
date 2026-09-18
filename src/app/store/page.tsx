@@ -10,6 +10,9 @@ import HeroBackground from '../components/HeroBackground';
 import ProductPrice from '../components/ProductPrice';
 import FreeShippingBadge from '../components/FreeShippingBadge';
 import { fetchProductsSearch } from '../data/products';
+import { apiFetchDrops } from '@/lib/drops-api';
+import { mapDropsByProduct } from '@/lib/drops';
+import type { DropCampaign } from '@/types/drop';
 
 const SkeletonProductCard = () => (
   <div 
@@ -25,7 +28,7 @@ const SkeletonProductCard = () => (
 );
 
 function StoreContent() {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get('category') || 'todas';
   const tagParam = searchParams.get('tag') || '';
@@ -37,6 +40,15 @@ function StoreContent() {
   const [after, setAfter] = useState<string | null>(null);
   const [hasNextPage, setHasNextPage] = useState(true);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [dropCampaigns, setDropCampaigns] = useState<DropCampaign[]>([]);
+
+  useEffect(() => {
+    let active = true;
+    apiFetchDrops().then((response) => { if (active) setDropCampaigns(response.items); });
+    return () => { active = false; };
+  }, []);
+
+  const dropMap = React.useMemo(() => mapDropsByProduct(dropCampaigns), [dropCampaigns]);
 
   const fetchProducts = useCallback(async (isInitial = false) => {
     if (loadingMore || (!hasNextPage && !isInitial)) return;
@@ -137,6 +149,7 @@ function StoreContent() {
           <>
             <div className="nk-store-grid">
               {products.map((p, idx) => {
+                const drop = dropMap.get(String(p.databaseId)) || dropMap.get(p.id);
                 return (
                   <div 
                     className="nk-store-card" 
@@ -144,6 +157,11 @@ function StoreContent() {
                     style={{ background: 'var(--nk-bg-card)', border: '2px solid var(--nk-border)', borderRadius: '0', padding: '0', transition: 'transform 0.3s ease, box-shadow 0.3s ease', boxShadow: 'var(--nk-manga-shadow)' }}
                   >
                     <div className="nk-store-card-img-wrapper" style={{ borderRadius: '0', overflow: 'hidden', position: 'relative', aspectRatio: '1/1', borderBottom: '2px solid var(--nk-border)' }}>
+                      {drop && drop.status !== 'released' && (
+                        <span style={{ position: 'absolute', zIndex: 2, top: 12, left: 12, padding: '7px 10px', borderRadius: 999, background: '#111', color: '#fff', fontSize: '.72rem', fontWeight: 900, letterSpacing: '.06em', textTransform: 'uppercase' }}>
+                          {drop.status === 'sold_out' ? (language === 'es' ? 'Preventa agotada' : 'Presale sold out') : (language === 'es' ? 'Preventa' : 'Presale')}
+                        </span>
+                      )}
                       <Link href={`/product?id=${p.id}`} className="nk-card-img-link">
                         <Image 
                           src={p.images[0]} 

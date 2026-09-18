@@ -474,9 +474,9 @@
     "semantic_hash": ""
   },
   "src/app/cart/page.tsx": {
-    "mtime": 1789741785.4099867,
-    "seen": 1789742336.015104,
-    "ast_hash": "d5b174f3bfcb4a362b18593b9d22035c",
+    "mtime": 1789767364.6490028,
+    "seen": 1789767504.1333597,
+    "ast_hash": "3222d6896b8078f1e6990a80c630b967",
     "semantic_hash": ""
   },
   "src/app/checkout/page.tsx": {
@@ -540,9 +540,9 @@
     "semantic_hash": ""
   },
   "src/app/components/Navbar.tsx": {
-    "mtime": 1788974727.854988,
-    "seen": 1788975528.5749483,
-    "ast_hash": "c4f8e991574e04aec1d8856418c72829",
+    "mtime": 1789767046.440407,
+    "seen": 1789767504.133377,
+    "ast_hash": "76fff60075459a81807e38cfcf358eb7",
     "semantic_hash": ""
   },
   "src/app/components/ProductPrice.tsx": {
@@ -618,9 +618,9 @@
     "semantic_hash": ""
   },
   "src/app/context/LanguageContext.tsx": {
-    "mtime": 1789740368.1124475,
-    "seen": 1789742336.0151927,
-    "ast_hash": "3d197f14f27597fc1c8b08ad168c387b",
+    "mtime": 1789766827.046319,
+    "seen": 1789767504.1333988,
+    "ast_hash": "967c0f4394583c8c79139812c0c7030c",
     "semantic_hash": ""
   },
   "src/app/cotizador/App.tsx": {
@@ -846,15 +846,15 @@
     "semantic_hash": ""
   },
   "src/app/product/ProductClient.tsx": {
-    "mtime": 1788806043.6389363,
-    "seen": 1788975528.5750086,
-    "ast_hash": "59ee5aa1df615a06a64407aa1b218aba",
+    "mtime": 1789766875.4281492,
+    "seen": 1789767504.1334555,
+    "ast_hash": "1566bfa994cc0615e8ccd99d9bc07d74",
     "semantic_hash": ""
   },
   "src/app/product/ProductLoader.tsx": {
-    "mtime": 1788806043.6389363,
-    "seen": 1788975528.5750098,
-    "ast_hash": "8f7f9b3ae67e227da518ea21b7c658a4",
+    "mtime": 1789766866.1149938,
+    "seen": 1789767504.1334567,
+    "ast_hash": "41faea7197430e94d9859688c0a98f6b",
     "semantic_hash": ""
   },
   "src/app/product/page.tsx": {
@@ -876,15 +876,15 @@
     "semantic_hash": ""
   },
   "src/app/sitemap.ts": {
-    "mtime": 1788806043.6489308,
-    "seen": 1788975528.5750148,
-    "ast_hash": "8c677aede1f20632a5a512458d2b7c84",
+    "mtime": 1789766847.7901862,
+    "seen": 1789767504.1334617,
+    "ast_hash": "d469d43675cb4d810d8c992350b4aa87",
     "semantic_hash": ""
   },
   "src/app/store/page.tsx": {
-    "mtime": 1788806043.6539845,
-    "seen": 1788975528.575016,
-    "ast_hash": "2041531b3963f3d806e83f5db914179d",
+    "mtime": 1789767358.2598853,
+    "seen": 1789767504.1334627,
+    "ast_hash": "af1e3b5e79916d6cbebb8634fb4177ab",
     "semantic_hash": ""
   },
   "src/app/terminos-y-condiciones/page.tsx": {
@@ -1014,9 +1014,9 @@
     "semantic_hash": ""
   },
   "src/types/product.ts": {
-    "mtime": 1788806043.704808,
-    "seen": 1788975528.575042,
-    "ast_hash": "b74965ad0d1e3f1a316fac55ed22c058",
+    "mtime": 1789767075.0589278,
+    "seen": 1789767504.1335003,
+    "ast_hash": "4bcc939daeb3fc50b85b0e048765c759",
     "semantic_hash": ""
   },
   "test-category-query.json": {
@@ -2109,6 +2109,156 @@
     "mtime": 1789745664.1633036,
     "seen": 1789745998.3476076,
     "ast_hash": "9fd5441f9f509ccaafeb18f636bc926e",
+    "semantic_hash": ""
+  },
+  "nakama-drops/assets/admin.js": {
+    "mtime": 1789766252.3044786,
+    "seen": 1789767504.133322,
+    "ast_hash": "d91680087953b296d7c21dac2fce0b33",
+    "semantic_hash": ""
+  },
+  "nakama-drops/includes/class-drops-admin.php": {
+    "mtime": 1789767344.6839228,
+    "seen": 1789767504.1333246,
+    "ast_hash": "3ff0613caf2535d137737ef389a609b2",
+    "semantic_hash": ""
+  },
+  "nakama-drops/includes/class-drops-domain.php": {
+    "mtime": 1789765742.2852309,
+    "seen": 1789767504.1333258,
+    "ast_hash": "77b602e881d894afb1d8d9bb18ec1549",
+    "semantic_hash": ""
+  },
+  "nakama-drops/includes/class-drops-installer.php": {
+    "mtime": 1789765912.6764462,
+    "seen": 1789767504.1333265,
+    "ast_hash": "73c0a41c6c4cb1fb5cbd1f8b0b2105aa",
+    "semantic_hash": ""
+  },
+  "nakama-drops/includes/class-drops-lifecycle.php": {
+    "mtime": 1789767338.1950397,
+    "seen": 1789767504.133328,
+    "ast_hash": "05c2daf37085e613c870e0c97d3c63e2",
+    "semantic_hash": ""
+  },
+  "nakama-drops/includes/class-drops-orders.php": {
+    "mtime": 1789766086.9543,
+    "seen": 1789767504.1333294,
+    "ast_hash": "ce1d1464bb372cbcf820f156f31eb655",
+    "semantic_hash": ""
+  },
+  "nakama-drops/includes/class-drops-pricing.php": {
+    "mtime": 1789767595.513869,
+    "seen": 1789767688.8485332,
+    "ast_hash": "be84c80d67c4c999432af9430b98beec",
+    "semantic_hash": ""
+  },
+  "nakama-drops/includes/class-drops-quota.php": {
+    "mtime": 1789767626.6324713,
+    "seen": 1789767688.848535,
+    "ast_hash": "0757e1bb4f4ec6e7b1acdebb3e193fd6",
+    "semantic_hash": ""
+  },
+  "nakama-drops/includes/class-drops-repository.php": {
+    "mtime": 1789765926.9729595,
+    "seen": 1789767504.1333325,
+    "ast_hash": "33ac6b9ee7674f953ad29be6318d5680",
+    "semantic_hash": ""
+  },
+  "nakama-drops/includes/class-drops-rest.php": {
+    "mtime": 1789767609.6107452,
+    "seen": 1789767688.8485384,
+    "ast_hash": "425302c03f96a53d8dc87c66c797a10b",
+    "semantic_hash": ""
+  },
+  "nakama-drops/nakama-drops.php": {
+    "mtime": 1789765900.8452053,
+    "seen": 1789767504.1333342,
+    "ast_hash": "a46f8e67068195563dae78922305f638",
+    "semantic_hash": ""
+  },
+  "src/app/components/drops/DropCard.tsx": {
+    "mtime": 1789766631.9326766,
+    "seen": 1789767504.1333845,
+    "ast_hash": "25cd899d6533d9bf9be2accead63a01a",
+    "semantic_hash": ""
+  },
+  "src/app/components/drops/DropCountdown.test.tsx": {
+    "mtime": 1789766484.5199835,
+    "seen": 1789767504.1333854,
+    "ast_hash": "02fd35387445a1a426835fe2adfbb074",
+    "semantic_hash": ""
+  },
+  "src/app/components/drops/DropCountdown.tsx": {
+    "mtime": 1789766620.935008,
+    "seen": 1789767504.1333866,
+    "ast_hash": "11270ee887ba608390a371ccf6c29a34",
+    "semantic_hash": ""
+  },
+  "src/app/drops/DropsClient.tsx": {
+    "mtime": 1789767060.6847453,
+    "seen": 1789767504.133421,
+    "ast_hash": "a5f3d4546813981eec79d87677ba81c0",
+    "semantic_hash": ""
+  },
+  "src/app/drops/page.tsx": {
+    "mtime": 1789766658.414326,
+    "seen": 1789767504.1334221,
+    "ast_hash": "5adec87c17c9afceaaf65f1832bd39f5",
+    "semantic_hash": ""
+  },
+  "src/lib/drops-api.ts": {
+    "mtime": 1789767240.1697378,
+    "seen": 1789767504.1334765,
+    "ast_hash": "681a28a67722566512da3631a9880e64",
+    "semantic_hash": ""
+  },
+  "src/lib/drops.test.ts": {
+    "mtime": 1789766340.2317905,
+    "seen": 1789767504.1334777,
+    "ast_hash": "eb81ed58e05df3afc235ee4f7f157ae2",
+    "semantic_hash": ""
+  },
+  "src/lib/drops.ts": {
+    "mtime": 1789766415.3753512,
+    "seen": 1789767504.1334786,
+    "ast_hash": "90e69074c28fa2d2ba067951ba448a2d",
+    "semantic_hash": ""
+  },
+  "src/types/drop.ts": {
+    "mtime": 1789766397.501812,
+    "seen": 1789767504.133499,
+    "ast_hash": "3e791d01eb6751a79b3fb00ae81e533c",
+    "semantic_hash": ""
+  },
+  "tests/nakama-drops-domain-test.php": {
+    "mtime": 1789765632.330649,
+    "seen": 1789767504.1335156,
+    "ast_hash": "24dae12cfc10024af4db91103f0229b8",
+    "semantic_hash": ""
+  },
+  "tests/nakama-drops-hooks-test.php": {
+    "mtime": 1789767558.3962543,
+    "seen": 1789767688.8487155,
+    "ast_hash": "a088871dfee5e099e3b83256a35b93d9",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-09-18-nakama-drops-implementation.md": {
+    "mtime": 1789764885.627452,
+    "seen": 1789767504.1335626,
+    "ast_hash": "13caa3ff0dcf9b96904b3444a2129234",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-09-18-nakama-drops-design.md": {
+    "mtime": 1789764585.0035343,
+    "seen": 1789767504.133565,
+    "ast_hash": "f1c46a7d235ab5d8f5ae6438c27c9c98",
+    "semantic_hash": ""
+  },
+  "nakama-drops/readme.txt": {
+    "mtime": 1789767371.7101028,
+    "seen": 1789767504.13357,
+    "ast_hash": "a2b4cc20832b6d0417f9f6917055aa6e",
     "semantic_hash": ""
   }
 }

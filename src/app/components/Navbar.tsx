@@ -41,7 +41,6 @@ export default function Navbar() {
   // 'color-theme' para que visitantes que guardaron 'dark' vuelvan a claro.
   useEffect(() => {
     localStorage.removeItem('color-theme');
-    setTheme('light');
     document.documentElement.classList.remove('dark');
   }, []);
 
@@ -213,6 +212,17 @@ export default function Navbar() {
                 onClick={() => setMenuOpen(false)}
               >
                 {t('nav.store')}
+              </Link>
+            </li>
+
+            <li className="nk-drops-nav-item">
+              <Link
+                href="/drops"
+                className={`nk-nav-link nk-drops-link ${pathname.startsWith('/drops') ? 'active-menu-item' : ''}`}
+                onClick={() => setMenuOpen(false)}
+                aria-current={pathname.startsWith('/drops') ? 'page' : undefined}
+              >
+                <span>{t('nav.drops')}</span>
               </Link>
             </li>
 

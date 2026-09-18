@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { Product } from '@/types/product';
 import { apiFetchProductBySlug, apiFetchProducts } from '@/lib/products-api';
 import ProductClient from './ProductClient';
+import { apiFetchDrops } from '@/lib/drops-api';
 
 /**
  * Carga el producto EN RUNTIME (cliente) desde el API PHP/MySQL de WordPress,
@@ -31,7 +32,10 @@ export default function ProductLoader({ slug }: { slug: string }) {
         setStatus('notfound');
         return;
       }
-      setProduct(p);
+      const dropResponse = p.databaseId ? await apiFetchDrops(p.databaseId) : await apiFetchDrops();
+      if (!active) return;
+      const drop = dropResponse.items.find((item) => item.productId === p.databaseId || item.productSlug === p.id);
+      setProduct(drop ? { ...p, drop } : p);
       setStatus('ready');
 
       // Relacionados: por la categoría más específica del producto (best-effort).

@@ -13,6 +13,7 @@ import ProductPrice from '../components/ProductPrice';
 import FreeShippingBadge from '../components/FreeShippingBadge';
 import { apiOrigin } from '@/lib/api-host';
 import { trackViewContent } from '@/lib/analytics';
+import DropCountdown from '../components/drops/DropCountdown';
 
 interface ProductClientProps {
   initialProduct: Product;
@@ -22,7 +23,7 @@ interface ProductClientProps {
 export default function ProductClient({ initialProduct: product, relatedProducts }: ProductClientProps) {
   const { addToCart } = useCart();
   const { formatPrice } = useCurrency();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   
   // States
   const [activeImage, setActiveImage] = useState(product.images[0]);
@@ -228,7 +229,8 @@ export default function ProductClient({ initialProduct: product, relatedProducts
   };
 
   const currentVariation = getSelectedVariation();
-  const currentSoldOut = currentVariation ? isOutOfStock(currentVariation) : false;
+  const presaleSoldOut = product.drop?.status === 'sold_out';
+  const currentSoldOut = (currentVariation ? isOutOfStock(currentVariation) : false) || presaleSoldOut;
 
   const handleAttributeSelect = (name: string, value: string) => {
     setSelectedAttributes(prev => {
@@ -447,6 +449,21 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                 <FreeShippingBadge />
             </div>
 
+            {product.drop && product.drop.status !== 'released' && (
+              <aside style={{ marginTop: '18px', padding: '18px', borderRadius: '18px', background: '#101010', color: '#fff', boxShadow: '0 14px 35px rgba(0,0,0,.14)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap' }}>
+                  <strong style={{ color: '#ff594f', textTransform: 'uppercase', letterSpacing: '.08em', fontSize: '.78rem' }}>
+                    {presaleSoldOut ? (language === 'es' ? 'Preventa agotada' : 'Presale sold out') : (language === 'es' ? 'Precio de preventa' : 'Presale price')}
+                  </strong>
+                  {!product.drop.unlimited && product.drop.remaining !== null && !presaleSoldOut && <span style={{ fontWeight: 800, fontSize: '.82rem' }}>{language === 'es' ? `Quedan ${product.drop.remaining}` : `${product.drop.remaining} left`}</span>}
+                </div>
+                <DropCountdown launchAt={product.drop.launchAt} serverNow={product.drop.serverNow} labels={language === 'es' ? { days: 'Días', hours: 'Horas', minutes: 'Min', seconds: 'Seg' } : { days: 'Days', hours: 'Hours', minutes: 'Min', seconds: 'Sec' }} onComplete={() => window.location.reload()} />
+                <p style={{ margin: '14px 0 0', color: 'rgba(255,255,255,.72)', fontSize: '.86rem', lineHeight: 1.5 }}>
+                  {language === 'es' ? 'Preventa: la elaboración comienza a partir del lanzamiento. Si combinas este artículo con productos disponibles, considera hacer dos pedidos para recibirlos antes.' : 'Presale: production starts after launch. If you combine this item with available products, consider two orders to receive them sooner.'}
+                </p>
+              </aside>
+            )}
+
             <div className="nk-detail-divider" style={{ background: 'var(--nk-border)', height: '2px' }}></div>
 
             {product.type === 'variable' && (
@@ -547,7 +564,7 @@ export default function ProductClient({ initialProduct: product, relatedProducts
                   <button className="nk-qty-btn" onClick={() => setQuantity(quantity + 1)}>+</button>
                 </div>
                 <button type="button" className={`nk-btn nk-btn-add-cart nk-manga-border ${vibrateBtn ? 'nk-vibrate' : ''} ${currentSoldOut ? 'nk-btn-soldout' : ''}`} style={{ boxShadow: 'var(--nk-manga-shadow)' }} onClick={handleAddToCart} disabled={currentSoldOut}>
-                  {currentSoldOut ? 'AGOTADO' : t('product.add_to_cart')}
+                  {presaleSoldOut ? (language === 'es' ? 'PREVENTA AGOTADA' : 'PRESALE SOLD OUT') : currentSoldOut ? 'AGOTADO' : t('product.add_to_cart')}
                 </button>
               </div>
             </div>

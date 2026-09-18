@@ -5782,3 +5782,54 @@ img.wp-smiley {
 @media (prefers-reduced-motion: reduce) {
   .nk-build-update { animation: none; }
 }
+
+/* DROPS: el fuego vive solo dentro del botón de navegación. */
+.nk-drops-link {
+  isolation: isolate;
+  position: relative;
+  overflow: hidden;
+  min-width: 78px;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 11px;
+  background: #130605;
+  color: #fff !important;
+  box-shadow: 0 5px 15px rgba(174,22,10,.24);
+  text-align: center;
+}
+.nk-drops-link::before,
+.nk-drops-link::after {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset: -45% -12% -22%;
+  background:
+    radial-gradient(ellipse at 12% 90%, #fff36c 0 7%, #ff8a00 8% 19%, transparent 21%),
+    radial-gradient(ellipse at 37% 82%, #ffe66b 0 8%, #ff5300 10% 25%, transparent 27%),
+    radial-gradient(ellipse at 63% 88%, #fff19a 0 7%, #ff7900 9% 23%, transparent 25%),
+    radial-gradient(ellipse at 88% 84%, #ffd84c 0 8%, #e9230b 11% 26%, transparent 28%),
+    linear-gradient(0deg, #d51408 8%, #ff6500 48%, transparent 76%);
+  filter: saturate(1.2);
+  transform-origin: 50% 100%;
+  animation: nk-drops-fire 1.15s ease-in-out infinite alternate;
+}
+.nk-drops-link::after {
+  inset: -30% -20% -10%;
+  opacity: .48;
+  filter: blur(6px) saturate(1.4);
+  animation-duration: .72s;
+  animation-direction: alternate-reverse;
+}
+.nk-drops-link > span { position: relative; z-index: 1; text-shadow: 0 1px 3px #5b0500, 0 0 8px rgba(0,0,0,.8); }
+.nk-drops-link:focus-visible { outline: 3px solid #ffca45; outline-offset: 3px; }
+@keyframes nk-drops-fire {
+  0% { transform: translate3d(-2%, 8%, 0) scale(1.02, .96) skewX(-2deg); opacity: .9; }
+  55% { transform: translate3d(2%, -3%, 0) scale(1.07, 1.11) skewX(2deg); opacity: 1; }
+  100% { transform: translate3d(-1%, -8%, 0) scale(.99, 1.17) skewX(-1deg); opacity: .95; }
+}
+@media (max-width: 1199px) {
+  .nk-drops-nav-item { padding-block: 8px; }
+  .nk-drops-link { width: 100% !important; padding: 13px 18px !important; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nk-drops-link::before, .nk-drops-link::after { animation: none; transform: translateY(-2%); }
+}
