@@ -117,7 +117,7 @@ class Nakama_Cart {
 		// aplica sola y no hace falta mostrar selector.
 		$has_specials = false;
 		foreach ( $options as $opt ) {
-			if ( empty( $opt['auto'] ) ) {
+			if ( empty( $opt['auto'] ) && ( ! isset( $opt['visible'] ) || $opt['visible'] ) ) {
 				$has_specials = true;
 				break;
 			}
@@ -146,7 +146,10 @@ class Nakama_Cart {
 			echo '<div class="nakama-promo-group" role="group" aria-label="Opciones de promoción">';
 
 			foreach ( $order as $key ) {
-				if ( ! isset( $options[ $key ] ) ) {
+				if (
+					! isset( $options[ $key ] ) ||
+					( isset( $options[ $key ]['visible'] ) && ! $options[ $key ]['visible'] )
+				) {
 					continue; // el cliente no califica para esta opción
 				}
 				$opt     = $options[ $key ];
@@ -354,5 +357,11 @@ class Nakama_Cart {
 		$order->update_meta_data( '_nakama_transfer', $plan['transfer']['amount'] );
 		$order->update_meta_data( '_nakama_free_ship', $plan['free_ship'] ? 'yes' : 'no' );
 		$order->update_meta_data( '_nakama_msi', $plan['msi']['months'] );
+
+		/**
+		 * Allow independent plugins to persist their own immutable snapshot of the
+		 * final server-side plan without teaching this plugin their data model.
+		 */
+		do_action( 'nakama_discounts_order_plan_saved', $order, $plan, $data );
 	}
 }

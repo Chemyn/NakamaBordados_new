@@ -8,6 +8,7 @@ $test_options = array();
 $test_settings_errors = array();
 $test_now = new DateTimeImmutable( '2026-09-18 12:00:00', new DateTimeZone( 'UTC' ) );
 $test_uuid = 0;
+$test_filters = array();
 
 function get_option( $key, $default = false ) {
 	global $test_options;
@@ -50,6 +51,16 @@ function wp_timezone() {
 function current_datetime() {
 	global $test_now;
 	return $test_now;
+}
+
+function apply_filters( $hook, $value ) {
+	global $test_filters;
+	$args = func_get_args();
+	array_shift( $args );
+	if ( isset( $test_filters[ $hook ] ) && is_callable( $test_filters[ $hook ] ) ) {
+		return call_user_func_array( $test_filters[ $hook ], $args );
+	}
+	return $value;
 }
 
 function assert_same( $expected, $actual, $message ) {
@@ -253,5 +264,35 @@ Nakama_Settings::$values['special_auto_if_better'] = 'yes';
 $unselected_context = new Nakama_Context();
 $unselected_plan = Nakama_Engine::resolve( $unselected_context );
 assert_same( null, $unselected_plan['primary'], 'Public codes always require an explicit customer choice.' );
+
+$test_filters['nakama_discount_primary_candidates'] = function ( $candidates, $context ) {
+	$key = 'affiliate_code:7';
+	$candidates[ $key ] = array(
+		'type'            => 'affiliate_code',
+		'selection_key'   => $key,
+		'label'           => 'Código de afiliado NICO',
+		'code'            => 'NICO',
+		'rate'            => 0.10,
+		'amount'          => round( $context->eligible_subtotal * 0.10, 2 ),
+		'free_items'      => array(),
+		'auto'            => false,
+		'visible'         => false,
+		'allow_modifiers' => false,
+	);
+	return $candidates;
+};
+
+$affiliate_context = new Nakama_Context();
+$affiliate_context->selected_promo = 'affiliate_code:7';
+$affiliate_plan = Nakama_Engine::resolve( $affiliate_context );
+assert_same( 'affiliate_code', $affiliate_plan['primary']['type'] ?? null, 'A trusted extension can inject and select an affiliate primary.' );
+assert_same( false, $affiliate_plan['allows_modifiers'], 'Any primary with allow_modifiers=false disables every modifier.' );
+assert_same( false, $affiliate_plan['transfer']['applies'], 'Affiliate codes disable the transfer discount.' );
+assert_same( false, $affiliate_plan['free_ship'], 'Affiliate codes disable promotional free shipping.' );
+assert_same( 0, $affiliate_plan['msi']['months'], 'Affiliate codes disable promotional MSI.' );
+
+$affiliate_unselected_context = new Nakama_Context();
+$affiliate_unselected_plan = Nakama_Engine::resolve( $affiliate_unselected_context );
+assert_same( null, $affiliate_unselected_plan['primary'], 'An injected opt-in primary never applies automatically.' );
 
 echo "PHP Nakama Discounts test suite passed.\n";

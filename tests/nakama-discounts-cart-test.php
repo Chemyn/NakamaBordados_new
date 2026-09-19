@@ -4,6 +4,7 @@ declare(strict_types=1);
 define( 'ABSPATH', __DIR__ . '/' );
 
 $registered_actions = array();
+$fired_actions = array();
 
 function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
 	global $registered_actions;
@@ -11,6 +12,12 @@ function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
 }
 
 function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) {}
+function do_action( $hook ) {
+	global $fired_actions;
+	$args = func_get_args();
+	array_shift( $args );
+	$fired_actions[ $hook ][] = $args;
+}
 function get_current_user_id() { return 0; }
 function has_term( $term, $taxonomy, $product_id ) { return false; }
 function sanitize_text_field( $value ) { return trim( (string) $value ); }
@@ -140,6 +147,16 @@ $render_plan = array(
 			'allow_modifiers' => true,
 			'auto'            => false,
 		),
+		'affiliate_code:7' => array(
+			'type'            => 'affiliate_code',
+			'selection_key'   => 'affiliate_code:7',
+			'code'            => 'NICO',
+			'label'           => 'Código de afiliado NICO',
+			'amount'          => 100.0,
+			'allow_modifiers' => false,
+			'auto'            => false,
+			'visible'         => false,
+		),
 	),
 	'free_ship' => false,
 	'msi' => array( 'months' => 0 ),
@@ -155,6 +172,7 @@ $promo_html = ob_get_clean();
 assert_same( true, false !== strpos( $promo_html, 'PUBLICO15' ), 'The checkout renders every eligible public code.' );
 assert_same( true, false !== strpos( $promo_html, 'aria-pressed="true"' ), 'The selected public code exposes its accessible state.' );
 assert_same( true, false !== strpos( $promo_html, 'Conserva transferencia, envío gratis y MSI' ), 'The customer can see what a combinable code preserves.' );
+assert_same( false, false !== strpos( $promo_html, 'NICO' ), 'A hidden affiliate candidate never becomes a public promotion button.' );
 
 $render_plan['primary']['allow_modifiers'] = false;
 $render_plan['options']['public_code:combo']['allow_modifiers'] = false;
@@ -174,5 +192,7 @@ Nakama_Cart::save_order_meta( $order, array() );
 assert_same( 'PUBLICO15', $order->meta['_nakama_public_code'] ?? null, 'The order snapshots the selected public code.' );
 assert_same( 0.15, $order->meta['_nakama_primary_rate'] ?? null, 'The order snapshots the selected percentage.' );
 assert_same( 'yes', $order->meta['_nakama_primary_combinable'] ?? null, 'The order snapshots whether complementary benefits were allowed.' );
+assert_same( 1, count( $fired_actions['nakama_discounts_order_plan_saved'] ?? array() ), 'The final discount plan is exposed once for independent integrations.' );
+assert_same( $order, $fired_actions['nakama_discounts_order_plan_saved'][0][0] ?? null, 'The order-plan hook receives the order being created.' );
 
 echo "PHP Nakama Discounts cart integration tests passed.\n";

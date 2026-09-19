@@ -38,8 +38,10 @@ class Nakama_Engine {
 		$native_coupon_amount = $has_native_coupon ? max( 0, (float) $ctx->native_coupon_amount ) : 0.0;
 		$after_primary        = max( 0, $subtotal - $primary_amount - $native_coupon_amount );
 		$eligible_after_primary = max( 0, $eligible_subtotal - $primary_amount - $native_coupon_amount );
+		// Every extension uses the same explicit combination contract. Historic
+		// candidates that omit the key preserve their previous combinable behavior.
 		$allows_modifiers = ! $primary
-			|| 'public_code' !== $primary['type']
+			|| ! array_key_exists( 'allow_modifiers', $primary )
 			|| ! empty( $primary['allow_modifiers'] );
 
 		// 3) Modificador E: transferencia (3% sobre subtotal ya descontado).
@@ -168,7 +170,14 @@ class Nakama_Engine {
 			}
 		}
 
-		return $out;
+		/**
+		 * Add trusted, server-side primary candidates without coupling this engine
+		 * to their storage. Browser input is never passed through this filter.
+		 *
+		 * @param array          $out Eligible candidates keyed by selection key.
+		 * @param Nakama_Context $ctx Authoritative cart context.
+		 */
+		return apply_filters( 'nakama_discount_primary_candidates', $out, $ctx );
 	}
 
 	/**
@@ -190,9 +199,9 @@ class Nakama_Engine {
 
 		if ( 'yes' === Nakama_Settings::get( 'special_auto_if_better' ) ) {
 			$automatic_candidates = array_filter( $candidates, function ( $candidate ) {
-				// Los códigos públicos siempre exigen una elección explícita del
-				// cliente, aunque la campaña automática esté habilitada.
-				return 'public_code' !== $candidate['type'];
+				// Any candidate marked as opt-in (including extensions) requires an
+				// explicit customer/server selection.
+				return ! empty( $candidate['auto'] );
 			} );
 			uasort( $automatic_candidates, function ( $a, $b ) {
 				return $b['amount'] <=> $a['amount'];
