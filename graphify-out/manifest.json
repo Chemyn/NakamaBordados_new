@@ -324,9 +324,9 @@
     "semantic_hash": ""
   },
   "nakama-discounts/includes/class-cart.php": {
-    "mtime": 1789854368.9931798,
-    "seen": 1789854405.8143868,
-    "ast_hash": "990aaf87a4e1dd6f57205be46cc2c2d0",
+    "mtime": 1789854616.362285,
+    "seen": 1789854648.7405026,
+    "ast_hash": "86788c9dfeecbceb67bc1c7b7ff4fefc",
     "semantic_hash": ""
   },
   "nakama-discounts/includes/class-context.php": {
@@ -2088,9 +2088,9 @@
     "semantic_hash": ""
   },
   "tests/nakama-discounts-cart-test.php": {
-    "mtime": 1789854324.7314017,
-    "seen": 1789854405.8146179,
-    "ast_hash": "470b241b35d5de50df4f9fe9a54c6330",
+    "mtime": 1789854548.2754595,
+    "seen": 1789854648.7406921,
+    "ast_hash": "1d33b8dc76a919cb608209baaea628ae",
     "semantic_hash": ""
   },
   "tests/nakama-discounts-test.php": {
@@ -2280,9 +2280,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/nakama-affiliates.php": {
-    "mtime": 1789854187.532695,
-    "seen": 1789854241.256902,
-    "ast_hash": "e130cd62f9062258c880570cf88a925d",
+    "mtime": 1789854622.0617492,
+    "seen": 1789854648.7404943,
+    "ast_hash": "afc549f7122ac697dfb8bfbbc5a2e34f",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-domain-test.php": {
@@ -2355,6 +2355,18 @@
     "mtime": 1789854069.259151,
     "seen": 1789854241.2570932,
     "ast_hash": "1d62ac35a42dc4fc47fb82f63ea3faf2",
+    "semantic_hash": ""
+  },
+  "nakama-affiliates/includes/class-affiliates-discounts.php": {
+    "mtime": 1789854611.8737097,
+    "seen": 1789854648.7404826,
+    "ast_hash": "71a160a99490482c5ed97470282fe0c0",
+    "semantic_hash": ""
+  },
+  "tests/nakama-affiliates-discounts-test.php": {
+    "mtime": 1789854542.5049138,
+    "seen": 1789854648.7406816,
+    "ast_hash": "4ba07a8024b4beec530af3df1df91e67",
     "semantic_hash": ""
   }
 }

@@ -115,6 +115,7 @@ assert_same(
 assert_same( array(), WC()->cart->coupons, 'Selecting Nakama removes the abandoned-cart coupon.' );
 assert_same( 1, WC()->cart->remove_calls, 'Native coupons are removed exactly once.' );
 assert_same( 'public_code:combo', WC()->session->get( 'nakama_selected_promo' ), 'The confirmed Nakama selection is stored in session.' );
+assert_same( 1, count( $fired_actions['nakama_discount_selection_applied'] ?? array() ), 'Independent integrations are notified after a primary selection changes.' );
 
 Nakama_Cart::clear_selected_promo( 'RECUPERA20' );
 assert_same( '', WC()->session->get( 'nakama_selected_promo' ), 'Applying a native coupon clears the Nakama selection.' );

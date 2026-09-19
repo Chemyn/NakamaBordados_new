@@ -249,6 +249,11 @@ class Nakama_Cart {
 		}
 		WC()->session->set( 'nakama_selected_promo', $promo );
 		self::flush_plan();
+		do_action(
+			'nakama_discount_selection_applied',
+			$promo,
+			'' !== $promo && isset( $options[ $promo ] ) ? $options[ $promo ] : null
+		);
 		return true;
 	}
 

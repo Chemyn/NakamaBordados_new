@@ -27,6 +27,7 @@ $nakama_affiliates_includes = array(
 	'includes/class-affiliates-profiles.php',
 	'includes/class-affiliates-permissions.php',
 	'includes/class-affiliates-rest.php',
+	'includes/class-affiliates-discounts.php',
 );
 
 foreach ( $nakama_affiliates_includes as $nakama_affiliates_include ) {
@@ -37,6 +38,7 @@ register_activation_hook( __FILE__, array( 'Nakama_Affiliates_Installer', 'activ
 add_action( 'init', array( 'Nakama_Affiliates_Installer', 'maybe_upgrade' ), 1 );
 Nakama_Affiliates_Permissions::init();
 Nakama_Affiliates_REST::init();
+Nakama_Affiliates_Discounts::init();
 
 add_action( 'before_woocommerce_init', function () {
 	if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {
