@@ -2260,5 +2260,59 @@
     "seen": 1789767504.13357,
     "ast_hash": "a2b4cc20832b6d0417f9f6917055aa6e",
     "semantic_hash": ""
+  },
+  "nakama-affiliates/includes/class-affiliates-domain.php": {
+    "mtime": 1789853653.875386,
+    "seen": 1789853707.7864509,
+    "ast_hash": "68b0c6932b011f1856de868b580d6ff4",
+    "semantic_hash": ""
+  },
+  "nakama-affiliates/includes/class-affiliates-installer.php": {
+    "mtime": 1789853660.4218504,
+    "seen": 1789853707.7864542,
+    "ast_hash": "76543627939ea258e7e289eef4c1d061",
+    "semantic_hash": ""
+  },
+  "nakama-affiliates/includes/class-affiliates-repository.php": {
+    "mtime": 1789853666.6847048,
+    "seen": 1789853707.7864556,
+    "ast_hash": "fe279da09d5d3bae1bbf9b2f7727d43e",
+    "semantic_hash": ""
+  },
+  "nakama-affiliates/nakama-affiliates.php": {
+    "mtime": 1789853673.276934,
+    "seen": 1789853707.7864568,
+    "ast_hash": "3fe8bb60957ed883c7c4a600de05ee13",
+    "semantic_hash": ""
+  },
+  "tests/nakama-affiliates-domain-test.php": {
+    "mtime": 1789853427.2477589,
+    "seen": 1789853707.786682,
+    "ast_hash": "6c0f862030f95f08af56e0f6d86c3204",
+    "semantic_hash": ""
+  },
+  "tests/nakama-affiliates-installer-test.php": {
+    "mtime": 1789853433.2050679,
+    "seen": 1789853707.7866828,
+    "ast_hash": "f9a1b5b60425407469c53673ec69af46",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/plans/2026-09-19-nakama-afiliados-implementation.md": {
+    "mtime": 1789852926.224617,
+    "seen": 1789853707.7867446,
+    "ast_hash": "d5a462f8d80d671c44595f7f52b532ba",
+    "semantic_hash": ""
+  },
+  "docs/superpowers/specs/2026-09-19-nakama-afiliados-design.md": {
+    "mtime": 1789852316.0072024,
+    "seen": 1789853707.7867486,
+    "ast_hash": "3a3d7647888dd97b34f6ca91309a1050",
+    "semantic_hash": ""
+  },
+  "nakama-affiliates/readme.txt": {
+    "mtime": 1789853679.7349474,
+    "seen": 1789853707.786754,
+    "ast_hash": "0c41a8ac8f7b49990ea40a04af9e14c1",
+    "semantic_hash": ""
   }
 }
