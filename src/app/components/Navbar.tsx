@@ -177,6 +177,13 @@ export default function Navbar() {
           .nk-nav-item-dropdown:hover .nk-submenu { display: flex !important; }
           .nk-mega-trigger:hover .nk-mega-menu { display: block !important; }
         }
+
+        /* En portatiles estrechos el ultimo control empujaba Tienda sobre el
+           logo. El cambio de tema queda disponible en el menu movil y vuelve
+           a la fila en cuanto existe una separacion holgada. */
+        @media (min-width: 1200px) and (max-width: 1279px) {
+          .nk-theme-toggle-desktop { display: none !important; }
+        }
       `}} />
       <div className="nk-nav-container">
         {/* Mobile menu trigger */}
@@ -439,7 +446,7 @@ export default function Navbar() {
             )}
           </Link>
 
-          <button className="nk-action-btn nk-desktop-only" onClick={toggleTheme} title="Cambiar Tema" style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
+          <button className="nk-action-btn nk-desktop-only nk-theme-toggle-desktop" onClick={toggleTheme} title="Cambiar Tema" style={{ background: 'transparent', boxShadow: 'none', border: 'none' }}>
             <span className="material-icons-outlined">
               {theme === 'light' ? 'dark_mode' : 'light_mode'}
             </span>

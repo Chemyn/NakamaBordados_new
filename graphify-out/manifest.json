@@ -540,9 +540,9 @@
     "semantic_hash": ""
   },
   "src/app/components/Navbar.tsx": {
-    "mtime": 1789767046.440407,
-    "seen": 1789767504.133377,
-    "ast_hash": "76fff60075459a81807e38cfcf358eb7",
+    "mtime": 1789783817.6263688,
+    "seen": 1789784035.8514142,
+    "ast_hash": "3ed6344ae00f65814165b31352c11192",
     "semantic_hash": ""
   },
   "src/app/components/ProductPrice.tsx": {
