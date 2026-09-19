@@ -222,17 +222,6 @@ export default function Navbar() {
               </Link>
             </li>
 
-            <li className="nk-drops-nav-item">
-              <Link
-                href="/drops"
-                className={`nk-nav-link nk-drops-link ${pathname.startsWith('/drops') ? 'active-menu-item' : ''}`}
-                onClick={() => setMenuOpen(false)}
-                aria-current={pathname.startsWith('/drops') ? 'page' : undefined}
-              >
-                <span>{t('nav.drops')}</span>
-              </Link>
-            </li>
-
             {/* Category: Bordados (Mega Menu) */}
             <li className="nk-nav-item-dropdown nk-mega-trigger"
                 onMouseEnter={() => setSubActive('bordados')}
@@ -309,6 +298,17 @@ export default function Navbar() {
                   ))}
                 </ul>
               </div>
+            </li>
+
+            <li className="nk-drops-nav-item">
+              <Link
+                href="/drops"
+                className={`nk-nav-link nk-drops-link ${pathname.startsWith('/drops') ? 'active-menu-item' : ''}`}
+                onClick={() => setMenuOpen(false)}
+                aria-current={pathname.startsWith('/drops') ? 'page' : undefined}
+              >
+                <span>{t('nav.drops')}</span>
+              </Link>
             </li>
 
             <li>
