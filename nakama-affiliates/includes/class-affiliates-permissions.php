@@ -37,6 +37,9 @@ final class Nakama_Affiliates_Permissions {
 		$has_vip = user_can( $user, self::VIP_CAP );
 		$profile = Nakama_Affiliates_Repository::profile_by_user( (int) $user->ID );
 		$suspended = $profile && isset( $profile['status'] ) && 'suspended' === $profile['status'];
+		$discount_percentage = $profile && isset( $profile['discount_rate'] )
+			? (float) $profile['discount_rate'] * 100
+			: 10;
 		wp_nonce_field( 'nakama_affiliate_user_cap', 'nakama_affiliate_user_cap_nonce' );
 		?>
 		<h2><?php esc_html_e( 'Programa de Afiliados', 'nakama-affiliates' ); ?></h2>
@@ -69,6 +72,22 @@ final class Nakama_Affiliates_Permissions {
 					</label>
 				</td>
 			</tr>
+			<?php if ( $profile ) : ?>
+			<tr>
+				<th scope="row"><label for="nakama-affiliate-code"><?php esc_html_e( 'Código de afiliado', 'nakama-affiliates' ); ?></label></th>
+				<td>
+					<input id="nakama-affiliate-code" name="nakama_affiliate_code" type="text" maxlength="24" value="<?php echo esc_attr( $profile['code'] ); ?>" class="regular-text" autocomplete="off" />
+					<p class="description"><?php esc_html_e( 'Máximo 24 caracteres: letras, números, guion y guion bajo.', 'nakama-affiliates' ); ?></p>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><label for="nakama-affiliate-discount"><?php esc_html_e( 'Descuento del código', 'nakama-affiliates' ); ?></label></th>
+				<td>
+					<input id="nakama-affiliate-discount" name="nakama_affiliate_discount" type="number" min="0.01" max="10" step="0.01" value="<?php echo esc_attr( $discount_percentage ); ?>" /> %
+					<p class="description"><?php esc_html_e( 'Mayor que 0 y topado a 10%. No se combina con otras promociones.', 'nakama-affiliates' ); ?></p>
+				</td>
+			</tr>
+			<?php endif; ?>
 		</table>
 		<?php
 	}
@@ -110,6 +129,20 @@ final class Nakama_Affiliates_Permissions {
 		}
 
 		$profile_id = Nakama_Affiliates_Profiles::synchronize_user( $user, $has_access, $suspended );
+		$profile = $profile_id ? Nakama_Affiliates_Repository::profile_by_user( (int) $user_id ) : null;
+		if (
+			$profile &&
+			isset( $_POST['nakama_affiliate_code'], $_POST['nakama_affiliate_discount'] )
+		) {
+			$settings_result = Nakama_Affiliates_Codes::update_profile_settings(
+				$profile,
+				sanitize_text_field( wp_unslash( $_POST['nakama_affiliate_code'] ) ),
+				sanitize_text_field( wp_unslash( $_POST['nakama_affiliate_discount'] ) )
+			);
+			if ( empty( $settings_result['success'] ) && function_exists( 'add_settings_error' ) ) {
+				add_settings_error( 'nakama_affiliates', 'invalid_affiliate_settings', $settings_result['message'], 'error' );
+			}
+		}
 		if ( $profile_id ) {
 			Nakama_Affiliates_Repository::audit(
 				'permissions_updated',
@@ -125,4 +158,3 @@ final class Nakama_Affiliates_Permissions {
 		}
 	}
 }
-

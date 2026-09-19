@@ -2280,9 +2280,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/nakama-affiliates.php": {
-    "mtime": 1789853905.4648516,
-    "seen": 1789853933.9754837,
-    "ast_hash": "1eae3c1a6dc78545991b89781cdc42f9",
+    "mtime": 1789854187.532695,
+    "seen": 1789854241.256902,
+    "ast_hash": "e130cd62f9062258c880570cf88a925d",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-domain-test.php": {
@@ -2316,9 +2316,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-permissions.php": {
-    "mtime": 1789853898.2280045,
-    "seen": 1789853933.9754775,
-    "ast_hash": "afb196c0b097a1fe378ffa69a2fc20d3",
+    "mtime": 1789854181.6349888,
+    "seen": 1789854241.2568967,
+    "ast_hash": "0a96335bc56b58f95a984c2d0c9a805b",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-profiles.php": {
@@ -2331,6 +2331,30 @@
     "mtime": 1789853816.8006456,
     "seen": 1789853933.9756958,
     "ast_hash": "47c41a8943585af7706ccd938946de26",
+    "semantic_hash": ""
+  },
+  "nakama-affiliates/includes/class-affiliates-codes.php": {
+    "mtime": 1789854168.5581717,
+    "seen": 1789854241.2568905,
+    "ast_hash": "d846cd4b5ad16073eae1768dde49619a",
+    "semantic_hash": ""
+  },
+  "nakama-affiliates/includes/class-affiliates-rest.php": {
+    "mtime": 1789854175.1443665,
+    "seen": 1789854241.2569003,
+    "ast_hash": "1e610aa814e1265193965c6d65bdd0e3",
+    "semantic_hash": ""
+  },
+  "tests/nakama-affiliates-codes-test.php": {
+    "mtime": 1789854201.4102027,
+    "seen": 1789854241.2570884,
+    "ast_hash": "fc84416b1ec94d7b5e226ba30b168c59",
+    "semantic_hash": ""
+  },
+  "tests/nakama-affiliates-rest-test.php": {
+    "mtime": 1789854069.259151,
+    "seen": 1789854241.2570932,
+    "ast_hash": "1d62ac35a42dc4fc47fb82f63ea3faf2",
     "semantic_hash": ""
   }
 }
