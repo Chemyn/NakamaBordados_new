@@ -41,7 +41,7 @@ const transferConfirmation = {
 describe('PedidoConfirmadoPage', () => {
   beforeEach(() => {
     mocks.clearCart.mockReset();
-    window.history.replaceState({}, '', '/pedido-confirmado/#order=115&key=wc_order_secret');
+    window.history.replaceState({}, '', '/pedido-confirmado/order-received/#order=115&key=wc_order_secret');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
       json: async () => transferConfirmation,

@@ -436,11 +436,11 @@ $ordersById[115] = $confirmationOrder;
 
 $returnUrlFilter = $filters['woocommerce_get_return_url'][0] ?? null;
 assert_same(
-    'https://example.test/pedido-confirmado/#order=115&key=wc_order_secret',
+    'https://example.test/pedido-confirmado/order-received/#order=115&key=wc_order_secret',
     is_callable($returnUrlFilter)
         ? $returnUrlFilter('https://example.test/finalizar-compra/order-received/115/', $confirmationOrder)
         : null,
-    'Every payment gateway returns to the headless order confirmation page.'
+    'Every payment gateway returns to the headless order confirmation page with the Meta conversion marker.'
 );
 
 $confirmationResponse = nakama_get_order_confirmation(
@@ -476,7 +476,7 @@ assert_same(
     'The confirmation endpoint rejects an invalid order key.'
 );
 assert_same(
-    'https://example.test/pedido-confirmado/#order=115&key=wc_order_secret',
+    'https://example.test/pedido-confirmado/order-received/#order=115&key=wc_order_secret',
     nakama_legacy_confirmation_destination(115, 'wc_order_secret'),
     'A direct visit to the legacy WooCommerce thank-you URL can return to the headless page.'
 );

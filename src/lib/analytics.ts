@@ -8,7 +8,9 @@
  * el frontend: lo cubre el plugin de WP en /finalizar-compra/ (browser + CAPI).
  *
  * Los IDs son públicos por diseño (visibles en el HTML de cualquier sitio con
- * analytics). El token de la Conversions API es secreto y vive SOLO en WP.
+ * analytics). La confirmación headless conserva `order-received` en la ruta
+ * para la conversión configurada por URL en Meta. El token de la Conversions
+ * API es secreto y vive SOLO en WP.
  */
 
 export const GA_MEASUREMENT_ID = 'G-J7J9RPGN9R';

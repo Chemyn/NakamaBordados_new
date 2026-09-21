@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO, social login, pedidos de cotización, registro de clientes y sincronización de base de datos local (Next.js).
- * Version: 3.3.1
+ * Version: 3.3.2
  * Author: Nakama
  */
 
@@ -114,9 +114,10 @@ function nakama_order_confirmation_url( $order ) {
         return '';
     }
 
+    // `order-received` conserva la señal de conversión esperada por Meta Pixel.
     // El fragmento no se envía al servidor ni a Analytics: evita que la clave
     // del pedido termine en logs o métricas y el frontend la lee en el navegador.
-    return home_url( '/pedido-confirmado/' )
+    return home_url( '/pedido-confirmado/order-received/' )
         . '#order=' . rawurlencode( (string) $order->get_id() )
         . '&key=' . rawurlencode( (string) $order->get_order_key() );
 }
