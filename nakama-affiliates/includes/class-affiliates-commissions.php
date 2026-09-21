@@ -16,6 +16,10 @@ final class Nakama_Affiliates_Commissions {
 		add_action( 'woocommerce_order_status_completed', array( __CLASS__, 'record_paid_order' ), 20 );
 	}
 
+	public static function sale_event_key( $order_id ) {
+		return 'sale:' . (int) $order_id;
+	}
+
 	/** Insert one immutable sale event regardless of repeated Woo hooks. */
 	public static function record_paid_order( $order_id ) {
 		$order = function_exists( 'wc_get_order' ) ? wc_get_order( (int) $order_id ) : false;
@@ -34,7 +38,7 @@ final class Nakama_Affiliates_Commissions {
 			return array( 'created' => false, 'reason' => 'unpaid' );
 		}
 
-		$event_key = 'sale:' . (int) $order->get_id();
+		$event_key = self::sale_event_key( $order->get_id() );
 		$existing  = Nakama_Affiliates_Repository::ledger_by_event_key( $event_key );
 		if ( $existing ) {
 			return array( 'created' => false, 'reason' => 'duplicate', 'event' => $existing );

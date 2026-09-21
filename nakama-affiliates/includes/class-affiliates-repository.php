@@ -94,6 +94,23 @@ final class Nakama_Affiliates_Repository {
 		), ARRAY_A );
 	}
 
+	public static function ledger_events_for_order( $order_id ) {
+		global $wpdb;
+		return $wpdb->get_results( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'ledger' ) . ' WHERE order_id = %d ORDER BY id ASC',
+			(int) $order_id
+		), ARRAY_A );
+	}
+
+	public static function closure_by_affiliate_period( $affiliate_id, $period_key ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'closures' ) . ' WHERE affiliate_id = %d AND period_key = %s LIMIT 1',
+			(int) $affiliate_id,
+			(string) $period_key
+		), ARRAY_A );
+	}
+
 	/** Insert by unique event key and treat a duplicate race as success. */
 	public static function insert_ledger_event( array $data ) {
 		global $wpdb;
