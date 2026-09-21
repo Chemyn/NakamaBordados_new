@@ -12,6 +12,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 final class Nakama_Affiliates_Private_Files {
 	const DEFAULT_MAX_BYTES = 10485760;
 
+	public static function store_payment_pdf( array $file, $mover = null, $base_override = null, $mime_detector = null ) {
+		return self::store_pdf( $file, 'payments', $mover, $base_override, $mime_detector );
+	}
+
 	public static function validate_pdf_upload( array $file, $max_bytes = null, $mime_detector = null ) {
 		$max_bytes = null === $max_bytes ? self::DEFAULT_MAX_BYTES : max( 1, (int) $max_bytes );
 		if ( ! isset( $file['error'] ) || UPLOAD_ERR_OK !== (int) $file['error'] ) {
@@ -21,7 +25,7 @@ final class Nakama_Affiliates_Private_Files {
 		$name = isset( $file['name'] ) ? (string) $file['name'] : '';
 		$path = isset( $file['tmp_name'] ) ? (string) $file['tmp_name'] : '';
 		if ( 'pdf' !== strtolower( pathinfo( $name, PATHINFO_EXTENSION ) ) ) {
-			return self::failure( 'invalid_extension', 'La constancia debe tener extensión PDF.' );
+			return self::failure( 'invalid_extension', 'El archivo debe tener extensión PDF.' );
 		}
 		if ( '' === $path || ! is_file( $path ) || ! is_readable( $path ) ) {
 			return self::failure( 'missing_file', 'No se encontró el archivo temporal.' );

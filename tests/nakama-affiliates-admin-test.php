@@ -39,5 +39,7 @@ affiliates_admin_assert( false !== strpos( $source, "'reason_required'" ), 'Miss
 affiliates_admin_assert( false !== strpos( $source, "Nakama_Affiliates_Closures::confirm" ), 'Month close confirmation uses the audited domain.' );
 affiliates_admin_assert( false !== strpos( $source, "Nakama_Affiliates_Closures::set_manual_amounts" ), 'Manual tax amounts use the audited domain.' );
 affiliates_admin_assert( false !== strpos( $source, "Nakama_Affiliates_Documents::review" ), 'Fiscal review uses the private document domain.' );
+affiliates_admin_assert( false !== strpos( $source, "Nakama_Affiliates_Payments::record" ), 'Approved closures can register a private payment receipt.' );
+affiliates_admin_assert( false !== strpos( $source, "Nakama_Affiliates_Payments::reverse" ), 'Payment reversal remains an explicit audited action.' );
 
 echo "PHP Nakama Affiliates admin controller tests passed.\n";

@@ -106,6 +106,25 @@ final class Nakama_Affiliates_Repository {
 			'has_more' => false,
 		);
 	}
+	public static function closures_for_affiliate( $affiliate_id, $page, $per_page ) {
+		global $affiliate_rest_ledger_filter;
+		$affiliate_rest_ledger_filter = (int) $affiliate_id;
+		return array( 'has_more' => false, 'items' => array( array(
+			'id' => 12,
+			'period_key' => '2026-08',
+			'status' => 'paid',
+			'commission_gross_mxn' => 1000,
+			'isr_withheld_mxn' => 90,
+			'iva_withheld_mxn' => 40,
+			'other_adjustments_mxn' => -10,
+			'net_mxn' => 860,
+			'paid_net_mxn' => 860,
+			'paid_at_gmt' => '2026-09-05 12:00:00',
+			'payment_document_id' => 22,
+			'payment_reversed_at_gmt' => null,
+			'payment_reversal_reason' => null,
+		) ) );
+	}
 }
 
 final class Nakama_Affiliates_Documents {
@@ -113,6 +132,10 @@ final class Nakama_Affiliates_Documents {
 		global $affiliate_rest_document_status;
 		return array( 'id' => 2, 'status' => $affiliate_rest_document_status, 'fileName' => 'constancia.pdf', 'fileSize' => 100, 'uploadedAt' => '2026-09-20 12:00:00', 'reviewedAt' => null, 'reason' => null );
 	}
+}
+
+final class Nakama_Affiliates_Payments {
+	public static function downloadable( $document_id ) { return array( 'success' => false, 'reason' => 'not_found' ); }
 }
 
 function affiliates_rest_assert( $condition, $message ) {
@@ -136,6 +159,8 @@ affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/admi
 affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/me'] ), 'The private affiliate identity route exists.' );
 affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/me/dashboard'] ), 'The private affiliate dashboard route exists.' );
 affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/me/sales'] ), 'The private affiliate sales route exists.' );
+affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/me/payments'] ), 'The private payment history route exists.' );
+affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/me/payments/(?P<id>\d+)/download'] ), 'The owner-authorized receipt download route exists.' );
 
 $response = Nakama_Affiliates_REST::validate_code( new WP_REST_Request( array( 'code' => 'valido' ) ) );
 affiliates_rest_assert( true === $response->data['valid'], 'A valid public code receives a positive response.' );
@@ -172,5 +197,9 @@ affiliates_rest_assert( 501 === $sales->data['items'][0]['orderId'], 'Sales expo
 foreach ( array( 'buyer', 'customer', 'email', 'name', 'address' ) as $pii_key ) {
 	affiliates_rest_assert( ! array_key_exists( $pii_key, $sales->data['items'][0] ), "Affiliate sales never expose {$pii_key}." );
 }
+$payments = Nakama_Affiliates_REST::payments( new WP_REST_Request( array( 'page' => 1 ) ) );
+affiliates_rest_assert( 22 === $payments->data['items'][0]['receiptId'], 'Payment history exposes only the owner receipt identifier.' );
+affiliates_rest_assert( 860.0 === $payments->data['items'][0]['paidNetMxn'], 'Payment history keeps the frozen paid net.' );
+affiliates_rest_assert( 4 === $affiliate_rest_ledger_filter, 'Payment history is filtered by the authenticated affiliate.' );
 
 echo "PHP Nakama Affiliates REST tests passed.\n";

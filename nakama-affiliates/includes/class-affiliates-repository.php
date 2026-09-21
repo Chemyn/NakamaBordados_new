@@ -179,6 +179,93 @@ final class Nakama_Affiliates_Repository {
 		);
 	}
 
+	/** Atomically record the first payment and its private document. */
+	public static function record_payment_with_document( $closure_id, array $document, array $payment ) {
+		global $wpdb;
+		$wpdb->query( 'START TRANSACTION' );
+		$closure = $wpdb->get_row( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'closures' ) . ' WHERE id = %d LIMIT 1 FOR UPDATE',
+			(int) $closure_id
+		), ARRAY_A );
+		if ( ! $closure || 'approved' !== ( $closure['status'] ?? '' ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return 0;
+		}
+		$inserted = $wpdb->insert( self::table( 'documents' ), $document );
+		if ( ! $inserted ) {
+			$wpdb->query( 'ROLLBACK' );
+			return 0;
+		}
+		$document_id = (int) $wpdb->insert_id;
+		$updated = $wpdb->update( self::table( 'closures' ), array(
+			'status'              => 'paid',
+			'paid_at_gmt'         => (string) $payment['paid_at_gmt'],
+			'payment_reference'   => (string) $payment['reference'],
+			'payment_document_id' => $document_id,
+			'paid_net_mxn'        => (float) $payment['paid_net_mxn'],
+			'updated_at_gmt'      => (string) $payment['updated_at_gmt'],
+		), array( 'id' => (int) $closure_id, 'status' => 'approved' ) );
+		if ( 1 !== (int) $updated ) {
+			$wpdb->query( 'ROLLBACK' );
+			return 0;
+		}
+		$wpdb->query( 'COMMIT' );
+		return $document_id;
+	}
+
+	/** Preserve the previous receipt and point the closure at a new version. */
+	public static function replace_payment_document( $closure_id, array $document ) {
+		global $wpdb;
+		$wpdb->query( 'START TRANSACTION' );
+		$closure = $wpdb->get_row( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'closures' ) . ' WHERE id = %d LIMIT 1 FOR UPDATE',
+			(int) $closure_id
+		), ARRAY_A );
+		if ( ! $closure || 'paid' !== ( $closure['status'] ?? '' ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return 0;
+		}
+		$old_document_id = (int) ( $closure['payment_document_id'] ?? 0 );
+		if ( $old_document_id > 0 ) {
+			$cleared = $wpdb->update( self::table( 'documents' ), array( 'is_current' => 0 ), array( 'id' => $old_document_id ) );
+			if ( false === $cleared ) {
+				$wpdb->query( 'ROLLBACK' );
+				return 0;
+			}
+		}
+		if ( ! $wpdb->insert( self::table( 'documents' ), $document ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return 0;
+		}
+		$new_document_id = (int) $wpdb->insert_id;
+		$updated = $wpdb->update( self::table( 'closures' ), array(
+			'payment_document_id' => $new_document_id,
+			'updated_at_gmt'      => self::now_gmt(),
+		), array( 'id' => (int) $closure_id, 'status' => 'paid' ) );
+		if ( 1 !== (int) $updated ) {
+			$wpdb->query( 'ROLLBACK' );
+			return 0;
+		}
+		$wpdb->query( 'COMMIT' );
+		return $new_document_id;
+	}
+
+	public static function closures_for_affiliate( $affiliate_id, $page = 1, $per_page = 20 ) {
+		global $wpdb;
+		$page = max( 1, (int) $page );
+		$per_page = min( 50, max( 1, (int) $per_page ) );
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'closures' ) . ' WHERE affiliate_id = %d ORDER BY period_key DESC,id DESC LIMIT %d OFFSET %d',
+			(int) $affiliate_id,
+			$per_page + 1,
+			( $page - 1 ) * $per_page
+		), ARRAY_A );
+		$rows = is_array( $rows ) ? $rows : array();
+		$has_more = count( $rows ) > $per_page;
+		if ( $has_more ) array_pop( $rows );
+		return array( 'items' => $rows, 'has_more' => $has_more );
+	}
+
 	public static function document_by_id( $document_id ) {
 		global $wpdb;
 		return $wpdb->get_row( $wpdb->prepare(

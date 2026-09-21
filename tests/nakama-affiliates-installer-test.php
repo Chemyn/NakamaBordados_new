@@ -52,6 +52,10 @@ $expected_tables = array(
 );
 
 affiliates_installer_assert( 9 === count( $affiliate_schema_queries ), 'The complete approved schema is installed in one migration.' );
+$schema = implode( "\n", $affiliate_schema_queries );
+affiliates_installer_assert( false !== strpos( $schema, 'paid_net_mxn decimal(26,8)' ), 'The paid net is frozen separately from the approved net.' );
+affiliates_installer_assert( false !== strpos( $schema, 'related_entity_id bigint(20) unsigned' ), 'Private payment documents retain their closure relationship.' );
+affiliates_installer_assert( false !== strpos( $schema, 'payment_reversal_reason text' ), 'Payment reversal history has an explicit reason.' );
 
 $schema = implode( "\n", $affiliate_schema_queries );
 foreach ( $expected_tables as $table ) {
@@ -74,4 +78,3 @@ affiliates_installer_assert(
 );
 
 echo "PHP Nakama Affiliates installer tests passed.\n";
-

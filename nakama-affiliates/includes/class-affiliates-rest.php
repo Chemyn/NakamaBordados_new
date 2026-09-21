@@ -77,6 +77,18 @@ final class Nakama_Affiliates_REST {
 			'callback'            => array( __CLASS__, 'sales' ),
 			'permission_callback' => array( __CLASS__, 'affiliate_permission' ),
 		) );
+
+		register_rest_route( self::NAMESPACE_NAME, '/affiliates/me/payments', array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => array( __CLASS__, 'payments' ),
+			'permission_callback' => array( __CLASS__, 'affiliate_permission' ),
+		) );
+
+		register_rest_route( self::NAMESPACE_NAME, '/affiliates/me/payments/(?P<id>\d+)/download', array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => array( __CLASS__, 'download_payment_receipt' ),
+			'permission_callback' => array( __CLASS__, 'affiliate_permission' ),
+		) );
 	}
 
 	public static function validate_code( WP_REST_Request $request ) {
@@ -236,6 +248,49 @@ final class Nakama_Affiliates_REST {
 			'hasMore' => ! empty( $data['has_more'] ),
 			'items'   => $items,
 		) );
+	}
+
+	public static function payments( WP_REST_Request $request ) {
+		$context = self::affiliate_context( $request );
+		if ( ! $context['profile'] ) {
+			return self::no_store_response( array( 'success' => false, 'code' => 'forbidden', 'items' => array() ) );
+		}
+		$fiscal = self::fiscal_context( $context['profile'], $context['support'] );
+		if ( ! $context['support'] && 'approved' !== $fiscal['status'] ) {
+			return self::no_store_response( array( 'success' => false, 'code' => 'fiscal_required', 'items' => array() ) );
+		}
+
+		$page = max( 1, (int) $request->get_param( 'page' ) );
+		$data = Nakama_Affiliates_Repository::closures_for_affiliate( (int) $context['profile']['id'], $page, 20 );
+		$items = array_map( static function ( $closure ) {
+			return array(
+				'id'                  => (int) $closure['id'],
+				'period'              => (string) $closure['period_key'],
+				'status'              => (string) $closure['status'],
+				'commissionGrossMxn'  => (float) $closure['commission_gross_mxn'],
+				'isrWithheldMxn'      => (float) $closure['isr_withheld_mxn'],
+				'ivaWithheldMxn'      => (float) $closure['iva_withheld_mxn'],
+				'otherAdjustmentsMxn' => (float) $closure['other_adjustments_mxn'],
+				'netMxn'              => (float) $closure['net_mxn'],
+				'paidNetMxn'          => (float) ( $closure['paid_net_mxn'] ?? 0 ),
+				'paidAt'              => $closure['paid_at_gmt'] ?? null,
+				'reference'           => (string) ( $closure['payment_reference'] ?? '' ),
+				'receiptId'           => (int) ( $closure['payment_document_id'] ?? 0 ),
+				'reversedAt'          => $closure['payment_reversed_at_gmt'] ?? null,
+				'reversalReason'      => $closure['payment_reversal_reason'] ?? null,
+			);
+		}, $data['items'] ?? array() );
+		return self::no_store_response( array( 'success' => true, 'page' => $page, 'hasMore' => ! empty( $data['has_more'] ), 'items' => $items ) );
+	}
+
+	public static function download_payment_receipt( WP_REST_Request $request ) {
+		$result = Nakama_Affiliates_Payments::downloadable( (int) $request->get_param( 'id' ) );
+		if ( empty( $result['success'] ) ) return self::no_store_response( $result );
+		$document = $result['document'];
+		if ( false === Nakama_Affiliates_Private_Files::stream_pdf_and_exit( $document['storage_key'], $document['original_name'] ) ) {
+			return self::no_store_response( array( 'success' => false, 'message' => 'El comprobante privado no está disponible.' ) );
+		}
+		return null;
 	}
 
 	private static function affiliate_context( WP_REST_Request $request ) {

@@ -14,7 +14,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'NAKAMA_AFFILIATES_VERSION', '0.1.0' );
-define( 'NAKAMA_AFFILIATES_DB_VERSION', '1' );
+define( 'NAKAMA_AFFILIATES_DB_VERSION', '2' );
 define( 'NAKAMA_AFFILIATES_FILE', __FILE__ );
 define( 'NAKAMA_AFFILIATES_PATH', plugin_dir_path( __FILE__ ) );
 define( 'NAKAMA_AFFILIATES_URL', plugin_dir_url( __FILE__ ) );
@@ -33,6 +33,7 @@ $nakama_affiliates_includes = array(
 	'includes/class-affiliates-commissions.php',
 	'includes/class-affiliates-refunds.php',
 	'includes/class-affiliates-closures.php',
+	'includes/class-affiliates-payments.php',
 	'includes/class-affiliates-private-files.php',
 	'includes/class-affiliates-documents.php',
 	'includes/class-affiliates-admin.php',

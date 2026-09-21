@@ -239,7 +239,16 @@ final class Nakama_Affiliates_Admin {
 			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="nka-form-grid nka-adjustments-form"><?php self::mutation_fields( 'manual_amounts' ); ?><input type="hidden" name="closure_id" value="<?php echo esc_attr( $closure['id'] ); ?>" /><label>ISR retenido (MXN)<input name="isr_mxn" type="number" min="0" step="0.01" value="<?php echo esc_attr( $closure['isr_withheld_mxn'] ); ?>" required /></label><label>IVA retenido (MXN)<input name="iva_mxn" type="number" min="0" step="0.01" value="<?php echo esc_attr( $closure['iva_withheld_mxn'] ); ?>" required /></label><label>Otros ajustes firmados<input name="other_mxn" type="number" step="0.01" value="<?php echo esc_attr( $closure['other_adjustments_mxn'] ); ?>" required /></label><label class="nka-wide">Motivo y referencia del contador<textarea name="reason" required><?php echo esc_textarea( $closure['adjustment_reason'] ); ?></textarea></label><button class="button" type="submit">Guardar importes manuales</button></form>
 			<?php endif; ?>
 			<?php if ( 'closed' === $closure['status'] ) : ?><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="nka-approve-form"><?php self::mutation_fields( 'approve_closure' ); ?><input type="hidden" name="closure_id" value="<?php echo esc_attr( $closure['id'] ); ?>" /><label class="nka-check"><input name="confirmed" type="checkbox" value="1" required /> Confirmo bruto, retenciones, ajustes y neto.</label><button class="button button-primary" type="submit" data-nakama-confirm="Después de aprobar no podrás editar los importes. ¿Continuar?">Aprobar cierre</button></form><?php endif; ?>
-			<?php if ( 'approved' === $closure['status'] ) : ?><p class="nka-next-step">Pago pendiente. El registro de comprobante se habilita en la siguiente etapa.</p><?php endif; ?>
+			<?php if ( 'approved' === $closure['status'] ) : ?>
+			<form method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="nka-form-grid nka-payment-form"><?php self::mutation_fields( 'record_payment' ); ?><input type="hidden" name="closure_id" value="<?php echo esc_attr( $closure['id'] ); ?>" /><label>Fecha y hora del pago<input name="paid_at" type="datetime-local" required /></label><label>Referencia<input name="payment_reference" maxlength="191" required /></label><label class="nka-wide">Comprobante PDF<input name="receipt" type="file" accept="application/pdf,.pdf" required /></label><button class="button button-primary" type="submit" data-nakama-confirm="Se congelará el neto pagado y se guardará el comprobante. ¿Continuar?">Registrar pago</button></form>
+			<?php endif; ?>
+			<?php if ( 'paid' === $closure['status'] ) : ?>
+			<div class="nka-payment-detail"><p><strong>Pagado:</strong> <?php echo esc_html( self::money( $closure['paid_net_mxn'] ?? $closure['net_mxn'] ) ); ?> · <?php echo esc_html( $closure['paid_at_gmt'] ); ?> · Ref. <?php echo esc_html( $closure['payment_reference'] ); ?></p><a class="button" href="<?php echo esc_url( self::payment_download_url( (int) $closure['payment_document_id'] ) ); ?>">Descargar comprobante</a></div>
+			<?php if ( empty( $closure['payment_reversed_at_gmt'] ) ) : ?>
+			<form method="post" enctype="multipart/form-data" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="nka-form-grid nka-replace-payment-form"><?php self::mutation_fields( 'replace_receipt' ); ?><input type="hidden" name="closure_id" value="<?php echo esc_attr( $closure['id'] ); ?>" /><label>Nuevo comprobante PDF<input name="receipt" type="file" accept="application/pdf,.pdf" required /></label><label class="nka-wide">Motivo del reemplazo<textarea name="reason" required></textarea></label><button class="button" type="submit">Reemplazar comprobante</button></form>
+			<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="nka-reverse-payment-form"><?php self::mutation_fields( 'reverse_payment' ); ?><input type="hidden" name="closure_id" value="<?php echo esc_attr( $closure['id'] ); ?>" /><label>Motivo de la reversión<textarea name="reason" required></textarea></label><label class="nka-check"><input name="confirmed" type="checkbox" value="1" required /> Confirmo que registraré una reversión sin borrar el pago original.</label><button class="button" type="submit" data-nakama-confirm="La reversión quedará en el historial. ¿Continuar?">Registrar reversión</button></form>
+			<?php else : ?><div class="notice notice-error inline"><p><strong>Pago revertido:</strong> <?php echo esc_html( $closure['payment_reversal_reason'] ); ?> · <?php echo esc_html( $closure['payment_reversed_at_gmt'] ); ?></p></div><?php endif; ?>
+			<?php endif; ?>
 		</article>
 		<?php
 	}
@@ -258,7 +267,9 @@ final class Nakama_Affiliates_Admin {
 		}
 		check_admin_referer( self::NONCE_ACTION, self::NONCE_FIELD );
 		$action = isset( $_POST['nakama_action'] ) ? sanitize_key( wp_unslash( $_POST['nakama_action'] ) ) : '';
-		$result = self::process_action( $action, wp_unslash( $_POST ), get_current_user_id() );
+		$data = wp_unslash( $_POST );
+		$data['_files'] = $_FILES;
+		$result = self::process_action( $action, $data, get_current_user_id() );
 		$tab = self::action_tab( $action );
 		$url = add_query_arg( array(
 			'page' => self::SLUG,
@@ -285,6 +296,21 @@ final class Nakama_Affiliates_Admin {
 				return Nakama_Affiliates_Closures::set_manual_amounts( absint( $data['closure_id'] ?? 0 ), $data['isr_mxn'] ?? '', $data['iva_mxn'] ?? '', $data['other_mxn'] ?? '', $reason, (int) $actor_user_id );
 			case 'approve_closure':
 				return Nakama_Affiliates_Closures::approve( absint( $data['closure_id'] ?? 0 ), ! empty( $data['confirmed'] ), (int) $actor_user_id );
+			case 'record_payment':
+				$file = $data['_files']['receipt'] ?? null;
+				if ( ! is_array( $file ) ) return array( 'success' => false, 'reason' => 'receipt_required' );
+				return Nakama_Affiliates_Payments::record( absint( $data['closure_id'] ?? 0 ), $file, sanitize_text_field( $data['payment_reference'] ?? '' ), self::payment_date_to_gmt( $data['paid_at'] ?? '' ), (int) $actor_user_id );
+			case 'replace_receipt':
+				$file = $data['_files']['receipt'] ?? null;
+				$reason = sanitize_textarea_field( $data['reason'] ?? '' );
+				if ( ! is_array( $file ) ) return array( 'success' => false, 'reason' => 'receipt_required' );
+				if ( '' === trim( $reason ) ) return array( 'success' => false, 'reason' => 'reason_required' );
+				return Nakama_Affiliates_Payments::replace_receipt( absint( $data['closure_id'] ?? 0 ), $file, $reason, (int) $actor_user_id );
+			case 'reverse_payment':
+				$reason = sanitize_textarea_field( $data['reason'] ?? '' );
+				if ( empty( $data['confirmed'] ) ) return array( 'success' => false, 'reason' => 'confirmation_required' );
+				if ( '' === trim( $reason ) ) return array( 'success' => false, 'reason' => 'reason_required' );
+				return Nakama_Affiliates_Payments::reverse( absint( $data['closure_id'] ?? 0 ), $reason, (int) $actor_user_id );
 			case 'save_profile':
 				return self::save_profile( $data, $actor_user_id );
 			default:
@@ -330,7 +356,7 @@ final class Nakama_Affiliates_Admin {
 
 	private static function action_tab( $action ) {
 		if ( 'review_document' === $action ) return 'documents';
-		if ( in_array( $action, array( 'close_period', 'manual_amounts', 'approve_closure' ), true ) ) return 'closures';
+		if ( in_array( $action, array( 'close_period', 'manual_amounts', 'approve_closure', 'record_payment', 'replace_receipt', 'reverse_payment' ), true ) ) return 'closures';
 		return 'affiliates';
 	}
 
@@ -388,6 +414,17 @@ final class Nakama_Affiliates_Admin {
 
 	private static function document_download_url( $document_id ) {
 		return add_query_arg( '_wpnonce', wp_create_nonce( 'wp_rest' ), rest_url( 'nakama/v1/affiliates/admin/documents/' . (int) $document_id . '/download' ) );
+	}
+
+	private static function payment_download_url( $document_id ) {
+		return add_query_arg( '_wpnonce', wp_create_nonce( 'wp_rest' ), rest_url( 'nakama/v1/affiliates/me/payments/' . (int) $document_id . '/download' ) );
+	}
+
+	private static function payment_date_to_gmt( $value ) {
+		$value = str_replace( 'T', ' ', sanitize_text_field( $value ) );
+		if ( 16 === strlen( $value ) ) $value .= ':00';
+		if ( ! preg_match( '/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/', $value ) ) return '';
+		return function_exists( 'get_gmt_from_date' ) ? get_gmt_from_date( $value, 'Y-m-d H:i:s' ) : $value;
 	}
 
 	private static function money( $amount ) {

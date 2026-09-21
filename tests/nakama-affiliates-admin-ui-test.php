@@ -29,5 +29,8 @@ affiliates_admin_ui_assert( preg_match( '/min-height:\s*44px/', $css ) === 1, 'I
 affiliates_admin_ui_assert( false !== strpos( $css, '@media (max-width: 782px)' ), 'Admin tables adapt to mobile screens.' );
 affiliates_admin_ui_assert( false !== strpos( $js, 'data-nakama-confirm' ), 'JavaScript adds confirmation copy only as progressive enhancement.' );
 affiliates_admin_ui_assert( false === strpos( $js, 'fetch(' ), 'Economic actions do not depend on JavaScript requests.' );
+affiliates_admin_ui_assert( false !== strpos( $php, 'enctype="multipart/form-data"' ), 'Payment receipt forms upload files through the authenticated server action.' );
+affiliates_admin_ui_assert( false !== strpos( $php, 'Registrar pago' ), 'Approved closures expose the manual payment action.' );
+affiliates_admin_ui_assert( false !== strpos( $php, 'Registrar reversión' ), 'Paid closures retain an explicit non-destructive reversal action.' );
 
 echo "PHP Nakama Affiliates admin UI tests passed.\n";

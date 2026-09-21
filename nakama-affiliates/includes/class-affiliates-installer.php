@@ -118,6 +118,7 @@ final class Nakama_Affiliates_Installer {
 				iva_withheld_mxn decimal(26,8) NOT NULL DEFAULT 0,
 				other_adjustments_mxn decimal(26,8) NOT NULL DEFAULT 0,
 				net_mxn decimal(26,8) NOT NULL DEFAULT 0,
+				paid_net_mxn decimal(26,8) NOT NULL DEFAULT 0,
 				adjustment_reason text NULL,
 				approved_by bigint(20) unsigned NOT NULL DEFAULT 0,
 				closed_at_gmt datetime NULL,
@@ -125,6 +126,9 @@ final class Nakama_Affiliates_Installer {
 				paid_at_gmt datetime NULL,
 				payment_reference varchar(191) NOT NULL DEFAULT '',
 				payment_document_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				payment_reversed_at_gmt datetime NULL,
+				payment_reversed_by bigint(20) unsigned NOT NULL DEFAULT 0,
+				payment_reversal_reason text NULL,
 				created_at_gmt datetime NOT NULL,
 				updated_at_gmt datetime NOT NULL,
 				PRIMARY KEY  (id),
@@ -135,6 +139,8 @@ final class Nakama_Affiliates_Installer {
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				affiliate_id bigint(20) unsigned NOT NULL,
 				document_type varchar(24) NOT NULL DEFAULT 'fiscal',
+				related_entity_type varchar(40) NOT NULL DEFAULT '',
+				related_entity_id bigint(20) unsigned NOT NULL DEFAULT 0,
 				storage_key varchar(191) NOT NULL,
 				original_name varchar(255) NOT NULL DEFAULT '',
 				mime_type varchar(100) NOT NULL DEFAULT 'application/pdf',
@@ -149,7 +155,8 @@ final class Nakama_Affiliates_Installer {
 				PRIMARY KEY  (id),
 				UNIQUE KEY storage_key (storage_key),
 				KEY affiliate_current (affiliate_id,document_type,is_current),
-				KEY document_status (status)
+				KEY document_status (status),
+				KEY related_document (document_type,related_entity_type,related_entity_id)
 			) {$charset};",
 			"CREATE TABLE {$benefits} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
@@ -232,4 +239,3 @@ final class Nakama_Affiliates_Installer {
 		);
 	}
 }
-

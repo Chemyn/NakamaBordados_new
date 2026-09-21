@@ -189,6 +189,7 @@ final class Nakama_Affiliates_Closures {
 			'paid_at_gmt'         => $paid_at,
 			'payment_reference'   => $reference,
 			'payment_document_id' => $document_id,
+			'paid_net_mxn'        => Nakama_Affiliates_Domain::money( $closure['net_mxn'] ?? 0 ),
 			'updated_at_gmt'      => Nakama_Affiliates_Repository::now_gmt(),
 		) );
 		self::audit( 'closure_paid', (int) $closure_id, 'Pago de comisión registrado con comprobante privado.', $actor_user_id );
