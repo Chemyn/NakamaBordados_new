@@ -57,6 +57,14 @@ final class Nakama_Affiliates_Repository {
 	}
 }
 
+final class Nakama_Affiliates_Benefits {
+	public static array $grants = array();
+	public static function grant_from_closure( array $closure, $actor_user_id = 0 ): array {
+		self::$grants[ (int) $closure['id'] ] = array( 'closure' => $closure, 'actor_user_id' => (int) $actor_user_id );
+		return array( 'success' => true );
+	}
+}
+
 require dirname( __DIR__ ) . '/nakama-affiliates/includes/class-affiliates-domain.php';
 require dirname( __DIR__ ) . '/nakama-affiliates/includes/class-affiliates-closures.php';
 
@@ -97,6 +105,9 @@ affiliates_closures_assert_same( 'closed', $closed['closure']['status'], 'A conf
 affiliates_closures_assert_same( 990.0, $closed['closure']['commission_gross_mxn'], 'The gross commission is frozen in the closure.' );
 affiliates_closures_assert_same( 'already_closed', $duplicate['reason'], 'Affiliate and month stay unique.' );
 affiliates_closures_assert_same( true, Nakama_Affiliates_Repository::$events[0]['closure_id'] > 0, 'Included movements are attached to the immutable closure.' );
+affiliates_closures_assert_same( 1, count( Nakama_Affiliates_Benefits::$grants ), 'Closing a month grants the following benefit period.' );
+$benefit_grant = reset( Nakama_Affiliates_Benefits::$grants );
+affiliates_closures_assert_same( 42, $benefit_grant['actor_user_id'], 'The grant keeps the closing administrator for audit.' );
 
 $manual = Nakama_Affiliates_Closures::set_manual_amounts( $closed['closure']['id'], 90.0, 40.0, -10.0, 'Importes indicados por el contador.', 42 );
 affiliates_closures_assert_same( 850.0, $manual['closure']['net_mxn'], 'Net equals gross minus ISR and IVA plus signed adjustments.' );

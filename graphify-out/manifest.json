@@ -2274,15 +2274,15 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-repository.php": {
-    "mtime": 1789959211.9858298,
-    "seen": 1789959489.0612087,
-    "ast_hash": "71083d1491c6cc659a589aa046b6551d",
+    "mtime": 1789996379.2437656,
+    "seen": 1789996511.5214393,
+    "ast_hash": "393ecb0c583b6f29480119c97e974805",
     "semantic_hash": ""
   },
   "nakama-affiliates/nakama-affiliates.php": {
-    "mtime": 1789959218.0340908,
-    "seen": 1789959489.061212,
-    "ast_hash": "498a9a8a7d57ec27c7fe53b4324acb90",
+    "mtime": 1789996393.060532,
+    "seen": 1789996511.5214431,
+    "ast_hash": "0ca9986197012dcd1508c84f64bee277",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-domain-test.php": {
@@ -2508,15 +2508,15 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-closures.php": {
-    "mtime": 1789959449.8141272,
-    "seen": 1789959489.0611799,
-    "ast_hash": "c645ef9ee9e08aa821c01cb7355c2724",
+    "mtime": 1789996385.5258014,
+    "seen": 1789996511.5214124,
+    "ast_hash": "d35cc189f44b058cf9dbf2e60fb3a7ad",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-closures-test.php": {
-    "mtime": 1789958435.9183013,
-    "seen": 1789958471.5895348,
-    "ast_hash": "1171a7b780932856e6e3b5e9135c1453",
+    "mtime": 1789996453.366846,
+    "seen": 1789996511.521698,
+    "ast_hash": "1ad73d5cd81745372f4fd0ca401c5874",
     "semantic_hash": ""
   },
   "nakama-affiliates/assets/admin.js": {
@@ -2553,6 +2553,18 @@
     "mtime": 1789959239.466819,
     "seen": 1789959489.0614457,
     "ast_hash": "0e0b31c6997fd6aebb44c6f855536a1a",
+    "semantic_hash": ""
+  },
+  "nakama-affiliates/includes/class-affiliates-benefits.php": {
+    "mtime": 1789996372.8799012,
+    "seen": 1789996511.5214086,
+    "ast_hash": "d5f267a1ee77d0a56202547f646caed6",
+    "semantic_hash": ""
+  },
+  "tests/nakama-affiliates-benefits-test.php": {
+    "mtime": 1789996402.0363355,
+    "seen": 1789996511.5216966,
+    "ast_hash": "42219dbb26978a5d847076ed8fe9b8dc",
     "semantic_hash": ""
   }
 }

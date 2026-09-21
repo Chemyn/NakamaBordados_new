@@ -37,6 +37,7 @@ final class Nakama_Affiliates_Closures {
 		$existing = Nakama_Affiliates_Repository::closure_by_affiliate_period( (int) $affiliate_id, (string) $period_key );
 		if ( $existing ) {
 			if ( 'draft' !== ( $existing['status'] ?? '' ) ) {
+				self::grant_benefit( $existing, $actor_user_id );
 				return self::failure( 'already_closed', array( 'closure' => $existing ) );
 			}
 			$now = Nakama_Affiliates_Repository::now_gmt();
@@ -46,7 +47,9 @@ final class Nakama_Affiliates_Closures {
 				'updated_at_gmt'=> $now,
 			) );
 			self::audit( 'closure_closed', (int) $existing['id'], 'Cierre reconfirmado después de una reapertura excepcional.', $actor_user_id );
-			return self::success( Nakama_Affiliates_Repository::closure_by_id( (int) $existing['id'] ) );
+			$closure = Nakama_Affiliates_Repository::closure_by_id( (int) $existing['id'] );
+			self::grant_benefit( $closure, $actor_user_id );
+			return self::success( $closure );
 		}
 
 		$preview = self::preview( $affiliate_id, $period_key );
@@ -85,7 +88,9 @@ final class Nakama_Affiliates_Closures {
 
 		self::audit( 'closure_preview_confirmed', $closure_id, self::encode( $preview ), $actor_user_id );
 		self::audit( 'closure_closed', $closure_id, 'Periodo cerrado con movimientos congelados.', $actor_user_id );
-		return self::success( Nakama_Affiliates_Repository::closure_by_id( $closure_id ) );
+		$closure = Nakama_Affiliates_Repository::closure_by_id( $closure_id );
+		self::grant_benefit( $closure, $actor_user_id );
+		return self::success( $closure );
 	}
 
 	/** Store accountant-provided amounts; no percentage or tax logic is applied. */
@@ -264,6 +269,12 @@ final class Nakama_Affiliates_Closures {
 
 	private static function audit( $action, $closure_id, $description, $actor_user_id ) {
 		Nakama_Affiliates_Repository::audit( $action, 'closure', (int) $closure_id, (string) $description, (int) $actor_user_id );
+	}
+
+	private static function grant_benefit( $closure, $actor_user_id ) {
+		if ( is_array( $closure ) && class_exists( 'Nakama_Affiliates_Benefits' ) ) {
+			Nakama_Affiliates_Benefits::grant_from_closure( $closure, (int) $actor_user_id );
+		}
 	}
 
 	private static function encode( array $data ) {

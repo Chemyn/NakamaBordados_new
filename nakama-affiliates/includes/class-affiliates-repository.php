@@ -179,6 +179,48 @@ final class Nakama_Affiliates_Repository {
 		);
 	}
 
+	public static function benefit_by_affiliate_period( $affiliate_id, $period_key ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'benefits' ) . ' WHERE affiliate_id = %d AND period_key = %s LIMIT 1',
+			(int) $affiliate_id,
+			(string) $period_key
+		), ARRAY_A );
+	}
+
+	public static function benefit_by_id( $benefit_id ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'benefits' ) . ' WHERE id = %d LIMIT 1',
+			(int) $benefit_id
+		), ARRAY_A );
+	}
+
+	/** Insert one frozen benefit per affiliate and month; duplicate races are idempotent. */
+	public static function insert_benefit_period( array $data ) {
+		global $wpdb;
+		$existing = self::benefit_by_affiliate_period( (int) $data['affiliate_id'], (string) $data['period_key'] );
+		if ( $existing ) {
+			return (int) $existing['id'];
+		}
+
+		if ( $wpdb->insert( self::table( 'benefits' ), $data ) ) {
+			return (int) $wpdb->insert_id;
+		}
+
+		$existing = self::benefit_by_affiliate_period( (int) $data['affiliate_id'], (string) $data['period_key'] );
+		return $existing ? (int) $existing['id'] : 0;
+	}
+
+	public static function update_benefit_period( $benefit_id, array $data ) {
+		global $wpdb;
+		return false !== $wpdb->update(
+			self::table( 'benefits' ),
+			$data,
+			array( 'id' => (int) $benefit_id )
+		);
+	}
+
 	/** Atomically record the first payment and its private document. */
 	public static function record_payment_with_document( $closure_id, array $document, array $payment ) {
 		global $wpdb;
