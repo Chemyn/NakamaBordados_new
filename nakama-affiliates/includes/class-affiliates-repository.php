@@ -86,6 +86,39 @@ final class Nakama_Affiliates_Repository {
 		);
 	}
 
+	public static function ledger_by_event_key( $event_key ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'ledger' ) . ' WHERE event_key = %s LIMIT 1',
+			(string) $event_key
+		), ARRAY_A );
+	}
+
+	/** Insert by unique event key and treat a duplicate race as success. */
+	public static function insert_ledger_event( array $data ) {
+		global $wpdb;
+		$event_key = isset( $data['event_key'] ) ? (string) $data['event_key'] : '';
+		if ( '' === $event_key ) {
+			return array( 'created' => false, 'id' => 0, 'reason' => 'missing_event_key' );
+		}
+
+		$existing = self::ledger_by_event_key( $event_key );
+		if ( $existing ) {
+			return array( 'created' => false, 'id' => (int) $existing['id'], 'event' => $existing );
+		}
+
+		$data['created_at_gmt'] = self::now_gmt();
+		$inserted = $wpdb->insert( self::table( 'ledger' ), $data );
+		if ( $inserted ) {
+			return array( 'created' => true, 'id' => (int) $wpdb->insert_id, 'event' => $data );
+		}
+
+		$existing = self::ledger_by_event_key( $event_key );
+		return $existing
+			? array( 'created' => false, 'id' => (int) $existing['id'], 'event' => $existing )
+			: array( 'created' => false, 'id' => 0, 'reason' => 'insert_failed' );
+	}
+
 	public static function audit( $action, $entity_type, $entity_id, $description = '', $actor_user_id = null ) {
 		global $wpdb;
 		if ( null === $actor_user_id ) {
@@ -102,4 +135,3 @@ final class Nakama_Affiliates_Repository {
 		) );
 	}
 }
-
