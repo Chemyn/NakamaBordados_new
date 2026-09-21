@@ -108,6 +108,19 @@ final class Nakama_Affiliates_REST {
 				'permission_callback' => array( __CLASS__, 'affiliate_permission' ),
 			),
 		) );
+
+		register_rest_route( self::NAMESPACE_NAME, '/affiliates/me/evidence', array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'evidence' ),
+				'permission_callback' => array( __CLASS__, 'affiliate_permission' ),
+			),
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'evidence' ),
+				'permission_callback' => array( __CLASS__, 'affiliate_permission' ),
+			),
+		) );
 	}
 
 	public static function validate_code( WP_REST_Request $request ) {
@@ -356,6 +369,28 @@ final class Nakama_Affiliates_REST {
 			'shippingCovered'  => true,
 			'officialAccounts' => Nakama_Affiliates_Products::official_accounts(),
 		) );
+	}
+
+	public static function evidence( WP_REST_Request $request ) {
+		$context = self::affiliate_context( $request );
+		if ( ! $context['profile'] || 'active' !== ( $context['profile']['status'] ?? '' ) ) {
+			return self::no_store_response( array( 'success' => false, 'code' => 'affiliate_inactive' ) );
+		}
+		$method = method_exists( $request, 'get_method' ) ? strtoupper( (string) $request->get_method() ) : 'GET';
+		$body = 'POST' === $method && method_exists( $request, 'get_json_params' ) ? $request->get_json_params() : array();
+		$body = is_array( $body ) ? $body : array();
+		$request_id = (int) ( $body['requestId'] ?? $request->get_param( 'request_id' ) );
+		if ( $request_id <= 0 ) {
+			$current = Nakama_Affiliates_Requests::for_period( (int) $context['profile']['id'], self::current_period() );
+			$request_id = $current ? (int) $current['id'] : 0;
+		}
+		if ( $request_id <= 0 ) return self::no_store_response( array( 'success' => false, 'reason' => 'request_not_found' ) );
+
+		if ( 'POST' === $method ) {
+			$urls = isset( $body['urls'] ) && is_array( $body['urls'] ) ? $body['urls'] : array();
+			return self::no_store_response( Nakama_Affiliates_Evidence::submit( $request_id, (int) $context['profile']['id'], $urls, get_current_user_id() ) );
+		}
+		return self::no_store_response( Nakama_Affiliates_Evidence::for_request( $request_id, (int) $context['profile']['id'] ) );
 	}
 
 	private static function affiliate_context( WP_REST_Request $request ) {

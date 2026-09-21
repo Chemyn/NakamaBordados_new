@@ -166,6 +166,7 @@ affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/me/p
 affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/me/payments/(?P<id>\d+)/download'] ), 'The owner-authorized receipt download route exists.' );
 affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/me/products'] ), 'The private eligible product catalog route exists.' );
 affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/me/product-request'] ), 'The private monthly product request route exists.' );
+affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/me/evidence'] ), 'The private social evidence route exists.' );
 
 $response = Nakama_Affiliates_REST::validate_code( new WP_REST_Request( array( 'code' => 'valido' ) ) );
 affiliates_rest_assert( true === $response->data['valid'], 'A valid public code receives a positive response.' );

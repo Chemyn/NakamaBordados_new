@@ -56,6 +56,8 @@ $schema = implode( "\n", $affiliate_schema_queries );
 affiliates_installer_assert( false !== strpos( $schema, 'paid_net_mxn decimal(26,8)' ), 'The paid net is frozen separately from the approved net.' );
 affiliates_installer_assert( false !== strpos( $schema, 'related_entity_id bigint(20) unsigned' ), 'Private payment documents retain their closure relationship.' );
 affiliates_installer_assert( false !== strpos( $schema, 'payment_reversal_reason text' ), 'Payment reversal history has an explicit reason.' );
+affiliates_installer_assert( false !== strpos( $schema, 'content_type varchar(20)' ), 'Social evidence stores its content type.' );
+affiliates_installer_assert( false !== strpos( $schema, 'position tinyint(3) unsigned' ), 'Social evidence stores its required position.' );
 
 $schema = implode( "\n", $affiliate_schema_queries );
 foreach ( $expected_tables as $table ) {

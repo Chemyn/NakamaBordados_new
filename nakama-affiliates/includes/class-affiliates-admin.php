@@ -77,7 +77,7 @@ final class Nakama_Affiliates_Admin {
 					case 'sales': self::render_sales(); break;
 					case 'closures': self::render_closures(); break;
 					case 'garments': self::render_garments(); break;
-					case 'evidence': self::render_delivery_placeholder( 'Evidencias' ); break;
+					case 'evidence': self::render_evidence(); break;
 					case 'settings': self::render_settings(); break;
 					default: self::render_summary();
 				}
@@ -94,6 +94,7 @@ final class Nakama_Affiliates_Admin {
 			array( 'label' => 'Cierres por aprobar', 'count' => self::count_rows( 'closures', "status = 'closed'" ), 'tab' => 'closures' ),
 			array( 'label' => 'Pagos pendientes', 'count' => self::count_rows( 'closures', "status = 'approved'" ), 'tab' => 'closures' ),
 			array( 'label' => 'Prendas por aprobar', 'count' => self::count_rows( 'requests', "status = 'submitted'" ), 'tab' => 'garments' ),
+			array( 'label' => 'Evidencias pendientes', 'count' => self::count_rows( 'evidence', "status = 'pending'" ), 'tab' => 'evidence' ),
 		);
 		?>
 		<section aria-labelledby="nka-summary-title">
@@ -258,6 +259,34 @@ final class Nakama_Affiliates_Admin {
 		?><section class="nka-empty-stage" aria-labelledby="nka-stage-title"><p class="nka-kicker">Programa mensual</p><h2 id="nka-stage-title"><?php echo esc_html( $title ); ?></h2><strong>Disponible en Entrega 3</strong><p>Esta sección se activará cuando estén listas las reglas de cupo, catálogo elegible y validación manual de publicaciones.</p></section><?php
 	}
 
+	private static function render_evidence() {
+		$status = self::query_value( 'status' );
+		$filters = in_array( $status, array( 'pending', 'approved', 'rejected' ), true ) ? array( 'status' => $status ) : array();
+		$data = self::paged_rows( 'evidence', $filters, 'submitted_at_gmt DESC,id DESC' );
+		$accounts = Nakama_Affiliates_Products::official_accounts();
+		?>
+		<section aria-labelledby="nka-evidence-title">
+			<div class="nka-section-heading"><div><p class="nka-kicker">Validación manual</p><h2 id="nka-evidence-title">Evidencias sociales</h2></div></div>
+			<div class="nka-info-box"><strong>Antes de aprobar:</strong> abre el enlace y verifica que la publicación etiquete <?php echo esc_html( $accounts ? implode( ', ', $accounts ) : 'las cuentas oficiales configuradas de Nakama Bordados' ); ?> e invite a comprar con el código del afiliado. El sistema no descarga ni copia el contenido.</div>
+			<?php self::render_status_filter( 'evidence', array( '' => 'Todos', 'pending' => 'Pendiente', 'approved' => 'Aprobada', 'rejected' => 'Rechazada' ), $status ); ?>
+			<div class="nka-table-wrap"><table class="widefat striped"><thead><tr><th>Entrega</th><th>Afiliado</th><th>Tipo</th><th>Enlace</th><th>Estado</th><th>Revisión</th></tr></thead><tbody>
+			<?php foreach ( $data['items'] as $item ) : $request = Nakama_Affiliates_Repository::request_by_id( (int) $item['request_id'] ); $profile = $request ? Nakama_Affiliates_Repository::profile_by_id( (int) $request['affiliate_id'] ) : null; ?>
+			<tr>
+				<td><?php echo esc_html( $request['period_key'] ?? '—' ); ?><br /><small>#<?php echo esc_html( $item['request_id'] ); ?></small></td>
+				<td><?php echo esc_html( $profile['code'] ?? ( 'ID ' . $item['affiliate_id'] ) ); ?></td>
+				<td><?php echo esc_html( ucfirst( $item['content_type'] ) . ' ' . $item['position'] ); ?></td>
+				<td><a href="<?php echo esc_url( $item['url'] ); ?>" target="_blank" rel="noopener noreferrer">Abrir publicación <span class="screen-reader-text">en una pestaña nueva</span></a></td>
+				<td><strong><?php echo esc_html( $item['status'] ); ?></strong><?php if ( ! empty( $item['review_reason'] ) ) : ?><br /><small><?php echo esc_html( $item['review_reason'] ); ?></small><?php endif; ?></td>
+				<td><?php if ( 'pending' === $item['status'] ) : ?><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="nka-inline-form"><?php self::mutation_fields( 'review_evidence' ); ?><input type="hidden" name="evidence_id" value="<?php echo esc_attr( $item['id'] ); ?>" /><button class="button button-primary" name="review_status" value="approved" type="submit">Aprobar</button><label>Motivo para rechazar<textarea name="reason"></textarea></label><button class="button" name="review_status" value="rejected" type="submit">Rechazar</button></form><?php else : echo '<span aria-hidden="true">—</span>'; endif; ?></td>
+			</tr>
+			<?php endforeach; ?>
+			<?php if ( ! $data['items'] ) : ?><tr><td colspan="6">No hay evidencias con este filtro.</td></tr><?php endif; ?>
+			</tbody></table></div>
+			<?php self::render_pagination( $data, 'evidence' ); ?>
+		</section>
+		<?php
+	}
+
 	private static function render_garments() {
 		$status = self::query_value( 'status' );
 		$filters = in_array( $status, Nakama_Affiliates_Requests::STATES, true ) ? array( 'status' => $status ) : array();
@@ -372,6 +401,8 @@ final class Nakama_Affiliates_Admin {
 				), (int) $actor_user_id );
 			case 'save_program_settings':
 				return Nakama_Affiliates_Products::save_settings( $data['restricted_category_ids'] ?? '', $data['official_accounts'] ?? '', (int) $actor_user_id );
+			case 'review_evidence':
+				return Nakama_Affiliates_Evidence::review( absint( $data['evidence_id'] ?? 0 ), sanitize_key( $data['review_status'] ?? '' ), sanitize_textarea_field( $data['reason'] ?? '' ), (int) $actor_user_id );
 			default:
 				return array( 'success' => false, 'reason' => 'unknown_action' );
 		}
@@ -418,6 +449,7 @@ final class Nakama_Affiliates_Admin {
 		if ( in_array( $action, array( 'close_period', 'manual_amounts', 'approve_closure', 'record_payment', 'replace_receipt', 'reverse_payment' ), true ) ) return 'closures';
 		if ( 'update_request' === $action ) return 'garments';
 		if ( 'save_program_settings' === $action ) return 'settings';
+		if ( 'review_evidence' === $action ) return 'evidence';
 		return 'affiliates';
 	}
 

@@ -303,6 +303,70 @@ final class Nakama_Affiliates_Repository {
 		);
 	}
 
+	public static function evidence_for_request( $request_id ) {
+		global $wpdb;
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'evidence' ) . ' WHERE request_id = %d ORDER BY position ASC,id ASC',
+			(int) $request_id
+		), ARRAY_A );
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	public static function evidence_by_id( $evidence_id ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'evidence' ) . ' WHERE id = %d LIMIT 1',
+			(int) $evidence_id
+		), ARRAY_A );
+	}
+
+	public static function evidence_by_affiliate_period_hash( $affiliate_id, $period_key, $url_hash, $exclude_id = 0 ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare(
+			'SELECT e.* FROM ' . self::table( 'evidence' ) . ' e INNER JOIN ' . self::table( 'requests' ) . ' r ON r.id = e.request_id WHERE e.affiliate_id = %d AND r.period_key = %s AND e.url_hash = %s AND e.id <> %d LIMIT 1',
+			(int) $affiliate_id,
+			(string) $period_key,
+			(string) $url_hash,
+			(int) $exclude_id
+		), ARRAY_A );
+	}
+
+	/** Insert new slots or replace rejected slots as one auditable submission. */
+	public static function save_evidence_batch( array $records ) {
+		global $wpdb;
+		if ( ! $records ) return true;
+		$wpdb->query( 'START TRANSACTION' );
+		$wpdb->get_var( $wpdb->prepare(
+			'SELECT id FROM ' . self::table( 'requests' ) . ' WHERE id = %d FOR UPDATE',
+			(int) $records[0]['request_id']
+		) );
+		foreach ( $records as $record ) {
+			$evidence_id = (int) ( $record['id'] ?? 0 );
+			unset( $record['id'] );
+			if ( $evidence_id > 0 ) {
+				$saved = $wpdb->update( self::table( 'evidence' ), $record, array( 'id' => $evidence_id, 'status' => 'rejected' ) );
+				$ok = 1 === (int) $saved;
+			} else {
+				$ok = (bool) $wpdb->insert( self::table( 'evidence' ), $record );
+			}
+			if ( ! $ok ) {
+				$wpdb->query( 'ROLLBACK' );
+				return false;
+			}
+		}
+		$wpdb->query( 'COMMIT' );
+		return true;
+	}
+
+	public static function update_evidence( $evidence_id, array $data ) {
+		global $wpdb;
+		return false !== $wpdb->update(
+			self::table( 'evidence' ),
+			$data,
+			array( 'id' => (int) $evidence_id )
+		);
+	}
+
 	/** Atomically record the first payment and its private document. */
 	public static function record_payment_with_document( $closure_id, array $document, array $payment ) {
 		global $wpdb;

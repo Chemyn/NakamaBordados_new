@@ -212,6 +212,8 @@ final class Nakama_Affiliates_Installer {
 				request_id bigint(20) unsigned NOT NULL,
 				affiliate_id bigint(20) unsigned NOT NULL,
 				slot_key varchar(20) NOT NULL,
+				content_type varchar(20) NOT NULL,
+				position tinyint(3) unsigned NOT NULL DEFAULT 1,
 				url text NOT NULL,
 				url_hash char(64) NOT NULL,
 				status varchar(20) NOT NULL DEFAULT 'pending',
