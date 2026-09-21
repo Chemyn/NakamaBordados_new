@@ -117,11 +117,16 @@
 .nka-form-grid,
 .nka-actions,
 .nka-reject-form,
-.nka-approve-form {
+.nka-approve-form,
+.nka-inline-form {
   display: flex;
   flex-wrap: wrap;
   align-items: end;
   gap: 12px;
+}
+
+.nka-inline-form + .nka-inline-form {
+  margin-top: 10px;
 }
 
 .nka-filter {

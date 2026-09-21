@@ -105,6 +105,35 @@ final class Nakama_Affiliates_Benefits {
 		);
 	}
 
+	/** Persist the base one-product allowance when no prior closure created it. */
+	public static function ensure_period( $affiliate_id, $period_key, $actor_user_id = 0 ) {
+		$benefit = self::for_period( $affiliate_id, $period_key );
+		if ( ! $benefit ) return null;
+		if ( (int) $benefit['id'] > 0 ) return $benefit;
+
+		$date = DateTimeImmutable::createFromFormat( '!Y-m', (string) $period_key, new DateTimeZone( 'UTC' ) );
+		$source_period = $date->modify( 'first day of previous month' )->format( 'Y-m' );
+		$now = Nakama_Affiliates_Repository::now_gmt();
+		$benefit_id = Nakama_Affiliates_Repository::insert_benefit_period( array(
+			'affiliate_id'      => (int) $affiliate_id,
+			'period_key'        => (string) $period_key,
+			'source_period_key' => $source_period,
+			'source_closure_id' => 0,
+			'valid_sales_mxn'   => 0.0,
+			'tier'              => 1,
+			'quota'             => 1,
+			'manual_reason'     => '',
+			'created_at_gmt'    => $now,
+			'updated_at_gmt'    => $now,
+		) );
+		if ( $benefit_id <= 0 ) return null;
+		$benefit = Nakama_Affiliates_Repository::benefit_by_id( $benefit_id );
+		if ( $benefit ) {
+			Nakama_Affiliates_Repository::audit( 'benefit_period_defaulted', 'benefit_period', $benefit_id, 'Cupo base de una prenda sin cierre previo confirmado.', (int) $actor_user_id );
+		}
+		return $benefit;
+	}
+
 	/** Pure, reusable progress values for both monthly milestones. */
 	public static function progress( $valid_sales_mxn ) {
 		$tier  = Nakama_Affiliates_Domain::benefit_tier( $valid_sales_mxn );

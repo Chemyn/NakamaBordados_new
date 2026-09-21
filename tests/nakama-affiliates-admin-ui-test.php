@@ -23,7 +23,9 @@ affiliates_admin_ui_assert( false === stripos( $php, 'password' ), 'The affiliat
 affiliates_admin_ui_assert( false !== strpos( $php, 'Vista previa del cierre' ), 'Closure preview is visible before confirmation.' );
 affiliates_admin_ui_assert( false !== strpos( $php, 'name="confirmed"' ), 'Closing and approval retain a server-verifiable confirmation.' );
 affiliates_admin_ui_assert( false !== strpos( $php, 'name="reason"' ) && false !== strpos( $php, 'required' ), 'Rejections and manual adjustments request a reason.' );
-affiliates_admin_ui_assert( substr_count( $php, "render_delivery_placeholder( '" ) >= 2 && false !== strpos( $php, 'Disponible en Entrega 3' ), 'Future garments and evidence sections explain their staged availability.' );
+affiliates_admin_ui_assert( false !== strpos( $php, 'Solicitudes de prendas' ) && false !== strpos( $php, 'Registrar envío' ), 'Garment requests expose their operational workflow.' );
+affiliates_admin_ui_assert( substr_count( $php, "render_delivery_placeholder( '" ) >= 1 && false !== strpos( $php, 'Disponible en Entrega 3' ), 'The future evidence section explains its staged availability.' );
+affiliates_admin_ui_assert( false !== strpos( $php, 'IDs de categorías restringidas' ) && false !== strpos( $php, 'Cuentas oficiales de Nakama' ), 'Program settings identify restricted catalog categories and social accounts.' );
 affiliates_admin_ui_assert( false !== strpos( $css, ':focus-visible' ), 'Keyboard focus is visible in the panel.' );
 affiliates_admin_ui_assert( preg_match( '/min-height:\s*44px/', $css ) === 1, 'Interactive controls preserve a 44px target.' );
 affiliates_admin_ui_assert( false !== strpos( $css, '@media (max-width: 782px)' ), 'Admin tables adapt to mobile screens.' );

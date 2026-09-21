@@ -89,6 +89,25 @@ final class Nakama_Affiliates_REST {
 			'callback'            => array( __CLASS__, 'download_payment_receipt' ),
 			'permission_callback' => array( __CLASS__, 'affiliate_permission' ),
 		) );
+
+		register_rest_route( self::NAMESPACE_NAME, '/affiliates/me/products', array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => array( __CLASS__, 'products' ),
+			'permission_callback' => array( __CLASS__, 'affiliate_permission' ),
+		) );
+
+		register_rest_route( self::NAMESPACE_NAME, '/affiliates/me/product-request', array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'product_request' ),
+				'permission_callback' => array( __CLASS__, 'affiliate_permission' ),
+			),
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'product_request' ),
+				'permission_callback' => array( __CLASS__, 'affiliate_permission' ),
+			),
+		) );
 	}
 
 	public static function validate_code( WP_REST_Request $request ) {
@@ -294,6 +313,49 @@ final class Nakama_Affiliates_REST {
 			return self::no_store_response( array( 'success' => false, 'message' => 'El comprobante privado no está disponible.' ) );
 		}
 		return null;
+	}
+
+	public static function products( WP_REST_Request $request ) {
+		$context = self::affiliate_context( $request );
+		if ( ! $context['profile'] || 'active' !== ( $context['profile']['status'] ?? '' ) ) {
+			return self::no_store_response( array( 'success' => false, 'code' => 'affiliate_inactive', 'items' => array() ) );
+		}
+		$page = max( 1, (int) $request->get_param( 'page' ) );
+		$data = Nakama_Affiliates_Products::catalog( self::profile_is_vip( $context['profile'] ), $page, 20 );
+		return self::no_store_response( array_merge( array( 'success' => true ), $data ) );
+	}
+
+	public static function product_request( WP_REST_Request $request ) {
+		$context = self::affiliate_context( $request );
+		if ( ! $context['profile'] || 'active' !== ( $context['profile']['status'] ?? '' ) ) {
+			return self::no_store_response( array( 'success' => false, 'code' => 'affiliate_inactive' ) );
+		}
+		$affiliate_id = (int) $context['profile']['id'];
+		$period = self::current_period();
+		$method = method_exists( $request, 'get_method' ) ? strtoupper( (string) $request->get_method() ) : 'GET';
+		if ( 'POST' === $method ) {
+			$body = method_exists( $request, 'get_json_params' ) ? $request->get_json_params() : array();
+			$body = is_array( $body ) ? $body : array();
+			$items = isset( $body['items'] ) && is_array( $body['items'] ) ? $body['items'] : array();
+			$address = isset( $body['address'] ) && is_array( $body['address'] ) ? $body['address'] : array();
+			return self::no_store_response( Nakama_Affiliates_Requests::submit(
+				$affiliate_id,
+				$period,
+				$items,
+				$address,
+				self::profile_is_vip( $context['profile'] ),
+				get_current_user_id()
+			) );
+		}
+
+		return self::no_store_response( array(
+			'success'          => true,
+			'period'           => $period,
+			'benefit'          => Nakama_Affiliates_Benefits::for_period( $affiliate_id, $period ),
+			'request'          => Nakama_Affiliates_Requests::for_period( $affiliate_id, $period ),
+			'shippingCovered'  => true,
+			'officialAccounts' => Nakama_Affiliates_Products::official_accounts(),
+		) );
 	}
 
 	private static function affiliate_context( WP_REST_Request $request ) {

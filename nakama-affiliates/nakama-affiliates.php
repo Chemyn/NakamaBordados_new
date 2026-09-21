@@ -33,6 +33,8 @@ $nakama_affiliates_includes = array(
 	'includes/class-affiliates-commissions.php',
 	'includes/class-affiliates-refunds.php',
 	'includes/class-affiliates-benefits.php',
+	'includes/class-affiliates-products.php',
+	'includes/class-affiliates-requests.php',
 	'includes/class-affiliates-closures.php',
 	'includes/class-affiliates-payments.php',
 	'includes/class-affiliates-private-files.php',

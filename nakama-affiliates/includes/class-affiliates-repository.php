@@ -221,6 +221,88 @@ final class Nakama_Affiliates_Repository {
 		);
 	}
 
+	public static function request_by_affiliate_period( $affiliate_id, $period_key ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'requests' ) . ' WHERE affiliate_id = %d AND period_key = %s LIMIT 1',
+			(int) $affiliate_id,
+			(string) $period_key
+		), ARRAY_A );
+	}
+
+	public static function request_by_id( $request_id ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'requests' ) . ' WHERE id = %d LIMIT 1',
+			(int) $request_id
+		), ARRAY_A );
+	}
+
+	public static function request_items( $request_id ) {
+		global $wpdb;
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'request_items' ) . ' WHERE request_id = %d ORDER BY position ASC',
+			(int) $request_id
+		), ARRAY_A );
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	public static function latest_prior_request( $affiliate_id, $period_key ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'requests' ) . ' WHERE affiliate_id = %d AND period_key < %s AND status NOT IN (\'cancelled\',\'rejected\') ORDER BY period_key DESC,id DESC LIMIT 1',
+			(int) $affiliate_id,
+			(string) $period_key
+		), ARRAY_A );
+	}
+
+	public static function request_has_approved_required_evidence( $request_id ) {
+		global $wpdb;
+		$count = $wpdb->get_var( $wpdb->prepare(
+			'SELECT COUNT(DISTINCT slot_key) FROM ' . self::table( 'evidence' ) . ' WHERE request_id = %d AND status = \'approved\' AND slot_key IN (\'reel_1\',\'reel_2\',\'story_1\')',
+			(int) $request_id
+		) );
+		return 3 === (int) $count;
+	}
+
+	/** Atomically create the non-commercial monthly request and its item snapshots. */
+	public static function create_request_with_items( array $request, array $items ) {
+		global $wpdb;
+		$wpdb->query( 'START TRANSACTION' );
+		$wpdb->get_var( $wpdb->prepare(
+			'SELECT id FROM ' . self::table( 'profiles' ) . ' WHERE id = %d FOR UPDATE',
+			(int) $request['affiliate_id']
+		) );
+		$existing = $wpdb->get_var( $wpdb->prepare(
+			'SELECT id FROM ' . self::table( 'requests' ) . ' WHERE affiliate_id = %d AND period_key = %s LIMIT 1 FOR UPDATE',
+			(int) $request['affiliate_id'],
+			(string) $request['period_key']
+		) );
+		if ( $existing || ! $wpdb->insert( self::table( 'requests' ), $request ) ) {
+			$wpdb->query( 'ROLLBACK' );
+			return 0;
+		}
+		$request_id = (int) $wpdb->insert_id;
+		foreach ( array_values( $items ) as $index => $item ) {
+			$record = array_merge( $item, array( 'request_id' => $request_id, 'position' => $index + 1 ) );
+			if ( ! $wpdb->insert( self::table( 'request_items' ), $record ) ) {
+				$wpdb->query( 'ROLLBACK' );
+				return 0;
+			}
+		}
+		$wpdb->query( 'COMMIT' );
+		return $request_id;
+	}
+
+	public static function update_request( $request_id, array $data ) {
+		global $wpdb;
+		return false !== $wpdb->update(
+			self::table( 'requests' ),
+			$data,
+			array( 'id' => (int) $request_id )
+		);
+	}
+
 	/** Atomically record the first payment and its private document. */
 	public static function record_payment_with_document( $closure_id, array $document, array $payment ) {
 		global $wpdb;

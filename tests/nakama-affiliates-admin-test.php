@@ -41,5 +41,7 @@ affiliates_admin_assert( false !== strpos( $source, "Nakama_Affiliates_Closures:
 affiliates_admin_assert( false !== strpos( $source, "Nakama_Affiliates_Documents::review" ), 'Fiscal review uses the private document domain.' );
 affiliates_admin_assert( false !== strpos( $source, "Nakama_Affiliates_Payments::record" ), 'Approved closures can register a private payment receipt.' );
 affiliates_admin_assert( false !== strpos( $source, "Nakama_Affiliates_Payments::reverse" ), 'Payment reversal remains an explicit audited action.' );
+affiliates_admin_assert( false !== strpos( $source, "Nakama_Affiliates_Requests::transition" ), 'Garment operations use the audited request state machine.' );
+affiliates_admin_assert( false !== strpos( $source, "Nakama_Affiliates_Products::save_settings" ), 'Restricted categories and official accounts are configurable.' );
 
 echo "PHP Nakama Affiliates admin controller tests passed.\n";

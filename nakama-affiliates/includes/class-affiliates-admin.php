@@ -76,7 +76,7 @@ final class Nakama_Affiliates_Admin {
 					case 'documents': self::render_documents(); break;
 					case 'sales': self::render_sales(); break;
 					case 'closures': self::render_closures(); break;
-					case 'garments': self::render_delivery_placeholder( 'Prendas' ); break;
+					case 'garments': self::render_garments(); break;
 					case 'evidence': self::render_delivery_placeholder( 'Evidencias' ); break;
 					case 'settings': self::render_settings(); break;
 					default: self::render_summary();
@@ -93,6 +93,7 @@ final class Nakama_Affiliates_Admin {
 			array( 'label' => 'Reembolsos por revisar', 'count' => self::count_rows( 'ledger', "status = 'review'" ), 'tab' => 'sales' ),
 			array( 'label' => 'Cierres por aprobar', 'count' => self::count_rows( 'closures', "status = 'closed'" ), 'tab' => 'closures' ),
 			array( 'label' => 'Pagos pendientes', 'count' => self::count_rows( 'closures', "status = 'approved'" ), 'tab' => 'closures' ),
+			array( 'label' => 'Prendas por aprobar', 'count' => self::count_rows( 'requests', "status = 'submitted'" ), 'tab' => 'garments' ),
 		);
 		?>
 		<section aria-labelledby="nka-summary-title">
@@ -257,8 +258,58 @@ final class Nakama_Affiliates_Admin {
 		?><section class="nka-empty-stage" aria-labelledby="nka-stage-title"><p class="nka-kicker">Programa mensual</p><h2 id="nka-stage-title"><?php echo esc_html( $title ); ?></h2><strong>Disponible en Entrega 3</strong><p>Esta sección se activará cuando estén listas las reglas de cupo, catálogo elegible y validación manual de publicaciones.</p></section><?php
 	}
 
+	private static function render_garments() {
+		$status = self::query_value( 'status' );
+		$filters = in_array( $status, Nakama_Affiliates_Requests::STATES, true ) ? array( 'status' => $status ) : array();
+		$data = self::paged_rows( 'requests', $filters, 'period_key DESC,id DESC' );
+		?>
+		<section aria-labelledby="nka-garments-title">
+			<div class="nka-section-heading"><div><p class="nka-kicker">Beneficio gratuito · Envío Nakama</p><h2 id="nka-garments-title">Solicitudes de prendas</h2></div></div>
+			<?php self::render_status_filter( 'garments', array( '' => 'Todos', 'submitted' => 'Enviada', 'approved' => 'Aprobada', 'preparing' => 'Preparando', 'shipped' => 'Enviada por paquetería', 'completed' => 'Completada', 'rejected' => 'Rechazada', 'cancelled' => 'Cancelada' ), $status ); ?>
+			<div class="nka-table-wrap"><table class="widefat striped"><thead><tr><th>Periodo</th><th>Afiliado</th><th>Selección</th><th>Estado</th><th>Operación</th></tr></thead><tbody>
+			<?php foreach ( $data['items'] as $request ) : $profile = Nakama_Affiliates_Repository::profile_by_id( (int) $request['affiliate_id'] ); $items = Nakama_Affiliates_Repository::request_items( (int) $request['id'] ); ?>
+				<tr>
+					<td><?php echo esc_html( $request['period_key'] ); ?><br /><small>#<?php echo esc_html( $request['id'] ); ?></small></td>
+					<td><?php echo esc_html( $profile['code'] ?? ( 'ID ' . $request['affiliate_id'] ) ); ?></td>
+					<td><?php foreach ( $items as $item ) : ?><div><?php echo esc_html( $item['product_name'] . ( $item['variation_label'] ? ' · ' . $item['variation_label'] : '' ) ); ?></div><?php endforeach; ?></td>
+					<td><strong><?php echo esc_html( $request['status'] ); ?></strong><?php if ( ! empty( $request['tracking_code'] ) ) : ?><br /><small><?php echo esc_html( $request['carrier'] . ' · ' . $request['tracking_code'] ); ?></small><?php endif; ?></td>
+					<td><?php self::render_request_actions( $request ); ?></td>
+				</tr>
+			<?php endforeach; ?>
+			<?php if ( ! $data['items'] ) : ?><tr><td colspan="5">No hay solicitudes con este filtro.</td></tr><?php endif; ?>
+			</tbody></table></div>
+			<?php self::render_pagination( $data, 'garments' ); ?>
+		</section>
+		<?php
+	}
+
+	private static function render_request_actions( array $request ) {
+		$status = (string) $request['status'];
+		if ( 'submitted' === $status ) {
+			self::request_action_form( $request, 'approved', 'Aprobar' );
+			self::request_action_form( $request, 'rejected', 'Rechazar', true );
+		} elseif ( 'approved' === $status ) {
+			self::request_action_form( $request, 'preparing', 'Preparar' );
+			self::request_action_form( $request, 'rejected', 'Rechazar', true );
+		} elseif ( 'preparing' === $status ) {
+			?><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="nka-inline-form"><?php self::mutation_fields( 'update_request' ); ?><input type="hidden" name="request_id" value="<?php echo esc_attr( $request['id'] ); ?>" /><input type="hidden" name="request_status" value="shipped" /><label>Paquetería<input name="carrier" required /></label><label>Guía<input name="tracking_code" required /></label><button class="button" type="submit">Registrar envío</button></form><?php
+		} elseif ( 'shipped' === $status ) {
+			self::request_action_form( $request, 'completed', 'Completar' );
+		} elseif ( 'rejected' === $status && ! empty( $request['rejection_reason'] ) ) {
+			echo '<small>' . esc_html( $request['rejection_reason'] ) . '</small>';
+		} else {
+			echo '<span aria-hidden="true">—</span>';
+		}
+	}
+
+	private static function request_action_form( array $request, $status, $label, $requires_reason = false ) {
+		?><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="nka-inline-form"><?php self::mutation_fields( 'update_request' ); ?><input type="hidden" name="request_id" value="<?php echo esc_attr( $request['id'] ); ?>" /><input type="hidden" name="request_status" value="<?php echo esc_attr( $status ); ?>" /><?php if ( $requires_reason ) : ?><label>Motivo<textarea name="reason" required></textarea></label><?php endif; ?><button class="button" type="submit"><?php echo esc_html( $label ); ?></button></form><?php
+	}
+
 	private static function render_settings() {
-		?><section aria-labelledby="nka-settings-title"><div class="nka-section-heading"><div><p class="nka-kicker">Reglas vigentes</p><h2 id="nka-settings-title">Configuración</h2></div></div><div class="nka-settings-grid"><article><h3>Descuento</h3><strong>Máximo 10%</strong><p>Exclusivo; sustituye otras promociones.</p></article><article><h3>Comisión</h3><strong>10%</strong><p>Sobre subtotal elegible antes del descuento; excluye envío y se revierte con devoluciones.</p></article><article><h3>Fiscal</h3><strong>Captura manual</strong><p>Sin facturación automática ni cálculo de ISR/IVA en esta versión.</p></article></div></section><?php
+		$category_ids = implode( ', ', Nakama_Affiliates_Products::restricted_category_ids() );
+		$accounts = implode( "\n", Nakama_Affiliates_Products::official_accounts() );
+		?><section aria-labelledby="nka-settings-title"><div class="nka-section-heading"><div><p class="nka-kicker">Reglas vigentes</p><h2 id="nka-settings-title">Configuración</h2></div></div><div class="nka-settings-grid"><article><h3>Descuento</h3><strong>Máximo 10%</strong><p>Exclusivo; sustituye otras promociones.</p></article><article><h3>Comisión</h3><strong>10%</strong><p>Sobre subtotal elegible antes del descuento; excluye envío y se revierte con devoluciones.</p></article><article><h3>Fiscal</h3><strong>Captura manual</strong><p>Sin facturación automática ni cálculo de ISR/IVA en esta versión.</p></article></div><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="nka-form-grid"><?php self::mutation_fields( 'save_program_settings' ); ?><label class="nka-wide">IDs de categorías restringidas<input name="restricted_category_ids" value="<?php echo esc_attr( $category_ids ); ?>" placeholder="123, 456" /><small>Drops y Edición especial. Los afiliados VIP sí podrán ver estas categorías.</small></label><label class="nka-wide">Cuentas oficiales de Nakama<textarea name="official_accounts" placeholder="@nakamabordados&#10;@otra_cuenta"><?php echo esc_textarea( $accounts ); ?></textarea><small>Una cuenta por línea. Administración verificará manualmente las etiquetas en Reels e Historias.</small></label><button class="button button-primary" type="submit">Guardar configuración</button></form></section><?php
 	}
 
 	public static function handle_action() {
@@ -313,6 +364,14 @@ final class Nakama_Affiliates_Admin {
 				return Nakama_Affiliates_Payments::reverse( absint( $data['closure_id'] ?? 0 ), $reason, (int) $actor_user_id );
 			case 'save_profile':
 				return self::save_profile( $data, $actor_user_id );
+			case 'update_request':
+				return Nakama_Affiliates_Requests::transition( absint( $data['request_id'] ?? 0 ), sanitize_key( $data['request_status'] ?? '' ), array(
+					'reason'        => sanitize_textarea_field( $data['reason'] ?? '' ),
+					'carrier'       => sanitize_text_field( $data['carrier'] ?? '' ),
+					'tracking_code' => sanitize_text_field( $data['tracking_code'] ?? '' ),
+				), (int) $actor_user_id );
+			case 'save_program_settings':
+				return Nakama_Affiliates_Products::save_settings( $data['restricted_category_ids'] ?? '', $data['official_accounts'] ?? '', (int) $actor_user_id );
 			default:
 				return array( 'success' => false, 'reason' => 'unknown_action' );
 		}
@@ -357,6 +416,8 @@ final class Nakama_Affiliates_Admin {
 	private static function action_tab( $action ) {
 		if ( 'review_document' === $action ) return 'documents';
 		if ( in_array( $action, array( 'close_period', 'manual_amounts', 'approve_closure', 'record_payment', 'replace_receipt', 'reverse_payment' ), true ) ) return 'closures';
+		if ( 'update_request' === $action ) return 'garments';
+		if ( 'save_program_settings' === $action ) return 'settings';
 		return 'affiliates';
 	}
 
