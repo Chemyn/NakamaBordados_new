@@ -132,7 +132,7 @@ describe('AffiliateDashboard', () => {
     mocks.fetchSales.mockReset();
     mocks.fetchPayments.mockReset().mockResolvedValue({ success: true, page: 1, hasMore: false, items: [] });
     mocks.fetchProducts.mockReset().mockResolvedValue({ success: true, page: 1, pages: 1, total: 0, hasMore: false, items: [] });
-    mocks.fetchProductRequest.mockReset().mockResolvedValue({ success: true, period: '2026-10', benefit: { id: 1, period: '2026-10', sourcePeriod: '2026-09', sourceClosureId: 1, validSalesMxn: 0, tier: 1, quota: 1, manualReason: '', isDefault: false }, request: null, shippingCovered: true, officialAccounts: ['@nakamabordados'] });
+    mocks.fetchProductRequest.mockReset().mockResolvedValue({ success: true, period: '2026-10', benefit: { id: 1, period: '2026-10', sourcePeriod: '2026-09', sourceClosureId: 1, validSalesMxn: 0, tier: 1, quota: 1, isDefault: false }, request: null, shippingCovered: true, officialAccounts: ['@nakamabordados'] });
     mocks.fetchEvidence.mockReset().mockResolvedValue({ success: true, items: [], requiredComplete: false, bonusPriorityPotential: true, bonusGuarantee: false });
     mocks.submitProductRequest.mockReset();
     mocks.submitEvidence.mockReset();

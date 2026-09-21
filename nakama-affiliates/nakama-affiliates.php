@@ -36,6 +36,7 @@ $nakama_affiliates_includes = array(
 	'includes/class-affiliates-products.php',
 	'includes/class-affiliates-requests.php',
 	'includes/class-affiliates-evidence.php',
+	'includes/class-affiliates-legacy-migration.php',
 	'includes/class-affiliates-closures.php',
 	'includes/class-affiliates-payments.php',
 	'includes/class-affiliates-private-files.php',

@@ -2280,9 +2280,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/nakama-affiliates.php": {
-    "mtime": 1789997645.9360056,
-    "seen": 1789997810.8623188,
-    "ast_hash": "c03db0b9f4e48f4f020fd9209a1fe940",
+    "mtime": 1790000178.2682772,
+    "seen": 1790015103.0440757,
+    "ast_hash": "905b66a15d4755848df83e8fd2c0c49c",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-domain-test.php": {
@@ -2310,9 +2310,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/readme.txt": {
-    "mtime": 1789853679.7349474,
-    "seen": 1789853707.786754,
-    "ast_hash": "0c41a8ac8f7b49990ea40a04af9e14c1",
+    "mtime": 1790000352.348956,
+    "seen": 1790015103.0447626,
+    "ast_hash": "0d0c2520bb142895d82232d975a6c5c4",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-permissions.php": {
@@ -2340,9 +2340,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-rest.php": {
-    "mtime": 1789998362.334442,
-    "seen": 1789999081.9540355,
-    "ast_hash": "fe4686286a618585a8a40c7838964d02",
+    "mtime": 1790014621.4238126,
+    "seen": 1790015103.0440726,
+    "ast_hash": "abda3a53807dc6c3953fe278663a8dc5",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-codes-test.php": {
@@ -2478,9 +2478,9 @@
     "semantic_hash": ""
   },
   "src/app/afiliados/AffiliateDashboard.test.tsx": {
-    "mtime": 1789999272.0860248,
-    "seen": 1789999561.7759724,
-    "ast_hash": "8496790f2d4c1db52f1b145d54ea75d0",
+    "mtime": 1790014644.7356513,
+    "seen": 1790015103.0441985,
+    "ast_hash": "2b0addd7e30bec7e76d69acfe9739243",
     "semantic_hash": ""
   },
   "src/app/afiliados/AffiliateDashboard.tsx": {
@@ -2502,9 +2502,9 @@
     "semantic_hash": ""
   },
   "src/lib/affiliates-api.ts": {
-    "mtime": 1789998214.2059383,
-    "seen": 1789999081.9543326,
-    "ast_hash": "37565c1f6def87839687fb69f28a96cc",
+    "mtime": 1790014634.8903437,
+    "seen": 1790015103.0444841,
+    "ast_hash": "71131fa13815772ad9dc51155c7c0c4f",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-closures.php": {
@@ -2526,15 +2526,15 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-admin.php": {
-    "mtime": 1789997752.4461424,
-    "seen": 1789997810.862262,
-    "ast_hash": "fdc0860c9a8b5ddfa61aa58eb8a4b03f",
+    "mtime": 1790014770.5997987,
+    "seen": 1790015103.0439982,
+    "ast_hash": "79297e150e67a8fa570b53f60068562c",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-admin-test.php": {
-    "mtime": 1789997759.3645556,
-    "seen": 1789997810.8625908,
-    "ast_hash": "e3daab9a59b44138431ba8ab0bd37df1",
+    "mtime": 1790000197.972836,
+    "seen": 1790015103.0445738,
+    "ast_hash": "46af3333820f2f1761677550416c294c",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-admin-ui-test.php": {
@@ -2643,6 +2643,42 @@
     "mtime": 1789999241.3464003,
     "seen": 1789999561.7759821,
     "ast_hash": "0093d01dc66c30328ecce758e03522db",
+    "semantic_hash": ""
+  },
+  "nakama-affiliates/includes/class-affiliates-legacy-migration.php": {
+    "mtime": 1790014762.4193869,
+    "seen": 1790015103.0440423,
+    "ast_hash": "20f063137919b9b8c5935f65fb959594",
+    "semantic_hash": ""
+  },
+  "nakama-affiliates/uninstall.php": {
+    "mtime": 1790000321.8687491,
+    "seen": 1790015103.0440786,
+    "ast_hash": "8a2a7b4b4e35d6b2b6d10ddc516defbb",
+    "semantic_hash": ""
+  },
+  "scripts/package-nakama-affiliates.ps1": {
+    "mtime": 1790000442.947488,
+    "seen": 1790015103.0441902,
+    "ast_hash": "8d80a65e6ef31b0df0df502a62b33c43",
+    "semantic_hash": ""
+  },
+  "tests/nakama-affiliates-legacy-migration-test.php": {
+    "mtime": 1790014778.5665832,
+    "seen": 1790015103.0446022,
+    "ast_hash": "374b3e7780eac1c86bc3a4008909f441",
+    "semantic_hash": ""
+  },
+  "tests/nakama-affiliates-privacy-test.php": {
+    "mtime": 1790014689.6372397,
+    "seen": 1790015103.044612,
+    "ast_hash": "95e076d0597e866c63274e1766aaf7cf",
+    "semantic_hash": ""
+  },
+  "docs/operations/nakama-affiliates-runbook.md": {
+    "mtime": 1790000342.7774625,
+    "seen": 1790015103.0447314,
+    "ast_hash": "0991d73a0144e581c0cfad854018397a",
     "semantic_hash": ""
   }
 }

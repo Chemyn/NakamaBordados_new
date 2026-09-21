@@ -44,5 +44,7 @@ affiliates_admin_assert( false !== strpos( $source, "Nakama_Affiliates_Payments:
 affiliates_admin_assert( false !== strpos( $source, "Nakama_Affiliates_Requests::transition" ), 'Garment operations use the audited request state machine.' );
 affiliates_admin_assert( false !== strpos( $source, "Nakama_Affiliates_Products::save_settings" ), 'Restricted categories and official accounts are configurable.' );
 affiliates_admin_assert( false !== strpos( $source, "Nakama_Affiliates_Evidence::review" ), 'Social evidence approval and rejection use the audited domain.' );
+affiliates_admin_assert( false !== strpos( $source, "Nakama_Affiliates_Legacy_Migration::preview" ), 'Legacy creator commissions are previewed before any write.' );
+affiliates_admin_assert( false !== strpos( $source, "Nakama_Affiliates_Legacy_Migration::migrate" ), 'Confirmed legacy migrations use the constrained migration domain.' );
 
 echo "PHP Nakama Affiliates admin controller tests passed.\n";

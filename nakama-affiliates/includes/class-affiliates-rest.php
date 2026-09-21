@@ -361,8 +361,7 @@ final class Nakama_Affiliates_REST {
 				self::profile_is_vip( $context['profile'] ),
 				get_current_user_id()
 			);
-			if ( ! empty( $result['success'] ) && ! empty( $result['request'] ) ) $result['request'] = self::public_request( $result['request'] );
-			return self::no_store_response( $result );
+			return self::no_store_response( self::public_request_result( $result ) );
 		}
 
 		return self::no_store_response( array(
@@ -432,9 +431,24 @@ final class Nakama_Affiliates_REST {
 			'validSalesMxn'   => (float) $benefit['valid_sales_mxn'],
 			'tier'            => (int) $benefit['tier'],
 			'quota'           => (int) $benefit['quota'],
-			'manualReason'    => (string) ( $benefit['manual_reason'] ?? '' ),
 			'isDefault'       => ! empty( $benefit['is_default'] ),
 		);
+	}
+
+	private static function public_request_result( array $result ) {
+		if ( ! empty( $result['success'] ) ) {
+			return array(
+				'success' => true,
+				'request' => self::public_request( $result['request'] ?? null ),
+			);
+		}
+		$response = array(
+			'success' => false,
+			'reason'  => (string) ( $result['reason'] ?? 'request_failed' ),
+		);
+		if ( isset( $result['quota'] ) ) $response['quota'] = (int) $result['quota'];
+		if ( ! empty( $result['request'] ) ) $response['request'] = self::public_request( $result['request'] );
+		return $response;
 	}
 
 	private static function public_request( $request ) {
@@ -466,8 +480,13 @@ final class Nakama_Affiliates_REST {
 	}
 
 	private static function public_evidence_result( array $result ) {
-		if ( empty( $result['success'] ) ) return $result;
-		$result['items'] = array_map( static function ( $item ) {
+		if ( empty( $result['success'] ) ) {
+			return array(
+				'success' => false,
+				'reason'  => (string) ( $result['reason'] ?? 'request_failed' ),
+			);
+		}
+		$items = array_map( static function ( $item ) {
 			return array(
 				'id'           => (int) $item['id'],
 				'slotKey'      => (string) $item['slot_key'],
@@ -480,7 +499,13 @@ final class Nakama_Affiliates_REST {
 				'reviewedAt'   => $item['reviewed_at_gmt'] ?? null,
 			);
 		}, $result['items'] ?? array() );
-		return $result;
+		return array(
+			'success'                => true,
+			'items'                  => $items,
+			'requiredComplete'       => ! empty( $result['requiredComplete'] ),
+			'bonusPriorityPotential' => ! empty( $result['bonusPriorityPotential'] ),
+			'bonusGuarantee'         => ! empty( $result['bonusGuarantee'] ),
+		);
 	}
 
 	private static function affiliate_context( WP_REST_Request $request ) {

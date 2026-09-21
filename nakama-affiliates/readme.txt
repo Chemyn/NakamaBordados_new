@@ -17,3 +17,8 @@ atribución, comisiones, cierres y beneficios mensuales.
 La facturación automática y el cálculo fiscal automático no forman parte de
 esta versión.
 
+== Data retention ==
+
+Desinstalar conserva los datos por defecto. La purga irreversible solo se
+ejecuta cuando `NAKAMA_AFFILIATES_PURGE_DATA` está definida como el booleano
+`true` antes de desinstalar desde WordPress.

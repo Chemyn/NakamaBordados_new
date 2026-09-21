@@ -79,7 +79,6 @@ export interface AffiliateBenefit {
   validSalesMxn: number;
   tier: number;
   quota: number;
-  manualReason: string;
   isDefault: boolean;
 }
 
