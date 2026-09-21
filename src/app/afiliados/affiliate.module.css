@@ -167,6 +167,7 @@
 }
 
 .salesSection,
+.historySection,
 .fiscalCard,
 .stateCard {
   margin-top: 28px;
@@ -174,6 +175,7 @@
 }
 
 .salesSection h2,
+.historySection h2,
 .fiscalCard h2,
 .stateCard h1 {
   font-size: clamp(2rem, 6vw, 3.5rem);
@@ -183,6 +185,138 @@
   display: grid;
   gap: 12px;
   margin-top: 24px;
+}
+
+.historySection {
+  margin-top: 28px;
+  padding: clamp(22px, 5vw, 44px);
+  border: 3px solid var(--affiliate-ink);
+  background: var(--affiliate-paper);
+  box-shadow: 7px 7px 0 var(--affiliate-ink);
+}
+
+.sectionHeading {
+  display: grid;
+  gap: 14px;
+}
+
+.sectionHeading > div > span {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 0.76rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.sectionHeading p {
+  max-width: 62ch;
+  margin: 0;
+  line-height: 1.55;
+}
+
+.carryNote {
+  margin: 22px 0;
+  padding: 14px 16px;
+  border-left: 8px solid var(--affiliate-yellow);
+  background: #fff;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.periodList {
+  display: grid;
+  gap: 18px;
+}
+
+.periodCard {
+  padding: clamp(18px, 4vw, 28px);
+  border: 2px solid var(--affiliate-ink);
+  background: #fff;
+}
+
+.periodCard > header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 18px;
+}
+
+.periodCard > header div > span {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.periodCard > header strong {
+  font: 800 2rem / 1 'Teko', sans-serif;
+}
+
+.periodStatus {
+  display: inline-flex;
+  min-height: 28px;
+  align-items: center;
+  padding: 3px 10px;
+  border: 2px solid currentColor;
+  border-radius: 99px;
+  font-size: 0.75rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.periodStatus_paid { color: #126a36; background: #edfff4; }
+.periodStatus_approved { color: #7b5200; background: #fff8d9; }
+.periodStatus_closed,
+.periodStatus_draft { color: #5a4a00; background: #fffdf0; }
+
+.periodCard dl {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 8px;
+  margin: 0 0 20px;
+}
+
+.periodCard dl > div {
+  min-width: 0;
+  padding: 12px;
+  border: 1px solid #b8b8b8;
+}
+
+.periodCard dt {
+  font-size: 0.72rem;
+  font-weight: 900;
+  line-height: 1.35;
+  text-transform: uppercase;
+}
+
+.periodCard dd {
+  margin: 6px 0 0;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.periodCard .netValue {
+  border: 2px solid var(--affiliate-ink);
+  background: var(--affiliate-yellow);
+}
+
+.periodCard .netValue dd {
+  font: 800 1.75rem / 1 'Teko', sans-serif;
+}
+
+.periodCard button {
+  min-height: 44px;
+}
+
+.reversalNote {
+  padding: 12px;
+  border-left: 7px solid var(--affiliate-red);
+  background: #fff0f0;
+  color: #781111;
+  font-weight: 700;
 }
 
 .saleCard {
@@ -290,6 +424,21 @@
     grid-template-columns: 0.8fr 1fr 1fr auto;
     align-items: center;
   }
+
+  .sectionHeading {
+    grid-template-columns: minmax(0, 1fr) minmax(280px, 0.8fr);
+    align-items: end;
+  }
+
+  .periodCard dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 980px) {
+  .periodCard dl {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 360px) {
@@ -302,6 +451,10 @@
   .fiscalCard,
   .metricGrid article,
   .salesSection {
+    box-shadow: 4px 4px 0 var(--affiliate-ink);
+  }
+
+  .historySection {
     box-shadow: 4px 4px 0 var(--affiliate-ink);
   }
 }

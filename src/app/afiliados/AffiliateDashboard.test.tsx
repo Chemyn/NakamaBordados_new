@@ -9,6 +9,8 @@ const mocks = vi.hoisted(() => ({
   fetchMe: vi.fn(),
   fetchDashboard: vi.fn(),
   fetchSales: vi.fn(),
+  fetchPayments: vi.fn(),
+  downloadReceipt: vi.fn(),
   upload: vi.fn(),
 }));
 
@@ -45,6 +47,28 @@ vi.mock('../context/LanguageContext', () => ({
       'affiliates.sales.adjustment': 'Ajuste',
       'affiliates.sales.base': 'Base MXN',
       'affiliates.sales.commission': 'Comisión',
+      'affiliates.history.title': 'Cierres y pagos',
+      'affiliates.history.kicker': 'Historial mensual',
+      'affiliates.history.period': 'Periodo',
+      'affiliates.history.empty': 'Aún no hay cierres mensuales.',
+      'affiliates.history.sales': 'Ventas del periodo',
+      'affiliates.history.refunds': 'Devoluciones',
+      'affiliates.history.ledgerAdjustments': 'Ajustes de ventas',
+      'affiliates.history.gross': 'Comisión bruta',
+      'affiliates.history.isr': 'ISR retenido (capturado por administración)',
+      'affiliates.history.iva': 'IVA retenido (capturado por administración)',
+      'affiliates.history.adjustments': 'Otros ajustes (capturados por administración)',
+      'affiliates.history.net': 'Neto del periodo',
+      'affiliates.history.paid': 'Pagado',
+      'affiliates.history.approved': 'Pago pendiente',
+      'affiliates.history.closed': 'Cierre en revisión',
+      'affiliates.history.draft': 'Cierre en proceso',
+      'affiliates.history.receipt': 'Descargar comprobante',
+      'affiliates.history.receiptDownloading': 'Preparando comprobante…',
+      'affiliates.history.receiptError': 'No pudimos descargar tu comprobante.',
+      'affiliates.history.reversed': 'Pago revertido',
+      'affiliates.history.carry': 'Las devoluciones posteriores a un cierre se descuentan en el siguiente mes abierto; el cierre anterior no se modifica.',
+      'affiliates.history.manual': 'Estos importes fueron capturados por administración siguiendo las indicaciones del contador; no son un cálculo fiscal automático.',
       'affiliates.retry': 'Reintentar',
       'affiliates.error': 'No pudimos cargar tu panel.',
       'affiliates.loading': 'Cargando panel de afiliados…',
@@ -56,6 +80,8 @@ vi.mock('@/lib/affiliates-api', () => ({
   fetchAffiliateMe: () => mocks.fetchMe(),
   fetchAffiliateDashboard: () => mocks.fetchDashboard(),
   fetchAffiliateSales: () => mocks.fetchSales(),
+  fetchAffiliatePayments: () => mocks.fetchPayments(),
+  downloadAffiliateReceipt: (id: number) => mocks.downloadReceipt(id),
   uploadFiscalDocument: (file: File) => mocks.upload(file),
 }));
 
@@ -66,6 +92,8 @@ describe('AffiliateDashboard', () => {
     mocks.fetchMe.mockReset();
     mocks.fetchDashboard.mockReset();
     mocks.fetchSales.mockReset();
+    mocks.fetchPayments.mockReset().mockResolvedValue({ success: true, page: 1, hasMore: false, items: [] });
+    mocks.downloadReceipt.mockReset().mockResolvedValue(undefined);
     mocks.upload.mockReset();
   });
 
@@ -148,5 +176,34 @@ describe('AffiliateDashboard', () => {
 
     await waitFor(() => expect(mocks.upload).toHaveBeenCalledWith(file));
     await waitFor(() => expect(mocks.fetchMe).toHaveBeenCalledTimes(2));
+  });
+
+  it('shows manual withholdings, payment state, carryover guidance, and the own receipt action', async () => {
+    mocks.user = { id: 'affiliate-7' };
+    mocks.fetchMe.mockResolvedValue({
+      can: true,
+      financialAccess: true,
+      profile: { code: 'NICO', status: 'active', discountPercentage: 10, commissionPercentage: 10, referralUrl: 'https://nakamabordados.com/?ref=NICO' },
+      fiscal: { required: true, status: 'approved', document: { id: 2, status: 'approved', fileName: 'constancia.pdf' } },
+    });
+    mocks.fetchDashboard.mockResolvedValue({ success: true, period: '2026-10', code: 'NICO', referralUrl: 'https://nakamabordados.com/?ref=NICO', summary: { salesCount: 0, refundCount: 1, salesMxn: -500, commissionMxn: -50 } });
+    mocks.fetchSales.mockResolvedValue({ success: true, page: 1, hasMore: false, items: [] });
+    mocks.fetchPayments.mockResolvedValue({
+      success: true,
+      page: 1,
+      hasMore: false,
+      items: [{ id: 12, period: '2026-09', status: 'paid', salesMxn: 11000, refundsMxn: -1000, adjustmentsMxn: 0, commissionGrossMxn: 1000, isrWithheldMxn: 90, ivaWithheldMxn: 40, otherAdjustmentsMxn: -10, netMxn: 860, paidNetMxn: 860, paidAt: '2026-10-05 12:00:00', reference: 'SPEI-001', receiptId: 22, reversedAt: null, reversalReason: null }],
+    });
+    render(<AffiliateDashboard />);
+
+    const history = await screen.findByRole('region', { name: 'Cierres y pagos' });
+    expect(within(history).getByText('ISR retenido (capturado por administración)')).toBeVisible();
+    expect(within(history).getByText('IVA retenido (capturado por administración)')).toBeVisible();
+    expect(within(history).getByText('Pagado')).toBeVisible();
+    expect(within(history).getByText(/no son un cálculo fiscal automático/i)).toBeVisible();
+    expect(within(history).getByText(/siguiente mes abierto/i)).toBeVisible();
+
+    fireEvent.click(within(history).getByRole('button', { name: 'Descargar comprobante' }));
+    await waitFor(() => expect(mocks.downloadReceipt).toHaveBeenCalledWith(22));
   });
 });

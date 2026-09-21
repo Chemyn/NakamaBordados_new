@@ -3,7 +3,9 @@ import {
   fetchAffiliateAccess,
   fetchAffiliateDashboard,
   fetchAffiliateMe,
+  fetchAffiliatePayments,
   fetchAffiliateSales,
+  downloadAffiliateReceipt,
   uploadFiscalDocument,
 } from './affiliates-api';
 
@@ -30,21 +32,44 @@ describe('affiliates API client', () => {
     expect(init.headers.Authorization).toBe('Bearer signed-token');
   });
 
-  it('reads only the private profile, dashboard, and paginated sales contracts', async () => {
+  it('reads only the private profile, dashboard, sales, and payment contracts', async () => {
     const fetchMock = vi.fn()
       .mockResolvedValueOnce({ ok: true, json: async () => ({ can: true, financialAccess: true, profile: { code: 'NICO' }, fiscal: { status: 'approved' } }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, period: '2026-09', summary: { salesMxn: 10000, commissionMxn: 1000 } }) })
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, page: 2, hasMore: false, items: [] }) });
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, page: 2, hasMore: false, items: [] }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ success: true, page: 1, hasMore: false, items: [] }) });
     vi.stubGlobal('fetch', fetchMock);
 
     await fetchAffiliateMe();
     await fetchAffiliateDashboard();
     await fetchAffiliateSales(2);
+    await fetchAffiliatePayments(1);
 
     expect(fetchMock.mock.calls[0][0]).toContain('rest_route=/nakama/v1/affiliates/me');
     expect(fetchMock.mock.calls[1][0]).toContain('/me/dashboard');
     expect(fetchMock.mock.calls[2][0]).toContain('/me/sales');
     expect(fetchMock.mock.calls[2][0]).toContain('page=2');
+    expect(fetchMock.mock.calls[3][0]).toContain('/me/payments');
+  });
+
+  it('downloads a private receipt with the JWT and no WordPress cookies', async () => {
+    const receipt = new Blob(['%PDF-1.4'], { type: 'application/pdf' });
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, blob: async () => receipt });
+    const createObjectURL = vi.fn(() => 'blob:receipt');
+    const revokeObjectURL = vi.fn();
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+    vi.stubGlobal('fetch', fetchMock);
+    vi.stubGlobal('URL', { createObjectURL, revokeObjectURL });
+
+    await downloadAffiliateReceipt(22);
+
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toContain('/me/payments/22/download');
+    expect(init.headers.Authorization).toBe('Bearer signed-token');
+    expect(init.credentials).toBe('omit');
+    expect(createObjectURL).toHaveBeenCalledWith(receipt);
+    expect(click).toHaveBeenCalledOnce();
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:receipt');
   });
 
   it('uploads the fiscal PDF as FormData without setting a forged content type', async () => {

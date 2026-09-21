@@ -5,12 +5,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import {
+  downloadAffiliateReceipt,
   fetchAffiliateDashboard,
   fetchAffiliateMe,
+  fetchAffiliatePayments,
   fetchAffiliateSales,
   uploadFiscalDocument,
   type AffiliateDashboardData,
   type AffiliateMe,
+  type AffiliatePaymentPeriod,
   type AffiliateSaleEvent,
 } from '@/lib/affiliates-api';
 import styles from './affiliate.module.css';
@@ -31,10 +34,12 @@ export default function AffiliateDashboard() {
   const [loadedUserId, setLoadedUserId] = useState('');
   const [dashboard, setDashboard] = useState<AffiliateDashboardData | null>(null);
   const [sales, setSales] = useState<AffiliateSaleEvent[]>([]);
+  const [periods, setPeriods] = useState<AffiliatePaymentPeriod[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [downloadingReceipt, setDownloadingReceipt] = useState(0);
 
   const loadIdentity = useCallback(async () => {
     if (!user) return;
@@ -46,6 +51,7 @@ export default function AffiliateDashboard() {
       const identity = await fetchAffiliateMe();
       setDashboard(null);
       setSales([]);
+      setPeriods([]);
       setMe(identity);
       setLoadedUserId(user.id);
     } catch (requestError) {
@@ -72,11 +78,12 @@ export default function AffiliateDashboard() {
   useEffect(() => {
     if (!me?.can || !me.financialAccess) return;
     let active = true;
-    Promise.all([fetchAffiliateDashboard(), fetchAffiliateSales(1)])
-      .then(([dashboardData, salesData]) => {
+    Promise.all([fetchAffiliateDashboard(), fetchAffiliateSales(1), fetchAffiliatePayments(1)])
+      .then(([dashboardData, salesData, paymentsData]) => {
         if (!active) return;
         setDashboard(dashboardData);
         setSales(salesData.items || []);
+        setPeriods(paymentsData.items || []);
       })
       .catch(() => { if (active) setError(errorMessage); })
       .finally(() => { if (active) setLoading(false); });
@@ -96,6 +103,18 @@ export default function AffiliateDashboard() {
       setError(requestError instanceof Error ? requestError.message : t('affiliates.error'));
     } finally {
       setUploading(false);
+    }
+  };
+
+  const downloadReceipt = async (receiptId: number) => {
+    setDownloadingReceipt(receiptId);
+    setError('');
+    try {
+      await downloadAffiliateReceipt(receiptId);
+    } catch {
+      setError(t('affiliates.history.receiptError'));
+    } finally {
+      setDownloadingReceipt(0);
     }
   };
 
@@ -217,6 +236,48 @@ export default function AffiliateDashboard() {
         </article>
       </section>
 
+      <section className={styles.historySection} aria-labelledby="affiliate-history-title">
+        <div className={styles.sectionHeading}>
+          <div>
+            <span>{t('affiliates.history.kicker')}</span>
+            <h2 id="affiliate-history-title">{t('affiliates.history.title')}</h2>
+          </div>
+          <p>{t('affiliates.history.manual')}</p>
+        </div>
+        <p className={styles.carryNote}>{t('affiliates.history.carry')}</p>
+        {periods.length === 0 ? <p>{t('affiliates.history.empty')}</p> : (
+          <div className={styles.periodList}>
+            {periods.map(period => {
+              const stateLabel = t(`affiliates.history.${period.status}`);
+              return (
+                <article className={styles.periodCard} key={period.id}>
+                  <header>
+                    <div><span>{t('affiliates.history.period')}</span><strong>{period.period}</strong></div>
+                    <span className={`${styles.periodStatus} ${styles[`periodStatus_${period.status}`]}`}>{stateLabel}</span>
+                  </header>
+                  <dl>
+                    <div><dt>{t('affiliates.history.sales')}</dt><dd>{mxn.format(period.salesMxn)}</dd></div>
+                    <div><dt>{t('affiliates.history.refunds')}</dt><dd>{mxn.format(period.refundsMxn)}</dd></div>
+                    <div><dt>{t('affiliates.history.ledgerAdjustments')}</dt><dd>{mxn.format(period.adjustmentsMxn)}</dd></div>
+                    <div><dt>{t('affiliates.history.gross')}</dt><dd>{mxn.format(period.commissionGrossMxn)}</dd></div>
+                    <div><dt>{t('affiliates.history.isr')}</dt><dd>{mxn.format(period.isrWithheldMxn)}</dd></div>
+                    <div><dt>{t('affiliates.history.iva')}</dt><dd>{mxn.format(period.ivaWithheldMxn)}</dd></div>
+                    <div><dt>{t('affiliates.history.adjustments')}</dt><dd>{mxn.format(period.otherAdjustmentsMxn)}</dd></div>
+                    <div className={styles.netValue}><dt>{t('affiliates.history.net')}</dt><dd>{mxn.format(period.netMxn)}</dd></div>
+                  </dl>
+                  {period.reversedAt && <p className={styles.reversalNote}>{t('affiliates.history.reversed')}: {period.reversalReason}</p>}
+                  {period.status === 'paid' && period.receiptId > 0 && (
+                    <button className="nk-btn" type="button" disabled={downloadingReceipt === period.receiptId} onClick={() => void downloadReceipt(period.receiptId)}>
+                      {downloadingReceipt === period.receiptId ? t('affiliates.history.receiptDownloading') : t('affiliates.history.receipt')}
+                    </button>
+                  )}
+                </article>
+              );
+            })}
+          </div>
+        )}
+      </section>
+
       <section className={styles.salesSection} aria-labelledby="affiliate-sales-title">
         <h2 id="affiliate-sales-title">{t('affiliates.sales.title')}</h2>
         {loading ? <p role="status">{t('affiliates.loading')}</p> : sales.length === 0 ? (
@@ -226,7 +287,7 @@ export default function AffiliateDashboard() {
             {sales.map(event => (
               <article key={event.id} className={styles.saleCard}>
                 <div><span>{event.eventType === 'sale' ? t('affiliates.sales.sale') : t('affiliates.sales.adjustment')}</span><strong>#{event.orderId}</strong></div>
-                <div><span>{t('affiliates.sales.base')}</span><strong>{mxn.format(event.baseMxn)}</strong></div>
+                <div><span>{t('affiliates.sales.base')}</span><strong>{mxn.format(event.baseMxn)}</strong>{event.sourceCurrency !== 'MXN' && <small>{event.sourceBase} {event.sourceCurrency}</small>}</div>
                 <div><span>{t('affiliates.sales.commission')}</span><strong>{mxn.format(event.commissionMxn)}</strong></div>
                 <time dateTime={event.occurredAt}>{event.occurredAt.slice(0, 10)}</time>
               </article>

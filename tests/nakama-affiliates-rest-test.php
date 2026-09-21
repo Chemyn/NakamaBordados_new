@@ -113,6 +113,9 @@ final class Nakama_Affiliates_Repository {
 			'id' => 12,
 			'period_key' => '2026-08',
 			'status' => 'paid',
+			'sales_mxn' => 11000,
+			'refunds_mxn' => -1000,
+			'adjustments_mxn' => 0,
 			'commission_gross_mxn' => 1000,
 			'isr_withheld_mxn' => 90,
 			'iva_withheld_mxn' => 40,
@@ -200,6 +203,7 @@ foreach ( array( 'buyer', 'customer', 'email', 'name', 'address' ) as $pii_key )
 $payments = Nakama_Affiliates_REST::payments( new WP_REST_Request( array( 'page' => 1 ) ) );
 affiliates_rest_assert( 22 === $payments->data['items'][0]['receiptId'], 'Payment history exposes only the owner receipt identifier.' );
 affiliates_rest_assert( 860.0 === $payments->data['items'][0]['paidNetMxn'], 'Payment history keeps the frozen paid net.' );
+affiliates_rest_assert( -1000.0 === $payments->data['items'][0]['refundsMxn'], 'Payment history keeps signed refunds without rewriting the close.' );
 affiliates_rest_assert( 4 === $affiliate_rest_ledger_filter, 'Payment history is filtered by the authenticated affiliate.' );
 
 echo "PHP Nakama Affiliates REST tests passed.\n";
