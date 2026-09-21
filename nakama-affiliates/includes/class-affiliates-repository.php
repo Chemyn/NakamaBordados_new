@@ -111,6 +111,74 @@ final class Nakama_Affiliates_Repository {
 		), ARRAY_A );
 	}
 
+	public static function closure_by_id( $closure_id ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'closures' ) . ' WHERE id = %d LIMIT 1',
+			(int) $closure_id
+		), ARRAY_A );
+	}
+
+	/** Posted and review movements still available for a monthly close. */
+	public static function closure_candidate_events( $affiliate_id, $period_key ) {
+		global $wpdb;
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'ledger' ) . ' WHERE affiliate_id = %d AND period_key = %s AND closure_id = 0 AND status IN (\'posted\',\'review\') ORDER BY id ASC',
+			(int) $affiliate_id,
+			(string) $period_key
+		), ARRAY_A );
+		return is_array( $rows ) ? $rows : array();
+	}
+
+	/** Atomically freeze a closure and attach exactly the confirmed events. */
+	public static function create_closure_with_events( array $data, array $event_ids ) {
+		global $wpdb;
+		$wpdb->query( 'START TRANSACTION' );
+		$wpdb->get_var( $wpdb->prepare(
+			'SELECT id FROM ' . self::table( 'profiles' ) . ' WHERE id = %d FOR UPDATE',
+			(int) $data['affiliate_id']
+		) );
+		$existing = $wpdb->get_var( $wpdb->prepare(
+			'SELECT id FROM ' . self::table( 'closures' ) . ' WHERE affiliate_id = %d AND period_key = %s LIMIT 1 FOR UPDATE',
+			(int) $data['affiliate_id'],
+			(string) $data['period_key']
+		) );
+		if ( $existing ) {
+			$wpdb->query( 'ROLLBACK' );
+			return 0;
+		}
+
+		$inserted = $wpdb->insert( self::table( 'closures' ), $data );
+		if ( ! $inserted ) {
+			$wpdb->query( 'ROLLBACK' );
+			return 0;
+		}
+		$closure_id = (int) $wpdb->insert_id;
+		$event_ids  = array_values( array_unique( array_filter( array_map( 'intval', $event_ids ) ) ) );
+		if ( $event_ids ) {
+			$placeholders = implode( ',', array_fill( 0, count( $event_ids ), '%d' ) );
+			$sql = 'UPDATE ' . self::table( 'ledger' ) . ' SET closure_id = %d WHERE affiliate_id = %d AND period_key = %s AND closure_id = 0 AND status = \'posted\' AND id IN (' . $placeholders . ')';
+			$args = array_merge( array( $closure_id, (int) $data['affiliate_id'], (string) $data['period_key'] ), $event_ids );
+			$attached = $wpdb->query( $wpdb->prepare( $sql, $args ) );
+			if ( false === $attached || count( $event_ids ) !== (int) $attached ) {
+				$wpdb->query( 'ROLLBACK' );
+				return 0;
+			}
+		}
+
+		$wpdb->query( 'COMMIT' );
+		return $closure_id;
+	}
+
+	public static function update_closure( $closure_id, array $data ) {
+		global $wpdb;
+		return false !== $wpdb->update(
+			self::table( 'closures' ),
+			$data,
+			array( 'id' => (int) $closure_id )
+		);
+	}
+
 	public static function document_by_id( $document_id ) {
 		global $wpdb;
 		return $wpdb->get_row( $wpdb->prepare(
