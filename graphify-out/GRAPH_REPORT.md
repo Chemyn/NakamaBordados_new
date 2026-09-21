@@ -1,16 +1,16 @@
 # Graph Report - NakamaBordados  (2026-09-20)
 
 ## Corpus Check
-- 290 files · ~4,229,801 words
+- 293 files · ~4,232,888 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 2402 nodes · 4328 edges · 153 communities (105 shown, 37 thin omitted)
-- Extraction: 91% EXTRACTED · 9% INFERRED · 0% AMBIGUOUS · INFERRED: 385 edges (avg confidence: 0.85)
+- 2448 nodes · 4389 edges · 151 communities (110 shown, 30 thin omitted)
+- Extraction: 91% EXTRACTED · 9% INFERRED · 0% AMBIGUOUS · INFERRED: 398 edges (avg confidence: 0.85)
 - Token cost: 0 input · 0 output
 
 ## Graph Freshness
-- Built from commit: `5afead0b`
+- Built from commit: `589fc85f`
 - Run `git rev-parse HEAD` and compare to check if the graph is stale.
 - Run `graphify update .` after code changes (no API cost).
 
@@ -28,16 +28,16 @@
 - nakama-products-api.php
 - mobile/package.json
 - dependencies
-- HomeClientComponents.tsx
+- useLanguage
 - nakama-checkout-tools.php
 - expo
 - analytics.ts
 - Nakama_Discount_Codes
 - What You Must Do When Invoked
 - ajustes.tsx
-- fetchGraphQL
-- useLanguage
-- terminos-y-condiciones/page.tsx
+- products.ts
+- cart/page.tsx
+- aviso-de-privacidad/page.tsx
 - mi-cuenta/page.tsx
 - Diseño: productos de catálogo sin color y SKU manuales
 - Entrega 1 — Acceso, código, ventas y comisión
@@ -56,34 +56,34 @@
 - 專案上下文 (Agent Context)：NakamaBordados_new
 - Navegación móvil de Mi Cuenta
 - nakama-discounts-test.php
-- Nakama_Account
+- Nakama_Customer_History
 - dependencies
 - devDependencies
 - nakama-checkout-tools-test.php
 - Nakama_Drops_Repository
-- wp_verify_nonce
+- .save_user_fields
 - Nakama Producción (app Android)
 - DateTimeImmutable
 - Nakama_Admin
-- Nakama_Drops_Lifecycle
+- Nakama_Drops_Admin
 - CurrencyContext.tsx
 - graphify reference: extra exports and benchmark
 - Selector de pago para cotizaciones en Mi Cuenta
-- products.ts
-- AccountColors.test.ts
+- terminos-y-condiciones/page.tsx
+- Nakama_Affiliates_Repository
 - Códigos públicos de descuento para Nakama Discounts
 - warehouse-manual-catalog.test.mjs
 - Facebook Catalog REST Endpoint
 - mobile/tsconfig.json
 - Nakama_Cart
-- Nakama_Customer_History
-- AuthContext.tsx
+- nakama_create_quote_order
+- apiOrigin
 - init-db.js
 - clean-lang.js
 - Nakama_Settings
 - scripts
 - nakama-discounts-cart-test.php
-- products-api.ts
+- ProductClient.tsx
 - hero-config.ts
 - nakama-changelog.test.mjs
 - 📔 2026-06-04 Global Progress Overview
@@ -99,7 +99,7 @@
 - Project DevLog: NakamaBordados_new
 - Project DevLog: NakamaBordados_new
 - 📔 2026-06-19 Nakama Bordados Progress Update
-- nakama-affiliates-commissions-test.php
+- AffiliatePaidOrder
 - Nakama Afiliados: atribución, comisiones y programa mensual de prendas
 - graphify reference: add a URL and watch a folder
 - graphify reference: commit hook and native CLAUDE.md integration
@@ -114,8 +114,8 @@
 - prepare-static-deployment.mjs
 - HomeHero.tsx
 - gracias/page.tsx
-- apiOrigin
-- db.ts
+- pedido-confirmado/page.tsx
+- Nakama_Affiliates_Private_Files
 - extraction-spec.md
 - eslint.config.mjs
 - mobile/AGENTS.md
@@ -130,7 +130,7 @@
 - Modelo de datos
 - useOtaUpdate.ts
 - Pruebas
-- Nakama_Affiliates_Commissions
+- AuthModeTabs.test.tsx
 - Código y atribución
 - nakama-hero-manager.php
 - Nakama_Drops_Pricing
@@ -144,16 +144,14 @@
 - Nakama_Affiliates_Repository
 - FakeCreatedOrder
 - nakama-affiliates-codes-test.php
-- ProductClient.tsx
-- Nakama_Affiliates_Refunds
-- Nakama_Affiliates_Permissions
+- Product
+- drops.ts
+- Nakama_Affiliates_Documents
 - FakeCart
-- AffiliatePaidOrder
+- AccountSectionNav.tsx
 - OrderDetailScreen
-- Nakama_Campaigns
-- Nakama_Discount_Codes
-- Nakama_Drops_REST
-- FakeLineItem
+- Nakama_Affiliates_Permissions
+- nakama_get_usd_rate_details
 - Nakama_Drops_Orders
 - WP_REST_Request
 - nakama_logout_session
@@ -164,9 +162,9 @@
 3. `apiOrigin()` - 39 edges
 4. `Nakama_Drops_Repository` - 36 edges
 5. `WP_REST_Response` - 35 edges
-6. `vitest` - 30 edges
-7. `Nakama_Settings` - 27 edges
-8. `Nakama_Affiliates_Repository` - 25 edges
+6. `Nakama_Affiliates_Repository` - 34 edges
+7. `vitest` - 30 edges
+8. `Nakama_Settings` - 27 edges
 9. `fetchGraphQL()` - 25 edges
 10. `is_wp_error()` - 24 edges
 
@@ -185,15 +183,15 @@
 ## Import Cycles
 - None detected.
 
-## Communities (153 total, 37 thin omitted)
+## Communities (151 total, 30 thin omitted)
 
 ### Community 0 - "nakama-discounts-admin-ui-test.php"
-Cohesion: 0.18
-Nodes (5): nakama_envia_render_settings_page(), Nakama_Settings, settings_errors(), settings_fields(), submit_button()
+Cohesion: 0.12
+Nodes (6): nakama_envia_render_settings_page(), Nakama_Campaigns, Nakama_Discount_Codes, Nakama_Settings, settings_fields(), submit_button()
 
 ### Community 1 - "nakama-production-panel.php"
-Cohesion: 0.06
-Nodes (90): nakama_check_coupon_logic(), nakama_create_quote_order(), nakama_get_order_confirmation(), nakama_quote_pdf_upload(), nakama_register_customer(), nakama_update_account_profile(), WP_REST_Request, nakama_17track_carrier_code() (+82 more)
+Cohesion: 0.08
+Nodes (76): nakama_17track_carrier_code(), nakama_17track_normalize(), nakama_17track_register(), nakama_17track_request(), nakama_17track_status_es(), nakama_17track_timeline_payload(), nakama_17track_token(), nakama_envia_no_cache() (+68 more)
 
 ### Community 2 - "production-api.ts"
 Cohesion: 0.09
@@ -205,7 +203,7 @@ Nodes (62): nakama_products_bump_cache(), nakama_wh_apply_delta(), nakama_wh_app
 
 ### Community 4 - "App.tsx"
 Cohesion: 0.09
-Nodes (37): jspdf, App(), availableGarmentPositions, getPositionSizeError(), capModelColors, capModels, GorrasConfig(), GorrasConfigProps (+29 more)
+Nodes (38): jspdf, jszip, App(), availableGarmentPositions, getPositionSizeError(), capModelColors, capModels, GorrasConfig() (+30 more)
 
 ### Community 5 - "src/lib/warehouse-api.ts"
 Cohesion: 0.10
@@ -239,21 +237,21 @@ Nodes (37): devDependencies, @types/react, typescript, react, @types/react, type
 Cohesion: 0.07
 Nodes (30): dependencies, expo, expo-application, expo-build-properties, expo-constants, expo-device, expo-document-picker, expo-font (+22 more)
 
-### Community 13 - "HomeClientComponents.tsx"
-Cohesion: 0.17
-Nodes (11): CategoriesExplore(), LazyCategorySection(), ScrollContainer(), useDraggableScroll(), HeroSources, ScrollytellingHero(), SearchBar(), fetchProductsSearch() (+3 more)
+### Community 13 - "useLanguage"
+Cohesion: 0.19
+Nodes (14): FreeShippingBadge(), CategoriesExplore(), LazyCategorySection(), ScrollContainer(), useDraggableScroll(), HeroSources, ScrollytellingHero(), useLanguage() (+6 more)
 
 ### Community 14 - "nakama-checkout-tools.php"
-Cohesion: 0.10
-Nodes (34): nakama_add_quote_batch_to_wc_cart(), nakama_add_quote_to_wc_cart(), nakama_cart_bridge_handler(), nakama_checkout_bridge_apply_promotion(), nakama_checkout_return_url(), nakama_currency_info(), nakama_finalize_quote_sources(), nakama_get_usd_rate() (+26 more)
+Cohesion: 0.14
+Nodes (28): nakama_add_quote_batch_to_wc_cart(), nakama_add_quote_to_wc_cart(), nakama_cart_bridge_handler(), nakama_checkout_bridge_apply_promotion(), nakama_checkout_return_url(), nakama_finalize_quote_sources(), nakama_graphql_order_quote_payment_eligible(), nakama_is_quote_request() (+20 more)
 
 ### Community 15 - "expo"
 Cohesion: 0.07
 Nodes (28): backgroundColor, foregroundImage, adaptiveIcon, blockedPermissions, package, predictiveBackGestureEnabled, projectId, expo (+20 more)
 
 ### Community 16 - "analytics.ts"
-Cohesion: 0.22
-Nodes (13): Analytics(), CookieBanner(), FB_PIXEL_ID, GA_MEASUREMENT_ID, isTrackingHost(), TrackedProduct, trackPageView(), trackViewContent() (+5 more)
+Cohesion: 0.24
+Nodes (12): Analytics(), CookieBanner(), FB_PIXEL_ID, GA_MEASUREMENT_ID, isTrackingHost(), TrackedProduct, trackPageView(), Window (+4 more)
 
 ### Community 17 - "Nakama_Discount_Codes"
 Cohesion: 0.15
@@ -267,21 +265,21 @@ Nodes (24): For /graphify add and --watch, For /graphify query, For the commit h
 Cohesion: 0.11
 Nodes (27): PushSummary, SettingsScreen(), confirmSignOut(), styles, summarize(), TabsLayout(), ApkUpdate, parseRemote() (+19 more)
 
-### Community 20 - "fetchGraphQL"
-Cohesion: 0.19
-Nodes (19): addToCart(), checkout(), emptyCart(), fetchCart(), fetchCheckoutData(), getAuthHeaders(), getSessionToken(), removeFromCart() (+11 more)
+### Community 20 - "products.ts"
+Cohesion: 0.06
+Nodes (54): CATEGORIES, fetchCategories(), fetchProductById(), fetchProducts(), fetchProductsByCategory(), getProductsByCategory(), PRODUCTS, ProductsSearchResult (+46 more)
 
-### Community 21 - "useLanguage"
+### Community 21 - "cart/page.tsx"
 Cohesion: 0.17
-Nodes (22): CartPage(), CheckoutPage(), AbandonedCartCoupon(), AffiliateCodeField(), Navbar(), useAuth(), useCart(), useCurrency() (+14 more)
+Nodes (19): CartPage(), CheckoutPage(), AbandonedCartCoupon(), AffiliateCodeField(), mocks, Navbar(), SearchBar(), useAuth() (+11 more)
 
-### Community 22 - "terminos-y-condiciones/page.tsx"
-Cohesion: 0.07
-Nodes (24): h2Style, leadStyle, liStyle, markerStyle, PrivacyPage(), pStyle, secStyle, ulStyle (+16 more)
+### Community 22 - "aviso-de-privacidad/page.tsx"
+Cohesion: 0.11
+Nodes (14): h2Style, leadStyle, liStyle, markerStyle, PrivacyPage(), pStyle, secStyle, ulStyle (+6 more)
 
 ### Community 23 - "mi-cuenta/page.tsx"
-Cohesion: 0.08
-Nodes (27): AccountProgress(), AccountProgressProps, AccountProgressStep, steps, AccountSection, AccountSectionId, AccountSectionNav(), AccountSectionNavProps (+19 more)
+Cohesion: 0.10
+Nodes (26): PersonalDetailsEditor(), PersonalDetailsProps, SaveProfile, SaveResult, ShippingAddressEditor(), ShippingAddressProps, formatEventTime(), isTrackProblem() (+18 more)
 
 ### Community 24 - "Diseño: productos de catálogo sin color y SKU manuales"
 Cohesion: 0.10
@@ -293,7 +291,7 @@ Nodes (35): Capacidades, Condiciones para reanudar la facturación automática, 
 
 ### Community 26 - "package.json"
 Cohesion: 0.11
-Nodes (18): react, @types/react, typescript, name, private, version, bootstrap, bootstrap-icons (+10 more)
+Nodes (17): react, @types/react, typescript, name, private, version, bootstrap, bootstrap-icons (+9 more)
 
 ### Community 28 - "compilerOptions"
 Cohesion: 0.11
@@ -320,8 +318,8 @@ Cohesion: 0.05
 Nodes (41): Accesibilidad y movimiento, API pública, Arquitectura, Aviso de preventa, Borrador, Campañas, Cancelación previa, Carritos abiertos durante el lanzamiento (+33 more)
 
 ### Community 35 - "CartContext.tsx"
-Cohesion: 0.19
-Nodes (17): CartContext, CartContextType, CartProvider(), getVariationAttr(), QuoteCartItem, ValidatedCoupon, validateNativeCoupon(), AFFILIATE_STORAGE_KEY (+9 more)
+Cohesion: 0.11
+Nodes (24): AffiliateReferralCapture(), mocks, Footer(), CartContext, CartContextType, CartItem, CartProvider(), getVariationAttr() (+16 more)
 
 ### Community 38 - "專案上下文 (Agent Context)：NakamaBordados_new"
 Cohesion: 0.17
@@ -335,10 +333,6 @@ Nodes (11): 1. Visibilidad responsive mediante CSS — elegida, 2. Renderizado c
 Cohesion: 0.11
 Nodes (4): Nakama_Campaigns, Nakama_Context, Nakama_Customer_History, Nakama_Settings
 
-### Community 41 - "Nakama_Account"
-Cohesion: 0.15
-Nodes (3): Nakama_Account, Nakama_MSI, wp_kses_post()
-
 ### Community 42 - "dependencies"
 Cohesion: 0.17
 Nodes (12): dependencies, bcryptjs, bootstrap, bootstrap-icons, isomorphic-dompurify, jose, jspdf, jszip (+4 more)
@@ -348,24 +342,28 @@ Cohesion: 0.17
 Nodes (12): devDependencies, eslint, eslint-config-next, jsdom, @testing-library/jest-dom, @testing-library/react, @testing-library/user-event, @types/node (+4 more)
 
 ### Community 44 - "nakama-checkout-tools-test.php"
-Cohesion: 0.07
-Nodes (7): FakeCheckoutOrder, FakeErrors, FakeFee, FakeResponse, get_post_status(), rest_ensure_response(), WP_User
+Cohesion: 0.06
+Nodes (10): nakama_prod_product_by_sku(), FakeCheckoutOrder, FakeErrors, FakeFee, FakeLineItem, FakeResponse, get_post_status(), is_wc_endpoint_url() (+2 more)
 
-### Community 46 - "wp_verify_nonce"
-Cohesion: 0.67
-Nodes (3): nakama_prod_save_user_field(), nakama_wh_save_user_field(), wp_verify_nonce()
+### Community 45 - "Nakama_Drops_Repository"
+Cohesion: 0.08
+Nodes (3): Nakama_Drops_Lifecycle, Nakama_Drops_Quota, Nakama_Drops_Repository
+
+### Community 46 - ".save_user_fields"
+Cohesion: 0.33
+Nodes (5): nakama_hero_handle_save(), nakama_prod_save_user_field(), nakama_wh_save_user_field(), wp_verify_nonce(), add_settings_error()
 
 ### Community 47 - "Nakama Producción (app Android)"
 Cohesion: 0.18
 Nodes (10): 1. Cuenta de Expo / EAS, 2. Firebase (necesario para las notificaciones), 3. Plugin de WordPress, 4. Login social, Cómo trabajar en el proyecto, Estructura, Nakama Producción (app Android), Notas (+2 more)
 
 ### Community 48 - "DateTimeImmutable"
-Cohesion: 0.19
-Nodes (6): DateTimeImmutable, DateTimeInterface, DateTimeZone, Nakama_Drops_Domain, DateTimeZone, WP_REST_Request
+Cohesion: 0.14
+Nodes (7): DateTimeImmutable, DateTimeInterface, DateTimeZone, Nakama_Drops_Domain, DateTimeZone, Nakama_Drops_REST, WP_REST_Request
 
-### Community 50 - "Nakama_Drops_Lifecycle"
-Cohesion: 0.11
-Nodes (4): Nakama_Drops_Admin, Nakama_Drops_Lifecycle, absint(), esc_url()
+### Community 50 - "Nakama_Drops_Admin"
+Cohesion: 0.17
+Nodes (3): Nakama_Drops_Admin, absint(), esc_url()
 
 ### Community 51 - "CurrencyContext.tsx"
 Cohesion: 0.17
@@ -379,9 +377,13 @@ Nodes (8): graphify reference: extra exports and benchmark, Step 6b - Wiki (only
 Cohesion: 0.22
 Nodes (8): Alternativas consideradas, Casos límite y errores, Diseño aprobado, Estrategia de pruebas, Registro de decisiones, Resumen de entendimiento, Selector de pago para cotizaciones en Mi Cuenta, Supuestos no funcionales
 
-### Community 54 - "products.ts"
-Cohesion: 0.18
-Nodes (20): CATEGORIES, fetchProductById(), fetchProducts(), fetchProductsByCategory(), getProductsByCategory(), PRODUCTS, ProductsSearchResult, ProductsSearchResult (+12 more)
+### Community 54 - "terminos-y-condiciones/page.tsx"
+Cohesion: 0.14
+Nodes (10): h2Style, leadStyle, liStyle, markerStyle, pStyle, secStyle, subMarkerStyle, subUlStyle (+2 more)
+
+### Community 55 - "Nakama_Affiliates_Repository"
+Cohesion: 0.16
+Nodes (4): current_user_can(), get_current_user_id(), Nakama_Affiliates_Permissions, Nakama_Affiliates_Repository
 
 ### Community 56 - "Códigos públicos de descuento para Nakama Discounts"
 Cohesion: 0.08
@@ -400,12 +402,16 @@ Cohesion: 0.25
 Nodes (7): compilerOptions, paths, strict, exclude, extends, include, expo/tsconfig.base
 
 ### Community 60 - "Nakama_Cart"
-Cohesion: 0.13
-Nodes (4): Nakama_Cart, Nakama_Shipping, do_action(), wc_price()
+Cohesion: 0.10
+Nodes (6): Nakama_Cart, Nakama_MSI, Nakama_Shipping, do_action(), wc_price(), wp_kses_post()
 
-### Community 62 - "AuthContext.tsx"
-Cohesion: 0.11
-Nodes (24): AuthContext, AuthContextType, AuthProvider(), Customer, Order, OrderMeta, RegisterInput, PersonalDetailsEditor() (+16 more)
+### Community 61 - "nakama_create_quote_order"
+Cohesion: 0.16
+Nodes (15): nakama_check_coupon_logic(), nakama_create_quote_order(), nakama_get_order_confirmation(), nakama_quote_pdf_upload(), nakama_register_customer(), nakama_social_new_user_role(), nakama_update_account_profile(), WP_REST_Request (+7 more)
+
+### Community 62 - "apiOrigin"
+Cohesion: 0.13
+Nodes (22): MAINTENANCE_ENDPOINT(), MaintenanceToggle(), MaintenanceData, MaintenanceWrapper(), SocialLinks, SOCIALS, AuthContext, AuthContextType (+14 more)
 
 ### Community 63 - "init-db.js"
 Cohesion: 0.29
@@ -427,9 +433,9 @@ Nodes (7): scripts, build, dev, lint, postbuild, start, test
 Cohesion: 0.08
 Nodes (5): FakeDiscountCart, FakeDiscountOrder, FakeDiscountSession, FakeDiscountWooCommerce, Nakama_Settings
 
-### Community 68 - "products-api.ts"
-Cohesion: 0.16
-Nodes (15): ProductLoader(), dynamic, sitemap(), apiFetchProductBySlug(), apiFetchProducts(), apiFetchProductSlugs(), canonicalAttr(), EMPTY_RESULT (+7 more)
+### Community 68 - "ProductClient.tsx"
+Cohesion: 0.14
+Nodes (18): isomorphic-dompurify, DropsClient(), ProductClient(), ProductClientProps, ProductLoader(), trackViewContent(), apiFetchDrops(), apiFetchProductBySlug() (+10 more)
 
 ### Community 69 - "hero-config.ts"
 Cohesion: 0.33
@@ -456,8 +462,8 @@ Cohesion: 0.14
 Nodes (6): AffiliateDiscountCart, AffiliateDiscountSession, AffiliateDiscountWoo, Nakama_Affiliates_Codes, Nakama_Cart, WC()
 
 ### Community 75 - "next"
-Cohesion: 0.17
-Nodes (5): nextConfig, next, metadata, metadata, dynamic
+Cohesion: 0.11
+Nodes (9): nextConfig, next, metadata, metadata, metadata, dynamic, dynamic, sitemap() (+1 more)
 
 ### Community 76 - "clone-db.js"
 Cohesion: 0.40
@@ -491,6 +497,10 @@ Nodes (4): ✅ Accomplishments, 🚩 Challenges & Solutions, ⏭️ Next Steps, 
 Cohesion: 0.40
 Nodes (4): 📔 2026-06-19 Nakama Bordados Progress Update, 🧠 Improvements & Learnings, 🏴‍☠️ NakamaBordados_new, 📁 Project Tracking
 
+### Community 84 - "AffiliatePaidOrder"
+Cohesion: 0.10
+Nodes (3): AffiliateCommissionWpdb, AffiliatePaidOrder, wc_get_is_paid_statuses()
+
 ### Community 85 - "Nakama Afiliados: atribución, comisiones y programa mensual de prendas"
 Cohesion: 0.12
 Nodes (16): Arquitectura, Capacidades y acceso, Cierre y pago mensual, Contexto, Criterios de aceptación, Decisiones aprobadas, Errores y recuperación, Estructura del plugin (+8 more)
@@ -512,24 +522,24 @@ Cohesion: 0.50
 Nodes (3): Changelog automático desde Git, Cómo escribir una actualización, Sincronización y recuperación
 
 ### Community 90 - "SocialLoginButtons.tsx"
-Cohesion: 0.17
-Nodes (9): buttonStyle, dividerStyle, lineStyle, SocialLoginButtons(), SocialLoginButtonsProps, AuthGateModal(), AuthGateModalProps, socialLoginUrl() (+1 more)
+Cohesion: 0.20
+Nodes (7): buttonStyle, dividerStyle, lineStyle, SocialLoginButtons(), SocialLoginButtonsProps, AuthGateModal(), AuthGateModalProps
 
 ### Community 91 - "This is NOT the Next.js you know"
 Cohesion: 0.50
 Nodes (3): Cambios NK, graphify, This is NOT the Next.js you know
 
-### Community 99 - "apiOrigin"
-Cohesion: 0.14
-Nodes (17): MAINTENANCE_ENDPOINT(), MaintenanceToggle(), MaintenanceData, MaintenanceWrapper(), SocialLinks, SOCIALS, BankAccount, formatDate() (+9 more)
+### Community 99 - "pedido-confirmado/page.tsx"
+Cohesion: 0.25
+Nodes (9): BankAccount, formatDate(), formatTotal(), JOURNEY, journeyIndex(), OrderConfirmation, PedidoConfirmadoPage(), mocks (+1 more)
 
-### Community 100 - "db.ts"
-Cohesion: 0.21
-Nodes (11): getCategoriesSQL(), getProductBySlugSQL(), GetProductsOptions, getProductsSQL(), GetUsersOptions, pool, searchTaxonomyBySQL(), SQLProduct (+3 more)
+### Community 111 - "Nakama_Affiliates_Domain"
+Cohesion: 0.07
+Nodes (6): Nakama_Affiliates_Commissions, Nakama_Affiliates_Currency, Nakama_Affiliates_Domain, Nakama_Affiliates_Orders, Nakama_Affiliates_Refunds, DateTimeInterface
 
 ### Community 116 - "vitest"
-Cohesion: 0.08
-Nodes (26): @testing-library/react, @testing-library/user-event, vitest, cartContext, router, cartContext, checkoutMocks, router (+18 more)
+Cohesion: 0.07
+Nodes (22): @testing-library/react, vitest, cartContext, router, cartContext, checkoutMocks, router, BuildUpdateNotice() (+14 more)
 
 ### Community 117 - "patrones.tsx"
 Cohesion: 0.18
@@ -551,13 +561,17 @@ Nodes (5): UpdateBanner(), OtaStatus, OtaUpdate, useOtaUpdate(), expo-updates
 Cohesion: 0.29
 Nodes (7): Descuentos y checkout, Dominio y persistencia, Empaquetado, Interfaz, Permisos y privacidad, Programa de prendas, Pruebas
 
+### Community 124 - "AuthModeTabs.test.tsx"
+Cohesion: 0.21
+Nodes (7): @testing-library/user-event, AUTH_MODES, AuthMode, AuthModeTabs(), AuthModeTabsProps, TrackingFeedback(), TrackingFeedbackProps
+
 ### Community 125 - "Código y atribución"
 Cohesion: 0.33
 Nodes (6): Aplicación manual, Creación, Código y atribución, Enlace personal, Exclusividad promocional, Fotografía en el pedido
 
 ### Community 126 - "nakama-hero-manager.php"
-Cohesion: 0.27
-Nodes (10): nakama_hero_default_config(), nakama_hero_get_config(), nakama_hero_media_field(), nakama_hero_merge_config(), nakama_hero_render_admin_page(), nakama_hero_rest_get(), nakama_prod_render_user_field(), nakama_wh_render_user_field() (+2 more)
+Cohesion: 0.24
+Nodes (11): nakama_hero_default_config(), nakama_hero_get_config(), nakama_hero_media_field(), nakama_hero_merge_config(), nakama_hero_render_admin_page(), nakama_hero_rest_get(), nakama_prod_render_user_field(), nakama_wh_render_user_field() (+3 more)
 
 ### Community 128 - "Experiencia del afiliado"
 Cohesion: 0.50
@@ -571,37 +585,41 @@ Nodes (4): Administración, Afiliado, Aplicación de código, Contrato REST
 Cohesion: 0.50
 Nodes (4): Entrega 1: núcleo de afiliados, Entrega 2: operación mensual, Entrega 3: programa de prendas, Entregas
 
-### Community 135 - "Nakama_Affiliates_Codes"
-Cohesion: 0.12
-Nodes (4): Nakama_Affiliates_Codes, Nakama_Affiliates_Profiles, nakama_hero_handle_save(), add_settings_error()
-
 ### Community 136 - "LanguageContext.tsx"
-Cohesion: 0.12
-Nodes (16): AffiliateReferralCapture(), mocks, BuildUpdateNotice(), BuildUpdateNoticeProps, Footer(), Message, WhatsAppButton(), getServerLanguage() (+8 more)
-
-### Community 138 - "FakeCreatedOrder"
-Cohesion: 0.11
-Nodes (3): FakeCreatedOrder, wc_create_order(), WC_Order_Item_Fee
+Cohesion: 0.21
+Nodes (10): Message, WhatsAppButton(), getServerLanguage(), getStoredLanguage(), Language, LanguageContext, LanguageContextProps, LanguageProvider() (+2 more)
 
 ### Community 139 - "nakama-affiliates-codes-test.php"
 Cohesion: 0.15
 Nodes (4): AffiliateCodeUser, Nakama_Affiliates_Permissions, Nakama_Affiliates_Profiles, Nakama_Affiliates_Repository
 
-### Community 140 - "ProductClient.tsx"
-Cohesion: 0.13
-Nodes (24): isomorphic-dompurify, DropCard(), DropCardProps, FreeShippingBadge(), getPricing(), ProductPrice(), CartItem, copy (+16 more)
+### Community 140 - "Product"
+Cohesion: 0.24
+Nodes (12): DropCard(), DropCardProps, getPricing(), ProductPrice(), copy, DropCampaign, DropPrice, DropsResponse (+4 more)
 
-### Community 142 - "Nakama_Affiliates_Permissions"
-Cohesion: 0.15
-Nodes (3): Nakama_Affiliates_Permissions, Nakama_Affiliates_REST, WP_REST_Request
+### Community 141 - "drops.ts"
+Cohesion: 0.35
+Nodes (7): DropCountdown(), DropCountdownProps, twoDigits(), countdownParts, createServerClock(), mapDropsByProduct(), campaign
+
+### Community 142 - "Nakama_Affiliates_Documents"
+Cohesion: 0.12
+Nodes (3): Nakama_Affiliates_Documents, Nakama_Affiliates_REST, WP_REST_Request
 
 ### Community 143 - "FakeCart"
 Cohesion: 0.18
 Nodes (3): FakeCart, FakeWooCommerce, WC()
 
+### Community 144 - "AccountSectionNav.tsx"
+Cohesion: 0.28
+Nodes (6): AccountSection, AccountSectionId, AccountSectionNav(), AccountSectionNavProps, COMMISSIONS_SECTION, CUSTOMER_SECTIONS
+
 ### Community 145 - "OrderDetailScreen"
 Cohesion: 0.40
 Nodes (4): formatDuration(), OrderDetailScreen(), ANDROID_SYSTEM_NAV_CLEARANCE, bottomActionPadding()
+
+### Community 147 - "nakama_get_usd_rate_details"
+Cohesion: 0.50
+Nodes (4): nakama_currency_info(), nakama_get_usd_rate(), nakama_get_usd_rate_details(), wp_remote_get()
 
 ### Community 154 - "nakama_logout_session"
 Cohesion: 0.50
@@ -609,18 +627,18 @@ Nodes (4): nakama_logout_session(), nakama_sso_set_cookie(), wp_clear_auth_cooki
 
 ## Knowledge Gaps
 - **711 isolated node(s):** `net`, `client`, `eslintConfig`, `{ existsSync }`, `{ join }` (+706 more)
-  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1201 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
-- **37 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+  These have ≤1 connection - possible missing edges or undocumented components. (Counts symbols only; 1228 node(s) total have ≤1 connection when file, concept and rationale nodes are included.)
+- **30 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
-- **Why does `vitest` connect `vitest` to `production-api.ts`, `CartContext.tsx`, `App.tsx`, `SocialLoginButtons.tsx`, `apiOrigin`, `src/lib/warehouse-api.ts`, `LanguageContext.tsx`, `OrderDetailScreen`, `CurrencyContext.tsx`, `mi-cuenta/page.tsx`, `useLanguage`, `fetchGraphQL`, `AccountColors.test.ts`, `package.json`, `AuthContext.tsx`?**
-  _High betweenness centrality (0.075) - this node is a cross-community bridge._
+- **Why does `vitest` connect `vitest` to `production-api.ts`, `package.json`, `CartContext.tsx`, `App.tsx`, `pedido-confirmado/page.tsx`, `src/lib/warehouse-api.ts`, `drops.ts`, `AccountSectionNav.tsx`, `OrderDetailScreen`, `CurrencyContext.tsx`, `products.ts`, `cart/page.tsx`, `SocialLoginButtons.tsx`, `AuthModeTabs.test.tsx`, `apiOrigin`?**
+  _High betweenness centrality (0.069) - this node is a cross-community bridge._
 - **Why does `bottomActionPadding()` connect `OrderDetailScreen` to `[id].tsx`?**
-  _High betweenness centrality (0.031) - this node is a cross-community bridge._
-- **Why does `WP_Error` connect `nakama-production-panel.php` to `nakama-warehouse.php`, `nakama_logout_session`, `nakama-products-api.php`, `nakama-checkout-tools-test.php`?**
-  _High betweenness centrality (0.017) - this node is a cross-community bridge._
+  _High betweenness centrality (0.030) - this node is a cross-community bridge._
+- **Why does `WP_Error` connect `nakama-production-panel.php` to `nakama-warehouse.php`, `nakama-products-api.php`, `nakama-checkout-tools-test.php`, `nakama_logout_session`, `nakama_create_quote_order`?**
+  _High betweenness centrality (0.025) - this node is a cross-community bridge._
 - **Are the 39 inferred relationships involving `WP_Error` (e.g. with `nakama_check_coupon_logic()` and `nakama_create_quote_order()`) actually correct?**
   _`WP_Error` has 39 INFERRED edges - model-reasoned connections that need verification._
 - **Are the 19 inferred relationships involving `Nakama_Drops_Repository` (e.g. with `.handle_save()` and `.handle_schedule()`) actually correct?**

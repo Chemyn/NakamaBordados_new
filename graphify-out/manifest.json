@@ -2274,15 +2274,15 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-repository.php": {
-    "mtime": 1789956183.7932572,
-    "seen": 1789956246.2869277,
-    "ast_hash": "90391038c0f6d43b993a7a095b120db1",
+    "mtime": 1789956787.2002041,
+    "seen": 1789956823.5118604,
+    "ast_hash": "ccda2912c89a744651e10f67c7cd1f64",
     "semantic_hash": ""
   },
   "nakama-affiliates/nakama-affiliates.php": {
-    "mtime": 1789956197.2755606,
-    "seen": 1789956246.2869298,
-    "ast_hash": "730c6ef6384dcb6e863280084d3ea2ad",
+    "mtime": 1789956641.6863732,
+    "seen": 1789956823.5118656,
+    "ast_hash": "4d1097791ef6235500e9a6f5a500ad14",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-domain-test.php": {
@@ -2340,9 +2340,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-rest.php": {
-    "mtime": 1789854998.4979835,
-    "seen": 1789954736.4630668,
-    "ast_hash": "fd99fabe3dde74a3a1232501554b1639",
+    "mtime": 1789956634.939341,
+    "seen": 1789956823.5118632,
+    "ast_hash": "5f3b376866f6d49b304e00c827ea2671",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-codes-test.php": {
@@ -2352,9 +2352,9 @@
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-rest-test.php": {
-    "mtime": 1789854817.0240347,
-    "seen": 1789954736.4636602,
-    "ast_hash": "2550c2ca91ed2a15e75f7e4386655d82",
+    "mtime": 1789956428.007024,
+    "seen": 1789956823.5123322,
+    "ast_hash": "b1a13475f6ef1b805ed3dae8f39e1aeb",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-discounts.php": {
@@ -2457,6 +2457,24 @@
     "mtime": 1789956054.078368,
     "seen": 1789956246.2871566,
     "ast_hash": "5eabf5d694b7dff2dd977f0e84c52b06",
+    "semantic_hash": ""
+  },
+  "nakama-affiliates/includes/class-affiliates-documents.php": {
+    "mtime": 1789956620.2739255,
+    "seen": 1789956823.5118382,
+    "ast_hash": "921d6b8452995a8d0b45011d841097e5",
+    "semantic_hash": ""
+  },
+  "nakama-affiliates/includes/class-affiliates-private-files.php": {
+    "mtime": 1789956712.980889,
+    "seen": 1789956823.5118527,
+    "ast_hash": "cec877fc076240b53d7f8f90c821ae5e",
+    "semantic_hash": ""
+  },
+  "tests/nakama-affiliates-documents-test.php": {
+    "mtime": 1789956794.4442303,
+    "seen": 1789956823.512323,
+    "ast_hash": "6941f48634bfd2688ad23e5d3eddc928",
     "semantic_hash": ""
   }
 }

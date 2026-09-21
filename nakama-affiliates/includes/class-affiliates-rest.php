@@ -28,6 +28,37 @@ final class Nakama_Affiliates_REST {
 			'callback'            => array( __CLASS__, 'access' ),
 			'permission_callback' => '__return_true',
 		) );
+
+		register_rest_route( self::NAMESPACE_NAME, '/affiliates/me/fiscal-document', array(
+			array(
+				'methods'             => WP_REST_Server::READABLE,
+				'callback'            => array( __CLASS__, 'fiscal_document' ),
+				'permission_callback' => array( __CLASS__, 'affiliate_permission' ),
+			),
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( __CLASS__, 'upload_fiscal_document' ),
+				'permission_callback' => array( __CLASS__, 'affiliate_permission' ),
+			),
+		) );
+
+		register_rest_route( self::NAMESPACE_NAME, '/affiliates/me/fiscal-document/download', array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => array( __CLASS__, 'download_fiscal_document' ),
+			'permission_callback' => array( __CLASS__, 'affiliate_permission' ),
+		) );
+
+		register_rest_route( self::NAMESPACE_NAME, '/affiliates/admin/documents/(?P<id>\d+)/review', array(
+			'methods'             => 'POST',
+			'callback'            => array( __CLASS__, 'review_fiscal_document' ),
+			'permission_callback' => array( __CLASS__, 'admin_permission' ),
+		) );
+
+		register_rest_route( self::NAMESPACE_NAME, '/affiliates/admin/documents/(?P<id>\d+)/download', array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => array( __CLASS__, 'download_fiscal_document' ),
+			'permission_callback' => array( __CLASS__, 'admin_permission' ),
+		) );
 	}
 
 	public static function validate_code( WP_REST_Request $request ) {
@@ -61,6 +92,51 @@ final class Nakama_Affiliates_REST {
 			'hasProfile' => (bool) $profile,
 			'status'     => $profile && isset( $profile['status'] ) ? (string) $profile['status'] : ( $can ? 'support' : 'none' ),
 		) );
+	}
+
+	public static function affiliate_permission() {
+		return get_current_user_id() > 0 && Nakama_Affiliates_Permissions::current_user_can_access();
+	}
+
+	public static function admin_permission() {
+		return get_current_user_id() > 0 && current_user_can( 'manage_woocommerce' );
+	}
+
+	public static function fiscal_document() {
+		return self::no_store_response( array(
+			'success'  => true,
+			'document' => Nakama_Affiliates_Documents::current_for_user(),
+		) );
+	}
+
+	public static function upload_fiscal_document( WP_REST_Request $request ) {
+		$files = method_exists( $request, 'get_file_params' ) ? $request->get_file_params() : array();
+		$file  = $files['file'] ?? ( $files['document'] ?? null );
+		if ( ! is_array( $file ) ) {
+			return self::no_store_response( array( 'success' => false, 'message' => 'Selecciona un archivo PDF.' ) );
+		}
+		return self::no_store_response( Nakama_Affiliates_Documents::upload_for_current_user( $file ) );
+	}
+
+	public static function review_fiscal_document( WP_REST_Request $request ) {
+		return self::no_store_response( Nakama_Affiliates_Documents::review(
+			(int) $request->get_param( 'id' ),
+			$request->get_param( 'status' ),
+			$request->get_param( 'reason' )
+		) );
+	}
+
+	public static function download_fiscal_document( WP_REST_Request $request ) {
+		$document_id = (int) $request->get_param( 'id' );
+		$result = Nakama_Affiliates_Documents::downloadable_for_current_user( $document_id );
+		if ( empty( $result['success'] ) ) {
+			return self::no_store_response( $result );
+		}
+		$document = $result['document'];
+		if ( false === Nakama_Affiliates_Private_Files::stream_pdf_and_exit( $document['storage_key'], $document['original_name'] ) ) {
+			return self::no_store_response( array( 'success' => false, 'message' => 'El archivo privado no está disponible.' ) );
+		}
+		return null;
 	}
 
 	private static function no_store_response( array $data ) {

@@ -111,6 +111,60 @@ final class Nakama_Affiliates_Repository {
 		), ARRAY_A );
 	}
 
+	public static function document_by_id( $document_id ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'documents' ) . ' WHERE id = %d LIMIT 1',
+			(int) $document_id
+		), ARRAY_A );
+	}
+
+	public static function current_document( $affiliate_id, $document_type = 'fiscal' ) {
+		global $wpdb;
+		return $wpdb->get_row( $wpdb->prepare(
+			'SELECT * FROM ' . self::table( 'documents' ) . ' WHERE affiliate_id = %d AND document_type = %s AND is_current = 1 ORDER BY id DESC LIMIT 1',
+			(int) $affiliate_id,
+			(string) $document_type
+		), ARRAY_A );
+	}
+
+	public static function insert_document( array $data ) {
+		global $wpdb;
+		$wpdb->query( 'START TRANSACTION' );
+		// Serialize replacements for the same affiliate so two simultaneous
+		// uploads cannot both remain marked as the current version.
+		$wpdb->get_var( $wpdb->prepare(
+			'SELECT id FROM ' . self::table( 'profiles' ) . ' WHERE id = %d FOR UPDATE',
+			(int) $data['affiliate_id']
+		) );
+		$cleared = $wpdb->update(
+			self::table( 'documents' ),
+			array( 'is_current' => 0 ),
+			array(
+				'affiliate_id'  => (int) $data['affiliate_id'],
+				'document_type' => (string) $data['document_type'],
+				'is_current'    => 1,
+			)
+		);
+		$inserted = false !== $cleared && $wpdb->insert( self::table( 'documents' ), $data );
+		if ( ! $inserted ) {
+			$wpdb->query( 'ROLLBACK' );
+			return 0;
+		}
+		$document_id = (int) $wpdb->insert_id;
+		$wpdb->query( 'COMMIT' );
+		return $document_id;
+	}
+
+	public static function update_document( $document_id, array $data ) {
+		global $wpdb;
+		return false !== $wpdb->update(
+			self::table( 'documents' ),
+			$data,
+			array( 'id' => (int) $document_id )
+		);
+	}
+
 	/** Insert by unique event key and treat a duplicate race as success. */
 	public static function insert_ledger_event( array $data ) {
 		global $wpdb;

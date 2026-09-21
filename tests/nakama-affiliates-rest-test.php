@@ -92,6 +92,9 @@ affiliates_rest_assert( ! empty( $affiliate_rest_actions['rest_api_init'] ), 'RE
 Nakama_Affiliates_REST::register_routes();
 affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/code'] ), 'The public code validation route exists.' );
 affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/access'] ), 'The authenticated access probe exists.' );
+affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/me/fiscal-document'] ), 'The private fiscal document upload and status route exists.' );
+affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/me/fiscal-document/download'] ), 'The owner-only fiscal download route exists.' );
+affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/admin/documents/(?P<id>\\d+)/review'] ), 'The administrative document review route exists.' );
 
 $response = Nakama_Affiliates_REST::validate_code( new WP_REST_Request( array( 'code' => 'valido' ) ) );
 affiliates_rest_assert( true === $response->data['valid'], 'A valid public code receives a positive response.' );
