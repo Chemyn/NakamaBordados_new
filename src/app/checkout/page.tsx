@@ -10,6 +10,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { seedWpSession } from '@/lib/wp-sso';
 import AbandonedCartCoupon from '../components/AbandonedCartCoupon';
+import AffiliateCodeField from '../components/AffiliateCodeField';
 
 export default function CheckoutPage() {
   const { cart, quoteItems, subtotal, shipping, discount, total, couponCode } = useCart();
@@ -222,6 +223,7 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
+              <AffiliateCodeField />
               <AbandonedCartCoupon />
 
               <div className="nk-summary-totals">

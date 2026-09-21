@@ -103,6 +103,7 @@ final class Nakama_Affiliates_Codes {
 			'valid'            => true,
 			'code'             => $result['code'],
 			'message'          => 'Código de afiliado aplicado.',
+			'discount_percentage' => round( (float) $result['profile']['discount_rate'] * 100, 4 ),
 			'attribution_days' => isset( $result['profile']['attribution_days'] )
 				? max( 1, (int) $result['profile']['attribution_days'] )
 				: Nakama_Affiliates_Domain::ATTRIBUTION_DAYS,
@@ -160,4 +161,3 @@ final class Nakama_Affiliates_Codes {
 		);
 	}
 }
-

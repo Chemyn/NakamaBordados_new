@@ -27,6 +27,9 @@ vi.mock('../context/LanguageContext', () => ({
       'checkout.coupon.label': 'Código de carrito abandonado',
       'checkout.coupon.placeholder': 'Escribe tu código',
       'checkout.coupon.apply': 'Aplicar',
+      'checkout.affiliate.title': 'Código de afiliado',
+      'checkout.affiliate.help': 'No se combina con otras promociones.',
+      'checkout.affiliate.label': 'Escribe el código del afiliado',
     }[key] || key),
   }),
 }));
@@ -45,6 +48,11 @@ vi.mock('../context/CartContext', () => ({
     couponCode: '',
     applyCoupon: vi.fn(async () => ({ success: false, message: 'Cupón inválido' })),
     removeCoupon: vi.fn(),
+    affiliateCode: '',
+    affiliateSource: '',
+    promotionReady: true,
+    applyAffiliateCode: vi.fn(async () => ({ success: false, message: 'Código no válido' })),
+    removeAffiliateCode: vi.fn(),
     clearCart: vi.fn(),
   }),
 }));
@@ -57,5 +65,11 @@ describe('Checkout abandoned-cart coupon disclosure', () => {
     expect(disclosure.closest('details')).not.toHaveAttribute('open');
     expect(screen.getByLabelText('Código de carrito abandonado')).toBeInTheDocument();
     expect(screen.getByText(/código que recibiste para recuperar tu carrito/i)).toBeInTheDocument();
+  });
+
+  it('keeps affiliate codes separate from abandoned-cart coupons', () => {
+    render(<CheckoutPage />);
+    expect(screen.getByLabelText('Escribe el código del afiliado')).toBeInTheDocument();
+    expect(screen.getByText('No se combina con otras promociones.')).toBeVisible();
   });
 });

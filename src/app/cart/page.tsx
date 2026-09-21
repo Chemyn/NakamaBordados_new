@@ -11,6 +11,7 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { seedWpSession } from '@/lib/wp-sso';
 import AbandonedCartCoupon from '../components/AbandonedCartCoupon';
+import AffiliateCodeField from '../components/AffiliateCodeField';
 import { hasMixedPresaleCart, latestPresaleLaunch } from '@/lib/drops';
 
 export default function CartPage() {
@@ -278,6 +279,7 @@ export default function CartPage() {
                 </div>
               </div>
 
+              <AffiliateCodeField />
               <AbandonedCartCoupon />
 
               <div style={{ marginTop: '30px' }}>

@@ -1,9 +1,17 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useState, useEffect } from 'react';
 import { Product, Variation } from '@/types/product';
 import { apiOrigin } from '@/lib/api-host';
 import { trackAddToCart } from '@/lib/analytics';
+import {
+  AFFILIATE_STORAGE_KEY,
+  chooseAffiliateAttribution,
+  parseStoredAffiliateAttribution,
+  validateAffiliateCode,
+  type AffiliateAttribution,
+  type AffiliateSource,
+} from '@/lib/affiliate-attribution';
 
 export interface CartItem {
   product: Product;
@@ -46,6 +54,15 @@ interface CartContextType {
   discountType: 'percent' | 'fixed';
   applyCoupon: (code: string) => Promise<{ success: boolean; message?: string }>;
   removeCoupon: () => void;
+  affiliateCode: string;
+  affiliateSource: AffiliateSource | '';
+  affiliateExpiresAt: string;
+  promotionReady: boolean;
+  applyAffiliateCode: (
+    code: string,
+    source?: AffiliateSource,
+  ) => Promise<{ success: boolean; message?: string }>;
+  removeAffiliateCode: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -122,12 +139,31 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [couponCode, setCouponCode] = useState<string>('');
   const [discount, setDiscount] = useState<number>(0);
   const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent');
+  const [affiliateAttribution, setAffiliateAttribution] = useState<AffiliateAttribution | null>(null);
+  const [promotionReady, setPromotionReady] = useState(false);
+
+  const removeCoupon = useCallback(() => {
+    setCouponCode('');
+    setDiscount(0);
+    setDiscountType('percent');
+    localStorage.removeItem('nakama_coupon');
+    localStorage.removeItem('nakama_discount');
+    localStorage.removeItem('nakama_discount_type');
+  }, []);
+
+  const removeAffiliateCode = useCallback(() => {
+    setAffiliateAttribution(null);
+    localStorage.removeItem(AFFILIATE_STORAGE_KEY);
+  }, []);
 
   // Load cart from localStorage on mount
   useEffect(() => {
     const savedCart = localStorage.getItem('nakama_cart');
     const savedQuotes = localStorage.getItem('nakama_quote_cart');
     const savedCoupon = localStorage.getItem('nakama_coupon');
+    const savedAffiliate = parseStoredAffiliateAttribution(
+      localStorage.getItem(AFFILIATE_STORAGE_KEY),
+    );
     let cancelled = false;
 
     const timeoutId = window.setTimeout(() => {
@@ -145,30 +181,51 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
           console.error(e);
         }
       }
-      if (savedCoupon) {
-        void validateNativeCoupon(savedCoupon).then(result => {
+      const hydratePromotion = async () => {
+        if (savedAffiliate) {
+          const result = await validateAffiliateCode(savedAffiliate.code);
           if (cancelled) return;
-          if (!result.success) {
-            localStorage.removeItem('nakama_coupon');
-            localStorage.removeItem('nakama_discount');
-            localStorage.removeItem('nakama_discount_type');
+          if (result.success) {
+            const refreshed: AffiliateAttribution = {
+              ...result.attribution,
+              source: savedAffiliate.source,
+            };
+            setAffiliateAttribution(refreshed);
+            localStorage.setItem(AFFILIATE_STORAGE_KEY, JSON.stringify(refreshed));
+            removeCoupon();
+            setPromotionReady(true);
             return;
           }
+          localStorage.removeItem(AFFILIATE_STORAGE_KEY);
+        } else {
+          localStorage.removeItem(AFFILIATE_STORAGE_KEY);
+        }
 
-          setCouponCode(result.code);
-          setDiscount(result.discount);
-          setDiscountType(result.type);
-          localStorage.setItem('nakama_discount', result.discount.toString());
-          localStorage.setItem('nakama_discount_type', result.type);
-        });
-      }
+        if (savedCoupon) {
+          const result = await validateNativeCoupon(savedCoupon);
+          if (cancelled) return;
+          if (!result.success) {
+            removeCoupon();
+          } else {
+            setCouponCode(result.code);
+            setDiscount(result.discount);
+            setDiscountType(result.type);
+            localStorage.setItem('nakama_discount', result.discount.toString());
+            localStorage.setItem('nakama_discount_type', result.type);
+          }
+        }
+
+        if (!cancelled) setPromotionReady(true);
+      };
+
+      void hydratePromotion();
     }, 0);
 
     return () => {
       cancelled = true;
       window.clearTimeout(timeoutId);
     };
-  }, []);
+  }, [removeCoupon]);
 
   // Save cart to localStorage on change
   const saveCart = (newCart: CartItem[]) => {
@@ -257,12 +314,36 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     saveCart([]);
     saveQuoteItems([]);
     removeCoupon();
+    removeAffiliateCode();
   };
 
-  const applyCoupon = async (code: string): Promise<{ success: boolean; message?: string }> => {
+  const applyAffiliateCode = useCallback(async (
+    code: string,
+    source: AffiliateSource = 'manual',
+  ): Promise<{ success: boolean; message?: string }> => {
+    const result = await validateAffiliateCode(code);
+    if (!result.success) {
+      if (source === 'manual' || affiliateAttribution?.source !== 'manual') {
+        removeAffiliateCode();
+      }
+      return result;
+    }
+
+    const incoming: AffiliateAttribution = { ...result.attribution, source };
+    const chosen = chooseAffiliateAttribution(affiliateAttribution, incoming);
+    if (chosen === affiliateAttribution) return { success: true };
+
+    setAffiliateAttribution(chosen);
+    localStorage.setItem(AFFILIATE_STORAGE_KEY, JSON.stringify(chosen));
+    removeCoupon();
+    return { success: true };
+  }, [affiliateAttribution, removeAffiliateCode, removeCoupon]);
+
+  const applyCoupon = useCallback(async (code: string): Promise<{ success: boolean; message?: string }> => {
     const result = await validateNativeCoupon(code);
     if (!result.success) return result;
 
+    removeAffiliateCode();
     setCouponCode(result.code);
     setDiscount(result.discount);
     setDiscountType(result.type);
@@ -270,16 +351,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     localStorage.setItem('nakama_discount', result.discount.toString());
     localStorage.setItem('nakama_discount_type', result.type);
     return { success: true };
-  };
-
-  const removeCoupon = () => {
-    setCouponCode('');
-    setDiscount(0);
-    setDiscountType('percent');
-    localStorage.removeItem('nakama_coupon');
-    localStorage.removeItem('nakama_discount');
-    localStorage.removeItem('nakama_discount_type');
-  };
+  }, [removeAffiliateCode]);
 
   // Calculations
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0) + quoteItems.length;
@@ -293,12 +365,17 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, 0) + quotesSubtotal;
 
   // Calculate discount absolute value
-  const discountAmount = discountType === 'percent' ? (subtotal * discount) : discount;
+  const affiliateDiscount = affiliateAttribution
+    ? affiliateAttribution.discountPercentage / 100
+    : 0;
+  const discountAmount = affiliateAttribution
+    ? subtotal * affiliateDiscount
+    : (discountType === 'percent' ? subtotal * discount : discount);
 
   // Envío gratis a partir de $1,500 MXN (promo vigente; el subtotal local
   // siempre está en MXN base). Es solo la estimación del carrito local: el
   // costo real de paquetería lo calcula el checkout de WooCommerce.
-  const isFreeShipping = subtotal >= 1500;
+  const isFreeShipping = !affiliateAttribution && subtotal >= 1500;
   const shipping = subtotal > 0 && !isFreeShipping ? 150 : 0; // Standard shipping 150 MXN
 
   const total = Math.max(0, subtotal - discountAmount + shipping);
@@ -320,9 +397,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       total,
       couponCode,
       discount: discountAmount, // Export the absolute amount for UI consistency
-      discountType,
+      discountType: affiliateAttribution ? 'percent' : discountType,
       applyCoupon,
-      removeCoupon
+      removeCoupon,
+      affiliateCode: affiliateAttribution?.code || '',
+      affiliateSource: affiliateAttribution?.source || '',
+      affiliateExpiresAt: affiliateAttribution?.expiresAt || '',
+      promotionReady,
+      applyAffiliateCode,
+      removeAffiliateCode,
     }}>
       {children}
     </CartContext.Provider>

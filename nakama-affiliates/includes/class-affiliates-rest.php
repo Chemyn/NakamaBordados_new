@@ -44,6 +44,7 @@ final class Nakama_Affiliates_REST {
 			'valid'     => true,
 			'code'      => (string) $result['code'],
 			'message'   => 'Código de afiliado aplicado.',
+			'discountPercentage' => min( 10.0, max( 0.01, (float) $result['discount_percentage'] ) ),
 			'expiresAt' => gmdate( 'c', time() + ( $days * DAY_IN_SECONDS ) ),
 		) );
 	}
@@ -70,4 +71,3 @@ final class Nakama_Affiliates_REST {
 		return $response;
 	}
 }
-

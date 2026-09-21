@@ -60,6 +60,7 @@ final class Nakama_Affiliates_Codes {
 			'affiliate_id'     => 88,
 			'user_id'          => 99,
 			'discount_rate'    => 0.10,
+			'discount_percentage' => 10.0,
 		);
 	}
 }
@@ -96,6 +97,7 @@ $response = Nakama_Affiliates_REST::validate_code( new WP_REST_Request( array( '
 affiliates_rest_assert( true === $response->data['valid'], 'A valid public code receives a positive response.' );
 affiliates_rest_assert( 'VALIDO' === $response->data['code'], 'The public response returns the normalized code.' );
 affiliates_rest_assert( isset( $response->data['expiresAt'] ), 'The public response includes the attribution expiration.' );
+affiliates_rest_assert( 10.0 === $response->data['discountPercentage'], 'The public response exposes only the display percentage returned by the server.' );
 foreach ( array( 'affiliate_id', 'user_id', 'discount_rate', 'profile' ) as $private_key ) {
 	affiliates_rest_assert( ! array_key_exists( $private_key, $response->data ), "The public response hides {$private_key}." );
 }
@@ -111,4 +113,3 @@ affiliates_rest_assert( false === $access->data['vip'], 'VIP remains a separate 
 affiliates_rest_assert( 'active' === $access->data['status'], 'The operational profile status is exposed only to its owner.' );
 
 echo "PHP Nakama Affiliates REST tests passed.\n";
-

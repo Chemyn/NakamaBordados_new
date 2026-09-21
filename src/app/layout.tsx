@@ -12,6 +12,7 @@ import MaintenanceWrapper from "./components/MaintenanceWrapper";
 import Analytics from "./components/Analytics";
 import CookieBanner from "./components/CookieBanner";
 import BuildUpdateNotice from "./components/BuildUpdateNotice";
+import AffiliateReferralCapture from "./components/AffiliateReferralCapture";
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -81,6 +82,7 @@ export default function RootLayout({
           <LanguageProvider>
             <CurrencyProvider>
               <CartProvider>
+                <AffiliateReferralCapture />
                 <MaintenanceWrapper>
                   <Suspense fallback={<div style={{ height: "80px", background: "var(--nk-bg-card)" }} />}>
                     <Navbar />
