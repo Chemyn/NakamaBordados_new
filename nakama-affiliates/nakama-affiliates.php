@@ -35,6 +35,7 @@ $nakama_affiliates_includes = array(
 	'includes/class-affiliates-closures.php',
 	'includes/class-affiliates-private-files.php',
 	'includes/class-affiliates-documents.php',
+	'includes/class-affiliates-admin.php',
 );
 
 foreach ( $nakama_affiliates_includes as $nakama_affiliates_include ) {
@@ -49,6 +50,7 @@ Nakama_Affiliates_Discounts::init();
 Nakama_Affiliates_Orders::init();
 Nakama_Affiliates_Commissions::init();
 Nakama_Affiliates_Refunds::init();
+Nakama_Affiliates_Admin::init();
 
 add_action( 'before_woocommerce_init', function () {
 	if ( class_exists( \Automattic\WooCommerce\Utilities\FeaturesUtil::class ) ) {

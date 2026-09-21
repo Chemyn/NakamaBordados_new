@@ -2280,9 +2280,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/nakama-affiliates.php": {
-    "mtime": 1789958405.924652,
-    "seen": 1789958471.589241,
-    "ast_hash": "be624813e5b8a4a70877a23baffb7e79",
+    "mtime": 1789958869.9380295,
+    "seen": 1789958953.385409,
+    "ast_hash": "d00125d9855cc7e2be7abd4696c28550",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-domain-test.php": {
@@ -2517,6 +2517,30 @@
     "mtime": 1789958435.9183013,
     "seen": 1789958471.5895348,
     "ast_hash": "1171a7b780932856e6e3b5e9135c1453",
+    "semantic_hash": ""
+  },
+  "nakama-affiliates/assets/admin.js": {
+    "mtime": 1789958863.9752083,
+    "seen": 1789958953.3853812,
+    "ast_hash": "8b5b69591aef0b965c1aa2316ad54d7f",
+    "semantic_hash": ""
+  },
+  "nakama-affiliates/includes/class-affiliates-admin.php": {
+    "mtime": 1789958923.0544682,
+    "seen": 1789958953.3853836,
+    "ast_hash": "c7eb863fd3d9495d6bc218253c0f79f1",
+    "semantic_hash": ""
+  },
+  "tests/nakama-affiliates-admin-test.php": {
+    "mtime": 1789958581.9632387,
+    "seen": 1789958953.3856153,
+    "ast_hash": "2c6f93bfcfa61ae49ab275bbada9578c",
+    "semantic_hash": ""
+  },
+  "tests/nakama-affiliates-admin-ui-test.php": {
+    "mtime": 1789958916.1168592,
+    "seen": 1789958953.3856163,
+    "ast_hash": "f811317e47ba8940fadaae7272776425",
     "semantic_hash": ""
   }
 }
