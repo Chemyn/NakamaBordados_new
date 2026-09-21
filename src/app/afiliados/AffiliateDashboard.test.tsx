@@ -10,6 +10,11 @@ const mocks = vi.hoisted(() => ({
   fetchDashboard: vi.fn(),
   fetchSales: vi.fn(),
   fetchPayments: vi.fn(),
+  fetchProducts: vi.fn(),
+  fetchProductRequest: vi.fn(),
+  fetchEvidence: vi.fn(),
+  submitProductRequest: vi.fn(),
+  submitEvidence: vi.fn(),
   downloadReceipt: vi.fn(),
   upload: vi.fn(),
 }));
@@ -73,6 +78,34 @@ vi.mock('../context/LanguageContext', () => ({
       'affiliates.error': 'No pudimos cargar tu panel.',
       'affiliates.loading': 'Cargando panel de afiliados…',
       'affiliates.sessionExpired': 'Tu sesión terminó.',
+      'affiliates.mission.label': 'Centro de misión mensual',
+      'affiliates.mission.kicker': 'Programa mensual',
+      'affiliates.mission.title': 'Manga impacto',
+      'affiliates.mission.intro': 'Convierte tu alcance en recompensas.',
+      'affiliates.mission.loading': 'Cargando misión…',
+      'affiliates.mission.loadError': 'No pudimos cargar la misión mensual.',
+      'affiliates.mission.progressKicker': 'Meta del próximo mes',
+      'affiliates.mission.progressTitle': 'Tu impacto mensual',
+      'affiliates.mission.currentReward': 'Recompensa actual',
+      'affiliates.mission.oneProduct': '1 prenda',
+      'affiliates.mission.manyProducts': '{count} prendas',
+      'affiliates.mission.remaining': 'Te faltan {amount} para desbloquear {count} prendas.',
+      'affiliates.mission.maxReached': 'Meta máxima alcanzada.',
+      'affiliates.mission.noCarry': 'El cupo se recalcula cada mes y no se acumula.',
+      'affiliates.mission.milestones': 'Metas de prendas del mes',
+      'affiliates.mission.productKicker': 'Recompensa mensual',
+      'affiliates.mission.productTitle': 'Elige tu prenda',
+      'affiliates.mission.unit': 'unidad disponible',
+      'affiliates.mission.units': 'unidades disponibles',
+      'affiliates.mission.standardCatalog': 'Drops y Edición especial están excluidos de esta selección.',
+      'affiliates.mission.noPriceLimit': 'Sin límite de precio dentro del catálogo elegible.',
+      'affiliates.mission.selected': 'seleccionadas',
+      'affiliates.mission.productsEmpty': 'No hay productos disponibles.',
+      'affiliates.mission.addressTitle': 'Dirección confirmada',
+      'affiliates.mission.shippingCovered': 'Nakama cubre el costo del envío.',
+      'affiliates.mission.addressConfirm': 'Confirmo que esta dirección es correcta.',
+      'affiliates.mission.sendRequest': 'Enviar solicitud',
+      'affiliates.mission.sending': 'Enviando…',
     }[key] || key),
   }),
 }));
@@ -81,6 +114,11 @@ vi.mock('@/lib/affiliates-api', () => ({
   fetchAffiliateDashboard: () => mocks.fetchDashboard(),
   fetchAffiliateSales: () => mocks.fetchSales(),
   fetchAffiliatePayments: () => mocks.fetchPayments(),
+  fetchAffiliateProducts: () => mocks.fetchProducts(),
+  fetchAffiliateProductRequest: () => mocks.fetchProductRequest(),
+  fetchAffiliateEvidence: (id: number) => mocks.fetchEvidence(id),
+  submitAffiliateProductRequest: (input: unknown) => mocks.submitProductRequest(input),
+  submitAffiliateEvidence: (input: unknown) => mocks.submitEvidence(input),
   downloadAffiliateReceipt: (id: number) => mocks.downloadReceipt(id),
   uploadFiscalDocument: (file: File) => mocks.upload(file),
 }));
@@ -93,6 +131,11 @@ describe('AffiliateDashboard', () => {
     mocks.fetchDashboard.mockReset();
     mocks.fetchSales.mockReset();
     mocks.fetchPayments.mockReset().mockResolvedValue({ success: true, page: 1, hasMore: false, items: [] });
+    mocks.fetchProducts.mockReset().mockResolvedValue({ success: true, page: 1, pages: 1, total: 0, hasMore: false, items: [] });
+    mocks.fetchProductRequest.mockReset().mockResolvedValue({ success: true, period: '2026-10', benefit: { id: 1, period: '2026-10', sourcePeriod: '2026-09', sourceClosureId: 1, validSalesMxn: 0, tier: 1, quota: 1, manualReason: '', isDefault: false }, request: null, shippingCovered: true, officialAccounts: ['@nakamabordados'] });
+    mocks.fetchEvidence.mockReset().mockResolvedValue({ success: true, items: [], requiredComplete: false, bonusPriorityPotential: true, bonusGuarantee: false });
+    mocks.submitProductRequest.mockReset();
+    mocks.submitEvidence.mockReset();
     mocks.downloadReceipt.mockReset().mockResolvedValue(undefined);
     mocks.upload.mockReset();
   });
@@ -144,6 +187,14 @@ describe('AffiliateDashboard', () => {
       code: 'NICO',
       referralUrl: 'https://nakamabordados.com/?ref=NICO',
       summary: { salesCount: 2, refundCount: 0, salesMxn: 10000, commissionMxn: 1000 },
+      progress: {
+        salesMxn: 10000, tier: 2, quota: 2,
+        next: { thresholdMxn: 30000, remainingMxn: 20000, rewardQuota: 3 },
+        milestones: {
+          second: { thresholdMxn: 10000, remainingMxn: 0, reached: true, progressPercent: 100 },
+          third: { thresholdMxn: 30000, remainingMxn: 20000, reached: false, progressPercent: 33.33 },
+        },
+      },
     });
     mocks.fetchSales.mockResolvedValue({
       success: true,
@@ -158,7 +209,10 @@ describe('AffiliateDashboard', () => {
     expect(within(summary).getByText('$10,000.00')).toBeVisible();
     expect(within(summary).getByText('$1,000.00')).toBeVisible();
     expect(screen.getByText('#501')).toBeVisible();
-    expect(screen.queryByText(/correo|dirección|cliente/i)).not.toBeInTheDocument();
+    const mission = await screen.findByRole('region', { name: 'Centro de misión mensual' });
+    expect(within(mission).getByText('Manga impacto')).toBeVisible();
+    expect(within(mission).getByRole('progressbar')).toHaveAttribute('aria-valuenow', '10000');
+    expect(screen.queryByText(/correo del cliente|nombre del comprador/i)).not.toBeInTheDocument();
   });
 
   it('uploads a selected PDF and refreshes fiscal state', async () => {

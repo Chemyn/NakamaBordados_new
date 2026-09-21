@@ -395,6 +395,426 @@
   font-weight: 700;
 }
 
+.missionHub {
+  display: grid;
+  gap: 24px;
+  margin-top: 32px;
+}
+
+.missionIntro,
+.progressCard,
+.missionCard {
+  position: relative;
+  overflow: hidden;
+  border: 3px solid var(--affiliate-ink);
+  background: var(--affiliate-paper);
+  box-shadow: 7px 7px 0 var(--affiliate-ink);
+}
+
+.missionIntro {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: clamp(16px, 4vw, 34px);
+  align-items: center;
+  padding: clamp(22px, 5vw, 46px);
+  background:
+    repeating-linear-gradient(-14deg, transparent 0 13px, rgb(16 16 16 / 5%) 14px 15px),
+    var(--affiliate-yellow);
+}
+
+.missionIntro > span,
+.missionHeading > span {
+  color: var(--affiliate-ink);
+  font: 900 clamp(3.5rem, 10vw, 7rem) / 0.8 'Teko', Impact, sans-serif;
+  letter-spacing: -0.04em;
+}
+
+.missionIntro p,
+.missionHeading p {
+  margin: 0;
+}
+
+.missionIntro div > p:first-child,
+.missionHeading p,
+.progressHeading > div > span {
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.missionIntro h2,
+.missionHeading h2,
+.progressHeading h2 {
+  margin: 3px 0 8px;
+  font: 900 clamp(2.4rem, 7vw, 5rem) / 0.92 'Teko', Impact, sans-serif;
+  letter-spacing: -0.02em;
+  text-transform: uppercase;
+}
+
+.missionIntro div > p:last-child {
+  max-width: 62ch;
+  line-height: 1.55;
+}
+
+.progressCard,
+.missionCard {
+  padding: clamp(22px, 5vw, 44px);
+}
+
+.progressCard {
+  isolation: isolate;
+  background: #fff;
+}
+
+.mangaBurst {
+  position: absolute;
+  z-index: -1;
+  right: -0.03em;
+  bottom: -0.15em;
+  color: rgb(16 16 16 / 5%);
+  font: 900 clamp(5rem, 18vw, 13rem) / 0.8 'Teko', Impact, sans-serif;
+  letter-spacing: -0.05em;
+  pointer-events: none;
+  transform: rotate(-4deg);
+}
+
+.progressHeading {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 18px;
+  align-items: end;
+  justify-content: space-between;
+}
+
+.rewardStamp {
+  min-width: min(100%, 190px);
+  padding: 13px 16px;
+  border: 3px solid var(--affiliate-ink);
+  background: var(--affiliate-yellow);
+  transform: rotate(1deg);
+}
+
+.rewardStamp span {
+  display: block;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.rewardStamp strong {
+  display: block;
+  margin-top: 3px;
+  font: 900 2rem / 1 'Teko', Impact, sans-serif;
+  text-transform: uppercase;
+}
+
+.progressTrack {
+  height: 28px;
+  margin-top: 24px;
+  overflow: hidden;
+  border: 3px solid var(--affiliate-ink);
+  background: repeating-linear-gradient(135deg, #ece9dc 0 10px, #fff 10px 20px);
+}
+
+.progressTrack > span {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--affiliate-yellow);
+  border-right: 3px solid var(--affiliate-ink);
+  transform-origin: left center;
+  transition: transform 320ms cubic-bezier(.2, .8, .2, 1);
+}
+
+.progressNumbers {
+  display: flex;
+  gap: 16px;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-top: 8px;
+}
+
+.progressNumbers strong {
+  font-size: 1.15rem;
+}
+
+.nextMission {
+  margin: 22px 0 0;
+  font-size: clamp(1.05rem, 3vw, 1.35rem);
+  font-weight: 900;
+}
+
+.milestoneList {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 18px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.milestoneList li {
+  display: grid;
+  gap: 3px;
+  padding: 12px;
+  border: 2px solid var(--affiliate-ink);
+  background: #fff;
+}
+
+.milestoneList li[data-reached='true'] {
+  background: var(--affiliate-yellow);
+}
+
+.milestoneList strong {
+  font-size: 1.05rem;
+}
+
+.milestoneList span {
+  font-size: 0.82rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.noCarryNote {
+  margin: 8px 0 0;
+  color: #3e3e3e;
+  line-height: 1.5;
+}
+
+.missionHeading {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 18px;
+  align-items: center;
+  margin-bottom: 22px;
+}
+
+.ruleCallout,
+.addressCard,
+.requestState,
+.waitingNote {
+  padding: 16px 18px;
+  border-left: 9px solid var(--affiliate-yellow);
+  background: #fff;
+}
+
+.ruleCallout p,
+.addressCard p,
+.requestState p {
+  margin: 6px 0 0;
+  line-height: 1.5;
+}
+
+.selectionCount {
+  margin: 22px 0 10px;
+  font-weight: 900;
+}
+
+.productGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: 16px;
+}
+
+.productChoice {
+  display: grid;
+  align-content: start;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 2px solid var(--affiliate-ink);
+  background: #fff;
+  transition: transform 140ms ease, box-shadow 140ms ease, background-color 140ms ease;
+}
+
+.productChoiceSelected {
+  background: #fff8bd;
+  box-shadow: 4px 4px 0 var(--affiliate-ink);
+  transform: translate(-2px, -2px);
+}
+
+.productImage,
+.productPlaceholder {
+  width: 100%;
+  aspect-ratio: 1;
+  border: 2px solid var(--affiliate-ink);
+  background: #f0eee4;
+  object-fit: cover;
+}
+
+.productPlaceholder {
+  display: grid;
+  place-items: center;
+  color: rgb(16 16 16 / 18%);
+  font: 900 4rem / 1 'Teko', Impact, sans-serif;
+}
+
+.productChoice h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  line-height: 1.25;
+}
+
+.productChoice label:not(.productCheck),
+.evidenceField {
+  display: grid;
+  gap: 7px;
+  font-weight: 800;
+}
+
+.productChoice select,
+.evidenceField input {
+  width: 100%;
+  min-height: 48px;
+  box-sizing: border-box;
+  padding: 9px 11px;
+  border: 2px solid var(--affiliate-ink);
+  border-radius: 0;
+  background: #fff;
+  color: var(--affiliate-ink);
+  font: inherit;
+}
+
+.productCheck,
+.confirmCheck {
+  display: flex;
+  min-height: 44px;
+  align-items: center;
+  gap: 10px;
+  font-weight: 800;
+}
+
+.productCheck input,
+.confirmCheck input {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+
+.addressCard {
+  margin-top: 24px;
+}
+
+.addressCard h3 {
+  margin: 0 0 8px;
+  font: 900 1.7rem / 1 'Teko', Impact, sans-serif;
+  text-transform: uppercase;
+}
+
+.addressCard address {
+  font-style: normal;
+  line-height: 1.55;
+}
+
+.primaryMissionAction {
+  min-width: min(100%, 260px);
+  min-height: 48px;
+  margin-top: 20px;
+}
+
+.primaryMissionAction:active:not(:disabled) {
+  transform: scale(0.98);
+  transition: transform 90ms ease-out;
+}
+
+.missionCard button,
+.missionCard label,
+.missionCard select {
+  touch-action: manipulation;
+}
+
+.missionCard button:not(:disabled),
+.missionCard label:has(input:not(:disabled)),
+.missionCard select:not(:disabled) {
+  cursor: pointer;
+}
+
+.missionCard button:disabled,
+.missionCard input:disabled,
+.missionCard select:disabled {
+  cursor: not-allowed;
+  opacity: 0.52;
+}
+
+.inlineError,
+.fieldError {
+  color: #781111;
+  font-weight: 750;
+}
+
+.inlineError {
+  padding: 11px 13px;
+  border-left: 7px solid var(--affiliate-red);
+  background: #fff0f0;
+}
+
+.inlineSuccess {
+  padding: 11px 13px;
+  border-left: 7px solid #17723a;
+  background: #edfff4;
+  color: #11552c;
+  font-weight: 800;
+}
+
+.fieldError {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+.evidenceGrid {
+  display: grid;
+  gap: 16px;
+  margin-top: 22px;
+}
+
+.evidenceField {
+  position: relative;
+  padding: 16px;
+  border: 2px solid var(--affiliate-ink);
+  background: #fff;
+}
+
+.evidenceField input[aria-invalid='true'] {
+  border-color: var(--affiliate-red);
+  box-shadow: 0 0 0 2px rgb(197 25 25 / 16%);
+}
+
+.evidenceStatus {
+  width: fit-content;
+  padding: 3px 8px;
+  border: 2px solid currentColor;
+  font-size: 0.72rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.evidenceStatus_pending { color: #694f00; background: #fff8d9; }
+.evidenceStatus_approved { color: #126a36; background: #edfff4; }
+.evidenceStatus_rejected { color: #781111; background: #fff0f0; }
+
+.bonusNote {
+  margin: 20px 0 0;
+  padding: 15px 17px;
+  border: 2px dashed var(--affiliate-ink);
+  background: #fff8bd;
+  font-weight: 750;
+  line-height: 1.5;
+}
+
+.waitingNote {
+  font-weight: 800;
+}
+
+.missionLoading {
+  min-height: 52px;
+  margin: 0;
+  padding: 15px 18px;
+  border: 2px solid var(--affiliate-ink);
+  background: #fff;
+  font-weight: 800;
+}
+
 .errorText {
   padding: 10px 12px;
 }
@@ -410,6 +830,11 @@
 .page a:focus-visible,
 .page button:focus-visible,
 .page input:focus-visible {
+  outline: 4px solid #1769e0;
+  outline-offset: 4px;
+}
+
+.page select:focus-visible {
   outline: 4px solid #1769e0;
   outline-offset: 4px;
 }
@@ -431,6 +856,10 @@
   }
 
   .periodCard dl {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .evidenceGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -467,5 +896,14 @@
     transition-duration: 0.01ms !important;
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .ruleCallout,
+  .addressCard,
+  .requestState,
+  .waitingNote {
+    border: 3px solid var(--affiliate-ink);
   }
 }

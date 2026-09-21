@@ -232,6 +232,7 @@ final class Nakama_Affiliates_REST {
 
 		$period  = self::current_period();
 		$summary = Nakama_Affiliates_Repository::ledger_summary( (int) $context['profile']['id'], $period );
+		$progress = Nakama_Affiliates_Benefits::progress( (float) ( $summary['sales_mxn'] ?? 0 ) );
 		return self::no_store_response( array(
 			'success' => true,
 			'period'  => $period,
@@ -243,6 +244,7 @@ final class Nakama_Affiliates_REST {
 				'salesMxn'      => (float) ( $summary['sales_mxn'] ?? 0 ),
 				'commissionMxn' => (float) ( $summary['commission_mxn'] ?? 0 ),
 			),
+			'progress' => self::public_progress( $progress ),
 		) );
 	}
 
@@ -351,21 +353,23 @@ final class Nakama_Affiliates_REST {
 			$body = is_array( $body ) ? $body : array();
 			$items = isset( $body['items'] ) && is_array( $body['items'] ) ? $body['items'] : array();
 			$address = isset( $body['address'] ) && is_array( $body['address'] ) ? $body['address'] : array();
-			return self::no_store_response( Nakama_Affiliates_Requests::submit(
+			$result = Nakama_Affiliates_Requests::submit(
 				$affiliate_id,
 				$period,
 				$items,
 				$address,
 				self::profile_is_vip( $context['profile'] ),
 				get_current_user_id()
-			) );
+			);
+			if ( ! empty( $result['success'] ) && ! empty( $result['request'] ) ) $result['request'] = self::public_request( $result['request'] );
+			return self::no_store_response( $result );
 		}
 
 		return self::no_store_response( array(
 			'success'          => true,
 			'period'           => $period,
-			'benefit'          => Nakama_Affiliates_Benefits::for_period( $affiliate_id, $period ),
-			'request'          => Nakama_Affiliates_Requests::for_period( $affiliate_id, $period ),
+			'benefit'          => self::public_benefit( Nakama_Affiliates_Benefits::for_period( $affiliate_id, $period ) ),
+			'request'          => self::public_request( Nakama_Affiliates_Requests::for_period( $affiliate_id, $period ) ),
 			'shippingCovered'  => true,
 			'officialAccounts' => Nakama_Affiliates_Products::official_accounts(),
 		) );
@@ -388,9 +392,95 @@ final class Nakama_Affiliates_REST {
 
 		if ( 'POST' === $method ) {
 			$urls = isset( $body['urls'] ) && is_array( $body['urls'] ) ? $body['urls'] : array();
-			return self::no_store_response( Nakama_Affiliates_Evidence::submit( $request_id, (int) $context['profile']['id'], $urls, get_current_user_id() ) );
+			return self::no_store_response( self::public_evidence_result( Nakama_Affiliates_Evidence::submit( $request_id, (int) $context['profile']['id'], $urls, get_current_user_id() ) ) );
 		}
-		return self::no_store_response( Nakama_Affiliates_Evidence::for_request( $request_id, (int) $context['profile']['id'] ) );
+		return self::no_store_response( self::public_evidence_result( Nakama_Affiliates_Evidence::for_request( $request_id, (int) $context['profile']['id'] ) ) );
+	}
+
+	private static function public_progress( array $progress ) {
+		$milestone = static function ( $item ) {
+			return array(
+				'thresholdMxn'   => (float) $item['threshold_mxn'],
+				'remainingMxn'   => (float) $item['remaining_mxn'],
+				'reached'        => (bool) $item['reached'],
+				'progressPercent'=> (float) $item['progress_percent'],
+			);
+		};
+		return array(
+			'salesMxn' => (float) $progress['sales_mxn'],
+			'tier'     => (int) $progress['tier'],
+			'quota'    => (int) $progress['quota'],
+			'next'     => $progress['next'] ? array(
+				'thresholdMxn' => (float) $progress['next']['threshold_mxn'],
+				'remainingMxn' => (float) $progress['next']['remaining_mxn'],
+				'rewardQuota'  => (int) $progress['next']['reward_quota'],
+			) : null,
+			'milestones' => array(
+				'second' => $milestone( $progress['milestones']['second'] ),
+				'third'  => $milestone( $progress['milestones']['third'] ),
+			),
+		);
+	}
+
+	private static function public_benefit( $benefit ) {
+		if ( ! is_array( $benefit ) ) return null;
+		return array(
+			'id'              => (int) $benefit['id'],
+			'period'          => (string) $benefit['period_key'],
+			'sourcePeriod'    => (string) $benefit['source_period_key'],
+			'sourceClosureId' => (int) $benefit['source_closure_id'],
+			'validSalesMxn'   => (float) $benefit['valid_sales_mxn'],
+			'tier'            => (int) $benefit['tier'],
+			'quota'           => (int) $benefit['quota'],
+			'manualReason'    => (string) ( $benefit['manual_reason'] ?? '' ),
+			'isDefault'       => ! empty( $benefit['is_default'] ),
+		);
+	}
+
+	private static function public_request( $request ) {
+		if ( ! is_array( $request ) ) return null;
+		$items = array_map( static function ( $item ) {
+			return array(
+				'id'             => (int) ( $item['id'] ?? 0 ),
+				'position'       => (int) $item['position'],
+				'productId'      => (int) $item['product_id'],
+				'variationId'    => (int) $item['variation_id'],
+				'productName'    => (string) $item['product_name'],
+				'variationLabel' => (string) $item['variation_label'],
+				'quantity'       => (int) $item['quantity'],
+			);
+		}, $request['items'] ?? array() );
+		return array(
+			'id'               => (int) $request['id'],
+			'period'           => (string) $request['period_key'],
+			'status'           => (string) $request['status'],
+			'shippingCovered'  => ! empty( $request['shipping_covered'] ),
+			'carrier'          => (string) ( $request['carrier'] ?? '' ),
+			'trackingCode'     => (string) ( $request['tracking_code'] ?? '' ),
+			'rejectionReason'  => (string) ( $request['rejection_reason'] ?? '' ),
+			'submittedAt'      => $request['submitted_at_gmt'] ?? null,
+			'completedAt'      => $request['completed_at_gmt'] ?? null,
+			'address'          => is_array( $request['address'] ?? null ) ? $request['address'] : array(),
+			'items'            => $items,
+		);
+	}
+
+	private static function public_evidence_result( array $result ) {
+		if ( empty( $result['success'] ) ) return $result;
+		$result['items'] = array_map( static function ( $item ) {
+			return array(
+				'id'           => (int) $item['id'],
+				'slotKey'      => (string) $item['slot_key'],
+				'contentType'  => (string) $item['content_type'],
+				'position'     => (int) $item['position'],
+				'url'          => (string) $item['url'],
+				'status'       => (string) $item['status'],
+				'reviewReason' => (string) ( $item['review_reason'] ?? '' ),
+				'submittedAt'  => (string) $item['submitted_at_gmt'],
+				'reviewedAt'   => $item['reviewed_at_gmt'] ?? null,
+			);
+		}, $result['items'] ?? array() );
+		return $result;
 	}
 
 	private static function affiliate_context( WP_REST_Request $request ) {

@@ -18,7 +18,7 @@ final class Nakama_Affiliates_Products {
 		$page     = max( 1, (int) $page );
 		$per_page = min( 50, max( 1, (int) $per_page ) );
 		if ( ! function_exists( 'wc_get_products' ) ) {
-			return array( 'items' => array(), 'page' => $page, 'pages' => 0, 'total' => 0, 'has_more' => false );
+			return array( 'items' => array(), 'page' => $page, 'pages' => 0, 'total' => 0, 'hasMore' => false );
 		}
 
 		$result = wc_get_products( array(
@@ -47,7 +47,7 @@ final class Nakama_Affiliates_Products {
 			'page'     => $page,
 			'pages'    => $pages,
 			'total'    => $total,
-			'has_more' => $page < $pages,
+			'hasMore'  => $page < $pages,
 		);
 	}
 

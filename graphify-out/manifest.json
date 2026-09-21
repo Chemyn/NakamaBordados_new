@@ -618,9 +618,9 @@
     "semantic_hash": ""
   },
   "src/app/context/LanguageContext.tsx": {
-    "mtime": 1789959749.469286,
-    "seen": 1789959837.5831804,
-    "ast_hash": "a194287cf9f526344b87df09c2b68574",
+    "mtime": 1789999315.1145048,
+    "seen": 1789999561.7760274,
+    "ast_hash": "874629f03d443b67aefb8fc6741aa3b7",
     "semantic_hash": ""
   },
   "src/app/cotizador/App.tsx": {
@@ -2340,9 +2340,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-rest.php": {
-    "mtime": 1789997738.012393,
-    "seen": 1789997810.8623176,
-    "ast_hash": "73207adbba5989990321ec49ae0f6bf4",
+    "mtime": 1789998362.334442,
+    "seen": 1789999081.9540355,
+    "ast_hash": "fe4686286a618585a8a40c7838964d02",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-codes-test.php": {
@@ -2352,9 +2352,9 @@
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-rest-test.php": {
-    "mtime": 1789997745.2043376,
-    "seen": 1789997810.8626146,
-    "ast_hash": "d29d3e92605d5416d3ab133e61fa35c9",
+    "mtime": 1789998374.292576,
+    "seen": 1789999081.95443,
+    "ast_hash": "1f0e82e886e9c9ac0ebe1d2fd2a98421",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-discounts.php": {
@@ -2478,15 +2478,15 @@
     "semantic_hash": ""
   },
   "src/app/afiliados/AffiliateDashboard.test.tsx": {
-    "mtime": 1789959743.2991114,
-    "seen": 1789959837.5831327,
-    "ast_hash": "a77ad13732834291a1fc7a1ecf5aeca7",
+    "mtime": 1789999272.0860248,
+    "seen": 1789999561.7759724,
+    "ast_hash": "8496790f2d4c1db52f1b145d54ea75d0",
     "semantic_hash": ""
   },
   "src/app/afiliados/AffiliateDashboard.tsx": {
-    "mtime": 1789959677.5615034,
-    "seen": 1789959837.5831342,
-    "ast_hash": "28a2ac58b98357775fe5ea5d574e4f43",
+    "mtime": 1789998775.9150982,
+    "seen": 1789999081.9541297,
+    "ast_hash": "8d7c4373e0bd7cdeed44a32942df3e70",
     "semantic_hash": ""
   },
   "src/app/afiliados/page.tsx": {
@@ -2496,15 +2496,15 @@
     "semantic_hash": ""
   },
   "src/lib/affiliates-api.test.ts": {
-    "mtime": 1789959574.2539837,
-    "seen": 1789959837.5832415,
-    "ast_hash": "2f462d0d81ab76dc4f56831b5b6a09af",
+    "mtime": 1789998061.7064402,
+    "seen": 1789999081.9543312,
+    "ast_hash": "dfa60029276e067101be8e5bdd2d72c6",
     "semantic_hash": ""
   },
   "src/lib/affiliates-api.ts": {
-    "mtime": 1789959659.4301841,
-    "seen": 1789959837.5832424,
-    "ast_hash": "6cecb3189336a95c8eddf672194ada76",
+    "mtime": 1789998214.2059383,
+    "seen": 1789999081.9543326,
+    "ast_hash": "37565c1f6def87839687fb69f28a96cc",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-closures.php": {
@@ -2586,9 +2586,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-products.php": {
-    "mtime": 1789997275.3550172,
-    "seen": 1789997319.456306,
-    "ast_hash": "69e75b50ba4eb8bfd2977c6f4e304e3e",
+    "mtime": 1789998355.2934253,
+    "seen": 1789999081.9540231,
+    "ast_hash": "1ac5883f06134bf72f2d079d92e39f48",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-requests.php": {
@@ -2607,6 +2607,42 @@
     "mtime": 1789997491.919036,
     "seen": 1789997810.8626037,
     "ast_hash": "c3dfbd937f1806ae006fbedbc31ef0c3",
+    "semantic_hash": ""
+  },
+  "src/app/afiliados/AffiliateEvidence.test.tsx": {
+    "mtime": 1789999320.9590287,
+    "seen": 1789999561.775976,
+    "ast_hash": "458b009b25f4272d719ddedf9a408c06",
+    "semantic_hash": ""
+  },
+  "src/app/afiliados/AffiliateEvidence.tsx": {
+    "mtime": 1789999308.7242353,
+    "seen": 1789999561.775977,
+    "ast_hash": "cca9be172b642039799656c640e249de",
+    "semantic_hash": ""
+  },
+  "src/app/afiliados/AffiliateProductRequest.test.tsx": {
+    "mtime": 1789998262.6046145,
+    "seen": 1789999081.9541373,
+    "ast_hash": "4837f4ecd67e5a1d37c183e4a6e14d8b",
+    "semantic_hash": ""
+  },
+  "src/app/afiliados/AffiliateProductRequest.tsx": {
+    "mtime": 1789999184.567222,
+    "seen": 1789999561.7759795,
+    "ast_hash": "54c7476507acc0df65a2369f93afa401",
+    "semantic_hash": ""
+  },
+  "src/app/afiliados/AffiliateProgress.test.tsx": {
+    "mtime": 1789999364.1123185,
+    "seen": 1789999561.7759807,
+    "ast_hash": "d4e16c66eb9a94851f37bf508eea24a2",
+    "semantic_hash": ""
+  },
+  "src/app/afiliados/AffiliateProgress.tsx": {
+    "mtime": 1789999241.3464003,
+    "seen": 1789999561.7759821,
+    "ast_hash": "0093d01dc66c30328ecce758e03522db",
     "semantic_hash": ""
   }
 }

@@ -9,13 +9,26 @@ import {
   fetchAffiliateDashboard,
   fetchAffiliateMe,
   fetchAffiliatePayments,
+  fetchAffiliateProducts,
+  fetchAffiliateProductRequest,
+  fetchAffiliateEvidence,
   fetchAffiliateSales,
+  submitAffiliateEvidence,
+  submitAffiliateProductRequest,
   uploadFiscalDocument,
   type AffiliateDashboardData,
   type AffiliateMe,
   type AffiliatePaymentPeriod,
+  type AffiliateProductsPage,
+  type AffiliateProductRequestData,
+  type AffiliateProductRequestInput,
+  type AffiliateEvidenceData,
+  type AffiliateEvidenceInput,
   type AffiliateSaleEvent,
 } from '@/lib/affiliates-api';
+import AffiliateProgress from './AffiliateProgress';
+import AffiliateProductRequest from './AffiliateProductRequest';
+import AffiliateEvidence from './AffiliateEvidence';
 import styles from './affiliate.module.css';
 
 const mxn = new Intl.NumberFormat('es-MX', {
@@ -30,6 +43,7 @@ export default function AffiliateDashboard() {
   const errorMessage = t('affiliates.error');
   const sessionExpiredMessage = t('affiliates.sessionExpired');
   const accessDeniedMessage = t('affiliates.denied');
+  const missionLoadErrorMessage = t('affiliates.mission.loadError');
   const [me, setMe] = useState<AffiliateMe | null>(null);
   const [loadedUserId, setLoadedUserId] = useState('');
   const [dashboard, setDashboard] = useState<AffiliateDashboardData | null>(null);
@@ -40,6 +54,11 @@ export default function AffiliateDashboard() {
   const [file, setFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [downloadingReceipt, setDownloadingReceipt] = useState(0);
+  const [mission, setMission] = useState<AffiliateProductRequestData | null>(null);
+  const [products, setProducts] = useState<AffiliateProductsPage | null>(null);
+  const [evidence, setEvidence] = useState<AffiliateEvidenceData | null>(null);
+  const [missionLoading, setMissionLoading] = useState(false);
+  const [missionError, setMissionError] = useState('');
 
   const loadIdentity = useCallback(async () => {
     if (!user) return;
@@ -52,6 +71,9 @@ export default function AffiliateDashboard() {
       setDashboard(null);
       setSales([]);
       setPeriods([]);
+      setMission(null);
+      setProducts(null);
+      setEvidence(null);
       setMe(identity);
       setLoadedUserId(user.id);
     } catch (requestError) {
@@ -90,6 +112,31 @@ export default function AffiliateDashboard() {
     return () => { active = false; };
   }, [errorMessage, me]);
 
+  useEffect(() => {
+    if (!me?.can || !me.financialAccess) return;
+    let active = true;
+    queueMicrotask(() => {
+      if (!active) return;
+      setMissionLoading(true);
+      setMissionError('');
+      Promise.all([fetchAffiliateProductRequest(), fetchAffiliateProducts(1)])
+        .then(async ([missionData, productData]) => {
+          if (!active) return;
+          setMission(missionData);
+          setProducts(productData);
+          if (missionData.request?.id) {
+            const evidenceData = await fetchAffiliateEvidence(missionData.request.id);
+            if (active) setEvidence(evidenceData);
+          } else {
+            setEvidence(null);
+          }
+        })
+        .catch(() => { if (active) setMissionError(missionLoadErrorMessage); })
+        .finally(() => { if (active) setMissionLoading(false); });
+    });
+    return () => { active = false; };
+  }, [me, missionLoadErrorMessage]);
+
   const submitDocument = async () => {
     if (!file) return;
     setUploading(true);
@@ -116,6 +163,22 @@ export default function AffiliateDashboard() {
     } finally {
       setDownloadingReceipt(0);
     }
+  };
+
+  const submitProductRequest = async (input: AffiliateProductRequestInput) => {
+    const result = await submitAffiliateProductRequest(input);
+    if (result.success) {
+      const refreshed = await fetchAffiliateProductRequest();
+      setMission(refreshed);
+      setEvidence(refreshed.request ? await fetchAffiliateEvidence(refreshed.request.id) : null);
+    }
+    return result;
+  };
+
+  const submitEvidence = async (input: AffiliateEvidenceInput) => {
+    const result = await submitAffiliateEvidence(input);
+    if (result.success) setEvidence(result);
+    return result;
   };
 
   if (authLoading) return <StatusShell title={t('affiliates.title')} text={t('affiliates.loading')} />;
@@ -219,6 +282,44 @@ export default function AffiliateDashboard() {
       </header>
 
       {error && <div className={styles.errorBanner} role="alert">{error}</div>}
+      <section className={styles.missionHub} aria-label={t('affiliates.mission.label')}>
+        <div className={styles.missionIntro}>
+          <span aria-hidden="true">01</span>
+          <div><p>{t('affiliates.mission.kicker')}</p><h2>{t('affiliates.mission.title')}</h2><p>{t('affiliates.mission.intro')}</p></div>
+        </div>
+        {dashboard?.progress && <AffiliateProgress progress={dashboard.progress} />}
+        {missionLoading && <p className={styles.missionLoading} role="status">{t('affiliates.mission.loading')}</p>}
+        {missionError && <p className={styles.inlineError} role="alert">{missionError}</p>}
+        {mission && products && (
+          <AffiliateProductRequest
+            period={mission.period}
+            quota={mission.benefit.quota}
+            vip={Boolean(me.vip)}
+            products={products}
+            request={mission.request}
+            address={{
+              name: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username || '',
+              address1: user.shipping?.address1 || '',
+              address2: user.shipping?.address2 || '',
+              city: user.shipping?.city || '',
+              state: user.shipping?.state || '',
+              postcode: user.shipping?.postcode || '',
+              country: user.shipping?.country || 'MX',
+              phone: user.billingPhone || '',
+            }}
+            onSubmit={submitProductRequest}
+          />
+        )}
+        {mission?.request && (
+          <AffiliateEvidence
+            requestId={mission.request.id}
+            requestStatus={mission.request.status}
+            items={evidence?.items || []}
+            officialAccounts={mission.officialAccounts}
+            onSubmit={submitEvidence}
+          />
+        )}
+      </section>
       <section className={styles.metricGrid} aria-label={t('affiliates.summary.label')}>
         <article>
           <span>{t('affiliates.summary.sales')}</span>

@@ -7,6 +7,11 @@ import {
   fetchAffiliateSales,
   downloadAffiliateReceipt,
   uploadFiscalDocument,
+  fetchAffiliateProducts,
+  fetchAffiliateProductRequest,
+  submitAffiliateProductRequest,
+  fetchAffiliateEvidence,
+  submitAffiliateEvidence,
 } from './affiliates-api';
 
 vi.mock('./api-host', () => ({ apiOrigin: () => 'https://api.example.test' }));
@@ -93,5 +98,23 @@ describe('affiliates API client', () => {
     }));
 
     await expect(fetchAffiliateMe()).rejects.toThrow('ACCESS_DENIED');
+  });
+
+  it('reads and mutates the monthly mission through authenticated JSON contracts', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ success: true, items: [] }) });
+    vi.stubGlobal('fetch', fetchMock);
+    await fetchAffiliateProducts(2);
+    await fetchAffiliateProductRequest();
+    await submitAffiliateProductRequest({ items: [{ product_id: 1, variation_id: 0 }], address: { name: 'Jose', address1: 'Calle 1', address2: '', city: 'Hermosillo', state: 'Sonora', postcode: '83000', country: 'MX', phone: '662' } });
+    await fetchAffiliateEvidence(12);
+    await submitAffiliateEvidence({ requestId: 12, urls: { reel_1: 'https://instagram.com/reel/a', reel_2: 'https://instagram.com/reel/b', story_1: 'https://instagram.com/stories/c', bonus: '' } });
+
+    expect(fetchMock.mock.calls[0][0]).toContain('/me/products');
+    expect(fetchMock.mock.calls[0][0]).toContain('page=2');
+    expect(fetchMock.mock.calls[1][0]).toContain('/me/product-request');
+    expect(fetchMock.mock.calls[2][1]).toEqual(expect.objectContaining({ method: 'POST', body: expect.any(String) }));
+    expect(fetchMock.mock.calls[2][1].headers['Content-Type']).toBe('application/json');
+    expect(fetchMock.mock.calls[3][0]).toContain('request_id=12');
+    expect(fetchMock.mock.calls[4][1]).toEqual(expect.objectContaining({ method: 'POST' }));
   });
 });

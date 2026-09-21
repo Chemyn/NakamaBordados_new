@@ -50,6 +50,136 @@ export interface AffiliateDashboardData {
     salesMxn: number;
     commissionMxn: number;
   };
+	progress?: AffiliateProgressData;
+}
+
+export interface AffiliateProgressData {
+  salesMxn: number;
+  tier: number;
+  quota: number;
+  next: { thresholdMxn: number; remainingMxn: number; rewardQuota: number } | null;
+  milestones: {
+    second: AffiliateMilestone;
+    third: AffiliateMilestone;
+  };
+}
+
+export interface AffiliateMilestone {
+  thresholdMxn: number;
+  remainingMxn: number;
+  reached: boolean;
+  progressPercent: number;
+}
+
+export interface AffiliateBenefit {
+  id: number;
+  period: string;
+  sourcePeriod: string;
+  sourceClosureId: number;
+  validSalesMxn: number;
+  tier: number;
+  quota: number;
+  manualReason: string;
+  isDefault: boolean;
+}
+
+export interface AffiliateCatalogVariation {
+  id: number;
+  label: string;
+  price: number;
+}
+
+export interface AffiliateCatalogProduct {
+  id: number;
+  name: string;
+  price: number;
+  image: string;
+  restricted: boolean;
+  vipVisible: boolean;
+  variations: AffiliateCatalogVariation[];
+}
+
+export interface AffiliateProductsPage {
+  success: boolean;
+  page: number;
+  pages: number;
+  total: number;
+  hasMore: boolean;
+  items: AffiliateCatalogProduct[];
+}
+
+export interface AffiliateShippingAddress {
+  name: string;
+  address1: string;
+  address2: string;
+  city: string;
+  state: string;
+  postcode: string;
+  country: string;
+  phone: string;
+}
+
+export interface AffiliateProductRequestItem {
+  id?: number;
+  position: number;
+  productId: number;
+  variationId: number;
+  productName: string;
+  variationLabel: string;
+  quantity: number;
+}
+
+export interface AffiliateProductRequestRecord {
+  id: number;
+  period: string;
+  status: 'draft' | 'submitted' | 'approved' | 'preparing' | 'shipped' | 'completed' | 'rejected' | 'cancelled';
+  shippingCovered: boolean;
+  carrier: string;
+  trackingCode: string;
+  rejectionReason: string;
+  submittedAt: string | null;
+  completedAt: string | null;
+  address: AffiliateShippingAddress;
+  items: AffiliateProductRequestItem[];
+}
+
+export interface AffiliateProductRequestData {
+  success: boolean;
+  period: string;
+  benefit: AffiliateBenefit;
+  request: AffiliateProductRequestRecord | null;
+  shippingCovered: boolean;
+  officialAccounts: string[];
+}
+
+export interface AffiliateProductRequestInput {
+  items: Array<{ product_id: number; variation_id: number }>;
+  address: AffiliateShippingAddress;
+}
+
+export interface AffiliateEvidenceItem {
+  id: number;
+  slotKey: 'reel_1' | 'reel_2' | 'story_1' | 'bonus';
+  contentType: 'reel' | 'story' | 'bonus';
+  position: number;
+  url: string;
+  status: 'pending' | 'approved' | 'rejected';
+  reviewReason: string;
+  submittedAt: string;
+  reviewedAt: string | null;
+}
+
+export interface AffiliateEvidenceData {
+  success: boolean;
+  items: AffiliateEvidenceItem[];
+  requiredComplete: boolean;
+  bonusPriorityPotential: boolean;
+  bonusGuarantee: boolean;
+}
+
+export interface AffiliateEvidenceInput {
+  requestId: number;
+  urls: { reel_1: string; reel_2: string; story_1: string; bonus: string };
 }
 
 export interface AffiliateSaleEvent {
@@ -157,6 +287,35 @@ export function fetchAffiliateSales(page = 1): Promise<AffiliateSalesPage> {
 
 export function fetchAffiliatePayments(page = 1): Promise<AffiliatePaymentsPage> {
   return authenticatedRequest<AffiliatePaymentsPage>('/me/payments', {}, { page });
+}
+
+export async function fetchAffiliateProducts(page = 1): Promise<AffiliateProductsPage> {
+  const data = await authenticatedRequest<AffiliateProductsPage & { has_more?: boolean }>('/me/products', {}, { page });
+  return { ...data, hasMore: data.hasMore ?? Boolean(data.has_more) };
+}
+
+export function fetchAffiliateProductRequest(): Promise<AffiliateProductRequestData> {
+  return authenticatedRequest<AffiliateProductRequestData>('/me/product-request');
+}
+
+export function submitAffiliateProductRequest(input: AffiliateProductRequestInput): Promise<{ success: boolean; request?: AffiliateProductRequestRecord; reason?: string }> {
+  return authenticatedRequest('/me/product-request', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+}
+
+export function fetchAffiliateEvidence(requestId: number): Promise<AffiliateEvidenceData> {
+  return authenticatedRequest<AffiliateEvidenceData>('/me/evidence', {}, { request_id: requestId });
+}
+
+export function submitAffiliateEvidence(input: AffiliateEvidenceInput): Promise<AffiliateEvidenceData & { reason?: string }> {
+  return authenticatedRequest('/me/evidence', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
 }
 
 export async function downloadAffiliateReceipt(receiptId: number): Promise<void> {

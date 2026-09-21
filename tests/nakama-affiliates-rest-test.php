@@ -141,6 +141,19 @@ final class Nakama_Affiliates_Payments {
 	public static function downloadable( $document_id ) { return array( 'success' => false, 'reason' => 'not_found' ); }
 }
 
+final class Nakama_Affiliates_Benefits {
+	public static function progress( $sales ) {
+		return array(
+			'sales_mxn' => (float) $sales, 'tier' => 2, 'quota' => 2,
+			'next' => array( 'threshold_mxn' => 30000.0, 'remaining_mxn' => 17500.0, 'reward_quota' => 3 ),
+			'milestones' => array(
+				'second' => array( 'threshold_mxn' => 10000.0, 'remaining_mxn' => 0.0, 'reached' => true, 'progress_percent' => 100.0 ),
+				'third' => array( 'threshold_mxn' => 30000.0, 'remaining_mxn' => 17500.0, 'reached' => false, 'progress_percent' => 41.67 ),
+			),
+		);
+	}
+}
+
 function affiliates_rest_assert( $condition, $message ) {
 	if ( ! $condition ) {
 		throw new RuntimeException( $message );
@@ -197,6 +210,7 @@ $affiliate_rest_document_status = 'approved';
 $dashboard = Nakama_Affiliates_REST::dashboard( new WP_REST_Request( array() ) );
 affiliates_rest_assert( true === $dashboard->data['success'], 'An approved affiliate can read their dashboard.' );
 affiliates_rest_assert( 1250.0 === $dashboard->data['summary']['commissionMxn'], 'Dashboard commission comes from the server ledger.' );
+affiliates_rest_assert( 17500.0 === $dashboard->data['progress']['next']['remainingMxn'], 'Dashboard exposes exact progress to the next garment tier.' );
 affiliates_rest_assert( 4 === $affiliate_rest_ledger_filter, 'Financial queries are always filtered by the authenticated affiliate.' );
 $sales = Nakama_Affiliates_REST::sales( new WP_REST_Request( array( 'page' => 1 ) ) );
 affiliates_rest_assert( 501 === $sales->data['items'][0]['orderId'], 'Sales expose the affiliate event without buyer identity.' );
