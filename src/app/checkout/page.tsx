@@ -11,9 +11,10 @@ import { useAuth } from '../context/AuthContext';
 import { seedWpSession } from '@/lib/wp-sso';
 import AbandonedCartCoupon from '../components/AbandonedCartCoupon';
 import AffiliateCodeField from '../components/AffiliateCodeField';
+import { buildCheckoutBridgeUrl } from '@/lib/checkout-bridge';
 
 export default function CheckoutPage() {
-  const { cart, quoteItems, subtotal, shipping, discount, total, couponCode } = useCart();
+  const { cart, quoteItems, subtotal, shipping, discount, total, couponCode, affiliateCode, affiliateSource } = useCart();
   const { formatPrice, currencyInfo } = useCurrency();
   const { t } = useLanguage();
   const { user, isLoading: authLoading } = useAuth();
@@ -46,28 +47,24 @@ export default function CheckoutPage() {
     }
     if (hasAnything) {
       setRedirecting(true);
-      const itemsStr = cart.map(item => {
-        const id = item.variation?.databaseId || item.product.databaseId;
-        return `${id}:${item.quantity}`;
-      }).join(',');
-      // Cotizaciones: el server las valida una a una por su orderKey.
-      const quotesStr = quoteItems.map(q => `${q.orderId}:${q.orderKey}`).join(',');
-
-      // index.php explícito: la raíz "/" con query string sirve el index.html
-      // estático (DirectoryIndex) y el bridge nunca llega a WordPress.
-      // currency: el bridge fija la cookie nakama_currency para que el
-      // checkout de WooCommerce cobre en la misma moneda que ve el usuario.
-      const checkoutUrl = `https://nakamabordados.com/index.php?nk_bridge=1`
-        + (itemsStr ? `&items=${itemsStr}` : '')
-        + (quotesStr ? `&quotes=${quotesStr}` : '')
-        + `&currency=${currencyInfo.currency}${couponCode ? `&coupon=${couponCode}` : ''}`;
+      const checkoutUrl = buildCheckoutBridgeUrl({
+        items: cart.map(item => ({
+          id: item.variation?.databaseId || item.variation?.id || item.product.databaseId || item.product.id,
+          quantity: item.quantity,
+        })),
+        quotes: quoteItems.map(({ orderId, orderKey }) => ({ orderId, orderKey })),
+        currency: currencyInfo.currency,
+        couponCode,
+        affiliateCode,
+        affiliateSource,
+      });
       // Sembrar la sesión de WordPress ANTES del bridge para que WooCommerce
       // reconozca al usuario (sin esto pide login/datos de envío de nuevo).
       seedWpSession().finally(() => {
         window.location.href = checkoutUrl;
       });
     }
-  }, [cart, quoteItems, couponCode, currencyInfo.currency, user, authLoading, router]);
+  }, [cart, quoteItems, couponCode, affiliateCode, affiliateSource, currencyInfo.currency, user, authLoading, router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setLocalFormData({ ...formData, [e.target.name]: e.target.value });

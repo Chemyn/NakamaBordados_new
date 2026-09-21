@@ -1133,6 +1133,78 @@ function nakama_check_coupon_logic( WP_REST_Request $request ) {
 }
 
 /**
+ * Resolve the single promotion slot after the headless cart has been rebuilt.
+ * Affiliate ownership stays behind a neutral filter contract.
+ *
+ * @param array $query Raw bridge query parameters.
+ * @param bool  $debug Whether bridge debug output is enabled.
+ * @return array{type:string,success:bool,message:string}
+ */
+function nakama_checkout_bridge_apply_promotion( $query, $debug = false ) {
+    $affiliate_code = isset( $query['affiliate_code'] )
+        ? sanitize_text_field( wp_unslash( $query['affiliate_code'] ) )
+        : '';
+    $affiliate_source = isset( $query['affiliate_source'] )
+        && 'referral' === sanitize_text_field( wp_unslash( $query['affiliate_source'] ) )
+        ? 'referral'
+        : 'manual';
+
+    if ( '' !== $affiliate_code ) {
+        if ( WC()->cart && method_exists( WC()->cart, 'remove_coupons' ) ) {
+            WC()->cart->remove_coupons();
+        }
+
+        $result = apply_filters(
+            'nakama_checkout_bridge_affiliate_result',
+            array(
+                'handled' => false,
+                'success' => false,
+                'message' => 'El código de afiliado ya no está disponible.',
+            ),
+            $affiliate_code,
+            $affiliate_source
+        );
+        if ( ! is_array( $result ) ) {
+            $result = array();
+        }
+
+        $success = ! empty( $result['handled'] ) && ! empty( $result['success'] );
+        $message = isset( $result['message'] )
+            ? sanitize_text_field( $result['message'] )
+            : 'El código de afiliado ya no está disponible.';
+        if ( ! $success ) {
+            wc_add_notice( $message, 'error' );
+        }
+        if ( $debug ) {
+            echo 'Aplicando código de afiliado: ' . ( $success ? 'OK' : 'FAIL' ) . '<br>';
+        }
+
+        return array(
+            'type'    => 'affiliate',
+            'success' => $success,
+            'message' => $message,
+        );
+    }
+
+    $coupon_code = isset( $query['coupon'] )
+        ? sanitize_text_field( wp_unslash( $query['coupon'] ) )
+        : '';
+    if ( '' !== $coupon_code ) {
+        $applied = WC()->cart->apply_coupon( $coupon_code );
+        if ( $debug ) {
+            echo 'Aplicando cupón ' . esc_html( $coupon_code ) . ': ' . ( $applied ? 'OK' : 'FAIL' ) . '<br>';
+        }
+        return array(
+            'type'    => 'coupon',
+            'success' => (bool) $applied,
+            'message' => '',
+        );
+    }
+
+    return array( 'type' => 'none', 'success' => true, 'message' => '' );
+}
+
+/**
  * BRIDGE: Pasarela de Carrito Headless -> WooCommerce
  * URL: https://nakamabordados.com/?nk_bridge=1&items=ID:QTY,ID:QTY...
  */
@@ -1278,12 +1350,9 @@ function nakama_cart_bridge_handler() {
         exit;
     }
 
-    // 2.5 Aplicar cupón
-    if ( ! empty( $_GET['coupon'] ) ) {
-        $coupon_code = sanitize_text_field( $_GET['coupon'] );
-        $applied = WC()->cart->apply_coupon( $coupon_code );
-        if ( $debug ) echo "Aplicando cupón $coupon_code: " . ($applied ? 'OK' : 'FAIL') . "<br>";
-    }
+    // 2.5 Resolver una sola promoción. Un código afiliado explícito ocupa el
+    //     lugar del cupón incluso si deja de ser válido durante el traslado.
+    nakama_checkout_bridge_apply_promotion( $_GET, $debug );
 
     // 3. Redirigir al checkout
     $checkout_url = wc_get_checkout_url();

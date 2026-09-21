@@ -22,6 +22,13 @@ function add_filter(...$args): void {
     global $filters;
     $filters[$args[0]][] = $args[1];
 }
+function apply_filters(string $hook, mixed $value, mixed ...$args): mixed {
+    global $filters;
+    foreach ($filters[$hook] ?? [] as $callback) {
+        $value = $callback($value, ...$args);
+    }
+    return $value;
+}
 function register_rest_route(string $namespace, string $route, array $args): void {
     global $registeredRestRoutes;
     $registeredRestRoutes[$namespace . $route] = $args;
@@ -102,7 +109,10 @@ function wp_strip_all_tags(mixed $value): string { return strip_tags((string) $v
 function add_query_arg(array $args, string $url): string {
     return $url . '?' . http_build_query($args, '', '&', PHP_QUERY_RFC3986);
 }
-function wc_add_notice(string $message, string $type = 'success'): void {}
+function wc_add_notice(string $message, string $type = 'success'): void {
+    global $testNotices;
+    $testNotices[] = ['message' => $message, 'type' => $type];
+}
 function is_wc_endpoint_url(string $endpoint = ''): bool {
     global $testWooEndpoint;
     return $endpoint === $testWooEndpoint;
@@ -275,6 +285,8 @@ function wc_create_order(array $args): FakeCreatedOrder {
 
 final class FakeCart {
     public int $addCalls = 0;
+    public int $removeCouponCalls = 0;
+    public array $appliedCoupons = [];
     public array $items = ['existing-product' => ['quantity' => 2]];
 
     public function add_to_cart(...$args): string {
@@ -289,6 +301,14 @@ final class FakeCart {
     public function remove_cart_item(string $key): void { unset($this->items[$key]); }
     public function set_quantity(string $key, int $quantity, bool $refresh): void {
         $this->items[$key]['quantity'] = $quantity;
+    }
+    public function remove_coupons(): void {
+        $this->removeCouponCalls++;
+        $this->appliedCoupons = [];
+    }
+    public function apply_coupon(string $code): bool {
+        $this->appliedCoupons[] = $code;
+        return true;
     }
 }
 
@@ -337,6 +357,7 @@ final class FakeTransferSource extends WC_Abstract_Order {
 $fakeCart = new FakeCart();
 $fakeWooCommerce = new FakeWooCommerce($fakeCart);
 $ordersById = [];
+$testNotices = [];
 function WC(): FakeWooCommerce {
     global $fakeWooCommerce;
     return $fakeWooCommerce;
@@ -354,6 +375,31 @@ function assert_same(mixed $expected, mixed $actual, string $message): void {
 }
 
 require dirname(__DIR__) . '/nakama-checkout-tools.php';
+
+$filters['nakama_checkout_bridge_affiliate_result'][] = static function (array $result, string $code, string $source): array {
+    return [
+        'handled' => true,
+        'success' => $code === 'NICO' && $source === 'referral',
+        'message' => 'Código de afiliado no válido.',
+    ];
+};
+$bridgePromotion = nakama_checkout_bridge_apply_promotion([
+    'affiliate_code' => ' NICO ',
+    'affiliate_source' => 'referral',
+    'coupon' => 'RECUPERA20',
+]);
+assert_same('affiliate', $bridgePromotion['type'] ?? null, 'An explicit affiliate code occupies the bridge promotion slot.');
+assert_same(true, $bridgePromotion['success'] ?? false, 'The bridge delegates affiliate validation through a neutral filter contract.');
+assert_same([], $fakeCart->appliedCoupons, 'A native coupon is ignored when an affiliate code was explicitly supplied.');
+assert_same(1, $fakeCart->removeCouponCalls, 'Affiliate checkout clears any native coupons before selecting its promotion.');
+
+$invalidBridgePromotion = nakama_checkout_bridge_apply_promotion([
+    'affiliate_code' => 'SUSPENDED',
+    'affiliate_source' => 'forged',
+    'coupon' => 'RECUPERA20',
+]);
+assert_same(false, $invalidBridgePromotion['success'] ?? true, 'A rejected affiliate cannot fall back to the supplied native coupon.');
+assert_same('error', $testNotices[0]['type'] ?? null, 'An invalid affiliate produces a recoverable WooCommerce notice.');
 
 foreach ($actions['rest_api_init'] ?? [] as $registerRestRoutes) {
     $registerRestRoutes();

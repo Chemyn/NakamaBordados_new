@@ -96,6 +96,7 @@ require $discounts_file;
 
 Nakama_Affiliates_Discounts::init();
 affiliates_discounts_assert_same( true, ! empty( $affiliate_discount_filters['nakama_discount_primary_candidates'] ), 'The plugin extends primary candidates through the public engine hook.' );
+affiliates_discounts_assert_same( true, ! empty( $affiliate_discount_filters['nakama_checkout_bridge_affiliate_result'] ), 'The plugin validates bridge attribution through the neutral checkout hook.' );
 affiliates_discounts_assert_same( true, ! empty( $affiliate_discount_actions['woocommerce_applied_coupon'] ), 'A native coupon can replace affiliate attribution.' );
 affiliates_discounts_assert_same( true, ! empty( $affiliate_discount_actions['nakama_discount_selection_applied'] ), 'Another Nakama promotion can replace affiliate attribution.' );
 
@@ -130,5 +131,21 @@ affiliates_discounts_assert_same( false, $invalid['success'], 'A forged or unava
 affiliates_discounts_assert_same( '', WC()->session->get( 'nakama_affiliate_code' ), 'A failed selection removes stale affiliate attribution.' );
 affiliates_discounts_assert_same( '', WC()->session->get( 'nakama_selected_promo' ), 'A failed selection removes the stale primary selection.' );
 
-echo "PHP Nakama Affiliates discount integration tests passed.\n";
+$bridge_valid = Nakama_Affiliates_Discounts::apply_checkout_bridge(
+	array( 'handled' => false, 'success' => false ),
+	'NICO',
+	'referral'
+);
+affiliates_discounts_assert_same( true, $bridge_valid['handled'], 'The affiliates plugin owns affiliate bridge validation when active.' );
+affiliates_discounts_assert_same( true, $bridge_valid['success'], 'A valid bridge code is selected after the cart exists.' );
+affiliates_discounts_assert_same( 'referral', WC()->session->get( 'nakama_affiliate_source' ), 'The bridge keeps only an allowed attribution source.' );
 
+$bridge_invalid = Nakama_Affiliates_Discounts::apply_checkout_bridge(
+	array( 'handled' => false, 'success' => false ),
+	'SUSPENDED',
+	'referral'
+);
+affiliates_discounts_assert_same( false, $bridge_invalid['success'], 'Unavailable bridge attribution fails closed.' );
+affiliates_discounts_assert_same( '', WC()->session->get( 'nakama_affiliate_code' ), 'Rejected bridge attribution clears stale session selection.' );
+
+echo "PHP Nakama Affiliates discount integration tests passed.\n";

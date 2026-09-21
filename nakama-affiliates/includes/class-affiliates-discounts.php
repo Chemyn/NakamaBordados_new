@@ -16,8 +16,21 @@ final class Nakama_Affiliates_Discounts {
 
 	public static function init() {
 		add_filter( 'nakama_discount_primary_candidates', array( __CLASS__, 'add_candidate' ), 20, 2 );
+		add_filter( 'nakama_checkout_bridge_affiliate_result', array( __CLASS__, 'apply_checkout_bridge' ), 20, 3 );
 		add_action( 'woocommerce_applied_coupon', array( __CLASS__, 'on_native_coupon_applied' ), 20 );
 		add_action( 'nakama_discount_selection_applied', array( __CLASS__, 'on_promotion_selected' ), 20 );
+	}
+
+	/** Apply a bridge code only after WooCommerce has rebuilt a valid cart. */
+	public static function apply_checkout_bridge( $result, $raw_code, $source = 'manual' ) {
+		$selection = self::select_code( $raw_code, $source );
+		return array(
+			'handled' => true,
+			'success' => ! empty( $selection['success'] ),
+			'message' => isset( $selection['message'] )
+				? (string) $selection['message']
+				: ( empty( $selection['success'] ) ? 'El código de afiliado ya no está disponible.' : '' ),
+		);
 	}
 
 	/** Add only the server-resolved affiliate stored in the Woo session. */
@@ -151,4 +164,3 @@ final class Nakama_Affiliates_Discounts {
 		return $woocommerce && isset( $woocommerce->session ) ? $woocommerce->session : null;
 	}
 }
-

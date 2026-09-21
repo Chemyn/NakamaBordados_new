@@ -4,6 +4,25 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import CartPage from './page';
 
 const router = { push: vi.fn() };
+const cartContext = {
+  cart: [],
+  quoteItems: [{ orderId: 116015, orderKey: 'wc_order_quote', folio: 'NK-110', totalMXN: 1150 }],
+  removeQuoteFromCart: vi.fn(),
+  subtotal: 1150,
+  shipping: 150,
+  discount: 0,
+  total: 1300,
+  removeFromCart: vi.fn(),
+  updateQuantity: vi.fn(),
+  couponCode: '',
+  applyCoupon: vi.fn(async () => ({ success: false, message: 'Cupón inválido' })),
+  removeCoupon: vi.fn(),
+  affiliateCode: '',
+  affiliateSource: '' as '' | 'manual' | 'referral',
+  promotionReady: true,
+  applyAffiliateCode: vi.fn(async () => ({ success: false, message: 'Código no válido' })),
+  removeAffiliateCode: vi.fn(),
+};
 
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
 vi.mock('@/lib/wp-sso', () => ({ seedWpSession: vi.fn(async () => true) }));
@@ -31,30 +50,15 @@ vi.mock('../context/CurrencyContext', () => ({
 }));
 vi.mock('../context/CartContext', () => ({
   getVariationAttr: vi.fn(),
-  useCart: () => ({
-    cart: [],
-    quoteItems: [{ orderId: 116015, orderKey: 'wc_order_quote', folio: 'NK-110', totalMXN: 1150 }],
-    removeQuoteFromCart: vi.fn(),
-    subtotal: 1150,
-    shipping: 150,
-    discount: 0,
-    total: 1300,
-    removeFromCart: vi.fn(),
-    updateQuantity: vi.fn(),
-    couponCode: '',
-    applyCoupon: vi.fn(async () => ({ success: false, message: 'Cupón inválido' })),
-    removeCoupon: vi.fn(),
-    affiliateCode: '',
-    affiliateSource: '',
-    promotionReady: true,
-    applyAffiliateCode: vi.fn(async () => ({ success: false, message: 'Código no válido' })),
-    removeAffiliateCode: vi.fn(),
-  }),
+  useCart: () => cartContext,
 }));
 
 describe('CartPage quote checkout recovery', () => {
   beforeEach(() => {
     router.push.mockReset();
+    cartContext.couponCode = '';
+    cartContext.affiliateCode = '';
+    cartContext.affiliateSource = '';
     window.history.replaceState(null, '', '/cart/?quote_error=unavailable');
   });
 
@@ -83,5 +87,19 @@ describe('CartPage quote checkout recovery', () => {
     render(<CartPage />);
     expect(screen.getByLabelText('Escribe el código del afiliado')).toBeInTheDocument();
     expect(screen.getByText('No se combina con otras promociones.')).toBeVisible();
+  });
+
+  it('passes affiliate attribution to the bridge and omits the native coupon', () => {
+    cartContext.couponCode = 'RECUPERA20';
+    cartContext.affiliateCode = 'NICO';
+    cartContext.affiliateSource = 'referral';
+    render(<CartPage />);
+
+    const link = document.querySelector<HTMLAnchorElement>('a[href*="nk_bridge"]');
+    expect(link).not.toBeNull();
+    const url = new URL(link!.href);
+    expect(url.searchParams.get('affiliate_code')).toBe('NICO');
+    expect(url.searchParams.get('affiliate_source')).toBe('referral');
+    expect(url.searchParams.has('coupon')).toBe(false);
   });
 });

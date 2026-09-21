@@ -1,17 +1,46 @@
 import React from 'react';
-import { render, screen } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import CheckoutPage from './page';
 
 const router = { replace: vi.fn() };
+const checkoutMocks = {
+  user: null as null | { id: string },
+  seedWpSession: vi.fn<() => Promise<boolean>>(),
+  buildCheckoutBridgeUrl: vi.fn(() => 'https://nakamabordados.com/index.php?nk_bridge=1'),
+};
+const cartContext = {
+  cart: [{
+    product: { id: 'p1', databaseId: 10, name: 'Gorra', price: 300, images: ['/gorra.jpg'] },
+    variation: null,
+    quantity: 1,
+  }],
+  quoteItems: [],
+  subtotal: 300,
+  shipping: 150,
+  discount: 0,
+  total: 450,
+  couponCode: '',
+  applyCoupon: vi.fn(async () => ({ success: false, message: 'Cupón inválido' })),
+  removeCoupon: vi.fn(),
+  affiliateCode: '',
+  affiliateSource: '' as '' | 'manual' | 'referral',
+  promotionReady: true,
+  applyAffiliateCode: vi.fn(async () => ({ success: false, message: 'Código no válido' })),
+  removeAffiliateCode: vi.fn(),
+  clearCart: vi.fn(),
+};
 
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
 vi.mock('next/image', () => ({
   default: ({ alt }: { alt: string }) => <span role="img" aria-label={alt} />,
 }));
-vi.mock('@/lib/wp-sso', () => ({ seedWpSession: vi.fn(async () => true) }));
+vi.mock('@/lib/wp-sso', () => ({ seedWpSession: () => checkoutMocks.seedWpSession() }));
+vi.mock('@/lib/checkout-bridge', () => ({
+  buildCheckoutBridgeUrl: (input: unknown) => checkoutMocks.buildCheckoutBridgeUrl(input),
+}));
 vi.mock('../context/AuthContext', () => ({
-  useAuth: () => ({ user: null, isLoading: false }),
+  useAuth: () => ({ user: checkoutMocks.user, isLoading: false }),
 }));
 vi.mock('../context/CurrencyContext', () => ({
   useCurrency: () => ({
@@ -34,30 +63,19 @@ vi.mock('../context/LanguageContext', () => ({
   }),
 }));
 vi.mock('../context/CartContext', () => ({
-  useCart: () => ({
-    cart: [{
-      product: { id: 'p1', databaseId: 10, name: 'Gorra', price: 300, images: ['/gorra.jpg'] },
-      variation: null,
-      quantity: 1,
-    }],
-    quoteItems: [],
-    subtotal: 300,
-    shipping: 150,
-    discount: 0,
-    total: 450,
-    couponCode: '',
-    applyCoupon: vi.fn(async () => ({ success: false, message: 'Cupón inválido' })),
-    removeCoupon: vi.fn(),
-    affiliateCode: '',
-    affiliateSource: '',
-    promotionReady: true,
-    applyAffiliateCode: vi.fn(async () => ({ success: false, message: 'Código no válido' })),
-    removeAffiliateCode: vi.fn(),
-    clearCart: vi.fn(),
-  }),
+  useCart: () => cartContext,
 }));
 
 describe('Checkout abandoned-cart coupon disclosure', () => {
+  beforeEach(() => {
+    checkoutMocks.user = null;
+    checkoutMocks.seedWpSession.mockReset().mockImplementation(() => new Promise(() => {}));
+    checkoutMocks.buildCheckoutBridgeUrl.mockClear();
+    cartContext.couponCode = '';
+    cartContext.affiliateCode = '';
+    cartContext.affiliateSource = '';
+  });
+
   it('keeps the manual field collapsed and explains its single purpose', () => {
     render(<CheckoutPage />);
 
@@ -71,5 +89,21 @@ describe('Checkout abandoned-cart coupon disclosure', () => {
     render(<CheckoutPage />);
     expect(screen.getByLabelText('Escribe el código del afiliado')).toBeInTheDocument();
     expect(screen.getByText('No se combina con otras promociones.')).toBeVisible();
+  });
+
+  it('forwards only code and source when preparing an affiliate checkout', async () => {
+    checkoutMocks.user = { id: 'customer-1' };
+    cartContext.couponCode = 'RECUPERA20';
+    cartContext.affiliateCode = 'NICO';
+    cartContext.affiliateSource = 'manual';
+    render(<CheckoutPage />);
+
+    await waitFor(() => expect(checkoutMocks.buildCheckoutBridgeUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        couponCode: 'RECUPERA20',
+        affiliateCode: 'NICO',
+        affiliateSource: 'manual',
+      }),
+    ));
   });
 });
