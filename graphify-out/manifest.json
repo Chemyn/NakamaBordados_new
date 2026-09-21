@@ -618,9 +618,9 @@
     "semantic_hash": ""
   },
   "src/app/context/LanguageContext.tsx": {
-    "mtime": 1789855022.6748168,
-    "seen": 1789954736.4633698,
-    "ast_hash": "1cac80d25ed41dc8c4be8a46d9a010d6",
+    "mtime": 1789957610.0633125,
+    "seen": 1789958084.322132,
+    "ast_hash": "a38b5ffece173b45c6040c87698978f9",
     "semantic_hash": ""
   },
   "src/app/cotizador/App.tsx": {
@@ -756,15 +756,15 @@
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/AccountSectionNav.test.tsx": {
-    "mtime": 1788806043.5909593,
-    "seen": 1788975528.5749905,
-    "ast_hash": "97125a92518e38d471107cf9bb792211",
+    "mtime": 1789957204.8958535,
+    "seen": 1789958084.3221629,
+    "ast_hash": "ef23c5210fb8bc823cf85349a67457e6",
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/AccountSectionNav.tsx": {
-    "mtime": 1788806043.5929682,
-    "seen": 1788975528.574992,
-    "ast_hash": "9ffdfe7d8f9e0cdfcebd3bbf49457a1e",
+    "mtime": 1789957595.5551484,
+    "seen": 1789958084.322164,
+    "ast_hash": "03155bf66c037204d9028f55166b011c",
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/AuthModeTabs.test.tsx": {
@@ -810,15 +810,15 @@
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/page.test.tsx": {
-    "mtime": 1789413939.4047844,
-    "seen": 1789414623.2604764,
-    "ast_hash": "474472e2801b0307830440e6b98375b4",
+    "mtime": 1789957213.2262127,
+    "seen": 1789958084.3221729,
+    "ast_hash": "3ba156bcd2325a7e6f71fd22e8036d89",
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/page.tsx": {
-    "mtime": 1789413787.6033342,
-    "seen": 1789414623.26048,
-    "ast_hash": "6e3d11f843b7e9a5edda3e477b94f4a6",
+    "mtime": 1789957602.3584356,
+    "seen": 1789958084.3221736,
+    "ast_hash": "741369f5862e1680aed628951ab6a35b",
     "semantic_hash": ""
   },
   "src/app/page.tsx": {
@@ -876,9 +876,9 @@
     "semantic_hash": ""
   },
   "src/app/sitemap.ts": {
-    "mtime": 1789766847.7901862,
-    "seen": 1789767504.1334617,
-    "ast_hash": "d469d43675cb4d810d8c992350b4aa87",
+    "mtime": 1789957617.3067257,
+    "seen": 1789958084.322189,
+    "ast_hash": "86b17004a34341958171e87e3536bc9d",
     "semantic_hash": ""
   },
   "src/app/store/page.tsx": {
@@ -2274,9 +2274,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-repository.php": {
-    "mtime": 1789956787.2002041,
-    "seen": 1789956823.5118604,
-    "ast_hash": "ccda2912c89a744651e10f67c7cd1f64",
+    "mtime": 1789958001.720049,
+    "seen": 1789958084.3220258,
+    "ast_hash": "fd640c1de58b7a76abb41cc83c8fcb43",
     "semantic_hash": ""
   },
   "nakama-affiliates/nakama-affiliates.php": {
@@ -2340,9 +2340,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-rest.php": {
-    "mtime": 1789956634.939341,
-    "seen": 1789956823.5118632,
-    "ast_hash": "5f3b376866f6d49b304e00c827ea2671",
+    "mtime": 1789957088.067009,
+    "seen": 1789958084.322027,
+    "ast_hash": "0e7d0bbcd14087e7fccf1693db3a8420",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-codes-test.php": {
@@ -2352,9 +2352,9 @@
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-rest-test.php": {
-    "mtime": 1789956428.007024,
-    "seen": 1789956823.5123322,
-    "ast_hash": "b1a13475f6ef1b805ed3dae8f39e1aeb",
+    "mtime": 1789956979.7827952,
+    "seen": 1789958084.32225,
+    "ast_hash": "95d282d2973fedded6f413e845361055",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-discounts.php": {
@@ -2460,9 +2460,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-documents.php": {
-    "mtime": 1789956620.2739255,
-    "seen": 1789956823.5118382,
-    "ast_hash": "921d6b8452995a8d0b45011d841097e5",
+    "mtime": 1789957072.6200666,
+    "seen": 1789958084.3220148,
+    "ast_hash": "1e29e76424085b54742eff12049e61cf",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-private-files.php": {
@@ -2475,6 +2475,36 @@
     "mtime": 1789956794.4442303,
     "seen": 1789956823.512323,
     "ast_hash": "6941f48634bfd2688ad23e5d3eddc928",
+    "semantic_hash": ""
+  },
+  "src/app/afiliados/AffiliateDashboard.test.tsx": {
+    "mtime": 1789958025.6523626,
+    "seen": 1789958084.3220806,
+    "ast_hash": "f815140b1050061226a9d428a3ea8928",
+    "semantic_hash": ""
+  },
+  "src/app/afiliados/AffiliateDashboard.tsx": {
+    "mtime": 1789958038.8939936,
+    "seen": 1789958084.322082,
+    "ast_hash": "aa4fc26f7d25fe47b68bb11bd432bb5d",
+    "semantic_hash": ""
+  },
+  "src/app/afiliados/page.tsx": {
+    "mtime": 1789957337.1807108,
+    "seen": 1789958084.3220832,
+    "ast_hash": "ca15b720edaef2219d751f4109adf34f",
+    "semantic_hash": ""
+  },
+  "src/lib/affiliates-api.test.ts": {
+    "mtime": 1789958013.82353,
+    "seen": 1789958084.3221977,
+    "ast_hash": "f86708f1210bbfaeec28ea6949ca1547",
+    "semantic_hash": ""
+  },
+  "src/lib/affiliates-api.ts": {
+    "mtime": 1789958007.6424012,
+    "seen": 1789958084.3221989,
+    "ast_hash": "0db01333db5495de76f9cb7276fc2d66",
     "semantic_hash": ""
   }
 }

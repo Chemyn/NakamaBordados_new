@@ -6,6 +6,8 @@ define( 'DAY_IN_SECONDS', 86400 );
 
 $affiliate_rest_actions = array();
 $affiliate_rest_routes = array();
+$affiliate_rest_document_status = 'pending';
+$affiliate_rest_ledger_filter = 0;
 
 function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
 	global $affiliate_rest_actions;
@@ -24,6 +26,9 @@ function rest_ensure_response( $data ) {
 function current_user_can( $capability ) {
 	return 'access_affiliate_dashboard' === $capability;
 }
+
+function wp_timezone() { return new DateTimeZone( 'America/Hermosillo' ); }
+function home_url( $path = '' ) { return 'https://nakamabordados.com' . $path; }
 
 function get_current_user_id() {
 	return 7;
@@ -73,7 +78,40 @@ final class Nakama_Affiliates_Permissions {
 
 final class Nakama_Affiliates_Repository {
 	public static function profile_by_user( $user_id ) {
-		return array( 'id' => 4, 'status' => 'active', 'code' => 'VALIDO' );
+		return array( 'id' => 4, 'user_id' => 7, 'status' => 'active', 'code' => 'VALIDO', 'discount_rate' => 0.10, 'commission_rate' => 0.10 );
+	}
+	public static function profile_by_id( $affiliate_id ) { return 4 === (int) $affiliate_id ? self::profile_by_user( 7 ) : null; }
+	public static function ledger_summary( $affiliate_id, $period ) {
+		global $affiliate_rest_ledger_filter;
+		$affiliate_rest_ledger_filter = (int) $affiliate_id;
+		return array( 'sales_count' => 3, 'refund_count' => 1, 'sales_mxn' => 12500.0, 'commission_mxn' => 1250.0 );
+	}
+	public static function ledger_for_affiliate( $affiliate_id, $page, $per_page ) {
+		global $affiliate_rest_ledger_filter;
+		$affiliate_rest_ledger_filter = (int) $affiliate_id;
+		return array(
+			'items' => array( array(
+				'id' => 9,
+				'event_type' => 'sale',
+				'order_id' => 501,
+				'period_key' => '2026-09',
+				'source_currency' => 'MXN',
+				'source_base' => 1000,
+				'rate_to_mxn' => 1,
+				'base_mxn' => 1000,
+				'commission_mxn' => 100,
+				'status' => 'posted',
+				'occurred_at_gmt' => '2026-09-20 12:00:00',
+			) ),
+			'has_more' => false,
+		);
+	}
+}
+
+final class Nakama_Affiliates_Documents {
+	public static function current_for_user() {
+		global $affiliate_rest_document_status;
+		return array( 'id' => 2, 'status' => $affiliate_rest_document_status, 'fileName' => 'constancia.pdf', 'fileSize' => 100, 'uploadedAt' => '2026-09-20 12:00:00', 'reviewedAt' => null, 'reason' => null );
 	}
 }
 
@@ -95,6 +133,9 @@ affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/acce
 affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/me/fiscal-document'] ), 'The private fiscal document upload and status route exists.' );
 affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/me/fiscal-document/download'] ), 'The owner-only fiscal download route exists.' );
 affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/admin/documents/(?P<id>\\d+)/review'] ), 'The administrative document review route exists.' );
+affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/me'] ), 'The private affiliate identity route exists.' );
+affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/me/dashboard'] ), 'The private affiliate dashboard route exists.' );
+affiliates_rest_assert( isset( $affiliate_rest_routes['nakama/v1/affiliates/me/sales'] ), 'The private affiliate sales route exists.' );
 
 $response = Nakama_Affiliates_REST::validate_code( new WP_REST_Request( array( 'code' => 'valido' ) ) );
 affiliates_rest_assert( true === $response->data['valid'], 'A valid public code receives a positive response.' );
@@ -114,5 +155,22 @@ $access = Nakama_Affiliates_REST::access();
 affiliates_rest_assert( true === $access->data['can'], 'The access probe reflects the server capability.' );
 affiliates_rest_assert( false === $access->data['vip'], 'VIP remains a separate permission.' );
 affiliates_rest_assert( 'active' === $access->data['status'], 'The operational profile status is exposed only to its owner.' );
+
+$me = Nakama_Affiliates_REST::me( new WP_REST_Request( array() ) );
+affiliates_rest_assert( false === $me->data['financialAccess'], 'A pending fiscal document blocks financial information.' );
+affiliates_rest_assert( 'pending' === $me->data['fiscal']['status'], 'The owner receives only the current fiscal status before approval.' );
+$blocked_dashboard = Nakama_Affiliates_REST::dashboard( new WP_REST_Request( array() ) );
+affiliates_rest_assert( 'fiscal_required' === $blocked_dashboard->data['code'], 'Dashboard data stays gated before fiscal approval.' );
+
+$affiliate_rest_document_status = 'approved';
+$dashboard = Nakama_Affiliates_REST::dashboard( new WP_REST_Request( array() ) );
+affiliates_rest_assert( true === $dashboard->data['success'], 'An approved affiliate can read their dashboard.' );
+affiliates_rest_assert( 1250.0 === $dashboard->data['summary']['commissionMxn'], 'Dashboard commission comes from the server ledger.' );
+affiliates_rest_assert( 4 === $affiliate_rest_ledger_filter, 'Financial queries are always filtered by the authenticated affiliate.' );
+$sales = Nakama_Affiliates_REST::sales( new WP_REST_Request( array( 'page' => 1 ) ) );
+affiliates_rest_assert( 501 === $sales->data['items'][0]['orderId'], 'Sales expose the affiliate event without buyer identity.' );
+foreach ( array( 'buyer', 'customer', 'email', 'name', 'address' ) as $pii_key ) {
+	affiliates_rest_assert( ! array_key_exists( $pii_key, $sales->data['items'][0] ), "Affiliate sales never expose {$pii_key}." );
+}
 
 echo "PHP Nakama Affiliates REST tests passed.\n";

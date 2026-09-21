@@ -61,6 +61,7 @@ const mocks = vi.hoisted(() => ({
   },
   fetchProductionAccess: vi.fn(),
   fetchWarehouseAccess: vi.fn(),
+  fetchAffiliateAccess: vi.fn(),
 }));
 
 vi.mock('../context/AuthContext', () => ({ useAuth: () => mocks.auth }));
@@ -116,6 +117,9 @@ vi.mock('@/lib/production-api', () => ({
 }));
 vi.mock('@/lib/warehouse-api', () => ({
   fetchWarehouseAccess: () => mocks.fetchWarehouseAccess(),
+}));
+vi.mock('@/lib/affiliates-api', () => ({
+  fetchAffiliateAccess: () => mocks.fetchAffiliateAccess(),
 }));
 
 function createUser(orders: TestOrder[] = []): TestUser {
@@ -186,6 +190,7 @@ beforeEach(() => {
   mocks.router.replace.mockReset();
   mocks.fetchProductionAccess.mockReset().mockResolvedValue({ can: false });
   mocks.fetchWarehouseAccess.mockReset().mockResolvedValue(false);
+  mocks.fetchAffiliateAccess.mockReset().mockResolvedValue({ can: false });
   window.history.replaceState(null, '', '/mi-cuenta/');
 });
 
@@ -269,6 +274,17 @@ describe('MiCuentaPage accessibility and account navigation', () => {
 
     expect(screen.getByRole('link', { name: 'Panel de Producción' })).toBeVisible();
     expect(screen.getByRole('link', { name: 'Panel de Almacén' })).toBeVisible();
+    expect(screen.getByRole('link', { name: 'Panel de Afiliados' })).toBeVisible();
+  });
+
+  it('shows the dedicated affiliate panel link and never the retired commission tab', async () => {
+    mocks.auth.user = { ...createUser(), comisiones: ['legacy-demo'] };
+    mocks.fetchAffiliateAccess.mockResolvedValue({ can: true });
+    render(<MiCuentaPage />);
+
+    expect(await screen.findByRole('link', { name: 'Panel de Afiliados' })).toHaveAttribute('href', '/afiliados/');
+    expect(screen.queryByRole('tab', { name: /comisiones/i })).not.toBeInTheDocument();
+    expect(screen.queryByText('Saldo por Reclamar')).not.toBeInTheDocument();
   });
 
   it('places sign out in the sidebar footer, away from the identity header', () => {

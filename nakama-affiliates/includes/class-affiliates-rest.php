@@ -59,6 +59,24 @@ final class Nakama_Affiliates_REST {
 			'callback'            => array( __CLASS__, 'download_fiscal_document' ),
 			'permission_callback' => array( __CLASS__, 'admin_permission' ),
 		) );
+
+		register_rest_route( self::NAMESPACE_NAME, '/affiliates/me', array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => array( __CLASS__, 'me' ),
+			'permission_callback' => array( __CLASS__, 'affiliate_permission' ),
+		) );
+
+		register_rest_route( self::NAMESPACE_NAME, '/affiliates/me/dashboard', array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => array( __CLASS__, 'dashboard' ),
+			'permission_callback' => array( __CLASS__, 'affiliate_permission' ),
+		) );
+
+		register_rest_route( self::NAMESPACE_NAME, '/affiliates/me/sales', array(
+			'methods'             => WP_REST_Server::READABLE,
+			'callback'            => array( __CLASS__, 'sales' ),
+			'permission_callback' => array( __CLASS__, 'affiliate_permission' ),
+		) );
 	}
 
 	public static function validate_code( WP_REST_Request $request ) {
@@ -137,6 +155,136 @@ final class Nakama_Affiliates_REST {
 			return self::no_store_response( array( 'success' => false, 'message' => 'El archivo privado no está disponible.' ) );
 		}
 		return null;
+	}
+
+	public static function me( WP_REST_Request $request ) {
+		$context = self::affiliate_context( $request );
+		if ( ! $context['profile'] ) {
+			return self::no_store_response( array( 'can' => false, 'message' => 'No existe un perfil de afiliado disponible.' ) );
+		}
+
+		$profile = $context['profile'];
+		$fiscal  = self::fiscal_context( $profile, $context['support'] );
+		return self::no_store_response( array(
+			'can'             => true,
+			'vip'             => self::profile_is_vip( $profile ),
+			'supportMode'     => $context['support'],
+			'financialAccess' => $context['support'] || 'approved' === $fiscal['status'],
+			'profile'         => self::public_profile( $profile ),
+			'fiscal'          => $fiscal,
+		) );
+	}
+
+	public static function dashboard( WP_REST_Request $request ) {
+		$context = self::affiliate_context( $request );
+		if ( ! $context['profile'] ) {
+			return self::no_store_response( array( 'success' => false, 'code' => 'forbidden', 'message' => 'No existe un perfil de afiliado disponible.' ) );
+		}
+
+		$fiscal = self::fiscal_context( $context['profile'], $context['support'] );
+		if ( ! $context['support'] && 'approved' !== $fiscal['status'] ) {
+			return self::no_store_response( array( 'success' => false, 'code' => 'fiscal_required', 'fiscal' => $fiscal ) );
+		}
+
+		$period  = self::current_period();
+		$summary = Nakama_Affiliates_Repository::ledger_summary( (int) $context['profile']['id'], $period );
+		return self::no_store_response( array(
+			'success' => true,
+			'period'  => $period,
+			'code'    => (string) $context['profile']['code'],
+			'referralUrl' => self::referral_url( $context['profile']['code'] ),
+			'summary' => array(
+				'salesCount'    => (int) ( $summary['sales_count'] ?? 0 ),
+				'refundCount'   => (int) ( $summary['refund_count'] ?? 0 ),
+				'salesMxn'      => (float) ( $summary['sales_mxn'] ?? 0 ),
+				'commissionMxn' => (float) ( $summary['commission_mxn'] ?? 0 ),
+			),
+		) );
+	}
+
+	public static function sales( WP_REST_Request $request ) {
+		$context = self::affiliate_context( $request );
+		if ( ! $context['profile'] ) {
+			return self::no_store_response( array( 'success' => false, 'code' => 'forbidden', 'items' => array() ) );
+		}
+		$fiscal = self::fiscal_context( $context['profile'], $context['support'] );
+		if ( ! $context['support'] && 'approved' !== $fiscal['status'] ) {
+			return self::no_store_response( array( 'success' => false, 'code' => 'fiscal_required', 'items' => array() ) );
+		}
+
+		$page = max( 1, (int) $request->get_param( 'page' ) );
+		$data = Nakama_Affiliates_Repository::ledger_for_affiliate( (int) $context['profile']['id'], $page, 20 );
+		$items = array_map( static function ( $event ) {
+			return array(
+				'id'             => (int) $event['id'],
+				'eventType'      => (string) $event['event_type'],
+				'orderId'        => (int) $event['order_id'],
+				'period'         => (string) $event['period_key'],
+				'sourceCurrency' => (string) $event['source_currency'],
+				'sourceBase'     => (float) $event['source_base'],
+				'rateToMxn'      => (float) $event['rate_to_mxn'],
+				'baseMxn'        => (float) $event['base_mxn'],
+				'commissionMxn'  => (float) $event['commission_mxn'],
+				'status'         => (string) $event['status'],
+				'occurredAt'     => (string) $event['occurred_at_gmt'],
+			);
+		}, $data['items'] ?? array() );
+
+		return self::no_store_response( array(
+			'success' => true,
+			'page'    => $page,
+			'hasMore' => ! empty( $data['has_more'] ),
+			'items'   => $items,
+		) );
+	}
+
+	private static function affiliate_context( WP_REST_Request $request ) {
+		$is_support = current_user_can( 'manage_woocommerce' );
+		$target_id  = $is_support ? (int) $request->get_param( 'affiliate_id' ) : 0;
+		$profile    = $target_id > 0
+			? Nakama_Affiliates_Repository::profile_by_id( $target_id )
+			: Nakama_Affiliates_Repository::profile_by_user( get_current_user_id() );
+		return array( 'profile' => $profile, 'support' => $is_support && $target_id > 0 );
+	}
+
+	private static function fiscal_context( $profile, $support = false ) {
+		if ( $support && method_exists( 'Nakama_Affiliates_Documents', 'current_for_affiliate' ) ) {
+			$document = Nakama_Affiliates_Documents::current_for_affiliate( (int) $profile['id'] );
+		} else {
+			$document = Nakama_Affiliates_Documents::current_for_user();
+		}
+		return array(
+			'required' => true,
+			'status'   => $document ? (string) $document['status'] : 'missing',
+			'document' => $document,
+		);
+	}
+
+	private static function public_profile( $profile ) {
+		return array(
+			'code'                 => (string) $profile['code'],
+			'status'               => (string) $profile['status'],
+			'discountPercentage'   => round( (float) $profile['discount_rate'] * 100, 2 ),
+			'commissionPercentage' => round( (float) $profile['commission_rate'] * 100, 2 ),
+			'referralUrl'          => self::referral_url( $profile['code'] ),
+		);
+	}
+
+	private static function referral_url( $code ) {
+		return home_url( '/?ref=' . rawurlencode( (string) $code ) );
+	}
+
+	private static function profile_is_vip( $profile ) {
+		if ( function_exists( 'get_userdata' ) && function_exists( 'user_can' ) ) {
+			$user = get_userdata( (int) $profile['user_id'] );
+			return $user ? (bool) user_can( $user, Nakama_Affiliates_Permissions::VIP_CAP ) : false;
+		}
+		return false;
+	}
+
+	private static function current_period() {
+		$timezone = function_exists( 'wp_timezone' ) ? wp_timezone() : new DateTimeZone( 'UTC' );
+		return ( new DateTimeImmutable( 'now', $timezone ) )->format( 'Y-m' );
 	}
 
 	private static function no_store_response( array $data ) {

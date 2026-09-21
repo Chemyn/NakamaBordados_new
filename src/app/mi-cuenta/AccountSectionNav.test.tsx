@@ -4,14 +4,13 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 import AccountSectionNav, { type AccountSectionId } from './AccountSectionNav';
 
-function ControlledNav({ hasCommissions = false }: { hasCommissions?: boolean }) {
+function ControlledNav() {
   const [activeTab, setActiveTab] = useState<AccountSectionId>('dashboard');
 
   return (
     <>
       <AccountSectionNav
         activeTab={activeTab}
-        hasCommissions={hasCommissions}
         onTabChange={setActiveTab}
       />
       <div
@@ -30,7 +29,6 @@ describe('AccountSectionNav', () => {
     render(
       <AccountSectionNav
         activeTab="dashboard"
-        hasCommissions={false}
         onTabChange={vi.fn()}
       />,
     );
@@ -41,25 +39,21 @@ describe('AccountSectionNav', () => {
     expect(screen.getByRole('tab', { name: /resumen/i })).toHaveAttribute('aria-selected', 'true');
   });
 
-  it('adds commissions only when the account provides it', () => {
+  it('does not expose the retired fixed commission prototype', () => {
     render(
       <AccountSectionNav
         activeTab="dashboard"
-        hasCommissions
         onTabChange={vi.fn()}
       />,
     );
 
-    expect(screen.getAllByRole('tab')).toHaveLength(6);
-    expect(screen.getByRole('tab', { name: /comisiones/i })).toHaveAttribute(
-      'aria-controls',
-      'account-panel-commissions',
-    );
+    expect(screen.getAllByRole('tab')).toHaveLength(5);
+    expect(screen.queryByRole('tab', { name: /comisiones/i })).not.toBeInTheDocument();
   });
 
   it('activates and focuses tabs with arrow, Home and End keys', async () => {
     const user = userEvent.setup();
-    render(<ControlledNav hasCommissions />);
+    render(<ControlledNav />);
 
     const summaryTab = screen.getByRole('tab', { name: /resumen/i });
     summaryTab.focus();
@@ -69,7 +63,7 @@ describe('AccountSectionNav', () => {
     expect(screen.getByRole('tab', { name: /pedidos/i })).toHaveAttribute('aria-selected', 'true');
 
     await user.keyboard('{End}');
-    expect(screen.getByRole('tab', { name: /comisiones/i })).toHaveFocus();
+    expect(screen.getByRole('tab', { name: /cuenta/i })).toHaveFocus();
 
     await user.keyboard('{Home}');
     expect(summaryTab).toHaveFocus();

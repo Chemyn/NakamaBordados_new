@@ -55,7 +55,11 @@ final class Nakama_Affiliates_Documents {
 		if ( ! $profile ) {
 			return null;
 		}
-		$document = Nakama_Affiliates_Repository::current_document( (int) $profile['id'], 'fiscal' );
+		return self::current_for_affiliate( (int) $profile['id'] );
+	}
+
+	public static function current_for_affiliate( $affiliate_id ) {
+		$document = Nakama_Affiliates_Repository::current_document( (int) $affiliate_id, 'fiscal' );
 		return $document ? self::public_document( $document ) : null;
 	}
 

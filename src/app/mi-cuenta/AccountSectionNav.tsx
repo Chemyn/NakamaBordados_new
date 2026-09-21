@@ -1,14 +1,13 @@
 'use client';
 
-import { useMemo, useRef } from 'react';
+import { useRef } from 'react';
 
 export type AccountSectionId =
   | 'dashboard'
   | 'orders'
   | 'tracking'
   | 'addresses'
-  | 'profile'
-  | 'commissions';
+  | 'profile';
 
 interface AccountSection {
   id: AccountSectionId;
@@ -24,28 +23,17 @@ const CUSTOMER_SECTIONS: AccountSection[] = [
   { id: 'profile', label: 'Cuenta', icon: 'manage_accounts' },
 ];
 
-const COMMISSIONS_SECTION: AccountSection = {
-  id: 'commissions',
-  label: 'Comisiones',
-  icon: 'payments',
-};
-
 interface AccountSectionNavProps {
   activeTab: AccountSectionId;
-  hasCommissions: boolean;
   onTabChange: (tab: AccountSectionId) => void;
 }
 
 export default function AccountSectionNav({
   activeTab,
-  hasCommissions,
   onTabChange,
 }: AccountSectionNavProps) {
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
-  const sections = useMemo(
-    () => hasCommissions ? [...CUSTOMER_SECTIONS, COMMISSIONS_SECTION] : CUSTOMER_SECTIONS,
-    [hasCommissions],
-  );
+  const sections = CUSTOMER_SECTIONS;
 
   const activateAt = (index: number) => {
     const nextIndex = (index + sections.length) % sections.length;

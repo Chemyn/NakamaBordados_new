@@ -165,6 +165,46 @@ final class Nakama_Affiliates_Repository {
 		);
 	}
 
+	public static function ledger_summary( $affiliate_id, $period_key ) {
+		global $wpdb;
+		$row = $wpdb->get_row( $wpdb->prepare(
+			'SELECT
+				SUM(CASE WHEN event_type = \'sale\' AND status = \'posted\' THEN 1 ELSE 0 END) AS sales_count,
+				SUM(CASE WHEN event_type IN (\'refund\', \'reversal\') AND status = \'posted\' THEN 1 ELSE 0 END) AS refund_count,
+				SUM(CASE WHEN status = \'posted\' THEN base_mxn ELSE 0 END) AS sales_mxn,
+				SUM(CASE WHEN status = \'posted\' THEN commission_mxn ELSE 0 END) AS commission_mxn
+			FROM ' . self::table( 'ledger' ) . ' WHERE affiliate_id = %d AND period_key = %s',
+			(int) $affiliate_id,
+			(string) $period_key
+		), ARRAY_A );
+
+		return $row ?: array(
+			'sales_count'   => 0,
+			'refund_count'  => 0,
+			'sales_mxn'     => 0,
+			'commission_mxn'=> 0,
+		);
+	}
+
+	public static function ledger_for_affiliate( $affiliate_id, $page = 1, $per_page = 20 ) {
+		global $wpdb;
+		$page     = max( 1, (int) $page );
+		$per_page = min( 50, max( 1, (int) $per_page ) );
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			'SELECT id,event_type,order_id,period_key,source_currency,source_base,rate_to_mxn,base_mxn,commission_mxn,status,occurred_at_gmt
+			FROM ' . self::table( 'ledger' ) . ' WHERE affiliate_id = %d ORDER BY occurred_at_gmt DESC,id DESC LIMIT %d OFFSET %d',
+			(int) $affiliate_id,
+			$per_page + 1,
+			( $page - 1 ) * $per_page
+		), ARRAY_A );
+		$rows = is_array( $rows ) ? $rows : array();
+		$has_more = count( $rows ) > $per_page;
+		if ( $has_more ) {
+			array_pop( $rows );
+		}
+		return array( 'items' => $rows, 'has_more' => $has_more );
+	}
+
 	/** Insert by unique event key and treat a duplicate race as success. */
 	public static function insert_ledger_event( array $data ) {
 		global $wpdb;

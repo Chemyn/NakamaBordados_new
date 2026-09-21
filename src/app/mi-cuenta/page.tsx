@@ -14,6 +14,7 @@ import { openWpAdmin, seedWpSession, WP_ADMIN_URL, WP_PASSWORD_RESET_URL } from 
 import { apiOrigin } from '@/lib/api-host';
 import { fetchProductionAccess } from '@/lib/production-api';
 import { fetchWarehouseAccess } from '@/lib/warehouse-api';
+import { fetchAffiliateAccess } from '@/lib/affiliates-api';
 import AccountProgress from './AccountProgress';
 import AccountSectionNav, { type AccountSectionId } from './AccountSectionNav';
 import AuthModeTabs from './AuthModeTabs';
@@ -126,7 +127,7 @@ const formatEventTime = (iso: string): string => {
 export default function MiCuentaPage() {
   const { user, login, register, logout, updateProfile, refreshUser, isLoading, isAdmin } = useAuth();
   const { addQuoteToCart, isQuoteInCart } = useCart();
-  const { formatPrice, currencyInfo } = useCurrency();
+  const { currencyInfo } = useCurrency();
   const { t } = useLanguage();
 
   const [activeTab, setActiveTab] = useState<AccountSectionId>('dashboard');
@@ -219,6 +220,20 @@ export default function MiCuentaPage() {
     const userId = user.id;
     fetchProductionAccess().then(access => {
       if (alive) setProductionAccess({ userId, can: access.can });
+    });
+    return () => { alive = false; };
+  }, [user]);
+
+  // El programa de afiliados usa la misma visibilidad por capacidad que los
+  // paneles internos. El contenido financiero permanece protegido en su API.
+  const [affiliateAccess, setAffiliateAccess] = useState({ userId: '', can: false });
+  const canAffiliate = Boolean(user && (isAdmin || (affiliateAccess.userId === user.id && affiliateAccess.can)));
+  useEffect(() => {
+    if (!user) return;
+    let alive = true;
+    const userId = user.id;
+    fetchAffiliateAccess().then(access => {
+      if (alive) setAffiliateAccess({ userId, can: access.can });
     });
     return () => { alive = false; };
   }, [user]);
@@ -408,11 +423,10 @@ export default function MiCuentaPage() {
 
                   <AccountSectionNav
                     activeTab={activeTab}
-                    hasCommissions={Boolean(user.comisiones)}
                     onTabChange={setActiveTab}
                   />
 
-                  {(canProduction || canWarehouse || isAdmin) && (
+                  {(canProduction || canWarehouse || canAffiliate || isAdmin) && (
                     <section className="nk-work-access" aria-labelledby="work-access-title">
                       <h4 id="work-access-title">Accesos de trabajo</h4>
                       <ul>
@@ -429,6 +443,14 @@ export default function MiCuentaPage() {
                             <Link href="/almacen/" className="nk-work-link">
                               <span className="material-icons-outlined" aria-hidden="true">inventory_2</span>
                               Panel de Almacén
+                            </Link>
+                          </li>
+                        )}
+                        {canAffiliate && (
+                          <li>
+                            <Link href="/afiliados/" className="nk-work-link">
+                              <span className="material-icons-outlined" aria-hidden="true">handshake</span>
+                              Panel de Afiliados
                             </Link>
                           </li>
                         )}
@@ -731,31 +753,6 @@ export default function MiCuentaPage() {
                       )}
                     </div>
                   </section>
-
-                  {Boolean(user.comisiones) && (
-                  <section
-                    id="account-panel-commissions"
-                    role="tabpanel"
-                    aria-labelledby="account-tab-commissions"
-                    tabIndex={activeTab === 'commissions' ? 0 : undefined}
-                    hidden={activeTab !== 'commissions'}
-                    className="nk-account-panel"
-                  >
-                    <div className="nk-tab-pane nk-dash-animate">
-                      <h2 className="nk-section-title">Tus Ganancias</h2>
-                      <div className="nk-commission-card nk-manga-border">
-                        <div className="nk-commission-icon">
-                          <span className="material-icons-outlined">account_balance_wallet</span>
-                        </div>
-                        <div className="nk-commission-info">
-                          <p className="nk-label">Saldo por Reclamar</p>
-                          <p className="nk-commission-amount">{formatPrice(1250.50)}</p>
-                          <p className="nk-commission-meta">Corte de mes: 30 de Junio</p>
-                        </div>
-                      </div>
-                    </div>
-                  </section>
-                  )}
 
                   <section
                     id="account-panel-addresses"
@@ -1698,35 +1695,7 @@ export default function MiCuentaPage() {
           line-height: 1.55;
         }
 
-        /* Commissions & Profile */
-        .nk-commission-card {
-          padding: 20px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          text-align: center;
-          gap: 20px;
-        }
-
-        @media (min-width: 600px) {
-          .nk-commission-card {
-            flex-direction: row;
-            text-align: left;
-            padding: 30px;
-          }
-        }
-
-        .nk-commission-amount {
-          font-size: 2.5rem;
-          color: var(--nk-primary);
-          font-family: 'Teko', sans-serif;
-          line-height: 1;
-        }
-
-        @media (min-width: 768px) {
-          .nk-commission-amount { font-size: 3.5rem; }
-        }
-
+        /* Profile */
         .nk-profile-grid {
           margin: 0;
           display: grid;
