@@ -294,9 +294,9 @@
     "semantic_hash": ""
   },
   "nakama-checkout-tools.php": {
-    "mtime": 1789996856.2231748,
-    "seen": 1789996949.0553806,
-    "ast_hash": "39e505fd4ffcbd3af8e5b03691534dd9",
+    "mtime": 1790015490.4486518,
+    "seen": 1790099216.148398,
+    "ast_hash": "dd93c1aba518605d4ebc28d0ae4ea428",
     "semantic_hash": ""
   },
   "nakama-discounts/assets/js/checkout.js": {
@@ -324,9 +324,9 @@
     "semantic_hash": ""
   },
   "nakama-discounts/includes/class-cart.php": {
-    "mtime": 1789854616.362285,
-    "seen": 1789854648.7405026,
-    "ast_hash": "86788c9dfeecbceb67bc1c7b7ff4fefc",
+    "mtime": 1790015490.2034307,
+    "seen": 1790099216.1484077,
+    "ast_hash": "a2d2d2431b99a33241ae7715b39d996b",
     "semantic_hash": ""
   },
   "nakama-discounts/includes/class-context.php": {
@@ -342,9 +342,9 @@
     "semantic_hash": ""
   },
   "nakama-discounts/includes/class-engine.php": {
-    "mtime": 1789854362.1924586,
-    "seen": 1789854405.8143947,
-    "ast_hash": "a52bd2a5df2f542206be876a49f66ff4",
+    "mtime": 1790015490.1031387,
+    "seen": 1790099216.1484158,
+    "ast_hash": "aa91ee925f008c1463b1e086dd0e07b0",
     "semantic_hash": ""
   },
   "nakama-discounts/includes/class-msi.php": {
@@ -366,9 +366,9 @@
     "semantic_hash": ""
   },
   "nakama-discounts/nakama-discounts.php": {
-    "mtime": 1789854374.744316,
-    "seen": 1789854405.8144,
-    "ast_hash": "d3a520490d30b7f0e883a6ad6861d876",
+    "mtime": 1790015490.1042702,
+    "seen": 1790099216.1484241,
+    "ast_hash": "decc5f5db98c305a3ceebded9caf0c33",
     "semantic_hash": ""
   },
   "nakama-envia-tracking.php": {
@@ -474,21 +474,21 @@
     "semantic_hash": ""
   },
   "src/app/cart/page.tsx": {
-    "mtime": 1789955363.9405825,
-    "seen": 1789955450.6163585,
-    "ast_hash": "1ddb255450f954356083ac71006bb7fa",
+    "mtime": 1790015490.4541767,
+    "seen": 1790099216.148501,
+    "ast_hash": "68170d57322e06205b29949582564d52",
     "semantic_hash": ""
   },
   "src/app/checkout/page.tsx": {
-    "mtime": 1789955371.7281895,
-    "seen": 1789955450.616362,
-    "ast_hash": "a3563e6abbb64488c68c127622133537",
+    "mtime": 1790015490.4589841,
+    "seen": 1790099216.1485038,
+    "ast_hash": "3ecda21d6cfca82bd183dedf08a627ed",
     "semantic_hash": ""
   },
   "src/app/components/Analytics.tsx": {
-    "mtime": 1788806043.45675,
-    "seen": 1788975528.574936,
-    "ast_hash": "5b59eb531b72b5d7ccfc4cbfe8322a35",
+    "mtime": 1790099386.4623716,
+    "seen": 1790099488.684837,
+    "ast_hash": "d8ac86d448a7a03d9080a4d83e70f169",
     "semantic_hash": ""
   },
   "src/app/components/BuildUpdateNotice.test.tsx": {
@@ -600,9 +600,9 @@
     "semantic_hash": ""
   },
   "src/app/context/CartContext.tsx": {
-    "mtime": 1789855097.5573053,
-    "seen": 1789954736.4633605,
-    "ast_hash": "e43b748ef938e8f7fb210fc03a22d1c1",
+    "mtime": 1790015490.3228085,
+    "seen": 1790099216.1485589,
+    "ast_hash": "28673e42c08b952febf103c192d0adb0",
     "semantic_hash": ""
   },
   "src/app/context/CurrencyContext.test.tsx": {
@@ -618,9 +618,9 @@
     "semantic_hash": ""
   },
   "src/app/context/LanguageContext.tsx": {
-    "mtime": 1789999315.1145048,
-    "seen": 1789999561.7760274,
-    "ast_hash": "874629f03d443b67aefb8fc6741aa3b7",
+    "mtime": 1790015520.4344327,
+    "seen": 1790099216.1485643,
+    "ast_hash": "d29934f126d193efae83a8eada1b02a1",
     "semantic_hash": ""
   },
   "src/app/cotizador/App.tsx": {
@@ -732,9 +732,9 @@
     "semantic_hash": ""
   },
   "src/app/layout.tsx": {
-    "mtime": 1789855004.6832561,
-    "seen": 1789954736.4634304,
-    "ast_hash": "a5a97dbad4007f6e4412b943ad05f445",
+    "mtime": 1790015490.3256886,
+    "seen": 1790099216.1486025,
+    "ast_hash": "efb8d49158116aefd09a8349c6b58e96",
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/AccountColors.test.ts": {
@@ -756,15 +756,15 @@
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/AccountSectionNav.test.tsx": {
-    "mtime": 1789957204.8958535,
-    "seen": 1789958084.3221629,
-    "ast_hash": "ef23c5210fb8bc823cf85349a67457e6",
+    "mtime": 1790015491.434732,
+    "seen": 1790099216.1486113,
+    "ast_hash": "8c26be42bc145e60fda4709b930f3d2e",
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/AccountSectionNav.tsx": {
-    "mtime": 1789957595.5551484,
-    "seen": 1789958084.322164,
-    "ast_hash": "03155bf66c037204d9028f55166b011c",
+    "mtime": 1790015491.4387498,
+    "seen": 1790099216.1486132,
+    "ast_hash": "f6270c74e3dfcedf2431c14d39967edc",
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/AuthModeTabs.test.tsx": {
@@ -810,15 +810,15 @@
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/page.test.tsx": {
-    "mtime": 1789957213.2262127,
-    "seen": 1789958084.3221729,
-    "ast_hash": "3ba156bcd2325a7e6f71fd22e8036d89",
+    "mtime": 1790015491.4432595,
+    "seen": 1790099216.1486278,
+    "ast_hash": "a766a09550930535fb2531df7b7001af",
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/page.tsx": {
-    "mtime": 1789957602.3584356,
-    "seen": 1789958084.3221736,
-    "ast_hash": "741369f5862e1680aed628951ab6a35b",
+    "mtime": 1790015491.4480343,
+    "seen": 1790099216.1486292,
+    "ast_hash": "4043706ad108ca6926eafba3df362839",
     "semantic_hash": ""
   },
   "src/app/page.tsx": {
@@ -876,9 +876,9 @@
     "semantic_hash": ""
   },
   "src/app/sitemap.ts": {
-    "mtime": 1789957617.3067257,
-    "seen": 1789958084.322189,
-    "ast_hash": "86b17004a34341958171e87e3536bc9d",
+    "mtime": 1790015491.4525428,
+    "seen": 1790099216.148654,
+    "ast_hash": "6541241f4e3340eea4e5ed922bb47c78",
     "semantic_hash": ""
   },
   "src/app/store/page.tsx": {
@@ -894,9 +894,9 @@
     "semantic_hash": ""
   },
   "src/lib/analytics.ts": {
-    "mtime": 1789996617.8294666,
-    "seen": 1789996781.6934493,
-    "ast_hash": "a9d625cda82e0fe83bcb2e3582fae40e",
+    "mtime": 1790099113.9119668,
+    "seen": 1790099216.148669,
+    "ast_hash": "f17d702b8ee1973a31327c468da3cbdc",
     "semantic_hash": ""
   },
   "src/lib/api-host.ts": {
@@ -1056,9 +1056,9 @@
     "semantic_hash": ""
   },
   "tests/nakama-checkout-tools-test.php": {
-    "mtime": 1789996601.9587915,
-    "seen": 1789996781.6935172,
-    "ast_hash": "90c96ec2e4e08115b67ebe5ec6f5edaa",
+    "mtime": 1790015490.4699826,
+    "seen": 1790099216.1487675,
+    "ast_hash": "0f7323e79b4b3017688630679edeef83",
     "semantic_hash": ""
   },
   "tests/prepare-static-deployment.test.mjs": {
@@ -2016,15 +2016,15 @@
     "semantic_hash": ""
   },
   "src/app/pedido-confirmado/page.test.tsx": {
-    "mtime": 1789996609.3418853,
-    "seen": 1789996781.6934242,
-    "ast_hash": "8e2ce44c33b22df086a1cf84eae6721e",
+    "mtime": 1790099060.8403692,
+    "seen": 1790099216.1486366,
+    "ast_hash": "bfbe85ec42c4f2b82edf04e6d0de6629",
     "semantic_hash": ""
   },
   "src/app/pedido-confirmado/page.tsx": {
-    "mtime": 1788983974.4698355,
-    "seen": 1788984263.272014,
-    "ast_hash": "ac221b1e6e6beb33b693b4ad894534c9",
+    "mtime": 1790099018.6559484,
+    "seen": 1790099216.1486382,
+    "ast_hash": "175b3ad1f37cd8030496854d04ef57bc",
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/AccountEditors.tsx": {
@@ -2052,9 +2052,9 @@
     "semantic_hash": ""
   },
   "src/app/cart/page.test.tsx": {
-    "mtime": 1789955006.0197124,
-    "seen": 1789955450.6163566,
-    "ast_hash": "2b99755f81f9e3ba0c04eb4cd0345463",
+    "mtime": 1790015490.451655,
+    "seen": 1790099216.1484997,
+    "ast_hash": "f5b9e370f4c95d57ee434dc5732bee64",
     "semantic_hash": ""
   },
   "nakama-discounts/includes/class-discount-codes.php": {
@@ -2064,9 +2064,9 @@
     "semantic_hash": ""
   },
   "src/app/checkout/page.test.tsx": {
-    "mtime": 1789955016.2581189,
-    "seen": 1789955450.6163597,
-    "ast_hash": "33491d0a1c8de0b5d8c7a431694626f7",
+    "mtime": 1790015490.4569848,
+    "seen": 1790099216.1485026,
+    "ast_hash": "a9e0186a85ab4c94df190f7494f1e01e",
     "semantic_hash": ""
   },
   "src/app/components/AbandonedCartCoupon.tsx": {
@@ -2076,9 +2076,9 @@
     "semantic_hash": ""
   },
   "src/app/context/CartContext.test.tsx": {
-    "mtime": 1789854823.3623223,
-    "seen": 1789954736.4633577,
-    "ast_hash": "b74ac24e611a9c81c1cf7c0c61dd9506",
+    "mtime": 1790015490.3213024,
+    "seen": 1790099216.1485577,
+    "ast_hash": "ad164cedbda1c782643b9b74cfb145f5",
     "semantic_hash": ""
   },
   "tests/nakama-discounts-admin-test.php": {
@@ -2088,15 +2088,15 @@
     "semantic_hash": ""
   },
   "tests/nakama-discounts-cart-test.php": {
-    "mtime": 1789854548.2754595,
-    "seen": 1789854648.7406921,
-    "ast_hash": "1d33b8dc76a919cb608209baaea628ae",
+    "mtime": 1790015490.206948,
+    "seen": 1790099216.148773,
+    "ast_hash": "237bd3b8ec7e4fa54a3ae81afcaa9204",
     "semantic_hash": ""
   },
   "tests/nakama-discounts-test.php": {
-    "mtime": 1789854318.3672507,
-    "seen": 1789854405.814619,
-    "ast_hash": "a609ed7399c5ca256ce3623c27444a86",
+    "mtime": 1790015490.1042702,
+    "seen": 1790099216.1487746,
+    "ast_hash": "2a3f44c504f5a4cea6ad7b68ff091d18",
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-09-18-codigos-descuento-nakama-design.md": {
@@ -2262,309 +2262,309 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-domain.php": {
-    "mtime": 1789853653.875386,
-    "seen": 1789853707.7864509,
-    "ast_hash": "68b0c6932b011f1856de868b580d6ff4",
+    "mtime": 1790015489.7970426,
+    "seen": 1790099216.1483626,
+    "ast_hash": "cb44e337ca1708cd0761df4e36ae2315",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-installer.php": {
-    "mtime": 1789997639.0531147,
-    "seen": 1789997810.8622994,
-    "ast_hash": "db8ac34cebda8f216394d1b6c95f7701",
+    "mtime": 1790015520.2784057,
+    "seen": 1790099216.1483681,
+    "ast_hash": "dd808b1c517cd60c0fb89bd889aa5fea",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-repository.php": {
-    "mtime": 1789997630.7511303,
-    "seen": 1789997810.8623135,
-    "ast_hash": "1369f4cbacc3890cb1a471e5eb12454f",
+    "mtime": 1790015520.2804046,
+    "seen": 1790099216.148387,
+    "ast_hash": "7cc21078f754145d0faaf198252adf65",
     "semantic_hash": ""
   },
   "nakama-affiliates/nakama-affiliates.php": {
-    "mtime": 1790000178.2682772,
-    "seen": 1790015103.0440757,
-    "ast_hash": "905b66a15d4755848df83e8fd2c0c49c",
+    "mtime": 1790015520.5786011,
+    "seen": 1790099216.1483922,
+    "ast_hash": "0ce66d27d04adeaf8b24b1498b8e4e7e",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-domain-test.php": {
-    "mtime": 1789853427.2477589,
-    "seen": 1789853707.786682,
-    "ast_hash": "6c0f862030f95f08af56e0f6d86c3204",
+    "mtime": 1790015489.8052814,
+    "seen": 1790099216.1487465,
+    "ast_hash": "9f78f8ee85752a77267de293c70eaaee",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-installer-test.php": {
-    "mtime": 1789997652.322121,
-    "seen": 1789997810.8626053,
-    "ast_hash": "ec2ba3c4df31261627a10933c3da9613",
+    "mtime": 1790015520.2951386,
+    "seen": 1790099216.14875,
+    "ast_hash": "4a345ee20f8a37a5d8796a0bbeac010a",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-09-19-nakama-afiliados-implementation.md": {
-    "mtime": 1789852926.224617,
-    "seen": 1789853707.7867446,
-    "ast_hash": "d5a462f8d80d671c44595f7f52b532ba",
+    "mtime": 1790015489.665071,
+    "seen": 1790099216.148854,
+    "ast_hash": "1d0a14959dd8b1744caa1fd7be4f01d8",
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-09-19-nakama-afiliados-design.md": {
-    "mtime": 1789852316.0072024,
-    "seen": 1789853707.7867486,
-    "ast_hash": "3a3d7647888dd97b34f6ca91309a1050",
+    "mtime": 1790015489.5746589,
+    "seen": 1790099216.1488602,
+    "ast_hash": "0d2b63619c5f01388ba334e9363514d0",
     "semantic_hash": ""
   },
   "nakama-affiliates/readme.txt": {
-    "mtime": 1790000352.348956,
-    "seen": 1790015103.0447626,
-    "ast_hash": "0d0c2520bb142895d82232d975a6c5c4",
+    "mtime": 1790015520.5796008,
+    "seen": 1790099216.1488674,
+    "ast_hash": "e4eddf213b41850a9ae75584e9ca4ef7",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-permissions.php": {
-    "mtime": 1789854181.6349888,
-    "seen": 1789854241.2568967,
-    "ast_hash": "0a96335bc56b58f95a984c2d0c9a805b",
+    "mtime": 1790015490.0048993,
+    "seen": 1790099216.1483765,
+    "ast_hash": "ecfe4032cddfdfbd4f9bc40f2071b003",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-profiles.php": {
-    "mtime": 1789853891.8792117,
-    "seen": 1789853933.9754796,
-    "ast_hash": "3e10eb8ead21e7121aee33789e95247e",
+    "mtime": 1790015489.9055169,
+    "seen": 1790099216.1483831,
+    "ast_hash": "24ee9a112e4fb0b6a7b5922422435e35",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-permissions-test.php": {
-    "mtime": 1789853816.8006456,
-    "seen": 1789853933.9756958,
-    "ast_hash": "47c41a8943585af7706ccd938946de26",
+    "mtime": 1790015489.9073784,
+    "seen": 1790099216.1487565,
+    "ast_hash": "0240727e1a1ce7f164145cf19217dba9",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-codes.php": {
-    "mtime": 1789854992.3656268,
-    "seen": 1789954736.463039,
-    "ast_hash": "02906c6e04d5dcb560edd22669cfb842",
+    "mtime": 1790015490.3067842,
+    "seen": 1790099216.1483514,
+    "ast_hash": "9e1fa80e21cb4111e551a28d79719697",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-rest.php": {
-    "mtime": 1790014621.4238126,
-    "seen": 1790015103.0440726,
-    "ast_hash": "abda3a53807dc6c3953fe278663a8dc5",
+    "mtime": 1790015520.5758417,
+    "seen": 1790099216.148391,
+    "ast_hash": "e47729f8811bacc5df4185e512e10101",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-codes-test.php": {
-    "mtime": 1789854201.4102027,
-    "seen": 1789854241.2570884,
-    "ast_hash": "fc84416b1ec94d7b5e226ba30b168c59",
+    "mtime": 1790015490.015141,
+    "seen": 1790099216.1487398,
+    "ast_hash": "d562345355b9d7b414fda34fb05a425c",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-rest-test.php": {
-    "mtime": 1789998374.292576,
-    "seen": 1789999081.95443,
-    "ast_hash": "1f0e82e886e9c9ac0ebe1d2fd2a98421",
+    "mtime": 1790015520.4405825,
+    "seen": 1790099216.1487641,
+    "ast_hash": "298446a833aa27134f292ce8d9543295",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-discounts.php": {
-    "mtime": 1789955274.959025,
-    "seen": 1789955450.616271,
-    "ast_hash": "18619de426eb592df50970a728e007c0",
+    "mtime": 1790015490.444284,
+    "seen": 1790099216.1483576,
+    "ast_hash": "4a27c5b6ce32c1482f26d9700b770122",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-discounts-test.php": {
-    "mtime": 1789955036.0171428,
-    "seen": 1789955450.6165543,
-    "ast_hash": "d89c65c3195957879fab42506738f958",
+    "mtime": 1790015490.4665205,
+    "seen": 1790099216.1487432,
+    "ast_hash": "1e7e5734f6ac6fbaa22abce3dc57a546",
     "semantic_hash": ""
   },
   "src/app/components/AffiliateCodeField.test.tsx": {
-    "mtime": 1789854810.3697915,
-    "seen": 1789954736.463267,
-    "ast_hash": "cc7e20c8f33752728eb253a2b7c51b0b",
+    "mtime": 1790015490.3173034,
+    "seen": 1790099216.1485078,
+    "ast_hash": "015b43569dc0fa95195777be885cfe49",
     "semantic_hash": ""
   },
   "src/app/components/AffiliateCodeField.tsx": {
-    "mtime": 1789854985.8532612,
-    "seen": 1789954736.4632704,
-    "ast_hash": "74c4830815d12bf13080b2176da3106a",
+    "mtime": 1790015490.318303,
+    "seen": 1790099216.1485095,
+    "ast_hash": "01f598cea17ce0a5813c1c87f3492f97",
     "semantic_hash": ""
   },
   "src/app/components/AffiliateReferralCapture.test.tsx": {
-    "mtime": 1789854804.483185,
-    "seen": 1789954736.4632745,
-    "ast_hash": "df3770aba16406f42948b8621ec8a714",
+    "mtime": 1790015490.319303,
+    "seen": 1790099216.148511,
+    "ast_hash": "5fb65022946125f96469d7ec0d49634b",
     "semantic_hash": ""
   },
   "src/app/components/AffiliateReferralCapture.tsx": {
-    "mtime": 1789854979.2570786,
-    "seen": 1789954736.4632773,
-    "ast_hash": "e4516dab8b11cf3048281cf9a5bff767",
+    "mtime": 1790015490.320303,
+    "seen": 1790099216.1485128,
+    "ast_hash": "c3ba72a63d2974b82f876d88ae693963",
     "semantic_hash": ""
   },
   "src/lib/affiliate-attribution.test.ts": {
-    "mtime": 1789854798.1864903,
-    "seen": 1789954736.4635322,
-    "ast_hash": "15663c0fce4ab6f4fabcfe861c7b904f",
+    "mtime": 1790015490.3276913,
+    "seen": 1790099216.1486628,
+    "ast_hash": "535053bbd7c5c9e72fd083d3e22a554f",
     "semantic_hash": ""
   },
   "src/lib/affiliate-attribution.ts": {
-    "mtime": 1789854971.9405973,
-    "seen": 1789954736.4635348,
-    "ast_hash": "27a489eb238142705b262c169b24964e",
+    "mtime": 1790015490.32869,
+    "seen": 1790099216.1486645,
+    "ast_hash": "a81cbb7a4dc852d86bffeb58a5639ef8",
     "semantic_hash": ""
   },
   "src/lib/checkout-bridge.test.ts": {
-    "mtime": 1789954993.623572,
-    "seen": 1789955450.6165068,
-    "ast_hash": "9ae274a1d7f5aa0792c96e2f781940c7",
+    "mtime": 1790015490.4623291,
+    "seen": 1790099216.1486742,
+    "ast_hash": "890001165b7fd07e9ab3bbfb8725e97a",
     "semantic_hash": ""
   },
   "src/lib/checkout-bridge.ts": {
-    "mtime": 1789955186.1326883,
-    "seen": 1789955450.6165087,
-    "ast_hash": "c7d2b2c15ea9331b7d097508c715b62e",
+    "mtime": 1790015490.464507,
+    "seen": 1790099216.1486757,
+    "ast_hash": "34ac666b3d56f8efe11a14be2f898316",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-commissions.php": {
-    "mtime": 1789956190.4769456,
-    "seen": 1789956246.286912,
-    "ast_hash": "078c6b89619640c1fa8af61d034b9184",
+    "mtime": 1790015490.8392684,
+    "seen": 1790099216.1483538,
+    "ast_hash": "8178bf4a579b8e2a6a17b7c9a8bfa108",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-currency.php": {
-    "mtime": 1789955806.751233,
-    "seen": 1789955898.9798691,
-    "ast_hash": "dd33049a505699d9fc8a905f366e5e46",
+    "mtime": 1790015490.6305964,
+    "seen": 1790099216.1483552,
+    "ast_hash": "ae9cf1a5e9329b871b88f1be682f43d4",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-orders.php": {
-    "mtime": 1789955814.8550837,
-    "seen": 1789955898.9798753,
-    "ast_hash": "8d6de1a1f860fe879d96137d54869025",
+    "mtime": 1790015490.6323526,
+    "seen": 1790099216.1483724,
+    "ast_hash": "8f556d0f1d904139c49bd8bb190052f9",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-commissions-test.php": {
-    "mtime": 1789955682.5085132,
-    "seen": 1789955898.9800994,
-    "ast_hash": "1fe21c4f2dee42d8a0f2093b8237a5ca",
+    "mtime": 1790015490.6411345,
+    "seen": 1790099216.1487417,
+    "ast_hash": "44c53bc99dc8ede629318dc3cacfeec1",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-orders-test.php": {
-    "mtime": 1789955672.7281265,
-    "seen": 1789955898.9801047,
-    "ast_hash": "1dfb2ec7c32d9d3b9a006d9688eb9258",
+    "mtime": 1790015490.643183,
+    "seen": 1790099216.1487534,
+    "ast_hash": "aa24886d8152ff33f80fb894b16c4dd8",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-refunds.php": {
-    "mtime": 1789956175.8105602,
-    "seen": 1789956246.2869258,
-    "ast_hash": "aff6548e844b80e2a2b4f7b0c7c46b45",
+    "mtime": 1790015490.841267,
+    "seen": 1790099216.148385,
+    "ast_hash": "c9eb6be8611ff338acb6371f5aa85180",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-refunds-test.php": {
-    "mtime": 1789956054.078368,
-    "seen": 1789956246.2871566,
-    "ast_hash": "5eabf5d694b7dff2dd977f0e84c52b06",
+    "mtime": 1790015490.8532503,
+    "seen": 1790099216.148761,
+    "ast_hash": "c5b4cd300d6bf8fe666a7998d4685d19",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-documents.php": {
-    "mtime": 1789957072.6200666,
-    "seen": 1789958084.3220148,
-    "ast_hash": "1e29e76424085b54742eff12049e61cf",
+    "mtime": 1790015491.3903306,
+    "seen": 1790099216.1483603,
+    "ast_hash": "0c06fcae1dd908d78499eba9682ef7ce",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-private-files.php": {
-    "mtime": 1789959443.9122066,
-    "seen": 1789959489.0612042,
-    "ast_hash": "b3f5f6e688f43cd343fc67394b3d436f",
+    "mtime": 1790015492.2215326,
+    "seen": 1790099216.1483784,
+    "ast_hash": "8c390d6c80cfa2597881086aa6eb8708",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-documents-test.php": {
-    "mtime": 1789956794.4442303,
-    "seen": 1789956823.512323,
-    "ast_hash": "6941f48634bfd2688ad23e5d3eddc928",
+    "mtime": 1790015491.11751,
+    "seen": 1790099216.1487448,
+    "ast_hash": "d5f1c7e9b71f433e8abeea4bcf3d0ef7",
     "semantic_hash": ""
   },
   "src/app/afiliados/AffiliateDashboard.test.tsx": {
-    "mtime": 1790014644.7356513,
-    "seen": 1790015103.0441985,
-    "ast_hash": "2b0addd7e30bec7e76d69acfe9739243",
+    "mtime": 1790015520.583601,
+    "seen": 1790099216.1484768,
+    "ast_hash": "a2289aafa93824aa2884b7eaa2a2cda6",
     "semantic_hash": ""
   },
   "src/app/afiliados/AffiliateDashboard.tsx": {
-    "mtime": 1789998775.9150982,
-    "seen": 1789999081.9541297,
-    "ast_hash": "8d7c4373e0bd7cdeed44a32942df3e70",
+    "mtime": 1790015520.4192395,
+    "seen": 1790099216.1484785,
+    "ast_hash": "2aedb3ae77e14a5141c1c0bc4c79bd50",
     "semantic_hash": ""
   },
   "src/app/afiliados/page.tsx": {
-    "mtime": 1789957337.1807108,
-    "seen": 1789958084.3220832,
-    "ast_hash": "ca15b720edaef2219d751f4109adf34f",
+    "mtime": 1790015491.4226336,
+    "seen": 1790099216.14849,
+    "ast_hash": "84108316c8cfad43df698b9afbd4a4cf",
     "semantic_hash": ""
   },
   "src/lib/affiliates-api.test.ts": {
-    "mtime": 1789998061.7064402,
-    "seen": 1789999081.9543312,
-    "ast_hash": "dfa60029276e067101be8e5bdd2d72c6",
+    "mtime": 1790015520.4369702,
+    "seen": 1790099216.1486661,
+    "ast_hash": "f5e85f87aabc0b088afcec45f2a309f9",
     "semantic_hash": ""
   },
   "src/lib/affiliates-api.ts": {
-    "mtime": 1790014634.8903437,
-    "seen": 1790015103.0444841,
-    "ast_hash": "71131fa13815772ad9dc51155c7c0c4f",
+    "mtime": 1790015520.5861266,
+    "seen": 1790099216.1486676,
+    "ast_hash": "dde322b00af242a108b7297d4d4b0f4f",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-closures.php": {
-    "mtime": 1789996385.5258014,
-    "seen": 1789996511.5214124,
-    "ast_hash": "d35cc189f44b058cf9dbf2e60fb3a7ad",
+    "mtime": 1790015493.4019823,
+    "seen": 1790099216.148349,
+    "ast_hash": "e77c69f8f74b54ecf5313320132d7738",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-closures-test.php": {
-    "mtime": 1789996453.366846,
-    "seen": 1789996511.521698,
-    "ast_hash": "1ad73d5cd81745372f4fd0ca401c5874",
+    "mtime": 1790015493.4416294,
+    "seen": 1790099216.1487381,
+    "ast_hash": "d4f0242303f7b2388b0f731bfa58fe4e",
     "semantic_hash": ""
   },
   "nakama-affiliates/assets/admin.js": {
-    "mtime": 1789958863.9752083,
-    "seen": 1789958953.3853812,
-    "ast_hash": "8b5b69591aef0b965c1aa2316ad54d7f",
+    "mtime": 1790015492.0028331,
+    "seen": 1790099216.1483397,
+    "ast_hash": "81fe2767958d6d9f31f80d38ff40d38a",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-admin.php": {
-    "mtime": 1790014770.5997987,
-    "seen": 1790015103.0439982,
-    "ast_hash": "79297e150e67a8fa570b53f60068562c",
+    "mtime": 1790015520.5710516,
+    "seen": 1790099216.1483445,
+    "ast_hash": "01f84fe440f788c782150f03027ea049",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-admin-test.php": {
-    "mtime": 1790000197.972836,
-    "seen": 1790015103.0445738,
-    "ast_hash": "46af3333820f2f1761677550416c294c",
+    "mtime": 1790015520.5884292,
+    "seen": 1790099216.1487334,
+    "ast_hash": "fb103ee58c8097db0d82a024a38e3d2d",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-admin-ui-test.php": {
-    "mtime": 1789997766.5276773,
-    "seen": 1789997810.862592,
-    "ast_hash": "12634246d56145bbc21b84845da8a9ae",
+    "mtime": 1790015520.290709,
+    "seen": 1790099216.1487353,
+    "ast_hash": "0f044034e0badcf852f467b4d985a180",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-payments.php": {
-    "mtime": 1789959194.094628,
-    "seen": 1789959489.0611992,
-    "ast_hash": "c3693fa5a0fc0c4cc33d54fcb3d605a8",
+    "mtime": 1790015492.21853,
+    "seen": 1790099216.1483748,
+    "ast_hash": "f055c7f1b4f5e134d24eabaf316ed0b9",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-payments-test.php": {
-    "mtime": 1789959239.466819,
-    "seen": 1789959489.0614457,
-    "ast_hash": "0e0b31c6997fd6aebb44c6f855536a1a",
+    "mtime": 1790015492.2515156,
+    "seen": 1790099216.1487553,
+    "ast_hash": "42b3251549430a2b3cb3488a60de3d07",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-benefits.php": {
-    "mtime": 1789996990.0719666,
-    "seen": 1789997319.456288,
-    "ast_hash": "7ce9e9fbc4a6ed40c68497d5b6526867",
+    "mtime": 1790015520.1294975,
+    "seen": 1790099216.148347,
+    "ast_hash": "f97dc33c8900b544518f53ccf4f04afa",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-benefits-test.php": {
-    "mtime": 1789996402.0363355,
-    "seen": 1789996511.5216966,
-    "ast_hash": "42219dbb26978a5d847076ed8fe9b8dc",
+    "mtime": 1790015493.435628,
+    "seen": 1790099216.1487367,
+    "ast_hash": "1311ef2eecfee48a5b2b03ebbb03a02b",
     "semantic_hash": ""
   },
   "src/app/pedido-confirmado/order-received/page.tsx": {
@@ -2574,111 +2574,117 @@
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-products-test.php": {
-    "mtime": 1789996795.107037,
-    "seen": 1789996949.0557353,
-    "ast_hash": "a025212d38d4ba8624702f7c2f06753e",
+    "mtime": 1790015520.146966,
+    "seen": 1790099216.1487596,
+    "ast_hash": "179fa9cbf4e54e5d041bdee069726c98",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-requests-test.php": {
-    "mtime": 1789996804.2190678,
-    "seen": 1789996949.0557399,
-    "ast_hash": "254559be3d6f7b8aaea56cdbe53d8744",
+    "mtime": 1790015520.1486435,
+    "seen": 1790099216.1487627,
+    "ast_hash": "e53937a61821ddfba1a398920259d084",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-products.php": {
-    "mtime": 1789998355.2934253,
-    "seen": 1789999081.9540231,
-    "ast_hash": "1ac5883f06134bf72f2d079d92e39f48",
+    "mtime": 1790015520.4141223,
+    "seen": 1790099216.1483815,
+    "ast_hash": "4003e139933c77b8f2e56a8d9866df0e",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-requests.php": {
-    "mtime": 1789996982.344852,
-    "seen": 1789997319.4563112,
-    "ast_hash": "7cefe486200ad955fc08ee30a37600c7",
+    "mtime": 1790015520.1365216,
+    "seen": 1790099216.148389,
+    "ast_hash": "5f6a847b91e2fe18a693fe14bec463d7",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-evidence.php": {
-    "mtime": 1789997619.744856,
-    "seen": 1789997810.8622973,
-    "ast_hash": "3b4542a72165f6bf7513cc5648d19038",
+    "mtime": 1790015520.2770634,
+    "seen": 1790099216.148366,
+    "ast_hash": "572c21272b382c3c30b336fb525ddce0",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-evidence-test.php": {
-    "mtime": 1789997491.919036,
-    "seen": 1789997810.8626037,
-    "ast_hash": "c3dfbd937f1806ae006fbedbc31ef0c3",
+    "mtime": 1790015520.2926958,
+    "seen": 1790099216.1487486,
+    "ast_hash": "04bed2b885c5f430bb3b11bcf9d398d8",
     "semantic_hash": ""
   },
   "src/app/afiliados/AffiliateEvidence.test.tsx": {
-    "mtime": 1789999320.9590287,
-    "seen": 1789999561.775976,
-    "ast_hash": "458b009b25f4272d719ddedf9a408c06",
+    "mtime": 1790015520.420225,
+    "seen": 1790099216.1484804,
+    "ast_hash": "c5e826c73db319484bffc604bf60d53c",
     "semantic_hash": ""
   },
   "src/app/afiliados/AffiliateEvidence.tsx": {
-    "mtime": 1789999308.7242353,
-    "seen": 1789999561.775977,
-    "ast_hash": "cca9be172b642039799656c640e249de",
+    "mtime": 1790015520.4222167,
+    "seen": 1790099216.1484818,
+    "ast_hash": "fbb3eabaefcc1aaa3515737c7b1ce1ea",
     "semantic_hash": ""
   },
   "src/app/afiliados/AffiliateProductRequest.test.tsx": {
-    "mtime": 1789998262.6046145,
-    "seen": 1789999081.9541373,
-    "ast_hash": "4837f4ecd67e5a1d37c183e4a6e14d8b",
+    "mtime": 1790015520.4260688,
+    "seen": 1790099216.1484835,
+    "ast_hash": "a16ffa23dff18a5cb9a46c7c9ba434d6",
     "semantic_hash": ""
   },
   "src/app/afiliados/AffiliateProductRequest.tsx": {
-    "mtime": 1789999184.567222,
-    "seen": 1789999561.7759795,
-    "ast_hash": "54c7476507acc0df65a2369f93afa401",
+    "mtime": 1790015520.4284134,
+    "seen": 1790099216.1484852,
+    "ast_hash": "cf0fe7978e1c9a0fc5c2ec0057cee3fe",
     "semantic_hash": ""
   },
   "src/app/afiliados/AffiliateProgress.test.tsx": {
-    "mtime": 1789999364.1123185,
-    "seen": 1789999561.7759807,
-    "ast_hash": "d4e16c66eb9a94851f37bf508eea24a2",
+    "mtime": 1790015520.4294138,
+    "seen": 1790099216.1484866,
+    "ast_hash": "4d6c58260cb256ab96493fa2934709b0",
     "semantic_hash": ""
   },
   "src/app/afiliados/AffiliateProgress.tsx": {
-    "mtime": 1789999241.3464003,
-    "seen": 1789999561.7759821,
-    "ast_hash": "0093d01dc66c30328ecce758e03522db",
+    "mtime": 1790015520.4304135,
+    "seen": 1790099216.1484888,
+    "ast_hash": "94bcf953e0a626902c21740b5c6e0a3e",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-legacy-migration.php": {
-    "mtime": 1790014762.4193869,
-    "seen": 1790015103.0440423,
-    "ast_hash": "20f063137919b9b8c5935f65fb959594",
+    "mtime": 1790015520.5730164,
+    "seen": 1790099216.1483705,
+    "ast_hash": "1c9a324e90f6fd8ba17310243a10fea1",
     "semantic_hash": ""
   },
   "nakama-affiliates/uninstall.php": {
-    "mtime": 1790000321.8687491,
-    "seen": 1790015103.0440786,
-    "ast_hash": "8a2a7b4b4e35d6b2b6d10ddc516defbb",
+    "mtime": 1790015520.5816019,
+    "seen": 1790099216.1483936,
+    "ast_hash": "65370fcccfc1b81c4b8d98d122771825",
     "semantic_hash": ""
   },
   "scripts/package-nakama-affiliates.ps1": {
-    "mtime": 1790000442.947488,
-    "seen": 1790015103.0441902,
-    "ast_hash": "8d80a65e6ef31b0df0df502a62b33c43",
+    "mtime": 1790015520.582601,
+    "seen": 1790099216.1484702,
+    "ast_hash": "6125ff6abb9d98c3c26d778dd45a4d50",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-legacy-migration-test.php": {
-    "mtime": 1790014778.5665832,
-    "seen": 1790015103.0446022,
-    "ast_hash": "374b3e7780eac1c86bc3a4008909f441",
+    "mtime": 1790015520.5901554,
+    "seen": 1790099216.1487515,
+    "ast_hash": "a244ef666ac22b5718691324c766ada9",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-privacy-test.php": {
-    "mtime": 1790014689.6372397,
-    "seen": 1790015103.044612,
-    "ast_hash": "95e076d0597e866c63274e1766aaf7cf",
+    "mtime": 1790015520.5916636,
+    "seen": 1790099216.148758,
+    "ast_hash": "06bac23671b1ac314cf838349facb4d9",
     "semantic_hash": ""
   },
   "docs/operations/nakama-affiliates-runbook.md": {
-    "mtime": 1790000342.7774625,
-    "seen": 1790015103.0447314,
-    "ast_hash": "0991d73a0144e581c0cfad854018397a",
+    "mtime": 1790015520.5368805,
+    "seen": 1790099216.1488445,
+    "ast_hash": "842263b8aff4b7e4d911fe7fd8ae11ac",
+    "semantic_hash": ""
+  },
+  "output/pdf/manual-administradores-modulo-afiliados-nakama.pdf": {
+    "mtime": 1790017282.7666454,
+    "seen": 1790099216.1488776,
+    "ast_hash": "60be2a85737ce2ab7375d5f49c6ba813",
     "semantic_hash": ""
   }
 }

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { apiOrigin } from '@/lib/api-host';
+import { ANALYTICS_READY_EVENT, trackPurchase } from '@/lib/analytics';
 import styles from './confirmation.module.css';
 
 interface BankAccount {
@@ -131,6 +132,20 @@ export default function PedidoConfirmadoPage() {
 
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (!confirmation) return;
+
+    const sendPurchase = () => trackPurchase({
+      orderId: confirmation.orderNumber,
+      value: Number(confirmation.total),
+      currency: confirmation.currency,
+    });
+
+    sendPurchase();
+    window.addEventListener(ANALYTICS_READY_EVENT, sendPurchase);
+    return () => window.removeEventListener(ANALYTICS_READY_EVENT, sendPurchase);
+  }, [confirmation]);
 
   const whatsappUrl = useMemo(() => {
     if (!confirmation) return '#';

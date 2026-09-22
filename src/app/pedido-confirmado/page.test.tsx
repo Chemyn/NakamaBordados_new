@@ -5,6 +5,7 @@ import PedidoConfirmadoPage from './page';
 
 const mocks = vi.hoisted(() => ({
   clearCart: vi.fn(),
+  fbq: vi.fn(),
 }));
 
 vi.mock('../context/CartContext', () => ({
@@ -41,6 +42,9 @@ const transferConfirmation = {
 describe('PedidoConfirmadoPage', () => {
   beforeEach(() => {
     mocks.clearCart.mockReset();
+    mocks.fbq.mockReset();
+    window.fbq = mocks.fbq;
+    window.localStorage.clear();
     window.history.replaceState({}, '', '/pedido-confirmado/order-received/#order=115&key=wc_order_secret');
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: true,
@@ -61,6 +65,53 @@ describe('PedidoConfirmadoPage', () => {
     await waitFor(() => expect(mocks.clearCart).toHaveBeenCalledTimes(1));
   });
 
+  it('sends the validated order as the Meta Purchase standard event', async () => {
+    render(<PedidoConfirmadoPage />);
+
+    expect(await screen.findByRole('heading', { name: /tu pedido ya está en marcha/i })).toBeInTheDocument();
+    await waitFor(() => expect(mocks.fbq).toHaveBeenCalledWith(
+      'track',
+      'Purchase',
+      {
+        value: 610.41,
+        currency: 'MXN',
+        order_id: '115',
+      },
+      { eventID: 'nakama-purchase-115' },
+    ));
+  });
+
+  it('sends Purchase when Pixel becomes ready after the order confirmation', async () => {
+    delete window.fbq;
+    render(<PedidoConfirmadoPage />);
+
+    expect(await screen.findByRole('heading', { name: /tu pedido ya está en marcha/i })).toBeInTheDocument();
+    expect(mocks.fbq).not.toHaveBeenCalled();
+
+    window.fbq = mocks.fbq;
+    window.dispatchEvent(new Event('nakama:analytics-ready'));
+
+    await waitFor(() => expect(mocks.fbq).toHaveBeenCalledWith(
+      'track',
+      'Purchase',
+      expect.objectContaining({ order_id: '115' }),
+      { eventID: 'nakama-purchase-115' },
+    ));
+  });
+
+  it('does not count the same order twice when the confirmation is reopened', async () => {
+    const firstView = render(<PedidoConfirmadoPage />);
+
+    expect(await screen.findByRole('heading', { name: /tu pedido ya está en marcha/i })).toBeInTheDocument();
+    await waitFor(() => expect(mocks.fbq).toHaveBeenCalledTimes(1));
+    firstView.unmount();
+
+    render(<PedidoConfirmadoPage />);
+    expect(await screen.findByRole('heading', { name: /tu pedido ya está en marcha/i })).toBeInTheDocument();
+
+    await waitFor(() => expect(mocks.fbq).toHaveBeenCalledTimes(1));
+  });
+
   it('does not reveal order information when the confirmation cannot be validated', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
       ok: false,
@@ -72,5 +123,6 @@ describe('PedidoConfirmadoPage', () => {
     expect(await screen.findByRole('heading', { name: /no pudimos mostrar tu pedido/i })).toBeInTheDocument();
     expect(screen.queryByText('Banco de prueba')).not.toBeInTheDocument();
     expect(mocks.clearCart).not.toHaveBeenCalled();
+    expect(mocks.fbq).not.toHaveBeenCalledWith('track', 'Purchase', expect.anything(), expect.anything());
   });
 });

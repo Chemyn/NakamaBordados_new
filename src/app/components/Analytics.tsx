@@ -6,6 +6,7 @@ import { usePathname, useSearchParams } from 'next/navigation';
 import {
   GA_MEASUREMENT_ID,
   FB_PIXEL_ID,
+  ANALYTICS_READY_EVENT,
   isTrackingHost,
   trackPageView,
 } from '@/lib/analytics';
@@ -34,7 +35,7 @@ export default function Analytics() {
   useEffect(() => {
     if (!isTrackingHost()) return; // dev/localhost: nunca se mide
     if (getCookieConsent() === 'accepted') {
-      setEnabled(true);
+      queueMicrotask(() => setEnabled(true));
       return;
     }
     // Sin aceptación aún: esperar a que el cliente acepte en el banner.
@@ -79,6 +80,7 @@ export default function Analytics() {
           s.parentNode.insertBefore(t,s)}(window, document,'script',
           'https://connect.facebook.net/en_US/fbevents.js');
           fbq('init', '${FB_PIXEL_ID}');
+          window.dispatchEvent(new Event('${ANALYTICS_READY_EVENT}'));
         `}
       </Script>
     </>

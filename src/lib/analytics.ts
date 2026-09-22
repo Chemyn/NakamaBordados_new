@@ -4,8 +4,9 @@
  * El sitio es headless: Site Kit y el plugin del Pixel en WordPress solo
  * inyectan sus scripts en páginas renderizadas por WP (el checkout); el resto
  * del tráfico pasa por este export estático, así que los tags se cargan aquí
- * (componente Analytics) con los MISMOS IDs. El Purchase NO se dispara desde
- * el frontend: lo cubre el plugin de WP en /finalizar-compra/ (browser + CAPI).
+ * (componente Analytics) con los MISMOS IDs. La confirmación de pedido es
+ * headless, así que el frontend dispara Purchase después de que WordPress
+ * valida el pedido y su clave.
  *
  * Los IDs son públicos por diseño (visibles en el HTML de cualquier sitio con
  * analytics). La confirmación headless conserva `order-received` en la ruta
@@ -15,6 +16,7 @@
 
 export const GA_MEASUREMENT_ID = 'G-J7J9RPGN9R';
 export const FB_PIXEL_ID = '300714283117069';
+export const ANALYTICS_READY_EVENT = 'nakama:analytics-ready';
 
 declare global {
   interface Window {
@@ -42,6 +44,34 @@ export interface TrackedProduct {
   currency?: string;
   quantity?: number;
   contentType?: 'product' | 'product_group';
+}
+
+export interface TrackedPurchase {
+  orderId: string | number;
+  value: number;
+  currency?: string;
+}
+
+const purchaseMemoryFallback = new Set<string>();
+
+function purchaseStorageKey(orderId: string): string {
+  return `nakama:meta-purchase:${orderId}`;
+}
+
+function wasPurchaseTracked(key: string): boolean {
+  try {
+    return window.localStorage.getItem(key) === '1' || purchaseMemoryFallback.has(key);
+  } catch {
+    return purchaseMemoryFallback.has(key);
+  }
+}
+
+function rememberPurchase(key: string): void {
+  try {
+    window.localStorage.setItem(key, '1');
+  } catch {
+    purchaseMemoryFallback.add(key);
+  }
 }
 
 /** page_view (GA4) + PageView (Pixel) en cada navegación, incluida la inicial. */
@@ -107,5 +137,31 @@ export function trackAddToCart(product: TrackedProduct): void {
     });
   } catch {
     // El tracking nunca debe romper el carrito.
+  }
+}
+
+/** Purchase (Pixel) cuando WordPress ya validó el pedido confirmado. */
+export function trackPurchase(purchase: TrackedPurchase): void {
+  try {
+    const orderId = String(purchase.orderId).trim();
+    const value = Number(purchase.value);
+    if (!orderId || !Number.isFinite(value) || typeof window.fbq !== 'function') return;
+
+    const storageKey = purchaseStorageKey(orderId);
+    if (wasPurchaseTracked(storageKey)) return;
+
+    window.fbq(
+      'track',
+      'Purchase',
+      {
+        value,
+        currency: (purchase.currency || 'MXN').toUpperCase(),
+        order_id: orderId,
+      },
+      { eventID: `nakama-purchase-${orderId}` },
+    );
+    rememberPurchase(storageKey);
+  } catch {
+    // El tracking nunca debe romper la confirmación del pedido.
   }
 }
