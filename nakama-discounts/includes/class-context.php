@@ -14,6 +14,7 @@ class Nakama_Context {
 	public $eligible_subtotal = 0.0; // subtotal que puede recibir beneficios
 	public $payment_method = '';   // gateway elegido en checkout
 	public $selected_promo = '';   // 'welcome' | 'special_10' | 'special_3x2' | ''
+	public $unlocked_public_code_id = ''; // último código Nakama manual validado
 	public $native_coupon_codes = array(); // cupones WC (carrito abandonado)
 	public $native_coupon_amount = 0.0;
 	public $cart          = null;
@@ -30,6 +31,7 @@ class Nakama_Context {
 		$ctx->email         = $ctx->resolve_email();
 		$ctx->payment_method = $ctx->resolve_payment_method();
 		$ctx->selected_promo = (string) WC()->session->get( 'nakama_selected_promo', '' );
+		$ctx->unlocked_public_code_id = sanitize_key( WC()->session->get( Nakama_Discount_Codes::SESSION_UNLOCKED_ID, '' ) );
 		$ctx->native_coupon_codes = method_exists( $cart, 'get_applied_coupons' )
 			? array_values( array_filter( array_map( 'sanitize_text_field', (array) $cart->get_applied_coupons() ) ) )
 			: array();

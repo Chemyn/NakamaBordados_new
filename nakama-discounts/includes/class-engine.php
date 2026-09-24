@@ -145,6 +145,13 @@ class Nakama_Engine {
 		// visibles y nunca se registran como cupones nativos de WooCommerce.
 		if ( $subtotal > 0 ) {
 			foreach ( Nakama_Discount_Codes::active() as $id => $code ) {
+				$entry_mode = Nakama_Discount_Codes::entry_mode( $code );
+				if (
+					Nakama_Discount_Codes::ENTRY_MANUAL === $entry_mode
+					&& sanitize_key( $id ) !== sanitize_key( $ctx->unlocked_public_code_id )
+				) {
+					continue;
+				}
 				$rate = isset( $code['rate'] ) ? (float) $code['rate'] : 0.0;
 				if ( $rate <= 0 ) {
 					continue;
@@ -166,6 +173,7 @@ class Nakama_Engine {
 					'free_items'      => array(),
 					'auto'            => false,
 					'allow_modifiers' => 'yes' === ( isset( $code['allow_modifiers'] ) ? $code['allow_modifiers'] : 'no' ),
+					'entry_mode'      => $entry_mode,
 				);
 			}
 		}
@@ -177,7 +185,19 @@ class Nakama_Engine {
 		 * @param array          $out Eligible candidates keyed by selection key.
 		 * @param Nakama_Context $ctx Authoritative cart context.
 		 */
-		return apply_filters( 'nakama_discount_primary_candidates', $out, $ctx );
+		$out = apply_filters( 'nakama_discount_primary_candidates', $out, $ctx );
+		$selected = (string) $ctx->selected_promo;
+		if (
+			$selected
+			&& isset( $out[ $selected ] )
+			&& 'public_code' === ( isset( $out[ $selected ]['type'] ) ? $out[ $selected ]['type'] : '' )
+			&& Nakama_Discount_Codes::ENTRY_MANUAL === ( isset( $out[ $selected ]['entry_mode'] ) ? $out[ $selected ]['entry_mode'] : '' )
+			&& empty( $out[ $selected ]['allow_modifiers'] )
+		) {
+			return array( $selected => $out[ $selected ] );
+		}
+
+		return $out;
 	}
 
 	/**

@@ -2,9 +2,22 @@
 declare(strict_types=1);
 
 define( 'ABSPATH', __DIR__ . '/' );
+define( 'NAKAMA_DISC_CODES_OPTION', 'nakama_discount_codes' );
 
 $registered_actions = array();
 $fired_actions = array();
+$test_discount_options = array(
+	NAKAMA_DISC_CODES_OPTION => array(
+		'version' => 2,
+		'items' => array(
+			'manual-combo' => array(
+				'id' => 'manual-combo', 'code' => 'MANUAL15', 'rate' => 0.15,
+				'enabled' => 'yes', 'start' => '', 'end' => '',
+				'allow_modifiers' => 'yes', 'entry_mode' => 'manual',
+			),
+		),
+	),
+);
 
 function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
 	global $registered_actions;
@@ -21,6 +34,7 @@ function do_action( $hook ) {
 function get_current_user_id() { return 0; }
 function has_term( $term, $taxonomy, $product_id ) { return false; }
 function sanitize_text_field( $value ) { return trim( (string) $value ); }
+function sanitize_key( $value ) { return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $value ) ); }
 function wp_unslash( $value ) { return $value; }
 function __( $text, $domain = null ) { return $text; }
 function esc_attr( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
@@ -28,6 +42,18 @@ function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOT
 function esc_html__( $text, $domain = null ) { return esc_html( $text ); }
 function wp_kses_post( $value ) { return (string) $value; }
 function wc_price( $amount ) { return '$' . number_format( (float) $amount, 2 ); }
+function get_option( $key, $fallback = false ) {
+	global $test_discount_options;
+	return array_key_exists( $key, $test_discount_options ) ? $test_discount_options[ $key ] : $fallback;
+}
+function update_option( $key, $value ) {
+	global $test_discount_options;
+	$test_discount_options[ $key ] = $value;
+	return true;
+}
+function current_datetime() { return new DateTimeImmutable( '2026-09-23 12:00:00', new DateTimeZone( 'UTC' ) ); }
+function wp_timezone() { return new DateTimeZone( 'UTC' ); }
+function apply_filters( $hook, $value ) { return $value; }
 
 class Nakama_Settings {
 	public static $values = array(
@@ -38,10 +64,22 @@ class Nakama_Settings {
 		if ( 'special_3x2_categories' === $key ) {
 			return array();
 		}
+		if ( 'special_auto_if_better' === $key ) {
+			return 'no';
+		}
 		return array_key_exists( $key, self::$values ) ? self::$values[ $key ] : $fallback;
 	}
 	public static function amount( $key ) { return 0.0; }
 	public static function pct( $rate ) { return (string) ( (float) $rate * 100 ) . '%'; }
+}
+
+class Nakama_Campaigns {
+	public static function special_10_active() { return false; }
+	public static function special_3x2_active() { return false; }
+}
+
+class Nakama_Customer_History {
+	public static function get_welcome_tier( $customer_id, $email ) { return null; }
 }
 
 final class FakeDiscountSession {
@@ -56,13 +94,16 @@ final class FakeDiscountCart {
 	public $coupons = array( 'RECUPERA20' );
 	public $remove_calls = 0;
 	public function get_subtotal() { return 1000.0; }
-	public function get_cart() { return array(); }
+	public function get_cart() {
+		return array( array( 'product_id' => 10, 'line_subtotal' => 1000.0, 'quantity' => 1 ) );
+	}
 	public function get_applied_coupons() { return $this->coupons; }
 	public function get_discount_total() { return 200.0; }
 	public function remove_coupons() {
 		$this->coupons = array();
 		$this->remove_calls++;
 	}
+	public function calculate_totals() {}
 }
 
 final class FakeDiscountWooCommerce {
@@ -97,12 +138,31 @@ function assert_same( $expected, $actual, $message ) {
 	}
 }
 
+require dirname( __DIR__ ) . '/nakama-discounts/includes/class-discount-codes.php';
 require dirname( __DIR__ ) . '/nakama-discounts/includes/class-context.php';
+require dirname( __DIR__ ) . '/nakama-discounts/includes/class-engine.php';
 require dirname( __DIR__ ) . '/nakama-discounts/includes/class-cart.php';
 
 $context = Nakama_Context::build( WC()->cart );
 assert_same( array( 'RECUPERA20' ), $context->native_coupon_codes, 'The engine context sees native abandoned-cart coupons.' );
 assert_same( 200.0, $context->native_coupon_amount, 'The engine context sees the native coupon discount.' );
+
+$resolved_manual = Nakama_Discount_Codes::resolve_manual_code( array( 'handled' => false ), ' manual15 ' );
+assert_same( true, $resolved_manual['valid'] ?? false, 'An active manual code resolves on the server.' );
+assert_same( 'public_code:manual-combo', $resolved_manual['selection_key'] ?? null, 'Manual resolution exposes only the stable selection key.' );
+
+$bridge_result = Nakama_Discount_Codes::apply_checkout_bridge( array( 'handled' => false ), 'MANUAL15' );
+assert_same( true, $bridge_result['success'] ?? false, 'The bridge revalidates and applies a manual code.' );
+assert_same( 'manual-combo', WC()->session->get( 'nakama_unlocked_public_code_id' ), 'The validated manual ID is unlocked in the WooCommerce session.' );
+assert_same( 'public_code:manual-combo', WC()->session->get( 'nakama_selected_promo' ), 'The validated manual code is selected immediately.' );
+assert_same( array(), WC()->cart->coupons, 'Applying the manual code removes native coupons.' );
+
+Nakama_Discount_Codes::on_promotion_selected( 'affiliate_code:7' );
+assert_same( '', WC()->session->get( 'nakama_unlocked_public_code_id' ), 'Selecting an affiliate clears the manual Nakama unlock.' );
+
+WC()->cart->coupons = array( 'RECUPERA20' );
+WC()->cart->remove_calls = 0;
+$fired_actions = array();
 
 $options = array(
 	'public_code:combo' => array( 'type' => 'public_code', 'code' => 'PUBLICO15' ),
@@ -137,6 +197,7 @@ $render_plan = array(
 		'rate'            => 0.15,
 		'amount'          => 150.0,
 		'allow_modifiers' => true,
+		'entry_mode'      => 'manual',
 	),
 	'options' => array(
 		'public_code:combo' => array(
@@ -146,6 +207,7 @@ $render_plan = array(
 			'label'           => 'Código PUBLICO15 (15%)',
 			'amount'          => 150.0,
 			'allow_modifiers' => true,
+			'entry_mode'      => 'manual',
 			'auto'            => false,
 		),
 		'affiliate_code:7' => array(
@@ -193,6 +255,7 @@ Nakama_Cart::save_order_meta( $order, array() );
 assert_same( 'PUBLICO15', $order->meta['_nakama_public_code'] ?? null, 'The order snapshots the selected public code.' );
 assert_same( 0.15, $order->meta['_nakama_primary_rate'] ?? null, 'The order snapshots the selected percentage.' );
 assert_same( 'yes', $order->meta['_nakama_primary_combinable'] ?? null, 'The order snapshots whether complementary benefits were allowed.' );
+assert_same( 'manual', $order->meta['_nakama_public_code_entry_mode'] ?? null, 'The order snapshots how the public code was entered.' );
 assert_same( 1, count( $fired_actions['nakama_discounts_order_plan_saved'] ?? array() ), 'The final discount plan is exposed once for independent integrations.' );
 assert_same( $order, $fired_actions['nakama_discounts_order_plan_saved'][0][0] ?? null, 'The order-plan hook receives the order being created.' );
 

@@ -217,6 +217,16 @@ assert_same( 'expired', Nakama_Discount_Codes::status( $active_record, new DateT
 $test_options[ NAKAMA_DISC_CODES_OPTION ] = array(
 	'version' => 2,
 	'items'   => array(
+		'automatic' => array(
+			'id'              => 'automatic',
+			'code'            => 'AUTO10',
+			'rate'            => 0.10,
+			'enabled'         => 'yes',
+			'start'           => '',
+			'end'             => '',
+			'allow_modifiers' => 'yes',
+			'entry_mode'      => 'automatic',
+		),
 		'combo' => array(
 			'id'              => 'combo',
 			'code'            => 'PUBLICO15',
@@ -225,7 +235,7 @@ $test_options[ NAKAMA_DISC_CODES_OPTION ] = array(
 			'start'           => '',
 			'end'             => '',
 			'allow_modifiers' => 'yes',
-			'entry_mode'      => 'automatic',
+			'entry_mode'      => 'manual',
 		),
 		'solo' => array(
 			'id'              => 'solo',
@@ -235,7 +245,7 @@ $test_options[ NAKAMA_DISC_CODES_OPTION ] = array(
 			'start'           => '',
 			'end'             => '',
 			'allow_modifiers' => 'no',
-			'entry_mode'      => 'automatic',
+			'entry_mode'      => 'manual',
 		),
 	),
 );
@@ -283,6 +293,7 @@ class Nakama_Context {
 	public $eligible_subtotal = 1000.0;
 	public $payment_method = 'bacs';
 	public $selected_promo = '';
+	public $unlocked_public_code_id = '';
 	public $threexthree_prices = array();
 	public $native_coupon_amount = 0.0;
 	public $native_coupon_codes = array();
@@ -290,7 +301,14 @@ class Nakama_Context {
 
 require dirname( __DIR__ ) . '/nakama-discounts/includes/class-engine.php';
 
+$locked_context = new Nakama_Context();
+$locked_plan = Nakama_Engine::resolve( $locked_context );
+assert_same( true, isset( $locked_plan['options'][ Nakama_Discount_Codes::selection_key( 'automatic' ) ] ), 'Automatic public codes are visible without entry.' );
+assert_same( false, isset( $locked_plan['options'][ Nakama_Discount_Codes::selection_key( 'combo' ) ] ), 'Compatible manual codes stay hidden before validation.' );
+assert_same( false, isset( $locked_plan['options'][ Nakama_Discount_Codes::selection_key( 'solo' ) ] ), 'Exclusive manual codes stay hidden before validation.' );
+
 $combinable_context = new Nakama_Context();
+$combinable_context->unlocked_public_code_id = 'combo';
 $combinable_context->selected_promo = Nakama_Discount_Codes::selection_key( 'combo' );
 $combinable_plan = Nakama_Engine::resolve( $combinable_context );
 assert_same( 'PUBLICO15', $combinable_plan['primary']['code'] ?? null, 'A selected active public code becomes the primary promotion.' );
@@ -298,14 +316,18 @@ assert_same( 150.0, $combinable_plan['primary']['amount'] ?? null, 'The public p
 assert_same( 42.5, $combinable_plan['transfer']['amount'] ?? null, 'A combinable code keeps the transfer benefit on the discounted subtotal.' );
 assert_same( true, $combinable_plan['free_ship'] ?? null, 'A combinable code keeps the shipping benefit.' );
 assert_same( 3, $combinable_plan['msi']['months'] ?? null, 'A combinable code keeps MSI when the discounted total qualifies.' );
+assert_same( 'manual', $combinable_plan['primary']['entry_mode'] ?? null, 'The selected candidate carries its manual entry mode.' );
+assert_same( true, isset( $combinable_plan['options'][ Nakama_Discount_Codes::selection_key( 'automatic' ) ] ), 'A compatible manual code keeps automatic alternatives visible.' );
 
 $exclusive_context = new Nakama_Context();
+$exclusive_context->unlocked_public_code_id = 'solo';
 $exclusive_context->selected_promo = Nakama_Discount_Codes::selection_key( 'solo' );
 $exclusive_plan = Nakama_Engine::resolve( $exclusive_context );
 assert_same( 200.0, $exclusive_plan['primary']['amount'] ?? null, 'A non-combinable public code still applies its primary discount.' );
 assert_same( false, $exclusive_plan['transfer']['applies'] ?? null, 'A non-combinable code disables transfer.' );
 assert_same( false, $exclusive_plan['free_ship'] ?? null, 'A non-combinable code disables free shipping.' );
 assert_same( 0, $exclusive_plan['msi']['months'] ?? null, 'A non-combinable code disables MSI.' );
+assert_same( array( Nakama_Discount_Codes::selection_key( 'solo' ) ), array_keys( $exclusive_plan['options'] ), 'A selected exclusive manual code becomes the only available primary.' );
 
 $coupon_context = new Nakama_Context();
 $coupon_context->selected_promo = Nakama_Discount_Codes::selection_key( 'combo' );
@@ -314,7 +336,8 @@ $coupon_context->native_coupon_amount = 250.0;
 $coupon_plan = Nakama_Engine::resolve( $coupon_context );
 assert_same( null, $coupon_plan['primary'], 'A native abandoned-cart coupon suppresses every Nakama primary discount.' );
 assert_same( 750.0, $coupon_plan['totals']['after_primary'] ?? null, 'Downstream benefits use the subtotal after the native coupon.' );
-assert_same( true, isset( $coupon_plan['options'][ Nakama_Discount_Codes::selection_key( 'combo' ) ] ), 'Nakama options remain visible while a native coupon is active.' );
+assert_same( true, isset( $coupon_plan['options'][ Nakama_Discount_Codes::selection_key( 'automatic' ) ] ), 'Automatic Nakama options remain visible while a native coupon is active.' );
+assert_same( false, isset( $coupon_plan['options'][ Nakama_Discount_Codes::selection_key( 'combo' ) ] ), 'A native coupon does not reveal a manual Nakama code.' );
 
 $stale_context = new Nakama_Context();
 $stale_context->selected_promo = Nakama_Discount_Codes::selection_key( 'missing' );

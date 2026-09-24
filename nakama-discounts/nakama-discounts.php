@@ -70,6 +70,8 @@ add_action( 'plugins_loaded', function () {
 		return;
 	}
 
+	Nakama_Discount_Codes::maybe_upgrade();
+	Nakama_Discount_Codes::init();
 	Nakama_Cart::init();      // aplica fees, botones de promo, badges
 	Nakama_Shipping::init();  // envío gratis topado
 	Nakama_MSI::init();       // flags de meses sin intereses

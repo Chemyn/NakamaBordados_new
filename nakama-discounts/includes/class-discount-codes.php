@@ -10,8 +10,17 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
 class Nakama_Discount_Codes {
 	const SCHEMA_VERSION = 2;
 	const SELECTION_PREFIX = 'public_code:';
+	const SESSION_UNLOCKED_ID = 'nakama_unlocked_public_code_id';
 	const ENTRY_AUTOMATIC = 'automatic';
 	const ENTRY_MANUAL = 'manual';
+
+	public static function init() {
+		add_filter( 'nakama_resolve_manual_discount_code', array( __CLASS__, 'resolve_manual_code' ), 20, 2 );
+		add_filter( 'nakama_checkout_bridge_nakama_result', array( __CLASS__, 'apply_checkout_bridge' ), 20, 2 );
+		add_action( 'nakama_checkout_bridge_clear_promotion', array( __CLASS__, 'clear_unlocked_code' ) );
+		add_action( 'woocommerce_applied_coupon', array( __CLASS__, 'clear_unlocked_code' ), 20 );
+		add_action( 'nakama_discount_selection_applied', array( __CLASS__, 'on_promotion_selected' ), 20 );
+	}
 
 	public static function set_defaults() {
 		if ( false === get_option( NAKAMA_DISC_CODES_OPTION, false ) ) {
@@ -263,6 +272,128 @@ class Nakama_Discount_Codes {
 			}
 		}
 		return null;
+	}
+
+	/** Resolve a typed manual code without exposing any other stored code. */
+	public static function resolve_manual_code( $result, $raw_code ) {
+		$record = self::find_by_code( $raw_code );
+		if ( ! $record ) {
+			return $result;
+		}
+
+		$invalid = array(
+			'handled' => true,
+			'valid'   => false,
+			'kind'    => 'nakama_manual',
+			'message' => __( 'Este código no está disponible.', 'nakama-discounts' ),
+		);
+		if ( self::ENTRY_MANUAL !== self::entry_mode( $record ) ) {
+			$invalid['message'] = __( 'Este código ya aparece entre las promociones disponibles.', 'nakama-discounts' );
+			return $invalid;
+		}
+		if ( 'active' !== self::status( $record ) ) {
+			return $invalid;
+		}
+
+		$id = isset( $record['id'] ) ? sanitize_key( $record['id'] ) : '';
+		return array(
+			'handled'         => true,
+			'valid'           => true,
+			'kind'            => 'nakama_manual',
+			'code'            => self::normalize_code( isset( $record['code'] ) ? $record['code'] : '' ),
+			'selection_key'   => self::selection_key( $id ),
+			'allow_modifiers' => 'yes' === ( isset( $record['allow_modifiers'] ) ? $record['allow_modifiers'] : 'no' ),
+			'id'              => $id,
+			'message'         => __( 'Código reconocido. Podrás comparar las promociones disponibles en el checkout.', 'nakama-discounts' ),
+		);
+	}
+
+	/** Revalidate, unlock and select one manual code after the bridge rebuilds the cart. */
+	public static function apply_checkout_bridge( $result, $raw_code ) {
+		$resolved = self::resolve_manual_code( array( 'handled' => false ), $raw_code );
+		if ( empty( $resolved['handled'] ) || empty( $resolved['valid'] ) ) {
+			self::clear_unlocked_code();
+			return array(
+				'handled' => true,
+				'success' => false,
+				'message' => isset( $resolved['message'] )
+					? $resolved['message']
+					: __( 'El código ya no está disponible.', 'nakama-discounts' ),
+			);
+		}
+
+		$session = self::session();
+		if ( ! $session || ! class_exists( 'Nakama_Cart' ) ) {
+			self::clear_unlocked_code();
+			return array(
+				'handled' => true,
+				'success' => false,
+				'message' => __( 'No se pudo iniciar la selección del código.', 'nakama-discounts' ),
+			);
+		}
+
+		$session->set( self::SESSION_UNLOCKED_ID, $resolved['id'] );
+		Nakama_Cart::flush_plan();
+		$cart = WC()->cart;
+		if ( $cart && method_exists( $cart, 'calculate_totals' ) ) {
+			$cart->calculate_totals();
+		}
+
+		$plan = Nakama_Cart::get_plan();
+		$options = $plan && isset( $plan['options'] ) ? $plan['options'] : array();
+		if ( ! Nakama_Cart::apply_selection( $resolved['selection_key'], $options ) ) {
+			self::clear_unlocked_code();
+			return array(
+				'handled' => true,
+				'success' => false,
+				'message' => __( 'El código ya no está disponible.', 'nakama-discounts' ),
+			);
+		}
+
+		if ( $cart && method_exists( $cart, 'calculate_totals' ) ) {
+			$cart->calculate_totals();
+		}
+
+		return array(
+			'handled'       => true,
+			'success'       => true,
+			'code'          => $resolved['code'],
+			'selection_key' => $resolved['selection_key'],
+			'message'       => $resolved['message'],
+		);
+	}
+
+	public static function clear_unlocked_code( $clear_selection = true ) {
+		$session = self::session();
+		if ( ! $session ) {
+			return;
+		}
+
+		$unlocked = sanitize_key( $session->get( self::SESSION_UNLOCKED_ID, '' ) );
+		$session->set( self::SESSION_UNLOCKED_ID, '' );
+		if ( false !== $clear_selection && '' !== $unlocked ) {
+			$selected = (string) $session->get( 'nakama_selected_promo', '' );
+			if ( $unlocked === self::id_from_selection( $selected ) ) {
+				$session->set( 'nakama_selected_promo', '' );
+			}
+		}
+		if ( class_exists( 'Nakama_Cart' ) ) {
+			Nakama_Cart::flush_plan();
+		}
+	}
+
+	public static function on_promotion_selected( $selection_key = '' ) {
+		if ( 0 === strpos( (string) $selection_key, 'affiliate_code:' ) ) {
+			self::clear_unlocked_code();
+		}
+	}
+
+	private static function session() {
+		if ( ! function_exists( 'WC' ) ) {
+			return null;
+		}
+		$woocommerce = WC();
+		return $woocommerce && isset( $woocommerce->session ) ? $woocommerce->session : null;
 	}
 
 	public static function selection_key( $id ) {

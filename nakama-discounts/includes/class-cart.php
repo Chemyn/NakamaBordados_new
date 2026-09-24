@@ -49,6 +49,12 @@ class Nakama_Cart {
 			self::$plan = Nakama_Engine::resolve( $ctx );
 			if ( ! self::$plan['selection_valid'] && $ctx->selected_promo ) {
 				WC()->session->set( 'nakama_selected_promo', '' );
+				if (
+					$ctx->unlocked_public_code_id
+					&& $ctx->unlocked_public_code_id === Nakama_Discount_Codes::id_from_selection( $ctx->selected_promo )
+				) {
+					Nakama_Discount_Codes::clear_unlocked_code( false );
+				}
 				if ( function_exists( 'wc_add_notice' ) ) {
 					wc_add_notice(
 						__( 'La promoción seleccionada ya no está disponible. Actualizamos tus opciones.', 'nakama-discounts' ),
@@ -356,6 +362,12 @@ class Nakama_Cart {
 				$order->update_meta_data(
 					'_nakama_primary_combinable',
 					! empty( $plan['primary']['allow_modifiers'] ) ? 'yes' : 'no'
+				);
+				$order->update_meta_data(
+					'_nakama_public_code_entry_mode',
+					isset( $plan['primary']['entry_mode'] )
+						? $plan['primary']['entry_mode']
+						: Nakama_Discount_Codes::ENTRY_AUTOMATIC
 				);
 			}
 		}
