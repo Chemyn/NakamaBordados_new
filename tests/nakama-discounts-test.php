@@ -9,6 +9,7 @@ $test_settings_errors = array();
 $test_now = new DateTimeImmutable( '2026-09-18 12:00:00', new DateTimeZone( 'UTC' ) );
 $test_uuid = 0;
 $test_filters = array();
+$test_native_coupons = array();
 
 function get_option( $key, $default = false ) {
 	global $test_options;
@@ -63,6 +64,19 @@ function apply_filters( $hook, $value ) {
 	return $value;
 }
 
+class WC_Coupon {
+	private $code;
+
+	public function __construct( $code ) {
+		$this->code = strtoupper( trim( (string) $code ) );
+	}
+
+	public function get_id() {
+		global $test_native_coupons;
+		return in_array( $this->code, $test_native_coupons, true ) ? 99 : 0;
+	}
+}
+
 function assert_same( $expected, $actual, $message ) {
 	if ( $expected !== $actual ) {
 		throw new RuntimeException( sprintf(
@@ -78,6 +92,26 @@ $codes_file = dirname( __DIR__ ) . '/nakama-discounts/includes/class-discount-co
 assert_same( true, file_exists( $codes_file ), 'The public discount-code repository exists.' );
 require $codes_file;
 
+$test_options[ NAKAMA_DISC_CODES_OPTION ] = array(
+	'version' => 1,
+	'items'   => array(
+		'legacy' => array(
+			'id'              => 'legacy',
+			'code'            => 'LEGACY10',
+			'rate'            => 0.10,
+			'enabled'         => 'yes',
+			'start'           => '',
+			'end'             => '',
+			'allow_modifiers' => 'yes',
+		),
+	),
+);
+Nakama_Discount_Codes::maybe_upgrade();
+$legacy = Nakama_Discount_Codes::collection();
+assert_same( 2, $legacy['version'] ?? null, 'Legacy collections migrate to schema 2.' );
+assert_same( 'automatic', $legacy['items']['legacy']['entry_mode'] ?? null, 'Legacy codes stay automatic.' );
+assert_same( 2, $test_options[ NAKAMA_DISC_CODES_OPTION ]['version'] ?? null, 'The schema upgrade is persisted.' );
+
 $sanitized = Nakama_Discount_Codes::sanitize( array(
 	'items' => array(
 		'new' => array(
@@ -87,15 +121,17 @@ $sanitized = Nakama_Discount_Codes::sanitize( array(
 			'start'           => '2026-09-01',
 			'end'             => '2026-09-30',
 			'allow_modifiers' => 'yes',
+			'entry_mode'      => 'manual',
 		),
 	),
 ) );
 
 $created = array_values( $sanitized['items'] ?? array() )[0] ?? array();
-assert_same( 1, $sanitized['version'] ?? null, 'The stored collection carries its schema version.' );
+assert_same( 2, $sanitized['version'] ?? null, 'The stored collection carries its schema version.' );
 assert_same( 'VERANO-15', $created['code'] ?? null, 'Codes are normalized for display and comparison.' );
 assert_same( 0.15, $created['rate'] ?? null, 'Admin percentages are stored as decimal rates.' );
 assert_same( 'yes', $created['allow_modifiers'] ?? null, 'Combination preference survives sanitization.' );
+assert_same( 'manual', $created['entry_mode'] ?? null, 'The selected entry mode survives sanitization.' );
 
 $test_options[ NAKAMA_DISC_CODES_OPTION ] = $sanitized;
 $test_settings_errors = array();
@@ -122,6 +158,28 @@ $required_messages = array_column( $test_settings_errors, 'message' );
 assert_same( $sanitized, $missing_required, 'Submitting the create action without required fields preserves published codes.' );
 assert_same( true, in_array( 'Escribe un código.', $required_messages, true ), 'An explicit create action reports the missing code.' );
 assert_same( true, in_array( 'Indica un porcentaje de descuento.', $required_messages, true ), 'An explicit create action reports the missing percentage.' );
+assert_same( true, in_array( 'Elige cómo podrá usar el cliente este código.', $required_messages, true ), 'An explicit create action reports the missing entry mode.' );
+
+$test_native_coupons = array( 'RECUPERA20' );
+$test_settings_errors = array();
+$collision = Nakama_Discount_Codes::sanitize( array(
+	'items' => array(
+		'new' => array(
+			'create'          => 'yes',
+			'code'            => 'recupera20',
+			'percentage'      => '20',
+			'entry_mode'      => 'manual',
+			'allow_modifiers' => 'yes',
+		),
+	),
+) );
+assert_same( $sanitized, $collision, 'A manual Nakama code cannot collide with a native WooCommerce coupon.' );
+assert_same(
+	true,
+	in_array( 'Ese código también existe en WooCommerce. Cambia uno de los dos para evitar ambigüedad.', array_column( $test_settings_errors, 'message' ), true ),
+	'Native coupon collisions produce a clear admin error.'
+);
+$test_native_coupons = array();
 
 $published_id = array_key_first( $sanitized['items'] );
 $test_settings_errors = array();
@@ -150,13 +208,14 @@ $active_record = array(
 	'start'           => '2026-09-18',
 	'end'             => '2026-09-18',
 	'allow_modifiers' => 'yes',
+	'entry_mode'      => 'automatic',
 );
 assert_same( 'active', Nakama_Discount_Codes::status( $active_record, $test_now ), 'Both date limits include the full configured day.' );
 assert_same( 'scheduled', Nakama_Discount_Codes::status( $active_record, new DateTimeImmutable( '2026-09-17 23:59:59', wp_timezone() ) ), 'A future code is scheduled.' );
 assert_same( 'expired', Nakama_Discount_Codes::status( $active_record, new DateTimeImmutable( '2026-09-19 00:00:00', wp_timezone() ) ), 'A code expires after the final configured day.' );
 
 $test_options[ NAKAMA_DISC_CODES_OPTION ] = array(
-	'version' => 1,
+	'version' => 2,
 	'items'   => array(
 		'combo' => array(
 			'id'              => 'combo',
@@ -166,6 +225,7 @@ $test_options[ NAKAMA_DISC_CODES_OPTION ] = array(
 			'start'           => '',
 			'end'             => '',
 			'allow_modifiers' => 'yes',
+			'entry_mode'      => 'automatic',
 		),
 		'solo' => array(
 			'id'              => 'solo',
@@ -175,6 +235,7 @@ $test_options[ NAKAMA_DISC_CODES_OPTION ] = array(
 			'start'           => '',
 			'end'             => '',
 			'allow_modifiers' => 'no',
+			'entry_mode'      => 'automatic',
 		),
 	),
 );

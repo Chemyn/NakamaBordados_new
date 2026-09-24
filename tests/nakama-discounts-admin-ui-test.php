@@ -8,6 +8,7 @@ define( 'NAKAMA_DISC_CODES_OPTION', 'nakama_discount_codes' );
 function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {}
 function esc_attr( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
+function esc_html__( $value, $domain = null ) { return esc_html( $value ); }
 function settings_errors( $setting = '' ) {}
 function settings_fields( $group ) {}
 function submit_button() { echo '<button type="submit">Guardar cambios</button>'; }
@@ -52,6 +53,9 @@ class Nakama_Settings {
 }
 
 class Nakama_Discount_Codes {
+	const ENTRY_AUTOMATIC = 'automatic';
+	const ENTRY_MANUAL = 'manual';
+
 	public static function all() {
 		return array(
 			'saved' => array(
@@ -61,6 +65,7 @@ class Nakama_Discount_Codes {
 		);
 	}
 	public static function status( $code ) { return 'active'; }
+	public static function entry_mode( $code ) { return $code['entry_mode'] ?? 'automatic'; }
 }
 
 class Nakama_Campaigns {
@@ -79,5 +84,10 @@ assert_same( true, false !== strpos( $html, 'data-nakama-cancel-create' ), 'The 
 assert_same( true, false !== strpos( $html, 'data-nakama-delete-code' ), 'Every saved code exposes a direct delete action.' );
 assert_same( true, false !== strpos( $html, 'aria-required="true"' ), 'Required creation fields are announced accessibly.' );
 assert_same( true, false !== strpos( $html, 'data-nakama-field-error' ), 'Required creation fields reserve inline validation feedback.' );
+assert_same( true, false !== strpos( $html, '[entry_mode]' ), 'Saved and new code cards expose an entry-mode field.' );
+assert_same( true, false !== strpos( $html, 'value="automatic"' ), 'The entry-mode group offers automatic discovery.' );
+assert_same( true, false !== strpos( $html, 'value="manual"' ), 'The entry-mode group offers manual entry.' );
+assert_same( true, false !== strpos( $html, 'Automático' ), 'Legacy saved codes are presented as automatic.' );
+assert_same( true, false !== strpos( $html, 'data-nakama-entry-mode' ), 'Creation reserves inline validation for the entry-mode group.' );
 
 echo "PHP Nakama Discounts admin UI tests passed.\n";

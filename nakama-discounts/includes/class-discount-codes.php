@@ -8,13 +8,18 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * motor los convierte en candidatos de promoción primaria.
  */
 class Nakama_Discount_Codes {
-	const SCHEMA_VERSION = 1;
+	const SCHEMA_VERSION = 2;
 	const SELECTION_PREFIX = 'public_code:';
+	const ENTRY_AUTOMATIC = 'automatic';
+	const ENTRY_MANUAL = 'manual';
 
 	public static function set_defaults() {
 		if ( false === get_option( NAKAMA_DISC_CODES_OPTION, false ) ) {
 			update_option( NAKAMA_DISC_CODES_OPTION, self::empty_collection() );
+			return;
 		}
+
+		self::maybe_upgrade();
 	}
 
 	public static function empty_collection() {
@@ -27,6 +32,24 @@ class Nakama_Discount_Codes {
 	/** Devuelve la colección persistida con una forma estable. */
 	public static function collection() {
 		$value = get_option( NAKAMA_DISC_CODES_OPTION, self::empty_collection() );
+		return self::normalize_collection( $value );
+	}
+
+	/** Persiste las migraciones de esquema sin cambiar el comportamiento publicado. */
+	public static function maybe_upgrade() {
+		$value = get_option( NAKAMA_DISC_CODES_OPTION, false );
+		if ( false === $value ) {
+			update_option( NAKAMA_DISC_CODES_OPTION, self::empty_collection() );
+			return;
+		}
+
+		$normalized = self::normalize_collection( $value );
+		if ( $normalized !== $value ) {
+			update_option( NAKAMA_DISC_CODES_OPTION, $normalized );
+		}
+	}
+
+	private static function normalize_collection( $value ) {
 		if ( ! is_array( $value ) ) {
 			return self::empty_collection();
 		}
@@ -36,11 +59,21 @@ class Nakama_Discount_Codes {
 			$value = array( 'version' => self::SCHEMA_VERSION, 'items' => $value );
 		}
 
+		$items = isset( $value['items'] ) && is_array( $value['items'] )
+			? $value['items']
+			: array();
+		foreach ( $items as $id => $record ) {
+			if ( ! is_array( $record ) ) {
+				unset( $items[ $id ] );
+				continue;
+			}
+			$record['entry_mode'] = self::entry_mode( $record );
+			$items[ $id ] = $record;
+		}
+
 		return array(
 			'version' => self::SCHEMA_VERSION,
-			'items'   => isset( $value['items'] ) && is_array( $value['items'] )
-				? $value['items']
-				: array(),
+			'items'   => $items,
 		);
 	}
 
@@ -79,13 +112,12 @@ class Nakama_Discount_Codes {
 
 			$is_new = 0 === strpos( (string) $row_key, 'new' );
 			$create_requested = $is_new && ! empty( $row['create'] );
-			$code = isset( $row['code'] )
-				? strtoupper( preg_replace( '/\s+/', '', sanitize_text_field( $row['code'] ) ) )
-				: '';
+			$code = isset( $row['code'] ) ? self::normalize_code( $row['code'] ) : '';
 			$raw_percentage = isset( $row['percentage'] ) ? trim( (string) $row['percentage'] ) : '';
 			$start = isset( $row['start'] ) ? sanitize_text_field( $row['start'] ) : '';
 			$end   = isset( $row['end'] ) ? sanitize_text_field( $row['end'] ) : '';
-			$has_creation_values = '' !== $code || '' !== $raw_percentage || '' !== $start || '' !== $end;
+			$entry_mode = isset( $row['entry_mode'] ) ? sanitize_key( $row['entry_mode'] ) : '';
+			$has_creation_values = '' !== $code || '' !== $raw_percentage || '' !== $start || '' !== $end || '' !== $entry_mode;
 
 			// Una eliminación explícita no debe quedar bloqueada por un borrador
 			// incompleto que también viaje en el mismo formulario.
@@ -112,6 +144,10 @@ class Nakama_Discount_Codes {
 				$row_errors[] = __( 'El porcentaje debe ser mayor que 0 y no superar 100.', 'nakama-discounts' );
 			}
 
+			if ( ! in_array( $entry_mode, array( self::ENTRY_AUTOMATIC, self::ENTRY_MANUAL ), true ) ) {
+				$row_errors[] = __( 'Elige cómo podrá usar el cliente este código.', 'nakama-discounts' );
+			}
+
 			if ( ( $start && ! self::valid_date( $start ) ) || ( $end && ! self::valid_date( $end ) ) ) {
 				$row_errors[] = __( 'La vigencia debe usar fechas válidas.', 'nakama-discounts' );
 			}
@@ -122,6 +158,12 @@ class Nakama_Discount_Codes {
 			$code_key = strtolower( $code );
 			if ( $code && isset( $seen[ $code_key ] ) ) {
 				$row_errors[] = __( 'Cada código público debe ser único.', 'nakama-discounts' );
+			}
+			if ( self::ENTRY_MANUAL === $entry_mode && $code && class_exists( 'WC_Coupon' ) ) {
+				$native_coupon = new WC_Coupon( $code );
+				if ( $native_coupon->get_id() ) {
+					$row_errors[] = __( 'Ese código también existe en WooCommerce. Cambia uno de los dos para evitar ambigüedad.', 'nakama-discounts' );
+				}
 			}
 
 			if ( $row_errors ) {
@@ -155,6 +197,7 @@ class Nakama_Discount_Codes {
 				'start'           => $start,
 				'end'             => $end,
 				'allow_modifiers' => isset( $row['allow_modifiers'] ) ? 'yes' : 'no',
+				'entry_mode'      => $entry_mode,
 				'created_at'      => isset( $old['created_at'] ) ? $old['created_at'] : $now,
 				'updated_at'      => $now,
 			);
@@ -197,6 +240,29 @@ class Nakama_Discount_Codes {
 		return array_filter( self::all(), function ( $record ) use ( $now ) {
 			return is_array( $record ) && 'active' === self::status( $record, $now );
 		} );
+	}
+
+	public static function entry_mode( array $record ) {
+		return self::ENTRY_MANUAL === ( isset( $record['entry_mode'] ) ? $record['entry_mode'] : '' )
+			? self::ENTRY_MANUAL
+			: self::ENTRY_AUTOMATIC;
+	}
+
+	public static function normalize_code( $code ) {
+		return strtoupper( preg_replace( '/\s+/', '', sanitize_text_field( $code ) ) );
+	}
+
+	public static function find_by_code( $code ) {
+		$normalized = self::normalize_code( $code );
+		if ( '' === $normalized ) {
+			return null;
+		}
+		foreach ( self::all() as $record ) {
+			if ( is_array( $record ) && $normalized === self::normalize_code( isset( $record['code'] ) ? $record['code'] : '' ) ) {
+				return $record;
+			}
+		}
+		return null;
 	}
 
 	public static function selection_key( $id ) {

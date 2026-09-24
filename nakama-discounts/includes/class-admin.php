@@ -99,6 +99,12 @@ class Nakama_Admin {
 		return '<span style="display:inline-block;padding:2px 10px;border-radius:999px;background:#f3f4f6;color:#6b7280;font-size:12px;font-weight:600;">○ Inactiva</span>';
 	}
 
+	private static function entry_mode_label( $entry_mode ) {
+		return Nakama_Discount_Codes::ENTRY_MANUAL === $entry_mode
+			? esc_html__( 'Manual', 'nakama-discounts' )
+			: esc_html__( 'Automático', 'nakama-discounts' );
+	}
+
 	public static function render() {
 		$s   = Nakama_Settings::all();
 		$opt = NAKAMA_DISC_OPTION;
@@ -129,6 +135,7 @@ class Nakama_Admin {
 						<div class="nakama-code-list">
 							<?php foreach ( $codes as $id => $code ) :
 								$status = Nakama_Discount_Codes::status( $code );
+								$entry_mode = Nakama_Discount_Codes::entry_mode( $code );
 								$status_labels = array(
 									'active'    => 'Activo ahora',
 									'scheduled' => 'Programado',
@@ -143,6 +150,7 @@ class Nakama_Admin {
 										<span class="nakama-code-status nakama-code-status--<?php echo esc_attr( $status ); ?>">
 											<?php echo esc_html( $status_labels[ $status ] ); ?>
 										</span>
+										<span class="nakama-code-mode"><?php echo self::entry_mode_label( $entry_mode ); ?></span>
 									</div>
 									<input type="hidden" name="<?php echo esc_attr( $field ); ?>[id]" value="<?php echo esc_attr( $id ); ?>">
 									<div class="nakama-code-fields">
@@ -163,6 +171,11 @@ class Nakama_Admin {
 										<label><input type="checkbox" name="<?php echo esc_attr( $field ); ?>[enabled]" <?php checked( 'yes', $code['enabled'] ); ?>> Activo</label>
 										<label><input type="checkbox" name="<?php echo esc_attr( $field ); ?>[allow_modifiers]" <?php checked( 'yes', $code['allow_modifiers'] ); ?>> Permitir transferencia, envío gratis y MSI</label>
 									</div>
+									<fieldset class="nakama-code-mode-fieldset">
+										<legend>¿Cómo podrá usarlo el cliente? <span aria-hidden="true">*</span></legend>
+										<label><input type="radio" name="<?php echo esc_attr( $field ); ?>[entry_mode]" value="automatic" <?php checked( Nakama_Discount_Codes::ENTRY_AUTOMATIC, $entry_mode ); ?> required> Mostrar automáticamente</label>
+										<label><input type="radio" name="<?php echo esc_attr( $field ); ?>[entry_mode]" value="manual" <?php checked( Nakama_Discount_Codes::ENTRY_MANUAL, $entry_mode ); ?> required> Ingresar código manualmente</label>
+									</fieldset>
 									<div class="nakama-code-actions">
 										<button type="submit" class="button button-secondary">Guardar cambios</button>
 										<button
@@ -183,7 +196,7 @@ class Nakama_Admin {
 					<details class="nakama-code-create" data-nakama-create-panel>
 						<summary>Crear nuevo código</summary>
 						<div class="nakama-code-card nakama-code-card--new">
-							<p class="description">Código y porcentaje son obligatorios. Las fechas son opcionales; si las dejas vacías, seguirá vigente hasta que lo desactives.</p>
+							<p class="description">Código, porcentaje y modo de uso son obligatorios. Las fechas son opcionales; si las dejas vacías, seguirá vigente hasta que lo desactives.</p>
 							<div class="nakama-code-fields">
 								<div class="nakama-code-field">
 									<label for="nakama-new-code">Código <span aria-hidden="true">*</span></label>
@@ -207,9 +220,16 @@ class Nakama_Admin {
 								</div>
 							</div>
 							<div class="nakama-code-toggles">
-								<label><input type="checkbox" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][enabled]" checked data-nakama-new-enabled> Activo y visible en checkout</label>
+								<label><input type="checkbox" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][enabled]" checked data-nakama-new-enabled> Activo</label>
 								<label><input type="checkbox" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][allow_modifiers]" checked> Permitir transferencia, envío gratis y MSI</label>
 							</div>
+							<fieldset class="nakama-code-mode-fieldset" data-nakama-entry-mode aria-describedby="nakama-new-entry-mode-help nakama-new-entry-mode-error">
+								<legend>¿Cómo podrá usarlo el cliente? <span aria-hidden="true">*</span></legend>
+								<label><input type="radio" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][entry_mode]" value="automatic" required> Mostrar automáticamente</label>
+								<label><input type="radio" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][entry_mode]" value="manual" required> Ingresar código manualmente</label>
+								<p id="nakama-new-entry-mode-help" class="description">El modo automático publica la opción; el manual requiere que el cliente conozca el código.</p>
+								<p id="nakama-new-entry-mode-error" class="nakama-field-error" role="alert" data-nakama-entry-mode-error hidden></p>
+							</fieldset>
 							<div class="nakama-code-actions">
 								<button type="submit" class="button button-primary" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][create]" value="yes" formnovalidate data-nakama-create-code>Guardar y activar código</button>
 								<button type="button" class="button button-secondary" data-nakama-cancel-create>Cancelar</button>
@@ -318,6 +338,7 @@ class Nakama_Admin {
 				.nakama-code-status--active { background:#dcfce7; color:#166534; }
 				.nakama-code-status--scheduled { background:#dbeafe; color:#1e40af; }
 				.nakama-code-status--expired, .nakama-code-status--inactive { background:#f3f4f6; color:#4b5563; }
+				.nakama-code-mode { display:inline-flex; align-items:center; min-height:28px; padding:0 10px; border-radius:999px; background:#f0f6fc; color:#0a4b78; font-size:12px; font-weight:700; }
 				.nakama-code-fields { display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:12px; }
 				.nakama-code-fields label, .nakama-code-field { display:grid; gap:6px; font-weight:600; }
 				.nakama-code-fields input { width:100%; min-height:40px; }
@@ -326,6 +347,11 @@ class Nakama_Admin {
 				.nakama-code-field input[aria-invalid="true"] { border-color:#b32d2e; box-shadow:0 0 0 1px #b32d2e; }
 				.nakama-code-toggles { display:flex; flex-wrap:wrap; gap:12px 22px; margin-top:14px; }
 				.nakama-code-toggles label { display:inline-flex; align-items:center; min-height:44px; }
+				.nakama-code-mode-fieldset { display:flex; flex-wrap:wrap; gap:8px 22px; margin:14px 0 0; padding:12px; border:1px solid #dcdcde; border-radius:6px; }
+				.nakama-code-mode-fieldset legend { padding:0 6px; font-weight:700; }
+				.nakama-code-mode-fieldset label { display:inline-flex; align-items:center; min-height:44px; }
+				.nakama-code-mode-fieldset .description, .nakama-code-mode-fieldset .nakama-field-error { flex-basis:100%; }
+				.nakama-code-mode-fieldset[aria-invalid="true"] { border-color:#b32d2e; box-shadow:0 0 0 1px #b32d2e; }
 				.nakama-code-actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; margin-top:16px; }
 				.nakama-code-actions .button, .nakama-code-delete { min-height:44px; display:inline-flex; align-items:center; justify-content:center; }
 				.nakama-code-delete { color:#b32d2e; cursor:pointer; }
@@ -343,6 +369,9 @@ class Nakama_Admin {
 					var createButton = root.querySelector('[data-nakama-create-code]');
 					var cancelButton = root.querySelector('[data-nakama-cancel-create]');
 					var enabledInput = root.querySelector('[data-nakama-new-enabled]');
+					var modeGroup = panel.querySelector('[data-nakama-entry-mode]');
+					var modeRadios = modeGroup.querySelectorAll('input[type="radio"]');
+					var modeError = modeGroup.querySelector('[data-nakama-entry-mode-error]');
 
 					function showFieldError(field, message) {
 						var error = panel.querySelector('[data-nakama-field-error="' + field.dataset.nakamaRequired + '"]');
@@ -358,6 +387,18 @@ class Nakama_Admin {
 						error.hidden = true;
 					}
 
+					function showModeError(message) {
+						modeGroup.setAttribute('aria-invalid', 'true');
+						modeError.textContent = message;
+						modeError.hidden = false;
+					}
+
+					function clearModeError() {
+						modeGroup.removeAttribute('aria-invalid');
+						modeError.textContent = '';
+						modeError.hidden = true;
+					}
+
 					function validateCreation() {
 						var code = panel.querySelector('[data-nakama-required="code"]');
 						var percentage = panel.querySelector('[data-nakama-required="percentage"]');
@@ -365,9 +406,11 @@ class Nakama_Admin {
 						var codeValue = code.value.trim();
 						var percentageValue = percentage.value.trim();
 						var numericPercentage = Number(percentageValue);
+						var selectedMode = panel.querySelector('[data-nakama-entry-mode] input[type="radio"]:checked');
 
 						clearFieldError(code);
 						clearFieldError(percentage);
+						clearModeError();
 						if (!codeValue) {
 							showFieldError(code, 'Escribe el código que verá el cliente.');
 							firstInvalid = code;
@@ -381,6 +424,10 @@ class Nakama_Admin {
 						} else if (!Number.isFinite(numericPercentage) || numericPercentage <= 0 || numericPercentage > 100) {
 							showFieldError(percentage, 'Ingresa un porcentaje mayor que 0 y hasta 100.');
 							firstInvalid = firstInvalid || percentage;
+						}
+						if (!selectedMode) {
+							showModeError('Elige si el código se mostrará automáticamente o se ingresará manualmente.');
+							firstInvalid = firstInvalid || modeRadios[0];
 						}
 
 						if (firstInvalid) {
@@ -418,10 +465,13 @@ class Nakama_Admin {
 							}
 						});
 					});
+					modeRadios.forEach(function (field) {
+						field.addEventListener('change', clearModeError);
+					});
 
 					cancelButton.addEventListener('click', function () {
 						panel.querySelectorAll('input').forEach(function (field) {
-							if (field.type === 'checkbox') {
+							if (field.type === 'checkbox' || field.type === 'radio') {
 								field.checked = field.defaultChecked;
 							} else {
 								field.value = '';
@@ -430,6 +480,7 @@ class Nakama_Admin {
 								clearFieldError(field);
 							}
 						});
+						clearModeError();
 						updateCreateLabel();
 						panel.open = false;
 						panel.querySelector('summary').focus();
