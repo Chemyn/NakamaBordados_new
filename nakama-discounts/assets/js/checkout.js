@@ -60,6 +60,63 @@
 		} );
 	} );
 
+	// Campo único del checkout: promoción Nakama, afiliado o cupón nativo.
+	$( document.body ).on( 'submit', '.nakama-checkout-code-form', function ( e ) {
+		e.preventDefault();
+		var $form = $( this );
+		var $input = $form.find( '#nakama-checkout-code' );
+		var $button = $form.find( '.nakama-checkout-code-submit' );
+		var $feedback = $form.find( '.nakama-checkout-code-feedback' );
+		var code = String( $input.val() || '' ).trim();
+		var originalButtonText = $button.text();
+
+		if ( ! code ) {
+			$input.attr( 'aria-invalid', 'true' ).trigger( 'focus' );
+			$feedback
+				.addClass( 'is-error' )
+				.removeClass( 'is-success' )
+				.attr( 'role', 'alert' )
+				.text( NakamaDisc.messages.code_required );
+			return;
+		}
+
+		$form.attr( 'aria-busy', 'true' );
+		$input.attr( 'aria-invalid', 'false' ).prop( 'disabled', true );
+		$button.prop( 'disabled', true ).text( NakamaDisc.messages.code_applying );
+		$feedback
+			.removeClass( 'is-error is-success' )
+			.attr( 'role', 'status' )
+			.text( NakamaDisc.messages.code_applying );
+
+		$.post( NakamaDisc.ajax_url, {
+			action: 'nakama_apply_checkout_code',
+			nonce: NakamaDisc.apply_nonce,
+			code: code
+		} ).done( function ( response ) {
+			var result = response && response.data ? response.data : {};
+			$feedback
+				.addClass( 'is-success' )
+				.removeClass( 'is-error' )
+				.attr( 'role', 'status' )
+				.text( result.message || NakamaDisc.messages.updated );
+			$( document.body ).trigger( 'update_checkout' );
+		} ).fail( function ( xhr ) {
+			var response = xhr && xhr.responseJSON ? xhr.responseJSON : null;
+			var result = response && response.data ? response.data : {};
+			$input.attr( 'aria-invalid', 'true' );
+			$feedback
+				.addClass( 'is-error' )
+				.removeClass( 'is-success' )
+				.attr( 'role', 'alert' )
+				.text( result.message || NakamaDisc.messages.code_error )
+				.trigger( 'focus' );
+		} ).always( function () {
+			$form.attr( 'aria-busy', 'false' );
+			$input.prop( 'disabled', false );
+			$button.prop( 'disabled', false ).text( originalButtonText );
+		} );
+	} );
+
 	// El cambio de método de pago ya dispara update_checkout en WooCommerce,
 	// lo que recalcula el descuento por transferencia server-side. No requiere
 	// nada extra aquí, pero dejamos el hook por si quieres feedback visual.

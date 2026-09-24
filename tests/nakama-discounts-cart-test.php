@@ -5,6 +5,7 @@ define( 'ABSPATH', __DIR__ . '/' );
 define( 'NAKAMA_DISC_CODES_OPTION', 'nakama_discount_codes' );
 
 $registered_actions = array();
+$removed_actions = array();
 $fired_actions = array();
 $test_discount_options = array(
 	NAKAMA_DISC_CODES_OPTION => array(
@@ -15,6 +16,11 @@ $test_discount_options = array(
 				'enabled' => 'yes', 'start' => '', 'end' => '',
 				'allow_modifiers' => 'yes', 'entry_mode' => 'manual',
 			),
+			'duplicate-code' => array(
+				'id' => 'duplicate-code', 'code' => 'DUPLICATE', 'rate' => 0.20,
+				'enabled' => 'yes', 'start' => '', 'end' => '',
+				'allow_modifiers' => 'no', 'entry_mode' => 'manual',
+			),
 		),
 	),
 );
@@ -22,6 +28,10 @@ $test_discount_options = array(
 function add_action( $hook, $callback, $priority = 10, $accepted_args = 1 ) {
 	global $registered_actions;
 	$registered_actions[ $hook ][] = $callback;
+}
+function remove_action( $hook, $callback, $priority = 10 ) {
+	global $removed_actions;
+	$removed_actions[] = array( $hook, $callback, $priority );
 }
 
 function add_filter( $hook, $callback, $priority = 10, $accepted_args = 1 ) {}
@@ -40,6 +50,7 @@ function __( $text, $domain = null ) { return $text; }
 function esc_attr( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 function esc_html( $value ) { return htmlspecialchars( (string) $value, ENT_QUOTES, 'UTF-8' ); }
 function esc_html__( $text, $domain = null ) { return esc_html( $text ); }
+function esc_html_e( $text, $domain = null ) { echo esc_html( $text ); }
 function wp_kses_post( $value ) { return (string) $value; }
 function wc_price( $amount ) { return '$' . number_format( (float) $amount, 2 ); }
 function get_option( $key, $fallback = false ) {
@@ -54,6 +65,37 @@ function update_option( $key, $value ) {
 function current_datetime() { return new DateTimeImmutable( '2026-09-23 12:00:00', new DateTimeZone( 'UTC' ) ); }
 function wp_timezone() { return new DateTimeZone( 'UTC' ); }
 function apply_filters( $hook, $value ) { return $value; }
+function is_checkout() { return true; }
+function is_wc_endpoint_url( $endpoint = '' ) { return false; }
+
+class WC_Coupon {
+	private $code;
+	public function __construct( $code ) { $this->code = strtoupper( trim( (string) $code ) ); }
+	public function get_id() { return in_array( $this->code, array( 'NATIVE20', 'DUPLICATE' ), true ) ? 99 : 0; }
+	public function is_valid() { return (bool) $this->get_id(); }
+}
+
+final class Nakama_Affiliates_Codes {
+	public static function resolve( $code ) {
+		$code = strtoupper( trim( (string) $code ) );
+		if ( 'AFFILIATE10' !== $code ) {
+			return array( 'valid' => false );
+		}
+		return array(
+			'valid' => true,
+			'code' => $code,
+			'profile' => array( 'id' => 7 ),
+		);
+	}
+}
+
+final class Nakama_Affiliates_Discounts {
+	public static $selected = '';
+	public static function select_code( $code, $source = 'manual' ) {
+		self::$selected = strtoupper( trim( (string) $code ) );
+		return array( 'success' => true, 'code' => self::$selected, 'source' => $source );
+	}
+}
 
 class Nakama_Settings {
 	public static $values = array(
@@ -93,6 +135,7 @@ final class FakeDiscountSession {
 final class FakeDiscountCart {
 	public $coupons = array( 'RECUPERA20' );
 	public $remove_calls = 0;
+	public $calculate_calls = 0;
 	public function get_subtotal() { return 1000.0; }
 	public function get_cart() {
 		return array( array( 'product_id' => 10, 'line_subtotal' => 1000.0, 'quantity' => 1 ) );
@@ -103,7 +146,21 @@ final class FakeDiscountCart {
 		$this->coupons = array();
 		$this->remove_calls++;
 	}
-	public function calculate_totals() {}
+	public function has_discount( $code ) {
+		return in_array( strtoupper( (string) $code ), array_map( 'strtoupper', $this->coupons ), true );
+	}
+	public function apply_coupon( $code ) {
+		$code = strtoupper( (string) $code );
+		$coupon = new WC_Coupon( $code );
+		if ( ! $coupon->get_id() ) {
+			return false;
+		}
+		if ( ! $this->has_discount( $code ) ) {
+			$this->coupons[] = $code;
+		}
+		return true;
+	}
+	public function calculate_totals() { $this->calculate_calls++; }
 }
 
 final class FakeDiscountWooCommerce {
@@ -258,5 +315,57 @@ assert_same( 'yes', $order->meta['_nakama_primary_combinable'] ?? null, 'The ord
 assert_same( 'manual', $order->meta['_nakama_public_code_entry_mode'] ?? null, 'The order snapshots how the public code was entered.' );
 assert_same( 1, count( $fired_actions['nakama_discounts_order_plan_saved'] ?? array() ), 'The final discount plan is exposed once for independent integrations.' );
 assert_same( $order, $fired_actions['nakama_discounts_order_plan_saved'][0][0] ?? null, 'The order-plan hook receives the order being created.' );
+
+Nakama_Cart::init();
+assert_same(
+	true,
+	in_array( array( Nakama_Cart::class, 'render_checkout_code_form' ), $registered_actions['woocommerce_before_checkout_form'] ?? array(), true ),
+	'The unified code form is registered on the classic WooCommerce checkout.'
+);
+
+Nakama_Cart::hide_native_checkout_coupon();
+assert_same(
+	true,
+	in_array( array( 'woocommerce_before_checkout_form', 'woocommerce_checkout_coupon_form', 10 ), $removed_actions, true ),
+	'The native WooCommerce coupon form is removed from checkout.'
+);
+
+ob_start();
+Nakama_Cart::render_checkout_code_form();
+$code_form_html = ob_get_clean();
+assert_same( true, false !== strpos( $code_form_html, 'for="nakama-checkout-code"' ), 'The unified code field has a visible programmatic label.' );
+assert_same( true, false !== strpos( $code_form_html, 'id="nakama-checkout-code"' ), 'The unified code field has a stable accessible ID.' );
+assert_same( true, false !== strpos( $code_form_html, 'aria-describedby="nakama-checkout-code-help nakama-checkout-code-feedback"' ), 'The field is connected to its helper and feedback text.' );
+assert_same( true, false !== strpos( $code_form_html, 'type="submit"' ), 'The unified code form offers an explicit submit action.' );
+assert_same( true, false !== strpos( $code_form_html, 'aria-live="polite"' ), 'The unified code form announces asynchronous feedback.' );
+
+WC()->cart->coupons = array();
+$nakama_apply = Nakama_Cart::apply_checkout_code( ' manual15 ' );
+assert_same( true, $nakama_apply['success'] ?? false, 'The unified checkout field applies an active Nakama promotion.' );
+assert_same( 'nakama', $nakama_apply['kind'] ?? '', 'The applied Nakama code identifies its source.' );
+assert_same( 'public_code:manual-combo', WC()->session->get( 'nakama_selected_promo' ), 'The Nakama promotion becomes the selected primary.' );
+
+Nakama_Affiliates_Discounts::$selected = '';
+$affiliate_apply = Nakama_Cart::apply_checkout_code( 'affiliate10' );
+assert_same( true, $affiliate_apply['success'] ?? false, 'The unified checkout field applies an active affiliate code.' );
+assert_same( 'affiliate', $affiliate_apply['kind'] ?? '', 'The applied affiliate code identifies its source.' );
+assert_same( 'AFFILIATE10', Nakama_Affiliates_Discounts::$selected, 'The affiliate integration receives the normalized customer code.' );
+
+WC()->cart->coupons = array();
+$native_apply = Nakama_Cart::apply_checkout_code( 'native20' );
+assert_same( true, $native_apply['success'] ?? false, 'The unified checkout field preserves support for native WooCommerce coupons.' );
+assert_same( 'woocommerce', $native_apply['kind'] ?? '', 'The applied native coupon identifies its source.' );
+assert_same( true, WC()->cart->has_discount( 'NATIVE20' ), 'The native coupon is applied to the WooCommerce cart.' );
+
+WC()->cart->coupons = array();
+Nakama_Affiliates_Discounts::$selected = '';
+$duplicate_apply = Nakama_Cart::apply_checkout_code( 'duplicate' );
+assert_same( false, $duplicate_apply['success'] ?? true, 'A code shared by two discount systems is rejected as ambiguous.' );
+assert_same( 'ambiguous', $duplicate_apply['kind'] ?? '', 'The ambiguous response can be explained clearly in checkout.' );
+assert_same( array(), WC()->cart->coupons, 'An ambiguous code does not change the cart.' );
+
+$empty_apply = Nakama_Cart::apply_checkout_code( '   ' );
+assert_same( false, $empty_apply['success'] ?? true, 'An empty submission is rejected before touching the cart.' );
+assert_same( 'empty', $empty_apply['kind'] ?? '', 'The empty response tells the interface to retain focus on the field.' );
 
 echo "PHP Nakama Discounts cart integration tests passed.\n";

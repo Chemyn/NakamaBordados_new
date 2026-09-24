@@ -24,12 +24,18 @@ class Nakama_Cart {
 		add_action( 'woocommerce_cart_totals_before_order_total', array( __CLASS__, 'render_promo_ui' ) );
 		add_action( 'woocommerce_review_order_before_order_total', array( __CLASS__, 'render_promo_ui' ) );
 
+		// Un solo campo admite promociones Nakama, afiliados y cupones nativos.
+		add_action( 'wp', array( __CLASS__, 'hide_native_checkout_coupon' ) );
+		add_action( 'woocommerce_before_checkout_form', array( __CLASS__, 'render_checkout_code_form' ) );
+
 		// Assets.
 		add_action( 'wp_enqueue_scripts', array( __CLASS__, 'assets' ) );
 
 		// AJAX: guardar promo elegida.
 		add_action( 'wp_ajax_nakama_select_promo', array( __CLASS__, 'ajax_select_promo' ) );
 		add_action( 'wp_ajax_nopriv_nakama_select_promo', array( __CLASS__, 'ajax_select_promo' ) );
+		add_action( 'wp_ajax_nakama_apply_checkout_code', array( __CLASS__, 'ajax_apply_checkout_code' ) );
+		add_action( 'wp_ajax_nopriv_nakama_apply_checkout_code', array( __CLASS__, 'ajax_apply_checkout_code' ) );
 
 		// Un cupón nativo de carrito abandonado reemplaza la primaria Nakama.
 		add_action( 'woocommerce_applied_coupon', array( __CLASS__, 'clear_selected_promo' ) );
@@ -68,6 +74,51 @@ class Nakama_Cart {
 
 	public static function flush_plan() {
 		self::$plan = null;
+	}
+
+	/**
+	 * Retira el formulario nativo para que el cliente no vea dos entradas que
+	 * aceptan tipos de código distintos. El reemplazo conserva cupones nativos.
+	 */
+	public static function hide_native_checkout_coupon() {
+		if ( ! function_exists( 'is_checkout' ) || ! is_checkout() ) {
+			return;
+		}
+		if ( function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( 'order-pay' ) ) {
+			return;
+		}
+
+		remove_action( 'woocommerce_before_checkout_form', 'woocommerce_checkout_coupon_form', 10 );
+	}
+
+	/** Campo unificado para promociones, afiliados y cupones de WooCommerce. */
+	public static function render_checkout_code_form() {
+		if ( function_exists( 'is_wc_endpoint_url' ) && is_wc_endpoint_url( 'order-pay' ) ) {
+			return;
+		}
+		?>
+		<section class="nakama-checkout-code" aria-labelledby="nakama-checkout-code-title">
+			<h3 id="nakama-checkout-code-title"><?php esc_html_e( '¿Tienes un código?', 'nakama-discounts' ); ?></h3>
+			<form class="nakama-checkout-code-form" novalidate>
+				<label for="nakama-checkout-code"><?php esc_html_e( 'Código de descuento o afiliado', 'nakama-discounts' ); ?></label>
+				<div class="nakama-checkout-code-row">
+					<input
+						type="text"
+						id="nakama-checkout-code"
+						name="nakama_checkout_code"
+						maxlength="64"
+						autocomplete="off"
+						spellcheck="false"
+						aria-describedby="nakama-checkout-code-help nakama-checkout-code-feedback"
+						required
+					>
+					<button type="submit" class="button nakama-checkout-code-submit"><?php esc_html_e( 'Aplicar código', 'nakama-discounts' ); ?></button>
+				</div>
+				<p id="nakama-checkout-code-help" class="nakama-checkout-code-help"><?php esc_html_e( 'Acepta promociones Nakama, códigos de afiliado y cupones de WooCommerce.', 'nakama-discounts' ); ?></p>
+				<p id="nakama-checkout-code-feedback" class="nakama-checkout-code-feedback" role="status" aria-live="polite" aria-atomic="true" tabindex="-1"></p>
+			</form>
+		</section>
+		<?php
 	}
 
 	/** Aplica los fees negativos al carrito. */
@@ -217,11 +268,15 @@ class Nakama_Cart {
 		wp_localize_script( 'nakama-checkout', 'NakamaDisc', array(
 			'ajax_url' => admin_url( 'admin-ajax.php' ),
 			'nonce'    => wp_create_nonce( 'nakama_select_promo' ),
+			'apply_nonce' => wp_create_nonce( 'nakama_apply_checkout_code' ),
 			'is_checkout' => is_checkout() ? 1 : 0,
 			'messages' => array(
 				'updating' => __( 'Actualizando promoción…', 'nakama-discounts' ),
 				'updated'  => __( 'Promoción actualizada.', 'nakama-discounts' ),
 				'error'    => __( 'No pudimos cambiar la promoción. Inténtalo de nuevo.', 'nakama-discounts' ),
+				'code_required' => __( 'Escribe un código para continuar.', 'nakama-discounts' ),
+				'code_applying' => __( 'Aplicando…', 'nakama-discounts' ),
+				'code_error' => __( 'No pudimos aplicar el código. Revisa el dato e inténtalo de nuevo.', 'nakama-discounts' ),
 			),
 		) );
 	}
@@ -238,6 +293,185 @@ class Nakama_Cart {
 			);
 		}
 		wp_send_json_success( array( 'promo' => $promo ) );
+	}
+
+	/** Procesa el campo unificado del checkout y devuelve feedback estructurado. */
+	public static function ajax_apply_checkout_code() {
+		check_ajax_referer( 'nakama_apply_checkout_code', 'nonce' );
+		$code = isset( $_POST['code'] ) ? sanitize_text_field( wp_unslash( $_POST['code'] ) ) : '';
+		$result = self::apply_checkout_code( $code );
+
+		if ( empty( $result['success'] ) ) {
+			$status = isset( $result['kind'] ) && 'ambiguous' === $result['kind'] ? 409 : 400;
+			wp_send_json_error( $result, $status );
+		}
+
+		wp_send_json_success( $result );
+	}
+
+	/**
+	 * Identifica el origen antes de aplicar el código. Si dos motores reclaman
+	 * el mismo texto, no cambia el carrito: obliga a corregir la duplicidad en
+	 * administración en lugar de elegir una promoción de forma impredecible.
+	 */
+	public static function apply_checkout_code( $raw_code ) {
+		$code = trim( sanitize_text_field( (string) $raw_code ) );
+		if ( '' === $code ) {
+			return array(
+				'success' => false,
+				'kind'    => 'empty',
+				'message' => __( 'Escribe un código para continuar.', 'nakama-discounts' ),
+			);
+		}
+
+		$matches = array();
+		$nakama = Nakama_Discount_Codes::resolve_manual_code( array( 'handled' => false ), $code );
+		if ( ! empty( $nakama['valid'] ) ) {
+			$matches['nakama'] = $nakama;
+		}
+
+		if ( class_exists( 'Nakama_Affiliates_Codes' ) ) {
+			try {
+				$affiliate = Nakama_Affiliates_Codes::resolve( $code );
+				if ( ! empty( $affiliate['valid'] ) ) {
+					$matches['affiliate'] = $affiliate;
+				}
+			} catch ( Throwable $error ) {
+				// Una integración externa no debe impedir usar los otros códigos.
+			}
+		}
+
+		$native_code = function_exists( 'wc_format_coupon_code' )
+			? wc_format_coupon_code( $code )
+			: $code;
+		if ( self::native_coupon_is_valid( $native_code ) ) {
+			$matches['woocommerce'] = array( 'code' => $native_code );
+		}
+
+		if ( count( $matches ) > 1 ) {
+			return array(
+				'success' => false,
+				'kind'    => 'ambiguous',
+				'message' => __( 'Este código está duplicado y no se puede aplicar de forma segura. Contacta con soporte.', 'nakama-discounts' ),
+			);
+		}
+
+		if ( ! $matches ) {
+			return array(
+				'success' => false,
+				'kind'    => 'invalid',
+				'message' => __( 'No encontramos un código vigente con ese nombre. Revisa cómo lo escribiste.', 'nakama-discounts' ),
+			);
+		}
+
+		$kind = key( $matches );
+		if ( 'nakama' === $kind ) {
+			$applied = Nakama_Discount_Codes::apply_checkout_bridge( array( 'handled' => false ), $code );
+			if ( empty( $applied['success'] ) ) {
+				return array(
+					'success' => false,
+					'kind'    => 'nakama',
+					'message' => isset( $applied['message'] ) ? $applied['message'] : __( 'La promoción ya no está disponible.', 'nakama-discounts' ),
+				);
+			}
+
+			return array(
+				'success' => true,
+				'kind'    => 'nakama',
+				'code'    => isset( $applied['code'] ) ? $applied['code'] : Nakama_Discount_Codes::normalize_code( $code ),
+				'message' => __( 'Código aplicado. Revisa las promociones disponibles y elige la que más te convenga.', 'nakama-discounts' ),
+			);
+		}
+
+		if ( 'affiliate' === $kind ) {
+			if ( ! class_exists( 'Nakama_Affiliates_Discounts' ) ) {
+				return array(
+					'success' => false,
+					'kind'    => 'affiliate',
+					'message' => __( 'El código de afiliado está activo, pero no se pudo iniciar su descuento.', 'nakama-discounts' ),
+				);
+			}
+
+			$applied = Nakama_Affiliates_Discounts::select_code( $code, 'manual' );
+			if ( empty( $applied['success'] ) ) {
+				return array(
+					'success' => false,
+					'kind'    => 'affiliate',
+					'message' => isset( $applied['message'] ) ? $applied['message'] : __( 'El código de afiliado ya no está disponible.', 'nakama-discounts' ),
+				);
+			}
+
+			return array(
+				'success' => true,
+				'kind'    => 'affiliate',
+				'code'    => isset( $applied['code'] ) ? $applied['code'] : $code,
+				'message' => __( 'Código de afiliado aplicado. Revisa las promociones disponibles y elige la que más te convenga.', 'nakama-discounts' ),
+			);
+		}
+
+		$cart = function_exists( 'WC' ) && WC() ? WC()->cart : null;
+		if ( ! $cart || ! method_exists( $cart, 'apply_coupon' ) ) {
+			return array(
+				'success' => false,
+				'kind'    => 'woocommerce',
+				'message' => __( 'No se pudo acceder al carrito para aplicar el cupón.', 'nakama-discounts' ),
+			);
+		}
+
+		$already_applied = method_exists( $cart, 'has_discount' ) && $cart->has_discount( $native_code );
+		$success = $already_applied || $cart->apply_coupon( $native_code );
+		if ( ! $success ) {
+			return array(
+				'success' => false,
+				'kind'    => 'woocommerce',
+				'message' => __( 'El cupón existe, pero no cumple las condiciones de este pedido.', 'nakama-discounts' ),
+			);
+		}
+
+		self::flush_plan();
+		if ( method_exists( $cart, 'calculate_totals' ) ) {
+			$cart->calculate_totals();
+		}
+
+		return array(
+			'success' => true,
+			'kind'    => 'woocommerce',
+			'code'    => $native_code,
+			'message' => __( 'Cupón aplicado correctamente.', 'nakama-discounts' ),
+		);
+	}
+
+	/** Comprueba un cupón sin mutar el carrito. */
+	private static function native_coupon_is_valid( $code ) {
+		if ( '' === (string) $code || ! class_exists( 'WC_Coupon' ) ) {
+			return false;
+		}
+
+		try {
+			$coupon = new WC_Coupon( $code );
+			if ( ! $coupon->get_id() ) {
+				return false;
+			}
+			if (
+				function_exists( 'WC' )
+				&& WC()
+				&& WC()->cart
+				&& method_exists( WC()->cart, 'has_discount' )
+				&& WC()->cart->has_discount( $code )
+			) {
+				return true;
+			}
+
+			if ( class_exists( 'WC_Discounts' ) && function_exists( 'WC' ) && WC() && WC()->cart ) {
+				$discounts = new WC_Discounts( WC()->cart );
+				$valid = $discounts->is_coupon_valid( $coupon );
+				return function_exists( 'is_wp_error' ) ? ! is_wp_error( $valid ) : true === $valid;
+			}
+
+			return ! method_exists( $coupon, 'is_valid' ) || $coupon->is_valid();
+		} catch ( Throwable $error ) {
+			return false;
+		}
 	}
 
 	/**
