@@ -1095,16 +1095,62 @@ function nakama_currency_info() {
 }
 
 function nakama_check_coupon_logic( WP_REST_Request $request ) {
-    $code = sanitize_text_field( $request->get_param( 'code' ) );
+    $code = strtoupper( preg_replace( '/\s+/', '', sanitize_text_field( $request->get_param( 'code' ) ) ) );
     
     if ( empty( $code ) ) {
         return new WP_Error( 'no_code', 'Código vacío', array( 'status' => 400 ) );
     }
 
+    $nakama_result = apply_filters(
+        'nakama_resolve_manual_discount_code',
+        array(
+            'handled' => false,
+            'valid'   => false,
+        ),
+        $code
+    );
+    if ( ! is_array( $nakama_result ) ) {
+        $nakama_result = array();
+    }
+
+    if ( ! empty( $nakama_result['handled'] ) ) {
+        if ( empty( $nakama_result['valid'] ) ) {
+            return nakama_promotional_code_response( array(
+                'valid'   => false,
+                'message' => isset( $nakama_result['message'] )
+                    ? sanitize_text_field( $nakama_result['message'] )
+                    : 'El código no está disponible.',
+            ) );
+        }
+
+        $native_collision = new WC_Coupon( $code );
+        if ( $native_collision->get_id() ) {
+            return nakama_promotional_code_response( array(
+                'valid'   => false,
+                'message' => 'Este código es ambiguo. Contacta a soporte para confirmar la promoción.',
+            ) );
+        }
+
+        return nakama_promotional_code_response( array(
+            'valid'           => true,
+            'kind'            => 'nakama_manual',
+            'code'            => isset( $nakama_result['code'] )
+                ? sanitize_text_field( $nakama_result['code'] )
+                : $code,
+            'selection_key'   => isset( $nakama_result['selection_key'] )
+                ? sanitize_text_field( $nakama_result['selection_key'] )
+                : '',
+            'allow_modifiers' => ! empty( $nakama_result['allow_modifiers'] ),
+            'message'         => isset( $nakama_result['message'] )
+                ? sanitize_text_field( $nakama_result['message'] )
+                : 'Código reconocido. Podrás comparar las promociones disponibles en el checkout.',
+        ) );
+    }
+
     $coupon = new WC_Coupon( $code );
     
     if ( ! $coupon->get_id() ) {
-        return rest_ensure_response( array( 'valid' => false, 'message' => 'Cupón no existe' ) );
+        return nakama_promotional_code_response( array( 'valid' => false, 'message' => 'Cupón no existe' ) );
     }
 
     if ( ! $coupon->is_valid() ) {
@@ -1113,34 +1159,78 @@ function nakama_check_coupon_logic( WP_REST_Request $request ) {
         $usage_count = $coupon->get_usage_count();
         $usage_limit = $coupon->get_usage_limit();
         if ( $usage_limit > 0 && $usage_count >= $usage_limit ) {
-            return rest_ensure_response( array( 'valid' => false, 'message' => 'Límite de uso alcanzado' ) );
+            return nakama_promotional_code_response( array( 'valid' => false, 'message' => 'Límite de uso alcanzado' ) );
         }
     }
 
     $discount_type = $coupon->get_discount_type();
     $amount = $coupon->get_amount();
 
-    $response_obj = rest_ensure_response( array(
+    return nakama_promotional_code_response( array(
         'valid' => true,
+        'kind' => 'native_coupon',
+        'code' => $code,
         'type' => $discount_type,
         'amount' => (float)$amount,
         'free_shipping' => $coupon->get_free_shipping(),
         'minimum_amount' => $coupon->get_minimum_amount()
     ) );
-    
+}
+
+function nakama_promotional_code_response( $data ) {
+    $response_obj = rest_ensure_response( $data );
     $response_obj->header( 'Access-Control-Allow-Origin', '*' );
     return $response_obj;
 }
 
 /**
  * Resolve the single promotion slot after the headless cart has been rebuilt.
- * Affiliate ownership stays behind a neutral filter contract.
+ * Nakama and affiliate ownership stay behind neutral filter contracts.
  *
  * @param array $query Raw bridge query parameters.
  * @param bool  $debug Whether bridge debug output is enabled.
  * @return array{type:string,success:bool,message:string}
  */
 function nakama_checkout_bridge_apply_promotion( $query, $debug = false ) {
+    $nakama_code = isset( $query['nakama_code'] )
+        ? sanitize_text_field( wp_unslash( $query['nakama_code'] ) )
+        : '';
+    if ( '' !== $nakama_code ) {
+        if ( WC()->cart && method_exists( WC()->cart, 'remove_coupons' ) ) {
+            WC()->cart->remove_coupons();
+        }
+
+        $result = apply_filters(
+            'nakama_checkout_bridge_nakama_result',
+            array(
+                'handled' => false,
+                'success' => false,
+                'message' => 'El código Nakama ya no está disponible.',
+            ),
+            $nakama_code
+        );
+        if ( ! is_array( $result ) ) {
+            $result = array();
+        }
+
+        $success = ! empty( $result['handled'] ) && ! empty( $result['success'] );
+        $message = isset( $result['message'] )
+            ? sanitize_text_field( $result['message'] )
+            : 'El código Nakama ya no está disponible.';
+        if ( ! $success ) {
+            wc_add_notice( $message, 'error' );
+        }
+        if ( $debug ) {
+            echo 'Aplicando código Nakama: ' . ( $success ? 'OK' : 'FAIL' ) . '<br>';
+        }
+
+        return array(
+            'type'    => 'nakama',
+            'success' => $success,
+            'message' => $message,
+        );
+    }
+
     $affiliate_code = isset( $query['affiliate_code'] )
         ? sanitize_text_field( wp_unslash( $query['affiliate_code'] ) )
         : '';
@@ -1201,6 +1291,10 @@ function nakama_checkout_bridge_apply_promotion( $query, $debug = false ) {
         );
     }
 
+    if ( WC()->cart && method_exists( WC()->cart, 'remove_coupons' ) ) {
+        WC()->cart->remove_coupons();
+    }
+    do_action( 'nakama_checkout_bridge_clear_promotion' );
     return array( 'type' => 'none', 'success' => true, 'message' => '' );
 }
 
@@ -1350,8 +1444,8 @@ function nakama_cart_bridge_handler() {
         exit;
     }
 
-    // 2.5 Resolver una sola promoción. Un código afiliado explícito ocupa el
-    //     lugar del cupón incluso si deja de ser válido durante el traslado.
+    // 2.5 Resolver una sola promoción. La intención tipada del frontend se
+    //     vuelve a validar y nunca cae en una alternativa de menor prioridad.
     nakama_checkout_bridge_apply_promotion( $_GET, $debug );
 
     // 3. Redirigir al checkout

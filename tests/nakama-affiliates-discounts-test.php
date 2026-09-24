@@ -109,6 +109,7 @@ affiliates_discounts_assert_same( true, ! empty( $affiliate_discount_filters['na
 affiliates_discounts_assert_same( true, ! empty( $affiliate_discount_filters['nakama_checkout_bridge_affiliate_result'] ), 'The plugin validates bridge attribution through the neutral checkout hook.' );
 affiliates_discounts_assert_same( true, ! empty( $affiliate_discount_actions['woocommerce_applied_coupon'] ), 'A native coupon can replace affiliate attribution.' );
 affiliates_discounts_assert_same( true, ! empty( $affiliate_discount_actions['nakama_discount_selection_applied'] ), 'Another Nakama promotion can replace affiliate attribution.' );
+affiliates_discounts_assert_same( true, ! empty( $affiliate_discount_actions['nakama_checkout_bridge_clear_promotion'] ), 'A bridge without a promotion clears stale affiliate attribution.' );
 
 $selected = Nakama_Affiliates_Discounts::select_code( 'nico', 'referral' );
 affiliates_discounts_assert_same( true, $selected['success'], 'A freshly rebuilt cart calculates its authoritative subtotal before selecting a valid code.' );

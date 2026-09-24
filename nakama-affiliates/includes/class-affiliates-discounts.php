@@ -19,6 +19,7 @@ final class Nakama_Affiliates_Discounts {
 		add_filter( 'nakama_checkout_bridge_affiliate_result', array( __CLASS__, 'apply_checkout_bridge' ), 20, 3 );
 		add_action( 'woocommerce_applied_coupon', array( __CLASS__, 'on_native_coupon_applied' ), 20 );
 		add_action( 'nakama_discount_selection_applied', array( __CLASS__, 'on_promotion_selected' ), 20 );
+		add_action( 'nakama_checkout_bridge_clear_promotion', array( __CLASS__, 'clear_selection' ), 20 );
 	}
 
 	/** Apply a bridge code only after WooCommerce has rebuilt a valid cart. */

@@ -14,6 +14,11 @@ $filters = [];
 $registeredRestRoutes = [];
 $registeredGraphqlFields = [];
 $testWooEndpoint = '';
+$firedActions = [];
+$testNativeCoupons = [
+    'RECUPERA20' => ['id' => 20, 'valid' => true, 'type' => 'percent', 'amount' => 20.0],
+    'COLLIDE15' => ['id' => 21, 'valid' => true, 'type' => 'percent', 'amount' => 15.0],
+];
 function add_action(...$args): void {
     global $actions;
     $actions[$args[0]][] = $args[1];
@@ -21,6 +26,10 @@ function add_action(...$args): void {
 function add_filter(...$args): void {
     global $filters;
     $filters[$args[0]][] = $args[1];
+}
+function do_action(string $hook, mixed ...$args): void {
+    global $firedActions;
+    $firedActions[$hook][] = $args;
 }
 function apply_filters(string $hook, mixed $value, mixed ...$args): mixed {
     global $filters;
@@ -130,6 +139,24 @@ class WP_REST_Request {
 class WP_User {}
 class WC_Abstract_Order {}
 class WP_Error {}
+
+final class WC_Coupon {
+    private array $coupon;
+
+    public function __construct(string $code) {
+        global $testNativeCoupons;
+        $this->coupon = $testNativeCoupons[strtoupper(trim($code))] ?? [];
+    }
+
+    public function get_id(): int { return (int) ($this->coupon['id'] ?? 0); }
+    public function is_valid(): bool { return (bool) ($this->coupon['valid'] ?? false); }
+    public function get_usage_count(): int { return 0; }
+    public function get_usage_limit(): int { return 0; }
+    public function get_discount_type(): string { return (string) ($this->coupon['type'] ?? 'fixed_cart'); }
+    public function get_amount(): float { return (float) ($this->coupon['amount'] ?? 0); }
+    public function get_free_shipping(): bool { return false; }
+    public function get_minimum_amount(): string { return ''; }
+}
 
 final class WC_Customer {
     public function __construct(private int $id) {}
@@ -376,13 +403,98 @@ function assert_same(mixed $expected, mixed $actual, string $message): void {
 
 require dirname(__DIR__) . '/nakama-checkout-tools.php';
 
-$filters['nakama_checkout_bridge_affiliate_result'][] = static function (array $result, string $code, string $source): array {
+$filters['nakama_resolve_manual_discount_code'][] = static function (array $result, string $code): array {
+    $code = strtoupper(trim($code));
+    if ($code === 'MANUAL15' || $code === 'COLLIDE15') {
+        return [
+            'handled' => true,
+            'valid' => true,
+            'kind' => 'nakama_manual',
+            'code' => $code,
+            'selection_key' => $code === 'MANUAL15' ? 'public_code:manual-combo' : 'public_code:collision',
+            'allow_modifiers' => true,
+            'message' => 'Código reconocido.',
+        ];
+    }
+    if ($code === 'AUTO10') {
+        return [
+            'handled' => true,
+            'valid' => false,
+            'kind' => 'nakama_manual',
+            'message' => 'Este código ya aparece entre las promociones disponibles.',
+        ];
+    }
+    return $result;
+};
+
+$manualResponse = nakama_check_coupon_logic(new WP_REST_Request(['code' => ' manual15 ']));
+assert_same(
+    [
+        'valid' => true,
+        'kind' => 'nakama_manual',
+        'code' => 'MANUAL15',
+        'selection_key' => 'public_code:manual-combo',
+        'allow_modifiers' => true,
+        'message' => 'Código reconocido.',
+    ],
+    $manualResponse instanceof FakeResponse ? $manualResponse->data : null,
+    'The public resolver returns a typed manual Nakama result without an amount.'
+);
+
+$nativeResponse = nakama_check_coupon_logic(new WP_REST_Request(['code' => ' recupera20 ']));
+assert_same('native_coupon', $nativeResponse instanceof FakeResponse ? ($nativeResponse->data['kind'] ?? null) : null, 'Native WooCommerce coupons keep a distinct response kind.');
+assert_same('RECUPERA20', $nativeResponse instanceof FakeResponse ? ($nativeResponse->data['code'] ?? null) : null, 'Native coupon responses return the normalized code.');
+
+$automaticResponse = nakama_check_coupon_logic(new WP_REST_Request(['code' => 'AUTO10']));
+assert_same(false, $automaticResponse instanceof FakeResponse ? ($automaticResponse->data['valid'] ?? true) : true, 'An automatic Nakama code is not accepted through the manual field.');
+
+$collisionResponse = nakama_check_coupon_logic(new WP_REST_Request(['code' => 'COLLIDE15']));
+assert_same(false, $collisionResponse instanceof FakeResponse ? ($collisionResponse->data['valid'] ?? true) : true, 'A code shared by Nakama and WooCommerce is rejected as ambiguous.');
+
+$nakamaBridgeCalls = 0;
+$affiliateBridgeCalls = 0;
+$filters['nakama_checkout_bridge_nakama_result'][] = static function (array $result, string $code) use (&$nakamaBridgeCalls): array {
+    $nakamaBridgeCalls++;
+    return [
+        'handled' => true,
+        'success' => strtoupper(trim($code)) === 'MANUAL15',
+        'message' => 'El código Nakama ya no está disponible.',
+    ];
+};
+
+$filters['nakama_checkout_bridge_affiliate_result'][] = static function (array $result, string $code, string $source) use (&$affiliateBridgeCalls): array {
+    $affiliateBridgeCalls++;
     return [
         'handled' => true,
         'success' => $code === 'NICO' && $source === 'referral',
         'message' => 'Código de afiliado no válido.',
     ];
 };
+$nakamaBridgePromotion = nakama_checkout_bridge_apply_promotion([
+    'nakama_code' => ' MANUAL15 ',
+    'affiliate_code' => 'NICO',
+    'affiliate_source' => 'referral',
+    'coupon' => 'RECUPERA20',
+]);
+assert_same('nakama', $nakamaBridgePromotion['type'] ?? null, 'An explicit Nakama code has defensive bridge precedence.');
+assert_same(true, $nakamaBridgePromotion['success'] ?? false, 'The bridge delegates Nakama validation through its neutral filter.');
+assert_same(1, $nakamaBridgeCalls, 'The Nakama bridge handler runs exactly once.');
+assert_same(0, $affiliateBridgeCalls, 'A lower-priority affiliate intent is ignored.');
+assert_same([], $fakeCart->appliedCoupons, 'A lower-priority native coupon is ignored.');
+
+$testNotices = [];
+$invalidNakamaBridge = nakama_checkout_bridge_apply_promotion([
+    'nakama_code' => 'EXPIRED',
+    'affiliate_code' => 'NICO',
+    'coupon' => 'RECUPERA20',
+]);
+assert_same(false, $invalidNakamaBridge['success'] ?? true, 'An invalid Nakama code cannot fall back to another supplied promotion.');
+assert_same(0, $affiliateBridgeCalls, 'Invalid Nakama input still blocks affiliate fallback.');
+assert_same([], $fakeCart->appliedCoupons, 'Invalid Nakama input still blocks coupon fallback.');
+
+$testNotices = [];
+$fakeCart->removeCouponCalls = 0;
+$fakeCart->appliedCoupons = [];
 $bridgePromotion = nakama_checkout_bridge_apply_promotion([
     'affiliate_code' => ' NICO ',
     'affiliate_source' => 'referral',
@@ -400,6 +512,13 @@ $invalidBridgePromotion = nakama_checkout_bridge_apply_promotion([
 ]);
 assert_same(false, $invalidBridgePromotion['success'] ?? true, 'A rejected affiliate cannot fall back to the supplied native coupon.');
 assert_same('error', $testNotices[0]['type'] ?? null, 'An invalid affiliate produces a recoverable WooCommerce notice.');
+
+$fakeCart->appliedCoupons = ['RECUPERA20'];
+$firedActions = [];
+$emptyBridgePromotion = nakama_checkout_bridge_apply_promotion([]);
+assert_same('none', $emptyBridgePromotion['type'] ?? null, 'An empty bridge carries no primary promotion.');
+assert_same([], $fakeCart->appliedCoupons, 'An empty bridge clears a stale native coupon.');
+assert_same(1, count($firedActions['nakama_checkout_bridge_clear_promotion'] ?? []), 'An empty bridge clears plugin-owned promotion state.');
 
 foreach ($actions['rest_api_init'] ?? [] as $registerRestRoutes) {
     $registerRestRoutes();
