@@ -10,7 +10,7 @@ const mocks = {
   affiliateCode: '',
   affiliateSource: '' as '' | 'manual' | 'referral',
   promotionChoice: '' as '' | 'affiliate' | 'coupon',
-  applyCoupon: vi.fn(),
+  applyCheckoutCode: vi.fn(),
   removeCoupon: vi.fn(),
   selectPromotion: vi.fn(),
 };
@@ -19,9 +19,9 @@ vi.mock('../context/CartContext', () => ({ useCart: () => mocks }));
 vi.mock('../context/LanguageContext', () => ({
   useLanguage: () => ({
     t: (key: string) => ({
-      'checkout.coupon.toggle': '¿Tienes otro código?',
-      'checkout.coupon.help': 'Escribe un código manual de Nakama o el cupón que recibiste para recuperar tu carrito.',
-      'checkout.coupon.label': 'Código promocional',
+      'checkout.coupon.toggle': '¿Tienes un código?',
+      'checkout.coupon.help': 'Escribe una promoción, cupón o código de afiliado.',
+      'checkout.coupon.label': 'Código de descuento o afiliado',
       'checkout.coupon.placeholder': 'Ej. NAKAMA15',
       'checkout.coupon.empty': 'Escribe un código promocional.',
       'checkout.coupon.invalid': 'El código no es válido.',
@@ -30,10 +30,13 @@ vi.mock('../context/LanguageContext', () => ({
       'checkout.coupon.remove': 'Quitar código promocional',
       'checkout.coupon.manual_success': 'Código reconocido. En el checkout podrás comparar las promociones disponibles.',
       'checkout.coupon.native_success': 'Cupón aplicado. WooCommerce confirmará el descuento antes del pago.',
+      'checkout.coupon.affiliate_success': 'Código de afiliado reconocido.',
       'checkout.promotion_choice.title': 'Elige qué promoción usar',
       'checkout.promotion_choice.help': 'Solo se aplicará una promoción.',
       'checkout.promotion_choice.affiliate': 'Código de afiliado',
       'checkout.promotion_choice.coupon': 'Código promocional',
+      'checkout.affiliate.remove': 'Quitar código de afiliado',
+      'checkout.affiliate.referral': 'Referencia guardada',
     }[key] || key),
   }),
 }));
@@ -45,7 +48,7 @@ describe('AbandonedCartCoupon', () => {
     mocks.affiliateCode = '';
     mocks.affiliateSource = '';
     mocks.promotionChoice = '';
-    mocks.applyCoupon.mockReset().mockResolvedValue({ success: true, kind: 'nakama_manual' });
+    mocks.applyCheckoutCode.mockReset().mockResolvedValue({ success: true, kind: 'coupon' });
     mocks.removeCoupon.mockReset();
     mocks.selectPromotion.mockReset();
   });
@@ -54,9 +57,9 @@ describe('AbandonedCartCoupon', () => {
     const user = userEvent.setup();
     render(<AbandonedCartCoupon />);
 
-    await user.click(screen.getByText('¿Tienes otro código?'));
-    expect(screen.getByLabelText('Código promocional')).toBeInTheDocument();
-    expect(screen.getByText(/código manual de Nakama o el cupón/i)).toBeVisible();
+    await user.click(screen.getByText('¿Tienes un código?'));
+    expect(screen.getByLabelText('Código de descuento o afiliado')).toBeInTheDocument();
+    expect(screen.getByText(/promoción, cupón o código de afiliado/i)).toBeVisible();
   });
 
   it('focuses the required field when applying an empty value', async () => {
@@ -66,8 +69,8 @@ describe('AbandonedCartCoupon', () => {
     await user.click(screen.getByRole('button', { name: 'Aplicar código' }));
 
     expect(screen.getByRole('alert')).toHaveTextContent('Escribe un código promocional.');
-    expect(screen.getByLabelText('Código promocional')).toHaveFocus();
-    expect(mocks.applyCoupon).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Código de descuento o afiliado')).toHaveFocus();
+    expect(mocks.applyCheckoutCode).not.toHaveBeenCalled();
   });
 
   it('explains and removes an active manual Nakama code', async () => {
@@ -98,5 +101,15 @@ describe('AbandonedCartCoupon', () => {
 
     await user.click(screen.getByRole('radio', { name: /Código promocional MANUAL15/i }));
     expect(mocks.selectPromotion).toHaveBeenCalledWith('coupon');
+  });
+
+  it('submits affiliate and promotional codes through the same field', async () => {
+    const user = userEvent.setup();
+    render(<AbandonedCartCoupon />);
+
+    await user.type(screen.getByLabelText('Código de descuento o afiliado'), ' nico ');
+    await user.click(screen.getByRole('button', { name: 'Aplicar código' }));
+
+    expect(mocks.applyCheckoutCode).toHaveBeenCalledWith(' nico ');
   });
 });

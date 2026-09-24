@@ -274,7 +274,7 @@ class Nakama_Discount_Codes {
 		return null;
 	}
 
-	/** Resolve a typed manual code without exposing any other stored code. */
+	/** Resolve any typed active code without exposing the stored collection. */
 	public static function resolve_manual_code( $result, $raw_code ) {
 		$record = self::find_by_code( $raw_code );
 		if ( ! $record ) {
@@ -287,10 +287,6 @@ class Nakama_Discount_Codes {
 			'kind'    => 'nakama_manual',
 			'message' => __( 'Este código no está disponible.', 'nakama-discounts' ),
 		);
-		if ( self::ENTRY_MANUAL !== self::entry_mode( $record ) ) {
-			$invalid['message'] = __( 'Este código ya aparece entre las promociones disponibles.', 'nakama-discounts' );
-			return $invalid;
-		}
 		if ( 'active' !== self::status( $record ) ) {
 			return $invalid;
 		}

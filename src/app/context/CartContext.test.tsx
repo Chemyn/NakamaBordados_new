@@ -126,6 +126,110 @@ describe('CartProvider abandoned-cart coupons', () => {
     expect(result.current.couponCode).toBe('RECUPERA20');
   });
 
+  it('recognizes an affiliate from the shared checkout code field after promotion validation rejects it', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ valid: false, message: 'Cupón no existe' }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          valid: true,
+          code: 'NICO',
+          expiresAt: '2099-10-19T12:00:00.000Z',
+          discountPercentage: 10,
+        }),
+      }));
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <CartProvider>{children}</CartProvider>
+    );
+    const { result } = renderHook(() => useCart(), { wrapper });
+
+    let response: Awaited<ReturnType<typeof result.current.applyCheckoutCode>> | undefined;
+    await act(async () => {
+      response = await result.current.applyCheckoutCode('nico');
+    });
+
+    expect(response).toEqual({ success: true, kind: 'affiliate' });
+    expect(result.current.affiliateCode).toBe('NICO');
+    expect(result.current.affiliateSource).toBe('manual');
+    expect(result.current.promotionChoice).toBe('affiliate');
+    expect(result.current.couponCode).toBe('');
+  });
+
+  it('recognizes a promotion from the shared checkout field', async () => {
+    const fetchMock = vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          valid: true,
+          kind: 'nakama_manual',
+          code: 'NAKAMA30K',
+          selection_key: 'public_code:nakama30k',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ valid: false, message: 'Código de afiliado no válido.' }),
+      });
+    vi.stubGlobal('fetch', fetchMock);
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <CartProvider>{children}</CartProvider>
+    );
+    const { result } = renderHook(() => useCart(), { wrapper });
+
+    await act(async () => {
+      expect(await result.current.applyCheckoutCode('nakama30k')).toEqual({
+        success: true,
+        kind: 'coupon',
+      });
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(result.current.couponCode).toBe('NAKAMA30K');
+    expect(result.current.couponKind).toBe('nakama_manual');
+    expect(result.current.promotionChoice).toBe('coupon');
+  });
+
+  it('rejects a code that is simultaneously a promotion and an affiliate', async () => {
+    vi.stubGlobal('fetch', vi.fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          valid: true,
+          kind: 'nakama_manual',
+          code: 'DUPLICADO',
+          selection_key: 'public_code:duplicado',
+        }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({
+          valid: true,
+          code: 'DUPLICADO',
+          expiresAt: '2099-10-19T12:00:00.000Z',
+          discountPercentage: 10,
+        }),
+      }));
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <CartProvider>{children}</CartProvider>
+    );
+    const { result } = renderHook(() => useCart(), { wrapper });
+
+    let response: Awaited<ReturnType<typeof result.current.applyCheckoutCode>> | undefined;
+    await act(async () => {
+      response = await result.current.applyCheckoutCode('DUPLICADO');
+    });
+
+    expect(response).toEqual({
+      success: false,
+      message: 'Este código está duplicado entre promociones y afiliados. Contacta a soporte.',
+    });
+    expect(result.current.couponCode).toBe('');
+    expect(result.current.affiliateCode).toBe('');
+  });
+
   it('stores a server-recognized Nakama code without estimating its discount', async () => {
     vi.stubGlobal('fetch', vi.fn()
       .mockResolvedValueOnce({

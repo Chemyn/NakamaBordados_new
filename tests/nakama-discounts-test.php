@@ -250,6 +250,10 @@ $test_options[ NAKAMA_DISC_CODES_OPTION ] = array(
 	),
 );
 
+$resolved_automatic = Nakama_Discount_Codes::resolve_manual_code( array( 'handled' => false ), ' auto10 ' );
+assert_same( true, $resolved_automatic['valid'] ?? false, 'An active automatic promotion can also be entered explicitly in checkout.' );
+assert_same( 'public_code:automatic', $resolved_automatic['selection_key'] ?? null, 'Typed automatic promotions resolve to their stable selection key.' );
+
 class Nakama_Settings {
 	public static $values = array(
 		'transfer_enabled'    => 'yes',

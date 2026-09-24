@@ -9,9 +9,11 @@ export default function AbandonedCartCoupon() {
     couponCode,
     couponKind,
     affiliateCode,
+    affiliateSource,
     promotionChoice,
-    applyCoupon,
+    applyCheckoutCode,
     removeCoupon,
+    removeAffiliateCode,
     selectPromotion,
   } = useCart();
   const { t } = useLanguage();
@@ -29,7 +31,7 @@ export default function AbandonedCartCoupon() {
 
     setCouponError('');
     setLoading(true);
-    const result = await applyCoupon(couponInput);
+    const result = await applyCheckoutCode(couponInput);
     setLoading(false);
 
     if (result.success) {
@@ -53,6 +55,22 @@ export default function AbandonedCartCoupon() {
             </small>
           </span>
           <button type="button" onClick={removeCoupon} aria-label={t('checkout.coupon.remove')}>
+            <span className="material-icons-outlined" aria-hidden="true">close</span>
+          </button>
+        </div>
+      )}
+
+      {affiliateCode && (
+        <div className="nk-active-coupon" role="status">
+          <span className="nk-active-coupon-copy">
+            <strong>{affiliateCode}</strong>
+            <small>
+              {t(affiliateSource === 'referral'
+                ? 'checkout.affiliate.referral'
+                : 'checkout.coupon.affiliate_success')}
+            </small>
+          </span>
+          <button type="button" onClick={removeAffiliateCode} aria-label={t('checkout.affiliate.remove')}>
             <span className="material-icons-outlined" aria-hidden="true">close</span>
           </button>
         </div>

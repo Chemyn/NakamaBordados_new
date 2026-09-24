@@ -406,23 +406,17 @@ require dirname(__DIR__) . '/nakama-checkout-tools.php';
 
 $filters['nakama_resolve_manual_discount_code'][] = static function (array $result, string $code): array {
     $code = strtoupper(trim($code));
-    if ($code === 'MANUAL15' || $code === 'COLLIDE15') {
+    if ($code === 'MANUAL15' || $code === 'COLLIDE15' || $code === 'AUTO10') {
         return [
             'handled' => true,
             'valid' => true,
             'kind' => 'nakama_manual',
             'code' => $code,
-            'selection_key' => $code === 'MANUAL15' ? 'public_code:manual-combo' : 'public_code:collision',
+            'selection_key' => $code === 'MANUAL15'
+                ? 'public_code:manual-combo'
+                : ($code === 'AUTO10' ? 'public_code:automatic' : 'public_code:collision'),
             'allow_modifiers' => true,
             'message' => 'Código reconocido.',
-        ];
-    }
-    if ($code === 'AUTO10') {
-        return [
-            'handled' => true,
-            'valid' => false,
-            'kind' => 'nakama_manual',
-            'message' => 'Este código ya aparece entre las promociones disponibles.',
         ];
     }
     return $result;
@@ -457,7 +451,8 @@ assert_same('native_coupon', $nativeResponse instanceof FakeResponse ? ($nativeR
 assert_same('RECUPERA20', $nativeResponse instanceof FakeResponse ? ($nativeResponse->data['code'] ?? null) : null, 'Native coupon responses return the normalized code.');
 
 $automaticResponse = nakama_check_coupon_logic(new WP_REST_Request(['code' => 'AUTO10']));
-assert_same(false, $automaticResponse instanceof FakeResponse ? ($automaticResponse->data['valid'] ?? true) : true, 'An automatic Nakama code is not accepted through the manual field.');
+assert_same(true, $automaticResponse instanceof FakeResponse ? ($automaticResponse->data['valid'] ?? false) : false, 'An active automatic Nakama promotion can also be entered explicitly.');
+assert_same('public_code:automatic', $automaticResponse instanceof FakeResponse ? ($automaticResponse->data['selection_key'] ?? null) : null, 'Typed automatic promotions keep their server selection key.');
 
 $collisionResponse = nakama_check_coupon_logic(new WP_REST_Request(['code' => 'COLLIDE15']));
 assert_same(false, $collisionResponse instanceof FakeResponse ? ($collisionResponse->data['valid'] ?? true) : true, 'A code shared by Nakama and WooCommerce is rejected as ambiguous.');

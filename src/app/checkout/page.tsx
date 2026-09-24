@@ -10,7 +10,6 @@ import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { seedWpSession } from '@/lib/wp-sso';
 import AbandonedCartCoupon from '../components/AbandonedCartCoupon';
-import AffiliateCodeField from '../components/AffiliateCodeField';
 import { buildCheckoutBridgeUrl } from '@/lib/checkout-bridge';
 
 export default function CheckoutPage() {
@@ -222,7 +221,6 @@ export default function CheckoutPage() {
                 ))}
               </div>
 
-              <AffiliateCodeField />
               <AbandonedCartCoupon />
 
               <div className="nk-summary-totals">

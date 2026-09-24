@@ -58,6 +58,7 @@ interface CartContextType {
   discount: number; // Stored as absolute monetary discount or fractional depending on logic
   discountType: 'percent' | 'fixed';
   applyCoupon: (code: string) => Promise<ApplyCouponResult>;
+  applyCheckoutCode: (code: string) => Promise<ApplyCheckoutCodeResult>;
   removeCoupon: () => void;
   affiliateCode: string;
   affiliateSource: AffiliateSource | '';
@@ -75,6 +76,10 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export type ApplyCouponResult =
   | { success: true; kind: Exclude<PromotionCodeKind, ''>; message?: string }
+  | { success: false; message: string };
+
+export type ApplyCheckoutCodeResult =
+  | { success: true; kind: 'coupon' | 'affiliate'; message?: string }
   | { success: false; message: string };
 
 type ValidatedPromotionCode =
@@ -464,6 +469,50 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       : { success: true, kind: result.kind };
   }, [affiliateAttribution]);
 
+  const applyCheckoutCode = useCallback(async (code: string): Promise<ApplyCheckoutCodeResult> => {
+    const [promotion, affiliate] = await Promise.all([
+      validatePromotionCode(code),
+      validateAffiliateCode(code),
+    ]);
+    if (promotion.success && affiliate.success) {
+      return {
+        success: false,
+        message: 'Este código está duplicado entre promociones y afiliados. Contacta a soporte.',
+      };
+    }
+
+    if (promotion.success) {
+      setCouponCode(promotion.code);
+      setCouponKind(promotion.kind);
+      setDiscount(promotion.discount);
+      setDiscountType(promotion.type);
+      localStorage.setItem('nakama_coupon', promotion.code);
+      localStorage.setItem('nakama_discount', promotion.discount.toString());
+      localStorage.setItem('nakama_discount_type', promotion.type);
+      setPromotionChoice(current => affiliateAttribution ? (current || 'affiliate') : 'coupon');
+      return promotion.message
+        ? { success: true, kind: 'coupon', message: promotion.message }
+        : { success: true, kind: 'coupon' };
+    }
+
+    if (!affiliate.success) {
+      return {
+        success: false,
+        message: 'No encontramos una promoción o un afiliado vigente con ese código.',
+      };
+    }
+
+    const incoming: AffiliateAttribution = {
+      ...affiliate.attribution,
+      source: 'manual',
+    };
+    const chosen = chooseAffiliateAttribution(affiliateAttribution, incoming);
+    setAffiliateAttribution(chosen);
+    localStorage.setItem(AFFILIATE_STORAGE_KEY, JSON.stringify(chosen));
+    setPromotionChoice(current => couponCode ? (current || 'coupon') : 'affiliate');
+    return { success: true, kind: 'affiliate' };
+  }, [affiliateAttribution, couponCode]);
+
   // Calculations
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0) + quoteItems.length;
 
@@ -516,6 +565,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       discount: discountAmount, // Export the absolute amount for UI consistency
       discountType: selectedAffiliate ? 'percent' : discountType,
       applyCoupon,
+      applyCheckoutCode,
       removeCoupon,
       affiliateCode: affiliateAttribution?.code || '',
       affiliateSource: affiliateAttribution?.source || '',

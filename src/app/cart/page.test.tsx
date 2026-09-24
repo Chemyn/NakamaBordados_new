@@ -18,6 +18,7 @@ const cartContext = {
   couponKind: '' as '' | 'native_coupon' | 'nakama_manual',
   promotionChoice: '' as '' | 'affiliate' | 'coupon',
   applyCoupon: vi.fn(async () => ({ success: false, message: 'Cupón inválido' })),
+  applyCheckoutCode: vi.fn(async () => ({ success: false, message: 'Código no válido' })),
   removeCoupon: vi.fn(),
   affiliateCode: '',
   affiliateSource: '' as '' | 'manual' | 'referral',
@@ -35,12 +36,9 @@ vi.mock('../context/AuthContext', () => ({
 vi.mock('../context/LanguageContext', () => ({
   useLanguage: () => ({
     t: (key: string) => ({
-      'checkout.coupon.toggle': '¿Tienes otro código?',
-      'checkout.coupon.help': 'Escribe un código manual de Nakama o el cupón que recibiste para recuperar tu carrito.',
-      'checkout.coupon.label': 'Código promocional',
-      'checkout.affiliate.title': 'Código de afiliado',
-      'checkout.affiliate.help': 'Si agregas otro código, podrás elegir cuál usar.',
-      'checkout.affiliate.label': 'Escribe el código del afiliado',
+      'checkout.coupon.toggle': '¿Tienes un código?',
+      'checkout.coupon.help': 'Escribe una promoción, cupón o código de afiliado.',
+      'checkout.coupon.label': 'Código de descuento o afiliado',
     }[key] || key),
   }),
 }));
@@ -83,15 +81,15 @@ describe('CartPage quote checkout recovery', () => {
   it('offers the promotional-code field before leaving for WooCommerce', () => {
     render(<CartPage />);
 
-    const disclosure = screen.getByText('¿Tienes otro código?');
+    const disclosure = screen.getByText('¿Tienes un código?');
     expect(disclosure.closest('details')).not.toHaveAttribute('open');
-    expect(screen.getByLabelText('Código promocional')).toBeInTheDocument();
+    expect(screen.getByLabelText('Código de descuento o afiliado')).toBeInTheDocument();
   });
 
-  it('offers a distinct affiliate code field before checkout', () => {
+  it('uses one field for promotional and affiliate codes before checkout', () => {
     render(<CartPage />);
-    expect(screen.getByLabelText('Escribe el código del afiliado')).toBeInTheDocument();
-    expect(screen.getByText('Si agregas otro código, podrás elegir cuál usar.')).toBeVisible();
+    expect(screen.getAllByRole('textbox')).toHaveLength(1);
+    expect(screen.queryByLabelText('Escribe el código del afiliado')).not.toBeInTheDocument();
   });
 
   it('passes affiliate attribution to the bridge and omits the native coupon', () => {
