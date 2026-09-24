@@ -294,9 +294,9 @@
     "semantic_hash": ""
   },
   "nakama-checkout-tools.php": {
-    "mtime": 1790255481.0900173,
-    "seen": 1790255798.040547,
-    "ast_hash": "27b7e6adcf80f1dca6385227a3a47025",
+    "mtime": 1790257460.8393714,
+    "seen": 1790257971.6474164,
+    "ast_hash": "35863ed86fa669bef9b437bf93deb8ad",
     "semantic_hash": ""
   },
   "nakama-discounts/assets/js/checkout.js": {
@@ -474,15 +474,15 @@
     "semantic_hash": ""
   },
   "src/app/cart/page.tsx": {
-    "mtime": 1790255125.9035535,
-    "seen": 1790255798.0407145,
-    "ast_hash": "ee4db7cd31ce3876d23f3a8127c261aa",
+    "mtime": 1790257492.5967636,
+    "seen": 1790257971.6479154,
+    "ast_hash": "1e9e0ea22c9742b1840bd5569312b6c6",
     "semantic_hash": ""
   },
   "src/app/checkout/page.tsx": {
-    "mtime": 1790255134.7603002,
-    "seen": 1790255798.040719,
-    "ast_hash": "48de1abe74cc9d03cb0dcdcca9376125",
+    "mtime": 1790257503.8817563,
+    "seen": 1790257971.647921,
+    "ast_hash": "a93be4496025f0e1b286a8e5b13aa154",
     "semantic_hash": ""
   },
   "src/app/components/Analytics.tsx": {
@@ -600,9 +600,9 @@
     "semantic_hash": ""
   },
   "src/app/context/CartContext.tsx": {
-    "mtime": 1790255117.0382633,
-    "seen": 1790255798.0408201,
-    "ast_hash": "1a2cc208bfdd3f9d1ea883a94f97fdc1",
+    "mtime": 1790257828.7929509,
+    "seen": 1790257971.648029,
+    "ast_hash": "ac60a4ea8e592242c262dce0cf3b03c0",
     "semantic_hash": ""
   },
   "src/app/context/CurrencyContext.test.tsx": {
@@ -618,9 +618,9 @@
     "semantic_hash": ""
   },
   "src/app/context/LanguageContext.tsx": {
-    "mtime": 1790255346.90929,
-    "seen": 1790255798.0408397,
-    "ast_hash": "0da12e8994aa728bccc7df34a8235742",
+    "mtime": 1790258157.7805443,
+    "seen": 1790258215.8570898,
+    "ast_hash": "c1972746cfbe319e796cd608bb10ce71",
     "semantic_hash": ""
   },
   "src/app/cotizador/App.tsx": {
@@ -1056,9 +1056,9 @@
     "semantic_hash": ""
   },
   "tests/nakama-checkout-tools-test.php": {
-    "mtime": 1790215893.7423403,
-    "seen": 1790255798.0412,
-    "ast_hash": "6128652e837546b557982bc07eb347eb",
+    "mtime": 1790257238.0758748,
+    "seen": 1790257971.648478,
+    "ast_hash": "d1f1c8a90ae76f88f3c5e8c92f554608",
     "semantic_hash": ""
   },
   "tests/prepare-static-deployment.test.mjs": {
@@ -2052,9 +2052,9 @@
     "semantic_hash": ""
   },
   "src/app/cart/page.test.tsx": {
-    "mtime": 1790255271.689787,
-    "seen": 1790255798.040711,
-    "ast_hash": "6467cad0c9b59d75e8c9bd6668ed1547",
+    "mtime": 1790258115.382267,
+    "seen": 1790258215.8570223,
+    "ast_hash": "1b821f9451acdc06000072270416c3ff",
     "semantic_hash": ""
   },
   "nakama-discounts/includes/class-discount-codes.php": {
@@ -2064,21 +2064,21 @@
     "semantic_hash": ""
   },
   "src/app/checkout/page.test.tsx": {
-    "mtime": 1790255281.63869,
-    "seen": 1790255798.040717,
-    "ast_hash": "ea310c96b971ed2561f968a4a2c797db",
+    "mtime": 1790258129.5064359,
+    "seen": 1790258215.8570273,
+    "ast_hash": "326b4e750e1c198722eace5ae085750c",
     "semantic_hash": ""
   },
   "src/app/components/AbandonedCartCoupon.tsx": {
-    "mtime": 1790255339.8633232,
-    "seen": 1790255798.0407472,
-    "ast_hash": "d467c342541d08f25fd7bd11d7de1cf4",
+    "mtime": 1790257514.8296788,
+    "seen": 1790257971.6479275,
+    "ast_hash": "3e588bdf5bbe5d2315b3079cde05e933",
     "semantic_hash": ""
   },
   "src/app/context/CartContext.test.tsx": {
-    "mtime": 1790216058.4799433,
-    "seen": 1790255798.0408175,
-    "ast_hash": "5bfab2ef0cabcd23f72d70875be6e36f",
+    "mtime": 1790257794.41601,
+    "seen": 1790257971.6480258,
+    "ast_hash": "2d97e2b5cb2080a07674bd048ce8a0f3",
     "semantic_hash": ""
   },
   "tests/nakama-discounts-admin-test.php": {
@@ -2370,9 +2370,9 @@
     "semantic_hash": ""
   },
   "src/app/components/AffiliateCodeField.test.tsx": {
-    "mtime": 1790214555.8362782,
-    "seen": 1790255798.0407517,
-    "ast_hash": "015b43569dc0fa95195777be885cfe49",
+    "mtime": 1790258103.7774026,
+    "seen": 1790258215.857035,
+    "ast_hash": "b5087ecaa4808787d210b809376cff1f",
     "semantic_hash": ""
   },
   "src/app/components/AffiliateCodeField.tsx": {
@@ -2406,15 +2406,15 @@
     "semantic_hash": ""
   },
   "src/lib/checkout-bridge.test.ts": {
-    "mtime": 1790216063.6694367,
-    "seen": 1790255798.041041,
-    "ast_hash": "d107dcc61b368c694d4bee4d56a3e480",
+    "mtime": 1790257259.759786,
+    "seen": 1790257971.64828,
+    "ast_hash": "c4409c975d0f438a680efe84657abb5f",
     "semantic_hash": ""
   },
   "src/lib/checkout-bridge.ts": {
-    "mtime": 1790255105.3976185,
-    "seen": 1790255798.0410433,
-    "ast_hash": "609ed1a0b3bdcfe9a7a3fd25d2743a05",
+    "mtime": 1790257471.504024,
+    "seen": 1790257971.6482837,
+    "ast_hash": "0b8fff045f2ba179d213391d124cfa00",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-commissions.php": {
@@ -2682,15 +2682,15 @@
     "semantic_hash": ""
   },
   "src/app/components/AbandonedCartCoupon.test.tsx": {
-    "mtime": 1790255382.7508001,
-    "seen": 1790255798.0407422,
-    "ast_hash": "3f26423cc42a5dfb9850e600893832ff",
+    "mtime": 1790257271.9777377,
+    "seen": 1790257971.6479244,
+    "ast_hash": "f7865980e03a03137e3d2550f2c610ae",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-09-23-modos-automatico-manual-codigos-descuento.md": {
-    "mtime": 1790215160.2496364,
-    "seen": 1790255798.0413527,
-    "ast_hash": "22c7917eb881cc8c6761b93f6f4ee0ee",
+    "mtime": 1790255903.6881647,
+    "seen": 1790257971.648647,
+    "ast_hash": "8d8299b03bcd13c63c48f1cd3ecc328f",
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-09-23-modos-automatico-manual-codigos-descuento-design.md": {

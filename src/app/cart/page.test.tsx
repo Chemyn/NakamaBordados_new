@@ -16,6 +16,7 @@ const cartContext = {
   updateQuantity: vi.fn(),
   couponCode: '',
   couponKind: '' as '' | 'native_coupon' | 'nakama_manual',
+  promotionChoice: '' as '' | 'affiliate' | 'coupon',
   applyCoupon: vi.fn(async () => ({ success: false, message: 'Cupón inválido' })),
   removeCoupon: vi.fn(),
   affiliateCode: '',
@@ -23,6 +24,7 @@ const cartContext = {
   promotionReady: true,
   applyAffiliateCode: vi.fn(async () => ({ success: false, message: 'Código no válido' })),
   removeAffiliateCode: vi.fn(),
+  selectPromotion: vi.fn(),
 };
 
 vi.mock('next/navigation', () => ({ useRouter: () => router }));
@@ -37,7 +39,7 @@ vi.mock('../context/LanguageContext', () => ({
       'checkout.coupon.help': 'Escribe un código manual de Nakama o el cupón que recibiste para recuperar tu carrito.',
       'checkout.coupon.label': 'Código promocional',
       'checkout.affiliate.title': 'Código de afiliado',
-      'checkout.affiliate.help': 'No se combina con otras promociones.',
+      'checkout.affiliate.help': 'Si agregas otro código, podrás elegir cuál usar.',
       'checkout.affiliate.label': 'Escribe el código del afiliado',
     }[key] || key),
   }),
@@ -59,6 +61,7 @@ describe('CartPage quote checkout recovery', () => {
     router.push.mockReset();
     cartContext.couponCode = '';
     cartContext.couponKind = '';
+    cartContext.promotionChoice = '';
     cartContext.affiliateCode = '';
     cartContext.affiliateSource = '';
     window.history.replaceState(null, '', '/cart/?quote_error=unavailable');
@@ -88,7 +91,7 @@ describe('CartPage quote checkout recovery', () => {
   it('offers a distinct affiliate code field before checkout', () => {
     render(<CartPage />);
     expect(screen.getByLabelText('Escribe el código del afiliado')).toBeInTheDocument();
-    expect(screen.getByText('No se combina con otras promociones.')).toBeVisible();
+    expect(screen.getByText('Si agregas otro código, podrás elegir cuál usar.')).toBeVisible();
   });
 
   it('passes affiliate attribution to the bridge and omits the native coupon', () => {
@@ -96,6 +99,7 @@ describe('CartPage quote checkout recovery', () => {
     cartContext.couponKind = 'native_coupon';
     cartContext.affiliateCode = 'NICO';
     cartContext.affiliateSource = 'referral';
+    cartContext.promotionChoice = 'affiliate';
     render(<CartPage />);
 
     const link = document.querySelector<HTMLAnchorElement>('a[href*="nk_bridge"]');

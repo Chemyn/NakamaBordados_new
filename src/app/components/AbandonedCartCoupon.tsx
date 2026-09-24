@@ -5,7 +5,15 @@ import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
 
 export default function AbandonedCartCoupon() {
-  const { couponCode, couponKind, applyCoupon, removeCoupon } = useCart();
+  const {
+    couponCode,
+    couponKind,
+    affiliateCode,
+    promotionChoice,
+    applyCoupon,
+    removeCoupon,
+    selectPromotion,
+  } = useCart();
   const { t } = useLanguage();
   const [couponInput, setCouponInput] = useState('');
   const [couponError, setCouponError] = useState('');
@@ -48,6 +56,31 @@ export default function AbandonedCartCoupon() {
             <span className="material-icons-outlined" aria-hidden="true">close</span>
           </button>
         </div>
+      )}
+
+      {couponCode && affiliateCode && (
+        <fieldset className="nk-promotion-choice">
+          <legend>{t('checkout.promotion_choice.title')}</legend>
+          <p>{t('checkout.promotion_choice.help')}</p>
+          <label className={promotionChoice === 'affiliate' ? 'is-selected' : ''}>
+            <input
+              type="radio"
+              name="nk-promotion-choice"
+              checked={promotionChoice === 'affiliate'}
+              onChange={() => selectPromotion('affiliate')}
+            />
+            <span>{t('checkout.promotion_choice.affiliate')} <strong>{affiliateCode}</strong></span>
+          </label>
+          <label className={promotionChoice === 'coupon' ? 'is-selected' : ''}>
+            <input
+              type="radio"
+              name="nk-promotion-choice"
+              checked={promotionChoice === 'coupon'}
+              onChange={() => selectPromotion('coupon')}
+            />
+            <span>{t('checkout.promotion_choice.coupon')} <strong>{couponCode}</strong></span>
+          </label>
+        </fieldset>
       )}
 
       <details className="nk-coupon-disclosure">
@@ -115,6 +148,35 @@ export default function AbandonedCartCoupon() {
           outline: 3px solid var(--nk-primary);
           outline-offset: 3px;
         }
+        .nk-promotion-choice {
+          margin: 12px 0;
+          padding: 14px;
+          border: 2px solid var(--nk-border);
+        }
+        .nk-promotion-choice legend {
+          padding: 0 6px;
+          font-weight: 900;
+        }
+        .nk-promotion-choice p {
+          margin: 0 0 10px;
+          font-size: 0.85rem;
+          opacity: 0.8;
+        }
+        .nk-promotion-choice label {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          min-height: 44px;
+          padding: 8px 10px;
+          border: 1px solid var(--nk-border);
+          cursor: pointer;
+        }
+        .nk-promotion-choice label + label { margin-top: 8px; }
+        .nk-promotion-choice label.is-selected {
+          border-color: var(--nk-primary);
+          box-shadow: inset 4px 0 0 var(--nk-primary);
+        }
+        .nk-promotion-choice input { min-width: 18px; min-height: 18px; }
         .nk-coupon-help {
           margin: 8px 0 14px;
           font-size: 0.9rem;

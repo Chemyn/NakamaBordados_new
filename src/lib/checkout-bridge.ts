@@ -1,6 +1,7 @@
 import type { AffiliateSource } from './affiliate-attribution';
 
 export type PromotionCodeKind = '' | 'native_coupon' | 'nakama_manual';
+export type PromotionChoice = '' | 'affiliate' | 'coupon';
 
 type CheckoutBridgeItem = {
   id: string | number;
@@ -18,6 +19,7 @@ type CheckoutBridgeInput = {
   currency: string;
   couponCode: string;
   couponKind: PromotionCodeKind;
+  promotionChoice: PromotionChoice;
   affiliateCode: string;
   affiliateSource: AffiliateSource | '';
 };
@@ -39,12 +41,12 @@ export function buildCheckoutBridgeUrl(input: CheckoutBridgeInput): string {
 
   const couponCode = input.couponCode.trim().toUpperCase();
   const affiliateCode = input.affiliateCode.trim().toUpperCase();
-  if (input.couponKind === 'nakama_manual' && couponCode) {
+  if (input.promotionChoice === 'coupon' && input.couponKind === 'nakama_manual' && couponCode) {
     params.set('nakama_code', couponCode);
-  } else if (affiliateCode) {
+  } else if (input.promotionChoice === 'affiliate' && affiliateCode) {
     params.set('affiliate_code', affiliateCode);
     params.set('affiliate_source', input.affiliateSource === 'referral' ? 'referral' : 'manual');
-  } else if (input.couponKind === 'native_coupon' && couponCode) {
+  } else if (input.promotionChoice === 'coupon' && input.couponKind === 'native_coupon' && couponCode) {
     params.set('coupon', couponCode);
   }
 

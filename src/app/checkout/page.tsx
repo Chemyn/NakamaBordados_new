@@ -14,7 +14,7 @@ import AffiliateCodeField from '../components/AffiliateCodeField';
 import { buildCheckoutBridgeUrl } from '@/lib/checkout-bridge';
 
 export default function CheckoutPage() {
-  const { cart, quoteItems, subtotal, shipping, discount, total, couponCode, couponKind, affiliateCode, affiliateSource } = useCart();
+  const { cart, quoteItems, subtotal, shipping, discount, total, couponCode, couponKind, promotionChoice, affiliateCode, affiliateSource } = useCart();
   const { formatPrice, currencyInfo } = useCurrency();
   const { t } = useLanguage();
   const { user, isLoading: authLoading } = useAuth();
@@ -56,6 +56,7 @@ export default function CheckoutPage() {
         currency: currencyInfo.currency,
         couponCode,
         couponKind,
+        promotionChoice,
         affiliateCode,
         affiliateSource,
       });
@@ -65,7 +66,7 @@ export default function CheckoutPage() {
         window.location.href = checkoutUrl;
       });
     }
-  }, [cart, quoteItems, couponCode, couponKind, affiliateCode, affiliateSource, currencyInfo.currency, user, authLoading, router]);
+  }, [cart, quoteItems, couponCode, couponKind, promotionChoice, affiliateCode, affiliateSource, currencyInfo.currency, user, authLoading, router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setLocalFormData({ ...formData, [e.target.name]: e.target.value });

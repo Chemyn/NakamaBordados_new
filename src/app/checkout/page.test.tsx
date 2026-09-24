@@ -7,7 +7,7 @@ const router = { replace: vi.fn() };
 const checkoutMocks = {
   user: null as null | { id: string },
   seedWpSession: vi.fn<() => Promise<boolean>>(),
-  buildCheckoutBridgeUrl: vi.fn(() => 'https://nakamabordados.com/index.php?nk_bridge=1'),
+  buildCheckoutBridgeUrl: vi.fn<(input: unknown) => string>(() => 'https://nakamabordados.com/index.php?nk_bridge=1'),
 };
 const cartContext = {
   cart: [{
@@ -22,6 +22,7 @@ const cartContext = {
   total: 450,
   couponCode: '',
   couponKind: '' as '' | 'native_coupon' | 'nakama_manual',
+  promotionChoice: '' as '' | 'affiliate' | 'coupon',
   applyCoupon: vi.fn(async () => ({ success: false, message: 'Cupón inválido' })),
   removeCoupon: vi.fn(),
   affiliateCode: '',
@@ -29,6 +30,7 @@ const cartContext = {
   promotionReady: true,
   applyAffiliateCode: vi.fn(async () => ({ success: false, message: 'Código no válido' })),
   removeAffiliateCode: vi.fn(),
+  selectPromotion: vi.fn(),
   clearCart: vi.fn(),
 };
 
@@ -58,7 +60,7 @@ vi.mock('../context/LanguageContext', () => ({
       'checkout.coupon.placeholder': 'Escribe tu código',
       'checkout.coupon.apply': 'Aplicar',
       'checkout.affiliate.title': 'Código de afiliado',
-      'checkout.affiliate.help': 'No se combina con otras promociones.',
+      'checkout.affiliate.help': 'Si agregas otro código, podrás elegir cuál usar.',
       'checkout.affiliate.label': 'Escribe el código del afiliado',
     }[key] || key),
   }),
@@ -74,6 +76,7 @@ describe('Checkout promotional-code disclosure', () => {
     checkoutMocks.buildCheckoutBridgeUrl.mockClear();
     cartContext.couponCode = '';
     cartContext.couponKind = '';
+    cartContext.promotionChoice = '';
     cartContext.affiliateCode = '';
     cartContext.affiliateSource = '';
   });
@@ -90,7 +93,7 @@ describe('Checkout promotional-code disclosure', () => {
   it('keeps affiliate codes separate from abandoned-cart coupons', () => {
     render(<CheckoutPage />);
     expect(screen.getByLabelText('Escribe el código del afiliado')).toBeInTheDocument();
-    expect(screen.getByText('No se combina con otras promociones.')).toBeVisible();
+    expect(screen.getByText('Si agregas otro código, podrás elegir cuál usar.')).toBeVisible();
   });
 
   it('forwards only code and source when preparing an affiliate checkout', async () => {
@@ -99,12 +102,14 @@ describe('Checkout promotional-code disclosure', () => {
     cartContext.couponKind = 'native_coupon';
     cartContext.affiliateCode = 'NICO';
     cartContext.affiliateSource = 'manual';
+    cartContext.promotionChoice = 'affiliate';
     render(<CheckoutPage />);
 
     await waitFor(() => expect(checkoutMocks.buildCheckoutBridgeUrl).toHaveBeenCalledWith(
       expect.objectContaining({
         couponCode: 'RECUPERA20',
         couponKind: 'native_coupon',
+        promotionChoice: 'affiliate',
         affiliateCode: 'NICO',
         affiliateSource: 'manual',
       }),

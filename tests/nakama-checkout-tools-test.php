@@ -192,8 +192,9 @@ final class WC_Order_Item_Fee {
 }
 
 final class FakeResponse {
+    public array $headers = [];
     public function __construct(public mixed $data) {}
-    public function header(string $key, string $value): void {}
+    public function header(string $key, string $value): void { $this->headers[$key] = $value; }
 }
 
 final class FakeFee {
@@ -439,6 +440,16 @@ assert_same(
     ],
     $manualResponse instanceof FakeResponse ? $manualResponse->data : null,
     'The public resolver returns a typed manual Nakama result without an amount.'
+);
+assert_same(
+    'no-store, no-cache, must-revalidate, max-age=0',
+    $manualResponse instanceof FakeResponse ? ($manualResponse->headers['Cache-Control'] ?? null) : null,
+    'Promotional-code validation responses cannot be reused after an administrator changes a code.'
+);
+assert_same(
+    'no-cache',
+    $manualResponse instanceof FakeResponse ? ($manualResponse->headers['X-LiteSpeed-Cache-Control'] ?? null) : null,
+    'LiteSpeed cannot cache a promotional-code validation result.'
 );
 
 $nativeResponse = nakama_check_coupon_logic(new WP_REST_Request(['code' => ' recupera20 ']));

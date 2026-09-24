@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Checkout Tools
  * Description: Endpoints REST para validación de cupones, moneda, SSO, social login, pedidos de cotización, registro de clientes y sincronización de base de datos local (Next.js).
- * Version: 3.4.0
+ * Version: 3.4.1
  * Author: Nakama
  */
 
@@ -1180,6 +1180,8 @@ function nakama_check_coupon_logic( WP_REST_Request $request ) {
 function nakama_promotional_code_response( $data ) {
     $response_obj = rest_ensure_response( $data );
     $response_obj->header( 'Access-Control-Allow-Origin', '*' );
+    $response_obj->header( 'X-LiteSpeed-Cache-Control', 'no-cache' );
+    $response_obj->header( 'Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0' );
     return $response_obj;
 }
 

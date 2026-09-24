@@ -16,7 +16,7 @@ import { hasMixedPresaleCart, latestPresaleLaunch } from '@/lib/drops';
 import { buildCheckoutBridgeUrl } from '@/lib/checkout-bridge';
 
 export default function CartPage() {
-  const { cart, quoteItems, removeQuoteFromCart, subtotal, shipping, discount, total, removeFromCart, updateQuantity, couponCode, couponKind, affiliateCode, affiliateSource } = useCart();
+  const { cart, quoteItems, removeQuoteFromCart, subtotal, shipping, discount, total, removeFromCart, updateQuantity, couponCode, couponKind, promotionChoice, affiliateCode, affiliateSource } = useCart();
   const { formatPrice, formatQuotePrice, currencyInfo } = useCurrency();
   const { t, language } = useLanguage();
   const { user, isLoading: authLoading } = useAuth();
@@ -294,6 +294,7 @@ export default function CartPage() {
                     currency: currencyInfo.currency,
                     couponCode,
                     couponKind,
+                    promotionChoice,
                     affiliateCode,
                     affiliateSource,
                   });

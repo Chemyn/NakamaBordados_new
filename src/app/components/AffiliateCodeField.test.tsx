@@ -16,7 +16,7 @@ vi.mock('../context/LanguageContext', () => ({
   useLanguage: () => ({
     t: (key: string) => ({
       'checkout.affiliate.title': 'Código de afiliado',
-      'checkout.affiliate.help': 'No se combina con otras promociones.',
+      'checkout.affiliate.help': 'Si agregas otro código, podrás elegir cuál usar.',
       'checkout.affiliate.label': 'Escribe el código del afiliado',
       'checkout.affiliate.placeholder': 'Ej. NICO',
       'checkout.affiliate.apply': 'Aplicar código',
@@ -41,7 +41,7 @@ describe('AffiliateCodeField', () => {
     const user = userEvent.setup();
     render(<AffiliateCodeField />);
 
-    expect(screen.getByText('No se combina con otras promociones.')).toBeVisible();
+    expect(screen.getByText('Si agregas otro código, podrás elegir cuál usar.')).toBeVisible();
     await user.type(screen.getByLabelText('Escribe el código del afiliado'), ' nico ');
     await user.click(screen.getByRole('button', { name: 'Aplicar código' }));
 

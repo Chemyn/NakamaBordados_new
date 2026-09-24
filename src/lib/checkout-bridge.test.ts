@@ -9,6 +9,7 @@ describe('checkout bridge URL', () => {
       currency: 'MXN',
       couponCode: 'RECUPERA20',
       couponKind: 'native_coupon',
+      promotionChoice: 'affiliate',
       affiliateCode: 'NICO',
       affiliateSource: 'referral',
     });
@@ -29,6 +30,7 @@ describe('checkout bridge URL', () => {
       currency: 'USD',
       couponCode: 'RECUPERA20',
       couponKind: 'native_coupon',
+      promotionChoice: 'coupon',
       affiliateCode: '',
       affiliateSource: '',
     });
@@ -45,6 +47,7 @@ describe('checkout bridge URL', () => {
       currency: 'MXN',
       couponCode: 'manual15',
       couponKind: 'nakama_manual',
+      promotionChoice: 'coupon',
       affiliateCode: 'NICO',
       affiliateSource: 'referral',
     });
@@ -52,6 +55,24 @@ describe('checkout bridge URL', () => {
 
     expect(url.searchParams.get('nakama_code')).toBe('MANUAL15');
     expect(url.searchParams.has('affiliate_code')).toBe(false);
+    expect(url.searchParams.has('coupon')).toBe(false);
+  });
+
+  it('keeps both candidates in state but serializes only the customer choice', () => {
+    const result = buildCheckoutBridgeUrl({
+      items: [{ id: 25, quantity: 1 }],
+      quotes: [],
+      currency: 'MXN',
+      couponCode: 'MANUAL15',
+      couponKind: 'nakama_manual',
+      promotionChoice: 'affiliate',
+      affiliateCode: 'NICO',
+      affiliateSource: 'manual',
+    });
+    const url = new URL(result);
+
+    expect(url.searchParams.get('affiliate_code')).toBe('NICO');
+    expect(url.searchParams.has('nakama_code')).toBe(false);
     expect(url.searchParams.has('coupon')).toBe(false);
   });
 });
