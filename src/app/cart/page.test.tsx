@@ -15,6 +15,7 @@ const cartContext = {
   removeFromCart: vi.fn(),
   updateQuantity: vi.fn(),
   couponCode: '',
+  couponKind: '' as '' | 'native_coupon' | 'nakama_manual',
   applyCoupon: vi.fn(async () => ({ success: false, message: 'Cupón inválido' })),
   removeCoupon: vi.fn(),
   affiliateCode: '',
@@ -57,6 +58,7 @@ describe('CartPage quote checkout recovery', () => {
   beforeEach(() => {
     router.push.mockReset();
     cartContext.couponCode = '';
+    cartContext.couponKind = '';
     cartContext.affiliateCode = '';
     cartContext.affiliateSource = '';
     window.history.replaceState(null, '', '/cart/?quote_error=unavailable');
@@ -91,6 +93,7 @@ describe('CartPage quote checkout recovery', () => {
 
   it('passes affiliate attribution to the bridge and omits the native coupon', () => {
     cartContext.couponCode = 'RECUPERA20';
+    cartContext.couponKind = 'native_coupon';
     cartContext.affiliateCode = 'NICO';
     cartContext.affiliateSource = 'referral';
     render(<CartPage />);

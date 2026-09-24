@@ -12,6 +12,7 @@ import {
   type AffiliateAttribution,
   type AffiliateSource,
 } from '@/lib/affiliate-attribution';
+import type { PromotionCodeKind } from '@/lib/checkout-bridge';
 
 export interface CartItem {
   product: Product;
@@ -50,9 +51,10 @@ interface CartContextType {
   shipping: number;
   total: number;
   couponCode: string;
+  couponKind: PromotionCodeKind;
   discount: number; // Stored as absolute monetary discount or fractional depending on logic
   discountType: 'percent' | 'fixed';
-  applyCoupon: (code: string) => Promise<{ success: boolean; message?: string }>;
+  applyCoupon: (code: string) => Promise<ApplyCouponResult>;
   removeCoupon: () => void;
   affiliateCode: string;
   affiliateSource: AffiliateSource | '';
@@ -67,11 +69,30 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
-type ValidatedCoupon =
-  | { success: true; code: string; discount: number; type: 'percent' | 'fixed' }
+export type ApplyCouponResult =
+  | { success: true; kind: Exclude<PromotionCodeKind, ''>; message?: string }
   | { success: false; message: string };
 
-async function validateNativeCoupon(code: string): Promise<ValidatedCoupon> {
+type ValidatedPromotionCode =
+  | {
+      success: true;
+      kind: 'native_coupon';
+      code: string;
+      discount: number;
+      type: 'percent' | 'fixed';
+      message?: string;
+    }
+  | {
+      success: true;
+      kind: 'nakama_manual';
+      code: string;
+      discount: 0;
+      type: 'percent';
+      message?: string;
+    }
+  | { success: false; message: string };
+
+async function validatePromotionCode(code: string): Promise<ValidatedPromotionCode> {
   const normalized = code.trim().toUpperCase();
 
   if (!normalized) {
@@ -79,8 +100,8 @@ async function validateNativeCoupon(code: string): Promise<ValidatedCoupon> {
   }
 
   try {
-    // Este campo solo admite cupones nativos de recuperación. WooCommerce es
-    // la autoridad y el navegador nunca reconstruye el descuento por su cuenta.
+    // WooCommerce es la autoridad: resuelve si es un cupón nativo o un código
+    // manual Nakama. El navegador nunca reconstruye el descuento por su cuenta.
     const res = await fetch(`${apiOrigin()}/?rest_route=/nakama/v1/check-coupon&code=${normalized}`);
     if (!res.ok) {
       return { success: false, message: 'No pudimos validar el cupón. Inténtalo de nuevo.' };
@@ -91,6 +112,23 @@ async function validateNativeCoupon(code: string): Promise<ValidatedCoupon> {
       return { success: false, message: data.message || 'Cupón inválido' };
     }
 
+    if (data.kind === 'nakama_manual') {
+      return {
+        success: true,
+        kind: 'nakama_manual',
+        code: typeof data.code === 'string' && data.code.trim()
+          ? data.code.trim().toUpperCase()
+          : normalized,
+        discount: 0,
+        type: 'percent',
+        message: typeof data.message === 'string' ? data.message : undefined,
+      };
+    }
+
+    if (data.kind !== 'native_coupon') {
+      return { success: false, message: 'No pudimos validar el cupón. Inténtalo de nuevo.' };
+    }
+
     const amount = Number(data.amount);
     if (!Number.isFinite(amount) || amount < 0) {
       return { success: false, message: 'No pudimos validar el cupón. Inténtalo de nuevo.' };
@@ -99,7 +137,10 @@ async function validateNativeCoupon(code: string): Promise<ValidatedCoupon> {
     const type = data.type === 'percent' ? 'percent' : 'fixed';
     return {
       success: true,
-      code: normalized,
+      kind: 'native_coupon',
+      code: typeof data.code === 'string' && data.code.trim()
+        ? data.code.trim().toUpperCase()
+        : normalized,
       discount: type === 'percent' ? amount / 100 : amount,
       type,
     };
@@ -137,6 +178,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cart, setCart] = useState<CartItem[]>([]);
   const [quoteItems, setQuoteItems] = useState<QuoteCartItem[]>([]);
   const [couponCode, setCouponCode] = useState<string>('');
+  const [couponKind, setCouponKind] = useState<PromotionCodeKind>('');
   const [discount, setDiscount] = useState<number>(0);
   const [discountType, setDiscountType] = useState<'percent' | 'fixed'>('percent');
   const [affiliateAttribution, setAffiliateAttribution] = useState<AffiliateAttribution | null>(null);
@@ -144,6 +186,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const removeCoupon = useCallback(() => {
     setCouponCode('');
+    setCouponKind('');
     setDiscount(0);
     setDiscountType('percent');
     localStorage.removeItem('nakama_coupon');
@@ -202,12 +245,13 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         }
 
         if (savedCoupon) {
-          const result = await validateNativeCoupon(savedCoupon);
+          const result = await validatePromotionCode(savedCoupon);
           if (cancelled) return;
           if (!result.success) {
             removeCoupon();
           } else {
             setCouponCode(result.code);
+            setCouponKind(result.kind);
             setDiscount(result.discount);
             setDiscountType(result.type);
             localStorage.setItem('nakama_discount', result.discount.toString());
@@ -339,18 +383,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     return { success: true };
   }, [affiliateAttribution, removeAffiliateCode, removeCoupon]);
 
-  const applyCoupon = useCallback(async (code: string): Promise<{ success: boolean; message?: string }> => {
-    const result = await validateNativeCoupon(code);
+  const applyCoupon = useCallback(async (code: string): Promise<ApplyCouponResult> => {
+    const result = await validatePromotionCode(code);
     if (!result.success) return result;
 
     removeAffiliateCode();
     setCouponCode(result.code);
+    setCouponKind(result.kind);
     setDiscount(result.discount);
     setDiscountType(result.type);
     localStorage.setItem('nakama_coupon', result.code);
     localStorage.setItem('nakama_discount', result.discount.toString());
     localStorage.setItem('nakama_discount_type', result.type);
-    return { success: true };
+    return result.message
+      ? { success: true, kind: result.kind, message: result.message }
+      : { success: true, kind: result.kind };
   }, [removeAffiliateCode]);
 
   // Calculations
@@ -396,6 +443,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       shipping,
       total,
       couponCode,
+      couponKind,
       discount: discountAmount, // Export the absolute amount for UI consistency
       discountType: affiliateAttribution ? 'percent' : discountType,
       applyCoupon,

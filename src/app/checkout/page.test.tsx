@@ -21,6 +21,7 @@ const cartContext = {
   discount: 0,
   total: 450,
   couponCode: '',
+  couponKind: '' as '' | 'native_coupon' | 'nakama_manual',
   applyCoupon: vi.fn(async () => ({ success: false, message: 'Cupón inválido' })),
   removeCoupon: vi.fn(),
   affiliateCode: '',
@@ -72,6 +73,7 @@ describe('Checkout abandoned-cart coupon disclosure', () => {
     checkoutMocks.seedWpSession.mockReset().mockImplementation(() => new Promise(() => {}));
     checkoutMocks.buildCheckoutBridgeUrl.mockClear();
     cartContext.couponCode = '';
+    cartContext.couponKind = '';
     cartContext.affiliateCode = '';
     cartContext.affiliateSource = '';
   });
@@ -94,6 +96,7 @@ describe('Checkout abandoned-cart coupon disclosure', () => {
   it('forwards only code and source when preparing an affiliate checkout', async () => {
     checkoutMocks.user = { id: 'customer-1' };
     cartContext.couponCode = 'RECUPERA20';
+    cartContext.couponKind = 'native_coupon';
     cartContext.affiliateCode = 'NICO';
     cartContext.affiliateSource = 'manual';
     render(<CheckoutPage />);
@@ -101,6 +104,7 @@ describe('Checkout abandoned-cart coupon disclosure', () => {
     await waitFor(() => expect(checkoutMocks.buildCheckoutBridgeUrl).toHaveBeenCalledWith(
       expect.objectContaining({
         couponCode: 'RECUPERA20',
+        couponKind: 'native_coupon',
         affiliateCode: 'NICO',
         affiliateSource: 'manual',
       }),

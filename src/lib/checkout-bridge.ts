@@ -1,5 +1,7 @@
 import type { AffiliateSource } from './affiliate-attribution';
 
+export type PromotionCodeKind = '' | 'native_coupon' | 'nakama_manual';
+
 type CheckoutBridgeItem = {
   id: string | number;
   quantity: number;
@@ -15,6 +17,7 @@ type CheckoutBridgeInput = {
   quotes: CheckoutBridgeQuote[];
   currency: string;
   couponCode: string;
+  couponKind: PromotionCodeKind;
   affiliateCode: string;
   affiliateSource: AffiliateSource | '';
 };
@@ -34,12 +37,15 @@ export function buildCheckoutBridgeUrl(input: CheckoutBridgeInput): string {
   if (quotes) params.set('quotes', quotes);
   params.set('currency', input.currency.toUpperCase());
 
+  const couponCode = input.couponCode.trim().toUpperCase();
   const affiliateCode = input.affiliateCode.trim().toUpperCase();
-  if (affiliateCode) {
+  if (input.couponKind === 'nakama_manual' && couponCode) {
+    params.set('nakama_code', couponCode);
+  } else if (affiliateCode) {
     params.set('affiliate_code', affiliateCode);
     params.set('affiliate_source', input.affiliateSource === 'referral' ? 'referral' : 'manual');
-  } else if (input.couponCode.trim()) {
-    params.set('coupon', input.couponCode.trim().toUpperCase());
+  } else if (input.couponKind === 'native_coupon' && couponCode) {
+    params.set('coupon', couponCode);
   }
 
   return `https://nakamabordados.com/index.php?${params.toString()}`;

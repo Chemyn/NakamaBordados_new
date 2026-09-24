@@ -8,6 +8,7 @@ describe('checkout bridge URL', () => {
       quotes: [{ orderId: 81, orderKey: 'wc key&secret' }],
       currency: 'MXN',
       couponCode: 'RECUPERA20',
+      couponKind: 'native_coupon',
       affiliateCode: 'NICO',
       affiliateSource: 'referral',
     });
@@ -27,6 +28,7 @@ describe('checkout bridge URL', () => {
       quotes: [{ orderId: 81, orderKey: 'wc_order_quote' }],
       currency: 'USD',
       couponCode: 'RECUPERA20',
+      couponKind: 'native_coupon',
       affiliateCode: '',
       affiliateSource: '',
     });
@@ -34,5 +36,22 @@ describe('checkout bridge URL', () => {
 
     expect(url.searchParams.get('coupon')).toBe('RECUPERA20');
     expect(url.searchParams.has('affiliate_code')).toBe(false);
+  });
+
+  it('sends a manual Nakama code as the only promotion intent', () => {
+    const result = buildCheckoutBridgeUrl({
+      items: [{ id: 25, quantity: 1 }],
+      quotes: [],
+      currency: 'MXN',
+      couponCode: 'manual15',
+      couponKind: 'nakama_manual',
+      affiliateCode: 'NICO',
+      affiliateSource: 'referral',
+    });
+    const url = new URL(result);
+
+    expect(url.searchParams.get('nakama_code')).toBe('MANUAL15');
+    expect(url.searchParams.has('affiliate_code')).toBe(false);
+    expect(url.searchParams.has('coupon')).toBe(false);
   });
 });
