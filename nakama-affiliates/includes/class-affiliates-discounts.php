@@ -101,12 +101,28 @@ final class Nakama_Affiliates_Discounts {
 		$session->set( self::SESSION_SOURCE, $source );
 		Nakama_Cart::flush_plan();
 
+		// The headless bridge rebuilds the WooCommerce cart immediately before
+		// this method runs. Until totals are calculated, new cart rows can still
+		// expose a zero line_subtotal, so the affiliate candidate is incorrectly
+		// considered unavailable even though the code itself is valid.
+		$cart = WC()->cart;
+		if ( $cart && method_exists( $cart, 'calculate_totals' ) ) {
+			$cart->calculate_totals();
+		}
+
 		$plan = Nakama_Cart::get_plan();
 		$key = self::selection_key( (int) $result['profile']['id'] );
 		$options = $plan && isset( $plan['options'] ) ? $plan['options'] : array();
 		if ( ! Nakama_Cart::apply_selection( $key, $options ) ) {
 			self::clear_selection();
 			return array( 'success' => false, 'message' => 'El código ya no está disponible.' );
+		}
+
+		// Recalculate once more with the affiliate primary selected so the fee
+		// is present on the first checkout render, not only after its next AJAX
+		// order-review refresh.
+		if ( $cart && method_exists( $cart, 'calculate_totals' ) ) {
+			$cart->calculate_totals();
 		}
 
 		return array(

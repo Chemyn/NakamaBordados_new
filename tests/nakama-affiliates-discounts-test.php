@@ -25,7 +25,15 @@ final class AffiliateDiscountSession {
 final class AffiliateDiscountCart {
 	public $coupons = array( 'RECUPERA20' );
 	public $remove_calls = 0;
+	public $calculate_calls = 0;
+	public $totals_ready = false;
+	public $selected_on_last_calculation = '';
 	public function remove_coupons() { $this->coupons = array(); $this->remove_calls++; }
+	public function calculate_totals() {
+		$this->calculate_calls++;
+		$this->totals_ready = true;
+		$this->selected_on_last_calculation = (string) WC()->session->get( 'nakama_selected_promo', '' );
+	}
 }
 
 final class AffiliateDiscountWoo {
@@ -65,7 +73,9 @@ final class Nakama_Cart {
 	public static $last_promo = '';
 	public static function flush_plan() { self::$flushed++; }
 	public static function get_plan() {
-		$context = (object) array( 'eligible_subtotal' => 1000.0 );
+		$context = (object) array(
+			'eligible_subtotal' => WC()->cart->totals_ready ? 1000.0 : 0.0,
+		);
 		return array( 'options' => Nakama_Affiliates_Discounts::add_candidate( array(), $context ) );
 	}
 	public static function apply_selection( $promo, array $options ) {
@@ -101,11 +111,13 @@ affiliates_discounts_assert_same( true, ! empty( $affiliate_discount_actions['wo
 affiliates_discounts_assert_same( true, ! empty( $affiliate_discount_actions['nakama_discount_selection_applied'] ), 'Another Nakama promotion can replace affiliate attribution.' );
 
 $selected = Nakama_Affiliates_Discounts::select_code( 'nico', 'referral' );
-affiliates_discounts_assert_same( true, $selected['success'], 'A valid code can be selected server-side.' );
+affiliates_discounts_assert_same( true, $selected['success'], 'A freshly rebuilt cart calculates its authoritative subtotal before selecting a valid code.' );
 affiliates_discounts_assert_same( 'NICO', WC()->session->get( 'nakama_affiliate_code' ), 'Only the normalized code is stored in session.' );
 affiliates_discounts_assert_same( 'referral', WC()->session->get( 'nakama_affiliate_source' ), 'The approved attribution origin is preserved.' );
 affiliates_discounts_assert_same( 'affiliate_code:7', WC()->session->get( 'nakama_selected_promo' ), 'The affiliate candidate becomes the selected primary.' );
 affiliates_discounts_assert_same( array(), WC()->cart->coupons, 'Selecting an affiliate code removes native coupons.' );
+affiliates_discounts_assert_same( 2, WC()->cart->calculate_calls, 'The cart calculates once to expose the subtotal and again to apply the selected discount.' );
+affiliates_discounts_assert_same( 'affiliate_code:7', WC()->cart->selected_on_last_calculation, 'The final totals calculation includes the affiliate selection.' );
 
 $candidates = Nakama_Affiliates_Discounts::add_candidate( array(), (object) array( 'eligible_subtotal' => 1000.0 ) );
 $candidate = $candidates['affiliate_code:7'] ?? array();

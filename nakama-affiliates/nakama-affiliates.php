@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Afiliados
  * Description: Códigos, atribución, comisiones y beneficios mensuales para el programa de afiliados de Nakama Bordados.
- * Version: 0.1.0
+ * Version: 0.1.1
  * Author: Nakama Bordados
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -13,7 +13,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'NAKAMA_AFFILIATES_VERSION', '0.1.0' );
+define( 'NAKAMA_AFFILIATES_VERSION', '0.1.1' );
 define( 'NAKAMA_AFFILIATES_DB_VERSION', '3' );
 define( 'NAKAMA_AFFILIATES_FILE', __FILE__ );
 define( 'NAKAMA_AFFILIATES_PATH', plugin_dir_path( __FILE__ ) );

@@ -2280,9 +2280,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/nakama-affiliates.php": {
-    "mtime": 1790015520.5786011,
-    "seen": 1790099216.1483922,
-    "ast_hash": "0ce66d27d04adeaf8b24b1498b8e4e7e",
+    "mtime": 1790213713.28024,
+    "seen": 1790213788.167945,
+    "ast_hash": "0c515194091c4ad0596368fd98769837",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-domain-test.php": {
@@ -2310,9 +2310,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/readme.txt": {
-    "mtime": 1790015520.5796008,
-    "seen": 1790099216.1488674,
-    "ast_hash": "e4eddf213b41850a9ae75584e9ca4ef7",
+    "mtime": 1790213718.500373,
+    "seen": 1790213788.1683931,
+    "ast_hash": "37bcfc58a26434f661958f46c8d017d9",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-permissions.php": {
@@ -2358,15 +2358,15 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-discounts.php": {
-    "mtime": 1790015490.444284,
-    "seen": 1790099216.1483576,
-    "ast_hash": "4a27c5b6ce32c1482f26d9700b770122",
+    "mtime": 1790213294.6652758,
+    "seen": 1790213410.3616223,
+    "ast_hash": "fa2ee44f151927e4b4c3fe249deec706",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-discounts-test.php": {
-    "mtime": 1790015490.4665205,
-    "seen": 1790099216.1487432,
-    "ast_hash": "1e7e5734f6ac6fbaa22abce3dc57a546",
+    "mtime": 1790213163.02211,
+    "seen": 1790213410.3622122,
+    "ast_hash": "12db701fcb3d17559f47349b11f9999e",
     "semantic_hash": ""
   },
   "src/app/components/AffiliateCodeField.test.tsx": {
@@ -2685,6 +2685,54 @@
     "mtime": 1790017282.7666454,
     "seen": 1790099216.1488776,
     "ast_hash": "60be2a85737ce2ab7375d5f49c6ba813",
+    "semantic_hash": ""
+  },
+  "tmp/php-runtime/runtime/extras/sbom/php.cdx.json": {
+    "mtime": 1790110688.0,
+    "seen": 1790213410.3622863,
+    "ast_hash": "ea1b926f6e0c145987bce01dafb19da9",
+    "semantic_hash": ""
+  },
+  "tmp/php-runtime/runtime/extras/sbom/php.openvex.json": {
+    "mtime": 1790110688.0,
+    "seen": 1790213410.3622894,
+    "ast_hash": "edb68664e97461c75a70edad52f4125b",
+    "semantic_hash": ""
+  },
+  "tmp/php-runtime/runtime/extras/sbom/php.spdx.json": {
+    "mtime": 1790110688.0,
+    "seen": 1790213410.3622923,
+    "ast_hash": "8667617105b61838066323f10d2f6d05",
+    "semantic_hash": ""
+  },
+  "tmp/php-runtime/runtime/README.md": {
+    "mtime": 1790110652.0,
+    "seen": 1790213410.3624163,
+    "ast_hash": "7c176d8631d6b4627723c831cc659c5b",
+    "semantic_hash": ""
+  },
+  "tmp/php-runtime/runtime/license.txt": {
+    "mtime": 1790110652.0,
+    "seen": 1790213410.362419,
+    "ast_hash": "af19800e9b3c93bdeb6c269811137b96",
+    "semantic_hash": ""
+  },
+  "tmp/php-runtime/runtime/news.txt": {
+    "mtime": 1790110652.0,
+    "seen": 1790213410.362421,
+    "ast_hash": "5abef52a145772b00b646c5bf007872d",
+    "semantic_hash": ""
+  },
+  "tmp/php-runtime/runtime/readme-redist-bins.txt": {
+    "mtime": 1790110688.0,
+    "seen": 1790213410.362424,
+    "ast_hash": "1244e2a63bd0336f665c25396523375c",
+    "semantic_hash": ""
+  },
+  "tmp/php-runtime/runtime/snapshot.txt": {
+    "mtime": 1790110652.0,
+    "seen": 1790213410.362426,
+    "ast_hash": "95a7a269ff12ab20fb1a61f3da67c6b5",
     "semantic_hash": ""
   }
 }
