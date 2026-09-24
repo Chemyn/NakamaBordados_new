@@ -53,8 +53,8 @@ vi.mock('../context/LanguageContext', () => ({
   useLanguage: () => ({
     t: (key: string) => ({
       'checkout.coupon.toggle': '¿Tienes otro código?',
-      'checkout.coupon.abandoned_help': 'Usa el código que recibiste para recuperar tu carrito.',
-      'checkout.coupon.label': 'Código de carrito abandonado',
+      'checkout.coupon.help': 'Escribe un código manual de Nakama o el cupón que recibiste para recuperar tu carrito.',
+      'checkout.coupon.label': 'Código promocional',
       'checkout.coupon.placeholder': 'Escribe tu código',
       'checkout.coupon.apply': 'Aplicar',
       'checkout.affiliate.title': 'Código de afiliado',
@@ -67,7 +67,7 @@ vi.mock('../context/CartContext', () => ({
   useCart: () => cartContext,
 }));
 
-describe('Checkout abandoned-cart coupon disclosure', () => {
+describe('Checkout promotional-code disclosure', () => {
   beforeEach(() => {
     checkoutMocks.user = null;
     checkoutMocks.seedWpSession.mockReset().mockImplementation(() => new Promise(() => {}));
@@ -78,13 +78,13 @@ describe('Checkout abandoned-cart coupon disclosure', () => {
     cartContext.affiliateSource = '';
   });
 
-  it('keeps the manual field collapsed and explains its single purpose', () => {
+  it('keeps the manual field collapsed and explains its accepted codes', () => {
     render(<CheckoutPage />);
 
     const disclosure = screen.getByText('¿Tienes otro código?');
     expect(disclosure.closest('details')).not.toHaveAttribute('open');
-    expect(screen.getByLabelText('Código de carrito abandonado')).toBeInTheDocument();
-    expect(screen.getByText(/código que recibiste para recuperar tu carrito/i)).toBeInTheDocument();
+    expect(screen.getByLabelText('Código promocional')).toBeInTheDocument();
+    expect(screen.getByText(/código manual de Nakama o el cupón/i)).toBeInTheDocument();
   });
 
   it('keeps affiliate codes separate from abandoned-cart coupons', () => {

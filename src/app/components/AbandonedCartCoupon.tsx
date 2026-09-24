@@ -1,19 +1,21 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { useCart } from '../context/CartContext';
 import { useLanguage } from '../context/LanguageContext';
 
 export default function AbandonedCartCoupon() {
-  const { couponCode, applyCoupon, removeCoupon } = useCart();
+  const { couponCode, couponKind, applyCoupon, removeCoupon } = useCart();
   const { t } = useLanguage();
   const [couponInput, setCouponInput] = useState('');
   const [couponError, setCouponError] = useState('');
   const [loading, setLoading] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
 
   const handleApplyCoupon = async () => {
     if (!couponInput.trim()) {
       setCouponError(t('checkout.coupon.empty'));
+      inputRef.current?.focus();
       return;
     }
 
@@ -27,13 +29,21 @@ export default function AbandonedCartCoupon() {
       return;
     }
     setCouponError(result.message || t('checkout.coupon.invalid'));
+    inputRef.current?.focus();
   };
 
   return (
     <section className="nk-abandoned-coupon" aria-label={t('checkout.coupon.toggle')}>
       {couponCode && (
         <div className="nk-active-coupon" role="status">
-          <span>{couponCode}</span>
+          <span className="nk-active-coupon-copy">
+            <strong>{couponCode}</strong>
+            <small>
+              {t(couponKind === 'nakama_manual'
+                ? 'checkout.coupon.manual_success'
+                : 'checkout.coupon.native_success')}
+            </small>
+          </span>
           <button type="button" onClick={removeCoupon} aria-label={t('checkout.coupon.remove')}>
             <span className="material-icons-outlined" aria-hidden="true">close</span>
           </button>
@@ -43,14 +53,15 @@ export default function AbandonedCartCoupon() {
       <details className="nk-coupon-disclosure">
         <summary>{t('checkout.coupon.toggle')}</summary>
         <p id="nk-coupon-help" className="nk-coupon-help">
-          {t('checkout.coupon.abandoned_help')}
+          {t('checkout.coupon.help')}
         </p>
-        <label htmlFor="nk-abandoned-cart-coupon" className="nk-coupon-label">
+        <label htmlFor="nk-promotional-code" className="nk-coupon-label">
           {t('checkout.coupon.label')}
         </label>
         <div className="nk-coupon-controls" aria-busy={loading}>
           <input
-            id="nk-abandoned-cart-coupon"
+            ref={inputRef}
+            id="nk-promotional-code"
             type="text"
             placeholder={t('checkout.coupon.placeholder')}
             value={couponInput}
@@ -148,6 +159,21 @@ export default function AbandonedCartCoupon() {
           margin-bottom: 10px;
           font-size: 0.8rem;
           font-weight: 800;
+        }
+        .nk-active-coupon-copy {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+          padding: 8px 0;
+        }
+        .nk-active-coupon-copy strong {
+          font-size: 0.85rem;
+          letter-spacing: 0.04em;
+        }
+        .nk-active-coupon-copy small {
+          font-size: 0.75rem;
+          line-height: 1.35;
+          font-weight: 600;
         }
         .nk-active-coupon button {
           display: inline-flex;

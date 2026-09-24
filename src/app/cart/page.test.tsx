@@ -34,8 +34,8 @@ vi.mock('../context/LanguageContext', () => ({
   useLanguage: () => ({
     t: (key: string) => ({
       'checkout.coupon.toggle': '¿Tienes otro código?',
-      'checkout.coupon.abandoned_help': 'Usa el código que recibiste para recuperar tu carrito.',
-      'checkout.coupon.label': 'Código de carrito abandonado',
+      'checkout.coupon.help': 'Escribe un código manual de Nakama o el cupón que recibiste para recuperar tu carrito.',
+      'checkout.coupon.label': 'Código promocional',
       'checkout.affiliate.title': 'Código de afiliado',
       'checkout.affiliate.help': 'No se combina con otras promociones.',
       'checkout.affiliate.label': 'Escribe el código del afiliado',
@@ -77,12 +77,12 @@ describe('CartPage quote checkout recovery', () => {
     );
   });
 
-  it('offers the abandoned-cart coupon field before leaving for WooCommerce', () => {
+  it('offers the promotional-code field before leaving for WooCommerce', () => {
     render(<CartPage />);
 
     const disclosure = screen.getByText('¿Tienes otro código?');
     expect(disclosure.closest('details')).not.toHaveAttribute('open');
-    expect(screen.getByLabelText('Código de carrito abandonado')).toBeInTheDocument();
+    expect(screen.getByLabelText('Código promocional')).toBeInTheDocument();
   });
 
   it('offers a distinct affiliate code field before checkout', () => {
