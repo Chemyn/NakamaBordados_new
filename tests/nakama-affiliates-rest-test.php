@@ -201,14 +201,11 @@ affiliates_rest_assert( false === $access->data['vip'], 'VIP remains a separate 
 affiliates_rest_assert( 'active' === $access->data['status'], 'The operational profile status is exposed only to its owner.' );
 
 $me = Nakama_Affiliates_REST::me( new WP_REST_Request( array() ) );
-affiliates_rest_assert( false === $me->data['financialAccess'], 'A pending fiscal document blocks financial information.' );
-affiliates_rest_assert( 'pending' === $me->data['fiscal']['status'], 'The owner receives only the current fiscal status before approval.' );
-$blocked_dashboard = Nakama_Affiliates_REST::dashboard( new WP_REST_Request( array() ) );
-affiliates_rest_assert( 'fiscal_required' === $blocked_dashboard->data['code'], 'Dashboard data stays gated before fiscal approval.' );
-
-$affiliate_rest_document_status = 'approved';
+affiliates_rest_assert( true === $me->data['financialAccess'], 'An affiliate keeps financial access while the fiscal workflow is paused.' );
+affiliates_rest_assert( false === $me->data['fiscal']['required'], 'The fiscal document is not required while the workflow is paused.' );
+affiliates_rest_assert( 'pending' === $me->data['fiscal']['status'], 'An existing fiscal document keeps its status for future use.' );
 $dashboard = Nakama_Affiliates_REST::dashboard( new WP_REST_Request( array() ) );
-affiliates_rest_assert( true === $dashboard->data['success'], 'An approved affiliate can read their dashboard.' );
+affiliates_rest_assert( true === $dashboard->data['success'], 'An affiliate can read their dashboard without fiscal approval.' );
 affiliates_rest_assert( 1250.0 === $dashboard->data['summary']['commissionMxn'], 'Dashboard commission comes from the server ledger.' );
 affiliates_rest_assert( 17500.0 === $dashboard->data['progress']['next']['remainingMxn'], 'Dashboard exposes exact progress to the next garment tier.' );
 affiliates_rest_assert( 4 === $affiliate_rest_ledger_filter, 'Financial queries are always filtered by the authenticated affiliate.' );

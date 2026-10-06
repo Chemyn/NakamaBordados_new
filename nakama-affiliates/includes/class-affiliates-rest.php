@@ -213,7 +213,7 @@ final class Nakama_Affiliates_REST {
 			'can'             => true,
 			'vip'             => self::profile_is_vip( $profile ),
 			'supportMode'     => $context['support'],
-			'financialAccess' => $context['support'] || 'approved' === $fiscal['status'],
+			'financialAccess' => true,
 			'profile'         => self::public_profile( $profile ),
 			'fiscal'          => $fiscal,
 		) );
@@ -223,11 +223,6 @@ final class Nakama_Affiliates_REST {
 		$context = self::affiliate_context( $request );
 		if ( ! $context['profile'] ) {
 			return self::no_store_response( array( 'success' => false, 'code' => 'forbidden', 'message' => 'No existe un perfil de afiliado disponible.' ) );
-		}
-
-		$fiscal = self::fiscal_context( $context['profile'], $context['support'] );
-		if ( ! $context['support'] && 'approved' !== $fiscal['status'] ) {
-			return self::no_store_response( array( 'success' => false, 'code' => 'fiscal_required', 'fiscal' => $fiscal ) );
 		}
 
 		$period  = self::current_period();
@@ -253,11 +248,6 @@ final class Nakama_Affiliates_REST {
 		if ( ! $context['profile'] ) {
 			return self::no_store_response( array( 'success' => false, 'code' => 'forbidden', 'items' => array() ) );
 		}
-		$fiscal = self::fiscal_context( $context['profile'], $context['support'] );
-		if ( ! $context['support'] && 'approved' !== $fiscal['status'] ) {
-			return self::no_store_response( array( 'success' => false, 'code' => 'fiscal_required', 'items' => array() ) );
-		}
-
 		$page = max( 1, (int) $request->get_param( 'page' ) );
 		$data = Nakama_Affiliates_Repository::ledger_for_affiliate( (int) $context['profile']['id'], $page, 20 );
 		$items = array_map( static function ( $event ) {
@@ -289,11 +279,6 @@ final class Nakama_Affiliates_REST {
 		if ( ! $context['profile'] ) {
 			return self::no_store_response( array( 'success' => false, 'code' => 'forbidden', 'items' => array() ) );
 		}
-		$fiscal = self::fiscal_context( $context['profile'], $context['support'] );
-		if ( ! $context['support'] && 'approved' !== $fiscal['status'] ) {
-			return self::no_store_response( array( 'success' => false, 'code' => 'fiscal_required', 'items' => array() ) );
-		}
-
 		$page = max( 1, (int) $request->get_param( 'page' ) );
 		$data = Nakama_Affiliates_Repository::closures_for_affiliate( (int) $context['profile']['id'], $page, 20 );
 		$items = array_map( static function ( $closure ) {
@@ -524,7 +509,7 @@ final class Nakama_Affiliates_REST {
 			$document = Nakama_Affiliates_Documents::current_for_user();
 		}
 		return array(
-			'required' => true,
+			'required' => false,
 			'status'   => $document ? (string) $document['status'] : 'missing',
 			'document' => $document,
 		);

@@ -1,6 +1,6 @@
 # Operación de Nakama Afiliados
 
-Este documento describe cómo instalar, verificar, operar y retirar el sistema de afiliados. La facturación automática y el cálculo automático de ISR o IVA permanecen pausados hasta contar con las instrucciones escritas del contador.
+Este documento describe cómo instalar, verificar, operar y retirar el sistema de afiliados. La solicitud de Constancia de Situación Fiscal, la facturación automática y el cálculo automático de ISR o IVA permanecen pausados hasta contar con las instrucciones escritas del contador.
 
 ## Antes de desplegar
 
@@ -40,8 +40,8 @@ En el perfil del usuario:
 ## Recorrido de humo obligatorio
 
 1. Iniciar sesión como afiliado activo y comprobar el acceso a `/afiliados/`.
-2. Cargar una Constancia de Situación Fiscal en PDF; comprobar que las métricas sigan bloqueadas mientras está pendiente.
-3. Aprobar la constancia desde administración y confirmar que el afiliado ve únicamente sus ventas y pagos.
+2. Confirmar que el afiliado puede ver su dashboard, ventas, pagos y misión mensual sin cargar una Constancia de Situación Fiscal.
+3. Confirmar que un estado fiscal faltante, pendiente o rechazado no bloquea el panel y que el afiliado ve únicamente sus propios datos.
 4. Aplicar el código en la tienda y verificar que sustituye cualquier promoción incompatible.
 5. Completar un pedido en MXN y otro en USD; repetir la notificación de pago para comprobar idempotencia.
 6. Confirmar que la comisión sea 10% del subtotal elegible antes del descuento, sin envío ni impuestos.

@@ -15,7 +15,6 @@ import {
   fetchAffiliateSales,
   submitAffiliateEvidence,
   submitAffiliateProductRequest,
-  uploadFiscalDocument,
   type AffiliateDashboardData,
   type AffiliateMe,
   type AffiliatePaymentPeriod,
@@ -51,8 +50,6 @@ export default function AffiliateDashboard() {
   const [periods, setPeriods] = useState<AffiliatePaymentPeriod[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [downloadingReceipt, setDownloadingReceipt] = useState(0);
   const [mission, setMission] = useState<AffiliateProductRequestData | null>(null);
   const [products, setProducts] = useState<AffiliateProductsPage | null>(null);
@@ -98,7 +95,7 @@ export default function AffiliateDashboard() {
   }, [loadIdentity, user]);
 
   useEffect(() => {
-    if (!me?.can || !me.financialAccess) return;
+    if (!me?.can) return;
     let active = true;
     Promise.all([fetchAffiliateDashboard(), fetchAffiliateSales(1), fetchAffiliatePayments(1)])
       .then(([dashboardData, salesData, paymentsData]) => {
@@ -113,7 +110,7 @@ export default function AffiliateDashboard() {
   }, [errorMessage, me]);
 
   useEffect(() => {
-    if (!me?.can || !me.financialAccess) return;
+    if (!me?.can) return;
     let active = true;
     queueMicrotask(() => {
       if (!active) return;
@@ -136,22 +133,6 @@ export default function AffiliateDashboard() {
     });
     return () => { active = false; };
   }, [me, missionLoadErrorMessage]);
-
-  const submitDocument = async () => {
-    if (!file) return;
-    setUploading(true);
-    setError('');
-    try {
-      const result = await uploadFiscalDocument(file);
-      if (!result.success) throw new Error(result.message || t('affiliates.error'));
-      setFile(null);
-      await loadIdentity();
-    } catch (requestError) {
-      setError(requestError instanceof Error ? requestError.message : t('affiliates.error'));
-    } finally {
-      setUploading(false);
-    }
-  };
 
   const downloadReceipt = async (receiptId: number) => {
     setDownloadingReceipt(receiptId);
@@ -220,7 +201,7 @@ export default function AffiliateDashboard() {
   if (me && !me.can) return <StatusShell title={t('affiliates.title')} text={t('affiliates.denied')} alert />;
   if (!me) return <StatusShell title={t('affiliates.title')} text={t('affiliates.loading')} />;
 
-  if (me.financialAccess && !dashboard) {
+  if (!dashboard) {
     if (error) {
       return (
         <main className={styles.page}>
@@ -232,41 +213,6 @@ export default function AffiliateDashboard() {
       );
     }
     return <StatusShell title={t('affiliates.title')} text={t('affiliates.loading')} />;
-  }
-
-  const fiscalStatus = me.fiscal?.status || 'missing';
-  if (!me.financialAccess) {
-    const statusText = fiscalStatus === 'pending'
-      ? t('affiliates.fiscal.pending')
-      : fiscalStatus === 'rejected'
-        ? t('affiliates.fiscal.rejected')
-        : t('affiliates.fiscal.missing');
-    return (
-      <main className={styles.page}>
-        <header className={styles.hero}>
-          <span aria-hidden="true" className={styles.impact}>DOSSIER</span>
-          <h1>{t('affiliates.title')}</h1>
-          <p>{me.profile?.code || ''}</p>
-        </header>
-        <section className={styles.fiscalCard} aria-labelledby="fiscal-title">
-          <div className={styles.warningStripe} aria-hidden="true" />
-          <h2 id="fiscal-title">{t('affiliates.fiscal.title')}</h2>
-          <p role="status">{statusText}</p>
-          {fiscalStatus === 'rejected' && me.fiscal.document?.reason && <p className={styles.errorText}>{me.fiscal.document.reason}</p>}
-          <label htmlFor="affiliate-fiscal-file">{t('affiliates.fiscal.label')}</label>
-          <input
-            id="affiliate-fiscal-file"
-            type="file"
-            accept="application/pdf,.pdf"
-            onChange={(event) => setFile(event.target.files?.[0] || null)}
-          />
-          <button className="nk-btn" type="button" disabled={!file || uploading} onClick={() => void submitDocument()}>
-            {uploading ? t('affiliates.fiscal.uploading') : t('affiliates.fiscal.upload')}
-          </button>
-          {error && <p className={styles.errorText} role="alert">{error}</p>}
-        </section>
-      </main>
-    );
   }
 
   return (

@@ -16,7 +16,6 @@ const mocks = vi.hoisted(() => ({
   submitProductRequest: vi.fn(),
   submitEvidence: vi.fn(),
   downloadReceipt: vi.fn(),
-  upload: vi.fn(),
 }));
 
 vi.mock('../context/AuthContext', () => ({
@@ -120,7 +119,6 @@ vi.mock('@/lib/affiliates-api', () => ({
   submitAffiliateProductRequest: (input: unknown) => mocks.submitProductRequest(input),
   submitAffiliateEvidence: (input: unknown) => mocks.submitEvidence(input),
   downloadAffiliateReceipt: (id: number) => mocks.downloadReceipt(id),
-  uploadFiscalDocument: (file: File) => mocks.upload(file),
 }));
 
 describe('AffiliateDashboard', () => {
@@ -137,7 +135,6 @@ describe('AffiliateDashboard', () => {
     mocks.submitProductRequest.mockReset();
     mocks.submitEvidence.mockReset();
     mocks.downloadReceipt.mockReset().mockResolvedValue(undefined);
-    mocks.upload.mockReset();
   });
 
   it('asks visitors to sign in without requesting private data', () => {
@@ -147,20 +144,39 @@ describe('AffiliateDashboard', () => {
     expect(mocks.fetchMe).not.toHaveBeenCalled();
   });
 
-  it('shows only the fiscal workflow while approval is pending', async () => {
+  it('shows the affiliate dashboard while the fiscal workflow is paused', async () => {
     mocks.user = { id: 'affiliate-7' };
     mocks.fetchMe.mockResolvedValue({
       can: true,
       financialAccess: false,
       profile: { code: 'NICO', status: 'active', discountPercentage: 10, commissionPercentage: 10, referralUrl: 'https://nakamabordados.com/?ref=NICO' },
-      fiscal: { required: true, status: 'pending', document: { id: 2, status: 'pending', fileName: 'constancia.pdf' } },
+      fiscal: { required: false, status: 'pending', document: { id: 2, status: 'pending', fileName: 'constancia.pdf' } },
     });
+    mocks.fetchDashboard.mockResolvedValue({
+      success: true,
+      period: '2026-10',
+      code: 'NICO',
+      referralUrl: 'https://nakamabordados.com/?ref=NICO',
+      summary: { salesCount: 1, refundCount: 0, salesMxn: 2500, commissionMxn: 250 },
+      progress: {
+        salesMxn: 2500, tier: 1, quota: 1,
+        next: { thresholdMxn: 10000, remainingMxn: 7500, rewardQuota: 2 },
+        milestones: {
+          second: { thresholdMxn: 10000, remainingMxn: 7500, reached: false, progressPercent: 25 },
+          third: { thresholdMxn: 30000, remainingMxn: 27500, reached: false, progressPercent: 8.33 },
+        },
+      },
+    });
+    mocks.fetchSales.mockResolvedValue({ success: true, page: 1, hasMore: false, items: [] });
     render(<AffiliateDashboard />);
 
-    expect(await screen.findByText('Tu constancia está en revisión.')).toBeVisible();
-    expect(screen.getByLabelText('Selecciona tu constancia en PDF')).toBeInTheDocument();
-    expect(screen.queryByText('Ventas válidas')).not.toBeInTheDocument();
-    expect(mocks.fetchDashboard).not.toHaveBeenCalled();
+    expect(await screen.findByText('Ventas válidas')).toBeVisible();
+    const summary = screen.getByRole('region', { name: 'Resumen financiero del mes' });
+    expect(within(summary).getByText('$2,500.00')).toBeVisible();
+    expect(screen.queryByText('Tu constancia está en revisión.')).not.toBeInTheDocument();
+    expect(screen.queryByLabelText('Selecciona tu constancia en PDF')).not.toBeInTheDocument();
+    expect(mocks.fetchDashboard).toHaveBeenCalledTimes(1);
+    expect(mocks.fetchProductRequest).toHaveBeenCalledTimes(1);
   });
 
   it('shows access denied without requesting financial data', async () => {
@@ -179,7 +195,7 @@ describe('AffiliateDashboard', () => {
       can: true,
       financialAccess: true,
       profile: { code: 'NICO', status: 'active', discountPercentage: 10, commissionPercentage: 10, referralUrl: 'https://nakamabordados.com/?ref=NICO' },
-      fiscal: { required: true, status: 'approved', document: { id: 2, status: 'approved', fileName: 'constancia.pdf' } },
+      fiscal: { required: false, status: 'approved', document: { id: 2, status: 'approved', fileName: 'constancia.pdf' } },
     });
     mocks.fetchDashboard.mockResolvedValue({
       success: true,
@@ -215,30 +231,13 @@ describe('AffiliateDashboard', () => {
     expect(screen.queryByText(/correo del cliente|nombre del comprador/i)).not.toBeInTheDocument();
   });
 
-  it('uploads a selected PDF and refreshes fiscal state', async () => {
-    mocks.user = { id: 'affiliate-7' };
-    mocks.fetchMe
-      .mockResolvedValueOnce({ can: true, financialAccess: false, profile: { code: 'NICO' }, fiscal: { required: true, status: 'missing', document: null } })
-      .mockResolvedValueOnce({ can: true, financialAccess: false, profile: { code: 'NICO' }, fiscal: { required: true, status: 'pending', document: { id: 3, status: 'pending', fileName: 'constancia.pdf' } } });
-    mocks.upload.mockResolvedValue({ success: true });
-    render(<AffiliateDashboard />);
-
-    const input = await screen.findByLabelText('Selecciona tu constancia en PDF');
-    const file = new File(['%PDF-1.4'], 'constancia.pdf', { type: 'application/pdf' });
-    fireEvent.change(input, { target: { files: [file] } });
-    fireEvent.click(screen.getByRole('button', { name: 'Enviar constancia' }));
-
-    await waitFor(() => expect(mocks.upload).toHaveBeenCalledWith(file));
-    await waitFor(() => expect(mocks.fetchMe).toHaveBeenCalledTimes(2));
-  });
-
   it('shows manual withholdings, payment state, carryover guidance, and the own receipt action', async () => {
     mocks.user = { id: 'affiliate-7' };
     mocks.fetchMe.mockResolvedValue({
       can: true,
       financialAccess: true,
       profile: { code: 'NICO', status: 'active', discountPercentage: 10, commissionPercentage: 10, referralUrl: 'https://nakamabordados.com/?ref=NICO' },
-      fiscal: { required: true, status: 'approved', document: { id: 2, status: 'approved', fileName: 'constancia.pdf' } },
+      fiscal: { required: false, status: 'approved', document: { id: 2, status: 'approved', fileName: 'constancia.pdf' } },
     });
     mocks.fetchDashboard.mockResolvedValue({ success: true, period: '2026-10', code: 'NICO', referralUrl: 'https://nakamabordados.com/?ref=NICO', summary: { salesCount: 0, refundCount: 1, salesMxn: -500, commissionMxn: -50 } });
     mocks.fetchSales.mockResolvedValue({ success: true, page: 1, hasMore: false, items: [] });

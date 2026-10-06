@@ -19,7 +19,7 @@ El nuevo sistema permitirá autorizar afiliados de forma individual, asignarles 
 - Dar a cada afiliado un enlace personal que conserve la atribución durante 30 días.
 - Calcular una comisión del 10% sobre el subtotal de productos antes del descuento, sin envío ni impuestos.
 - Ajustar la comisión ante devoluciones parciales o totales sin reescribir meses cerrados.
-- Exigir una Constancia de Situación Fiscal aprobada antes de mostrar el dashboard financiero.
+- Mantener pausado el requisito de Constancia de Situación Fiscal, sin bloquear el dashboard ni la operación del afiliado.
 - Mostrar ventas atribuidas, comisión bruta, ajustes, retenciones capturadas manualmente, neto y pagos.
 - Permitir que administración registre fecha, referencia y comprobante privado del pago.
 - Conceder uno, dos o tres productos al mes según las ventas válidas del periodo anterior.
@@ -61,7 +61,7 @@ La facturación y las retenciones automáticas se reconsiderarán después de re
 - Todos los cierres, metas y pagos del programa se expresarán en MXN.
 - Las ventas del mes determinan el cupo de productos del mes siguiente.
 - El cupo se recalculará todos los meses y no se conservará si no se repite la meta.
-- La primera solicitud estará disponible cuando la Constancia de Situación Fiscal sea aprobada.
+- La primera solicitud estará disponible desde que el afiliado tenga acceso y un perfil activo; no dependerá de la Constancia de Situación Fiscal.
 - A partir de la segunda entrega, las evidencias de la entrega anterior deberán estar aprobadas.
 - Las evidencias serán dos reels y una historia por entrega mensual, no por cada prenda incluida.
 - Nakama cubrirá tanto los productos como su envío.
@@ -324,14 +324,16 @@ El sistema no sugerirá tasas fiscales ni interpretará automáticamente el rég
 
 ## Expediente fiscal
 
-La Constancia de Situación Fiscal será obligatoria para habilitar el dashboard financiero.
+La solicitud y revisión de la Constancia de Situación Fiscal quedan pausadas hasta que Nakama defina el proceso con un contador profesional. Durante esta pausa, el documento no será obligatorio y ningún estado fiscal bloqueará el dashboard, las ventas, los pagos ni la primera solicitud mensual.
 
-Estados:
+La infraestructura privada y los estados existentes se conservarán para retomarlos después:
 
-- `missing`: solo se muestra la carga del documento;
-- `pending`: se muestra la fecha de recepción y la opción de reemplazarlo;
-- `rejected`: se muestra el motivo y una acción para corregir;
-- `approved`: se habilita el dashboard completo.
+- `missing`: no existe documento;
+- `pending`: existe un documento pendiente de revisión;
+- `rejected`: el documento fue rechazado;
+- `approved`: el documento fue aprobado.
+
+Estos estados serán informativos para administración y no se mostrarán como requisito al afiliado mientras el proceso permanezca pausado.
 
 Solo se aceptarán PDF con tamaño máximo configurable. El servidor comprobará extensión, tipo MIME y firma del archivo, asignará un nombre interno aleatorio y lo guardará fuera de rutas públicas. La descarga requerirá autenticación y autorización en cada petición.
 
@@ -347,7 +349,7 @@ Las ventas válidas del mes cerrado determinarán el cupo del siguiente mes:
 
 El cupo se recalculará cada mes. Alcanzar dos o tres prendas en un periodo no garantiza conservar ese nivel en el siguiente.
 
-La primera solicitud se habilitará cuando administración apruebe la Constancia de Situación Fiscal. Las solicitudes posteriores requerirán que las evidencias de la entrega mensual anterior estén aprobadas.
+La primera solicitud se habilitará cuando el afiliado tenga acceso y un perfil activo. Las solicitudes posteriores requerirán que las evidencias de la entrega mensual anterior estén aprobadas.
 
 Cada unidad podrá ser cualquier producto o variación disponible, sin límite de precio. Para afiliados ordinarios se excluirán productos pertenecientes a las categorías configuradas como Drops y Edición especial. Los VIP podrán elegirlas cuando estén disponibles, pero administración conservará la decisión operativa final y el stock de WooCommerce seguirá siendo obligatorio.
 
@@ -621,7 +623,7 @@ Cada entrega deberá ser utilizable, migrable y verificable antes de comenzar la
 
 ### Interfaz
 
-- estados fiscal faltante, pendiente, rechazado y aprobado;
+- acceso completo con estado fiscal faltante, pendiente, rechazado o aprobado mientras el requisito esté pausado;
 - carga, error y reintento;
 - navegación por teclado y foco visible;
 - validación junto al campo y resumen enfocable;
