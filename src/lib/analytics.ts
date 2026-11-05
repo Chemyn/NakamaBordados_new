@@ -50,6 +50,7 @@ export interface TrackedPurchase {
   orderId: string | number;
   value: number;
   currency?: string;
+  contentIds?: Array<string | number>;
 }
 
 const purchaseMemoryFallback = new Set<string>();
@@ -147,6 +148,8 @@ export function trackPurchase(purchase: TrackedPurchase): void {
     const value = Number(purchase.value);
     if (!orderId || !Number.isFinite(value) || typeof window.fbq !== 'function') return;
 
+    const contentIds = (purchase.contentIds || []).map(id => String(id).trim()).filter(Boolean);
+
     const storageKey = purchaseStorageKey(orderId);
     if (wasPurchaseTracked(storageKey)) return;
 
@@ -157,6 +160,7 @@ export function trackPurchase(purchase: TrackedPurchase): void {
         value,
         currency: (purchase.currency || 'MXN').toUpperCase(),
         order_id: orderId,
+        ...(contentIds.length ? { content_ids: contentIds, content_type: 'product' } : {}),
       },
       { eventID: `nakama-purchase-${orderId}` },
     );

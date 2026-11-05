@@ -22,6 +22,7 @@ interface OrderConfirmation {
   isPaid: boolean;
   total: string;
   currency: string;
+  contentIds: string[];
   dateCreated: string;
   paymentMethod: string;
   paymentTitle: string;
@@ -140,6 +141,7 @@ export default function PedidoConfirmadoPage() {
       orderId: confirmation.orderNumber,
       value: Number(confirmation.total),
       currency: confirmation.currency,
+      contentIds: confirmation.contentIds,
     });
 
     sendPurchase();

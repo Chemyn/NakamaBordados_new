@@ -194,12 +194,27 @@ function nakama_get_order_confirmation( WP_REST_Request $request ) {
     }
 
     $created = $order->get_date_created();
+    $content_ids = array();
+    foreach ( $order->get_items( 'line_item' ) as $item ) {
+        if ( ! $item instanceof WC_Order_Item_Product ) {
+            continue;
+        }
+
+        // El feed de Meta publica las variaciones usando su ID de WooCommerce;
+        // para productos simples, el ID del producto coincide con el del feed.
+        $product_id = $item->get_variation_id() ?: $item->get_product_id();
+        if ( $product_id > 0 ) {
+            $content_ids[] = (string) $product_id;
+        }
+    }
+
     $response = rest_ensure_response( array(
         'orderNumber'         => (string) $order->get_order_number(),
         'status'              => (string) $order->get_status(),
         'isPaid'              => (bool) $order->is_paid(),
         'total'               => (string) $order->get_total(),
         'currency'            => (string) $order->get_currency(),
+        'contentIds'          => array_values( array_unique( $content_ids ) ),
         'dateCreated'         => $created ? $created->date( 'c' ) : '',
         'paymentMethod'       => $payment_method,
         'paymentTitle'        => wp_strip_all_tags( $order->get_payment_method_title() ),
