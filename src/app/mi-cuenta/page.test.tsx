@@ -31,12 +31,12 @@ interface TestUser {
   role: string;
   orders: { nodes: TestOrder[] };
   shipping: {
-    address1: string;
-    address2: string;
-    city: string;
-    state: string;
-    postcode: string;
-    country: string;
+    address1: string | null;
+    address2: string | null;
+    city: string | null;
+    state: string | null;
+    postcode: string | null;
+    country: string | null;
   };
   comisiones?: string[];
 }
@@ -234,6 +234,21 @@ describe('MiCuentaPage accessibility and account navigation', () => {
     expect(screen.getByLabelText('Nombre')).toHaveValue('Nami');
   });
 
+  it('recovers the personal editor when saving throws unexpectedly', async () => {
+    mocks.auth.user = createUser();
+    mocks.auth.updateProfile.mockRejectedValueOnce(new Error('network failure'));
+    render(<MiCuentaPage />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Cuenta' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Editar datos personales' }));
+    fireEvent.change(screen.getByLabelText('Nombre'), { target: { value: 'Nami' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar datos' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudieron guardar los cambios');
+    expect(screen.getByLabelText('Nombre')).toHaveValue('Nami');
+    expect(screen.getByRole('button', { name: 'Guardar datos' })).toBeEnabled();
+  });
+
   it('edits and cancels the main shipping address without changing account identifiers', async () => {
     mocks.auth.user = createUser();
     render(<MiCuentaPage />);
@@ -263,6 +278,63 @@ describe('MiCuentaPage accessibility and account navigation', () => {
     fireEvent.change(screen.getByLabelText('Ciudad'), { target: { value: 'Enies Lobby' } });
     fireEvent.click(screen.getByRole('button', { name: 'Cancelar edición de dirección' }));
     expect(screen.queryByLabelText('Ciudad')).not.toBeInTheDocument();
+  });
+
+  it('lets customers complete and save an address returned with nullable fields', async () => {
+    mocks.auth.user = {
+      ...createUser(),
+      shipping: {
+        address1: null,
+        address2: null,
+        city: null,
+        state: null,
+        postcode: null,
+        country: null,
+      },
+    };
+    render(<MiCuentaPage />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Dirección' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Editar dirección de envío' }));
+
+    expect(screen.getByLabelText('Interior o referencia')).toHaveValue('');
+    expect(screen.getByLabelText('País')).toHaveValue('MX');
+
+    fireEvent.change(screen.getByLabelText('Calle y número'), { target: { value: 'Going Merry 42' } });
+    fireEvent.change(screen.getByLabelText('Ciudad'), { target: { value: 'Water 7' } });
+    fireEvent.change(screen.getByLabelText('Estado'), { target: { value: 'Grand Line' } });
+    fireEvent.change(screen.getByLabelText('Código postal'), { target: { value: '85000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar dirección' }));
+
+    await waitFor(() => expect(mocks.auth.updateProfile).toHaveBeenCalledWith({
+      shipping: {
+        address1: 'Going Merry 42',
+        address2: '',
+        city: 'Water 7',
+        state: 'Grand Line',
+        postcode: '85000',
+        country: 'MX',
+      },
+    }));
+    expect(await screen.findByRole('status')).toHaveTextContent('Dirección de envío actualizada');
+  });
+
+  it('recovers the address editor when saving throws unexpectedly', async () => {
+    mocks.auth.user = createUser();
+    mocks.auth.updateProfile.mockRejectedValueOnce(new Error('network failure'));
+    render(<MiCuentaPage />);
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Dirección' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Editar dirección de envío' }));
+    fireEvent.change(screen.getByLabelText('Calle y número'), { target: { value: 'Going Merry 42' } });
+    fireEvent.change(screen.getByLabelText('Ciudad'), { target: { value: 'Water 7' } });
+    fireEvent.change(screen.getByLabelText('Estado'), { target: { value: 'Grand Line' } });
+    fireEvent.change(screen.getByLabelText('Código postal'), { target: { value: '85000' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guardar dirección' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('No se pudo guardar la dirección');
+    expect(screen.getByLabelText('Calle y número')).toHaveValue('Going Merry 42');
+    expect(screen.getByRole('button', { name: 'Guardar dirección' })).toBeEnabled();
   });
 
   it('shows production and warehouse immediately for admins even if capability checks fail closed', () => {

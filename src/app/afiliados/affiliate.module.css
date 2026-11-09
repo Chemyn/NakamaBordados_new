@@ -617,6 +617,14 @@
   gap: 16px;
 }
 
+.catalogPagination {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+  margin: 20px 0;
+  text-align: center;
+}
+
 .productChoice {
   display: grid;
   align-content: start;

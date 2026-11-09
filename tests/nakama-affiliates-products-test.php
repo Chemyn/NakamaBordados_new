@@ -18,6 +18,17 @@ function update_option( $key, $value ) {
 	$affiliate_product_options[ $key ] = $value;
 	return true;
 }
+function get_term_by( $field, $slug, $taxonomy ) {
+	$ids = array( 'drops' => 9, 'edicion-especial' => 10 );
+	return isset( $ids[$slug] ) ? (object) array( 'term_id' => $ids[$slug] ) : false;
+}
+function is_wp_error( $value ) { return false; }
+function get_objects_in_term( $ids, $taxonomy ) {
+	global $affiliate_fake_products;
+	return array_keys( array_filter( $affiliate_fake_products, static function ( $product ) use ( $ids ) {
+		return (bool) array_intersect( $ids, $product->get_category_ids() );
+	} ) );
+}
 
 final class Nakama_Affiliates_Repository {
 	public static function audit( $action, $entity_type, $entity_id, $description = '', $actor_user_id = null ): bool {
@@ -73,10 +84,13 @@ function wc_get_product( $product_id ) {
 }
 function wc_get_products( array $args ) {
 	global $affiliate_fake_products;
-	$products = array_values( array_filter( $affiliate_fake_products, static function ( $product ) {
-		return ! $product->is_type( 'variation' );
+	$products = array_values( array_filter( $affiliate_fake_products, static function ( $product ) use ( $args ) {
+		return ! $product->is_type( 'variation' ) && $product->get_status() === $args['status']
+			&& in_array( $product->get_catalog_visibility(), array( 'visible', 'catalog' ), true )
+			&& $product->is_in_stock() && ! in_array( $product->get_id(), $args['exclude'] ?? array(), true );
 	} ) );
-	return (object) array( 'products' => $products, 'total' => count( $products ), 'max_num_pages' => 1 );
+	$total = count( $products );
+	return (object) array( 'products' => array_slice( $products, ( $args['page'] - 1 ) * $args['limit'], $args['limit'] ), 'total' => $total, 'max_num_pages' => (int) ceil( $total / $args['limit'] ) );
 }
 function wp_get_attachment_image_url( $image_id, $size ) { return 'https://example.test/image-' . (int) $image_id . '.jpg'; }
 
@@ -96,6 +110,19 @@ affiliate_products_assert_same( 999999.0, $regular['items'][0]['price'], 'The mo
 
 $vip = Nakama_Affiliates_Products::catalog( true, 1, 20 );
 affiliate_products_assert_same( array( 1, 2, 3, 6 ), array_column( $vip['items'], 'id' ), 'VIP affiliates can see restricted categories when products are available.' );
+
+$first = Nakama_Affiliates_Products::catalog( false, 1, 1 );
+$second = Nakama_Affiliates_Products::catalog( false, 2, 1 );
+affiliate_products_assert_same( array( 1 ), array_column( $first['items'], 'id' ), 'The first page contains an eligible product.' );
+affiliate_products_assert_same( array( 6 ), array_column( $second['items'], 'id' ), 'Restricted categories do not consume slots in later pages.' );
+affiliate_products_assert_same( 2, $first['total'], 'Totals exclude unavailable and restricted products.' );
+affiliate_products_assert_same( true, $first['hasMore'], 'More eligible products remain after the first page.' );
+affiliate_products_assert_same( false, $second['hasMore'], 'The last eligible page stops pagination.' );
+$vip_page = Nakama_Affiliates_Products::catalog( true, 2, 2 );
+affiliate_products_assert_same( 4, $vip_page['total'], 'VIP totals include Drops and Special Editions.' );
+affiliate_products_assert_same( array( 3, 6 ), array_column( $vip_page['items'], 'id' ), 'VIP pagination can reach restricted products.' );
+$affiliate_product_options['nakama_affiliates_restricted_category_ids'] = array( 2, 9, 10 );
+affiliate_products_assert_same( array( 9, 10 ), Nakama_Affiliates_Products::restricted_category_ids(), 'Legacy settings cannot exclude other categories.' );
 
 $restricted = Nakama_Affiliates_Products::validate_selection( 2, 0, false );
 affiliate_products_assert_same( 'restricted_category', $restricted['reason'], 'A manipulated regular request cannot submit a Drop product ID.' );

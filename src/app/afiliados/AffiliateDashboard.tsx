@@ -119,6 +119,7 @@ export default function AffiliateDashboard() {
       Promise.all([fetchAffiliateProductRequest(), fetchAffiliateProducts(1)])
         .then(async ([missionData, productData]) => {
           if (!active) return;
+          if (!productData.success) throw new Error('catalog_unavailable');
           setMission(missionData);
           setProducts(productData);
           if (missionData.request?.id) {

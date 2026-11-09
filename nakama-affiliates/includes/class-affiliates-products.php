@@ -21,7 +21,7 @@ final class Nakama_Affiliates_Products {
 			return array( 'items' => array(), 'page' => $page, 'pages' => 0, 'total' => 0, 'hasMore' => false );
 		}
 
-		$result = wc_get_products( array(
+		$args = array(
 			'status'       => 'publish',
 			'visibility'   => 'catalog',
 			'stock_status' => 'instock',
@@ -30,7 +30,17 @@ final class Nakama_Affiliates_Products {
 			'paginate'     => true,
 			'orderby'      => 'date',
 			'order'        => 'DESC',
-		) );
+		);
+		// Exclude before pagination so every page and its totals describe eligible products.
+		$restricted_ids = self::restricted_category_ids();
+		if ( ! $is_vip && $restricted_ids ) {
+			$excluded = get_objects_in_term( $restricted_ids, 'product_cat' );
+			if ( is_wp_error( $excluded ) ) {
+				return self::failure( 'catalog_unavailable' );
+			}
+			$args['exclude'] = array_map( 'intval', $excluded );
+		}
+		$result = wc_get_products( $args );
 		$products = is_object( $result ) && isset( $result->products ) ? $result->products : ( is_array( $result ) ? $result : array() );
 		$items    = array();
 		foreach ( $products as $product ) {
@@ -105,11 +115,7 @@ final class Nakama_Affiliates_Products {
 	}
 
 	public static function restricted_category_ids() {
-		$ids = self::normalize_ids( function_exists( 'get_option' ) ? get_option( self::RESTRICTED_CATEGORIES_OPTION, array() ) : array() );
-		if ( $ids || ! function_exists( 'get_term_by' ) ) {
-			return $ids;
-		}
-
+		$ids = array();
 		foreach ( array( 'drops', 'edicion-especial' ) as $slug ) {
 			$term = get_term_by( 'slug', $slug, 'product_cat' );
 			if ( $term && ! is_wp_error( $term ) ) {
@@ -128,7 +134,7 @@ final class Nakama_Affiliates_Products {
 		if ( (int) $actor_user_id <= 0 ) {
 			return self::failure( 'actor_required' );
 		}
-		$ids      = self::normalize_ids( $category_ids );
+		$ids      = self::restricted_category_ids();
 		$accounts = self::normalize_accounts( $official_accounts );
 		if ( function_exists( 'update_option' ) ) {
 			update_option( self::RESTRICTED_CATEGORIES_OPTION, $ids );

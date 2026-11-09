@@ -10,6 +10,7 @@ import type {
   AffiliateProductsPage,
   AffiliateShippingAddress,
 } from '@/lib/affiliates-api';
+import { fetchAffiliateProducts } from '@/lib/affiliates-api';
 import styles from './affiliate.module.css';
 
 interface Props {
@@ -26,6 +27,9 @@ type Selection = { product_id: number; variation_id: number };
 
 export default function AffiliateProductRequest({ period, quota, vip, products, request, address, onSubmit }: Props) {
   const { t } = useLanguage();
+  const [catalog, setCatalog] = useState(products);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [catalogError, setCatalogError] = useState('');
   const storageKey = `nakama-affiliate-products-${period}`;
   const [selected, setSelected] = useState<Selection[]>(() => {
     if (typeof window === 'undefined') return [];
@@ -44,6 +48,23 @@ export default function AffiliateProductRequest({ period, quota, vip, products, 
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
   const [failed, setFailed] = useState(false);
+  const loadMore = async () => {
+    if (loadingMore || !catalog.hasMore) return;
+    setLoadingMore(true);
+    setCatalogError('');
+    try {
+      const next = await fetchAffiliateProducts(catalog.page + 1);
+      if (!next.success) throw new Error('catalog_unavailable');
+      setCatalog(current => ({
+        ...next,
+        items: [...current.items, ...next.items.filter(item => !current.items.some(existing => existing.id === item.id))],
+      }));
+    } catch {
+      setCatalogError(t('affiliates.mission.productsLoadError'));
+    } finally {
+      setLoadingMore(false);
+    }
+  };
   const addressComplete = Boolean(address.name && address.address1 && address.city && address.state && address.postcode && address.country && address.phone);
 
   useEffect(() => {
@@ -106,7 +127,7 @@ export default function AffiliateProductRequest({ period, quota, vip, products, 
       </div>
       <p className={styles.selectionCount} aria-live="polite">{selected.length} / {quota} {t('affiliates.mission.selected')}</p>
       <div className={styles.productGrid}>
-        {products.items.map(product => {
+        {catalog.items.map(product => {
           const checked = selectedIds.has(product.id);
           const selectedVariation = selected.find(item => item.product_id === product.id)?.variation_id ?? product.variations[0]?.id ?? 0;
           const atLimit = selected.length >= quota && !checked;
@@ -129,7 +150,14 @@ export default function AffiliateProductRequest({ period, quota, vip, products, 
           );
         })}
       </div>
-      {products.items.length === 0 && <p>{t('affiliates.mission.productsEmpty')}</p>}
+      <div className={styles.catalogPagination}>
+        <p role="status">{t('affiliates.mission.productsCount').replace('{shown}', String(catalog.items.length)).replace('{total}', String(catalog.total))}</p>
+        {catalog.hasMore && <button className="nk-btn" type="button" disabled={loadingMore} aria-busy={loadingMore} onClick={() => void loadMore()}>
+          {loadingMore ? t('affiliates.mission.productsLoading') : t('affiliates.mission.productsMore')}
+        </button>}
+        {catalogError && <p className={styles.inlineError} role="alert">{catalogError}</p>}
+      </div>
+      {catalog.items.length === 0 && !catalog.hasMore && <p>{t('affiliates.mission.productsEmpty')}</p>}
       <div className={styles.addressCard}>
         <h3>{t('affiliates.mission.addressTitle')}</h3>
         <address>{address.name}<br />{address.address1}{address.address2 ? <><br />{address.address2}</> : null}<br />{address.city}, {address.state} · {address.postcode}<br />{address.country} · {address.phone}</address>

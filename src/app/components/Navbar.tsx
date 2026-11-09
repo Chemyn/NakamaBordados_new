@@ -60,7 +60,7 @@ export default function Navbar() {
   };
 
   const handleDropdownLinkClick = (category: string, e: React.MouseEvent) => {
-    if (typeof window !== 'undefined' && window.innerWidth < 1200) {
+    if (typeof window !== 'undefined' && window.innerWidth < 1390) {
       e.preventDefault();
       setSubActive(subActive === category ? null : category);
     } else {
@@ -139,8 +139,8 @@ export default function Navbar() {
           }
         }
         
-        /* 4. Mobile / Toggle View (under 1200px) */
-        @media (max-width: 1199px) {
+        /* 4. Mobile / Toggle View (under 1390px) */
+        @media (max-width: 1389px) {
           .nk-logo-img { height: 40px !important; }
           .nk-nav-toggle { display: flex !important; }
           .nk-desktop-only { display: none !important; }
@@ -168,11 +168,11 @@ export default function Navbar() {
           .nk-mega-grid { grid-template-columns: 1fr !important; gap: 8px !important; }
         }
         
-        @media (min-width: 1200px) {
+        @media (min-width: 1390px) {
           .nk-nav-toggle { display: none !important; }
           .nk-desktop-only { display: flex !important; }
           .nk-mobile-only { display: none !important; }
-          .nk-nav-menu { display: flex !important; }
+          .nk-nav-menu { display: flex !important; min-width: max-content; }
           .nk-nav-menu.active { display: flex !important; }
           .nk-nav-item-dropdown:hover .nk-submenu { display: flex !important; }
           .nk-mega-trigger:hover .nk-mega-menu { display: block !important; }
@@ -181,7 +181,7 @@ export default function Navbar() {
         /* En portatiles estrechos el ultimo control empujaba Tienda sobre el
            logo. El cambio de tema queda disponible en el menu movil y vuelve
            a la fila en cuanto existe una separacion holgada. */
-        @media (min-width: 1200px) and (max-width: 1279px) {
+        @media (min-width: 1390px) and (max-width: 1439px) {
           .nk-theme-toggle-desktop { display: none !important; }
         }
       `}} />

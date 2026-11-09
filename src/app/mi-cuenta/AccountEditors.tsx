@@ -53,14 +53,19 @@ export function PersonalDetailsEditor({ user, onSave }: PersonalDetailsProps) {
 
     setSaving(true);
     setMessage(null);
-    const result = await onSave(input);
-    setSaving(false);
-    if (!result.success) {
-      setMessage({ kind: 'error', text: result.error || 'No se pudieron guardar los cambios.' });
-      return;
+    try {
+      const result = await onSave(input);
+      if (!result.success) {
+        setMessage({ kind: 'error', text: result.error || 'No se pudieron guardar los cambios.' });
+        return;
+      }
+      setEditing(false);
+      setMessage({ kind: 'success', text: 'Datos personales actualizados.' });
+    } catch {
+      setMessage({ kind: 'error', text: 'No se pudieron guardar los cambios. Inténtalo de nuevo.' });
+    } finally {
+      setSaving(false);
     }
-    setEditing(false);
-    setMessage({ kind: 'success', text: 'Datos personales actualizados.' });
   };
 
   return (
@@ -169,14 +174,25 @@ interface ShippingAddressProps {
   onSave: SaveProfile;
 }
 
+function normalizeShipping(shipping: AccountShippingInput): AccountShippingInput {
+  return {
+    address1: (shipping.address1 ?? '').trim(),
+    address2: (shipping.address2 ?? '').trim(),
+    city: (shipping.city ?? '').trim(),
+    state: (shipping.state ?? '').trim(),
+    postcode: (shipping.postcode ?? '').trim(),
+    country: (shipping.country ?? '').trim().toUpperCase() || 'MX',
+  };
+}
+
 export function ShippingAddressEditor({ shipping, onSave }: ShippingAddressProps) {
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ kind: 'success' | 'error'; text: string } | null>(null);
-  const [form, setForm] = useState<AccountShippingInput>(shipping);
+  const [form, setForm] = useState<AccountShippingInput>(() => normalizeShipping(shipping));
 
   const beginEditing = () => {
-    setForm({ ...shipping, country: shipping.country || 'MX' });
+    setForm(normalizeShipping(shipping));
     setMessage(null);
     setEditing(true);
   };
@@ -188,9 +204,7 @@ export function ShippingAddressEditor({ shipping, onSave }: ShippingAddressProps
 
   const save = async (event: React.FormEvent) => {
     event.preventDefault();
-    const normalized = Object.fromEntries(
-      Object.entries(form).map(([key, value]) => [key, value.trim()]),
-    ) as unknown as AccountShippingInput;
+    const normalized = normalizeShipping(form);
     if (!normalized.address1 || !normalized.city || !normalized.state || !normalized.postcode || !normalized.country) {
       setMessage({ kind: 'error', text: 'Completa calle, ciudad, estado, código postal y país.' });
       return;
@@ -198,14 +212,19 @@ export function ShippingAddressEditor({ shipping, onSave }: ShippingAddressProps
 
     setSaving(true);
     setMessage(null);
-    const result = await onSave({ shipping: normalized });
-    setSaving(false);
-    if (!result.success) {
-      setMessage({ kind: 'error', text: result.error || 'No se pudo guardar la dirección.' });
-      return;
+    try {
+      const result = await onSave({ shipping: normalized });
+      if (!result.success) {
+        setMessage({ kind: 'error', text: result.error || 'No se pudo guardar la dirección.' });
+        return;
+      }
+      setEditing(false);
+      setMessage({ kind: 'success', text: 'Dirección de envío actualizada.' });
+    } catch {
+      setMessage({ kind: 'error', text: 'No se pudo guardar la dirección. Inténtalo de nuevo.' });
+    } finally {
+      setSaving(false);
     }
-    setEditing(false);
-    setMessage({ kind: 'success', text: 'Dirección de envío actualizada.' });
   };
 
   return (

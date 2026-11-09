@@ -26,7 +26,7 @@ La activación crea o actualiza nueve tablas propias. Reemplazar el ZIP por una 
 
 En **WordPress → Afiliados → Configuración**:
 
-- indicar los IDs de las categorías Drops y Edición especial;
+- comprobar los IDs detectados automáticamente para los slugs `drops` y `edicion-especial`; son las únicas categorías excluidas para afiliados ordinarios y no se editan manualmente;
 - registrar las cuentas oficiales que deberán etiquetarse en cada Reel e Historia;
 - mantener la captura fiscal como importes manuales revisados por administración.
 
@@ -49,6 +49,7 @@ En el perfil del usuario:
 8. Verificar los límites mensuales de 9,999.99, 10,000, 29,999.99 y 30,000 MXN.
 9. Solicitar una, dos o tres prendas según el cupo; confirmar que Nakama cubre el envío y que no existe límite de precio.
 10. Como afiliado normal, comprobar la exclusión de Drops y Edición especial; como VIP, comprobar que aparecen sin promesa de aprobación.
+    Recorrer el catálogo con **Ver más**, comprobar el total de productos elegibles y confirmar que la selección se conserva al cargar otra página o reintentar una carga fallida.
 11. Registrar dos Reels y una Historia, todos con etiqueta a las cuentas oficiales, y una evidencia bonus opcional.
 12. Aprobar o rechazar manualmente las URLs y verificar que el afiliado ve el estado y, si aplica, el motivo para corregir.
 
