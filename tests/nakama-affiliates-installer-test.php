@@ -58,6 +58,7 @@ affiliates_installer_assert( false !== strpos( $schema, 'related_entity_id bigin
 affiliates_installer_assert( false !== strpos( $schema, 'payment_reversal_reason text' ), 'Payment reversal history has an explicit reason.' );
 affiliates_installer_assert( false !== strpos( $schema, 'content_type varchar(20)' ), 'Social evidence stores its content type.' );
 affiliates_installer_assert( false !== strpos( $schema, 'position tinyint(3) unsigned' ), 'Social evidence stores its required position.' );
+affiliates_installer_assert( false !== strpos( $schema, 'order_ready tinyint(1)' ) && false !== strpos( $schema, 'KEY request_order (order_id)' ), 'Requests retain a durable recoverable production order link.' );
 
 $schema = implode( "\n", $affiliate_schema_queries );
 foreach ( $expected_tables as $table ) {

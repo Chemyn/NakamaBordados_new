@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Afiliados
  * Description: Códigos, atribución, comisiones y beneficios mensuales para el programa de afiliados de Nakama Bordados.
- * Version: 0.1.3
+ * Version: 0.2.0
  * Author: Nakama Bordados
  * Requires PHP: 7.4
  * Requires Plugins: woocommerce
@@ -13,8 +13,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'NAKAMA_AFFILIATES_VERSION', '0.1.3' );
-define( 'NAKAMA_AFFILIATES_DB_VERSION', '3' );
+define( 'NAKAMA_AFFILIATES_VERSION', '0.2.0' );
+define( 'NAKAMA_AFFILIATES_DB_VERSION', '4' );
 define( 'NAKAMA_AFFILIATES_FILE', __FILE__ );
 define( 'NAKAMA_AFFILIATES_PATH', plugin_dir_path( __FILE__ ) );
 define( 'NAKAMA_AFFILIATES_URL', plugin_dir_url( __FILE__ ) );
@@ -35,6 +35,7 @@ $nakama_affiliates_includes = array(
 	'includes/class-affiliates-benefits.php',
 	'includes/class-affiliates-products.php',
 	'includes/class-affiliates-requests.php',
+	'includes/class-affiliates-benefit-orders.php',
 	'includes/class-affiliates-evidence.php',
 	'includes/class-affiliates-legacy-migration.php',
 	'includes/class-affiliates-closures.php',
@@ -56,6 +57,7 @@ Nakama_Affiliates_Discounts::init();
 Nakama_Affiliates_Orders::init();
 Nakama_Affiliates_Commissions::init();
 Nakama_Affiliates_Refunds::init();
+Nakama_Affiliates_Benefit_Orders::init();
 Nakama_Affiliates_Admin::init();
 
 add_action( 'before_woocommerce_init', function () {

@@ -313,28 +313,16 @@ final class Nakama_Affiliates_Admin {
 	}
 
 	private static function render_request_actions( array $request ) {
-		$status = (string) $request['status'];
-		if ( 'submitted' === $status ) {
-			self::request_action_form( $request, 'approved', 'Aprobar' );
-			self::request_action_form( $request, 'rejected', 'Rechazar', true );
-		} elseif ( 'approved' === $status ) {
-			self::request_action_form( $request, 'preparing', 'Preparar' );
-			self::request_action_form( $request, 'rejected', 'Rechazar', true );
-		} elseif ( 'preparing' === $status ) {
-			?><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="nka-inline-form"><?php self::mutation_fields( 'update_request' ); ?><input type="hidden" name="request_id" value="<?php echo esc_attr( $request['id'] ); ?>" /><input type="hidden" name="request_status" value="shipped" /><label>Paquetería<input name="carrier" required /></label><label>Guía<input name="tracking_code" required /></label><button class="button" type="submit">Registrar envío</button></form><?php
-		} elseif ( 'shipped' === $status ) {
-			self::request_action_form( $request, 'completed', 'Completar' );
-		} elseif ( 'rejected' === $status && ! empty( $request['rejection_reason'] ) ) {
-			echo '<small>' . esc_html( $request['rejection_reason'] ) . '</small>';
-		} else {
-			echo '<span aria-hidden="true">—</span>';
+		if ( ! empty( $request['order_id'] ) ) {
+			$order = wc_get_order( (int) $request['order_id'] );
+			if ( $order ) {
+				echo '<a class="button" href="' . esc_url( $order->get_edit_order_url() ) . '">' . esc_html( $order->get_order_number() ) . '</a>';
+				echo '<p>Seguimiento automático desde Producción</p>';
+				return;
+			}
 		}
+		echo '<span>Creación automática del pedido en proceso</span>';
 	}
-
-	private static function request_action_form( array $request, $status, $label, $requires_reason = false ) {
-		?><form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>" class="nka-inline-form"><?php self::mutation_fields( 'update_request' ); ?><input type="hidden" name="request_id" value="<?php echo esc_attr( $request['id'] ); ?>" /><input type="hidden" name="request_status" value="<?php echo esc_attr( $status ); ?>" /><?php if ( $requires_reason ) : ?><label>Motivo<textarea name="reason" required></textarea></label><?php endif; ?><button class="button" type="submit"><?php echo esc_html( $label ); ?></button></form><?php
-	}
-
 	private static function render_settings() {
 		$category_ids = implode( ', ', Nakama_Affiliates_Products::restricted_category_ids() );
 		$accounts = implode( "\n", Nakama_Affiliates_Products::official_accounts() );

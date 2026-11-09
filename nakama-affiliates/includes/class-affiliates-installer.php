@@ -177,6 +177,8 @@ final class Nakama_Affiliates_Installer {
 			"CREATE TABLE {$requests} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,
 				affiliate_id bigint(20) unsigned NOT NULL,
+				order_id bigint(20) unsigned NOT NULL DEFAULT 0,
+				order_ready tinyint(1) NOT NULL DEFAULT 0,
 				benefit_period_id bigint(20) unsigned NOT NULL,
 				period_key char(7) NOT NULL,
 				status varchar(20) NOT NULL DEFAULT 'draft',
@@ -191,7 +193,8 @@ final class Nakama_Affiliates_Installer {
 				updated_at_gmt datetime NOT NULL,
 				PRIMARY KEY  (id),
 				UNIQUE KEY affiliate_period (affiliate_id,period_key),
-				KEY request_status (status)
+				KEY request_status (status),
+				KEY request_order (order_id)
 			) {$charset};",
 			"CREATE TABLE {$items} (
 				id bigint(20) unsigned NOT NULL AUTO_INCREMENT,

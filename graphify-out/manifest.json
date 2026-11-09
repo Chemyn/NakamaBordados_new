@@ -618,9 +618,9 @@
     "semantic_hash": ""
   },
   "src/app/context/LanguageContext.tsx": {
-    "mtime": 1794253226.9611819,
-    "seen": 1794253295.6554124,
-    "ast_hash": "5cc4d88d21f40aed64d70d2164e9d068",
+    "mtime": 1794262924.0691915,
+    "seen": 1794263344.7785354,
+    "ast_hash": "8689514bb3e4b354dd3b77acf2ce4937",
     "semantic_hash": ""
   },
   "src/app/cotizador/App.tsx": {
@@ -2268,21 +2268,21 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-installer.php": {
-    "mtime": 1790015520.2784057,
-    "seen": 1790264072.6931968,
-    "ast_hash": "dd808b1c517cd60c0fb89bd889aa5fea",
+    "mtime": 1794262403.9193215,
+    "seen": 1794263344.7781906,
+    "ast_hash": "0e5b26e68cdc560a2754ae196a28ec3b",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-repository.php": {
-    "mtime": 1790015520.2804046,
-    "seen": 1790264072.6932206,
-    "ast_hash": "7cc21078f754145d0faaf198252adf65",
+    "mtime": 1794263343.7888677,
+    "seen": 1794263344.778222,
+    "ast_hash": "297263e928f58cd6c86128d7334312c5",
     "semantic_hash": ""
   },
   "nakama-affiliates/nakama-affiliates.php": {
-    "mtime": 1794251873.09245,
-    "seen": 1794252036.3587072,
-    "ast_hash": "44933f2a0e502e2047406bf214951001",
+    "mtime": 1794262363.244377,
+    "seen": 1794263344.7782316,
+    "ast_hash": "b955b4ea5b83f169c6421f68ee3fde9a",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-domain-test.php": {
@@ -2292,9 +2292,9 @@
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-installer-test.php": {
-    "mtime": 1790015520.2951386,
-    "seen": 1790264072.6936753,
-    "ast_hash": "4a345ee20f8a37a5d8796a0bbeac010a",
+    "mtime": 1794262767.1893885,
+    "seen": 1794263344.7789516,
+    "ast_hash": "c984c64969b975c1e65e9fd2746689a4",
     "semantic_hash": ""
   },
   "docs/superpowers/plans/2026-09-19-nakama-afiliados-implementation.md": {
@@ -2304,15 +2304,15 @@
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-09-19-nakama-afiliados-design.md": {
-    "mtime": 1791256836.4824233,
-    "seen": 1791257148.3055272,
-    "ast_hash": "8932b1f75ebbff67b2646fd79588696d",
+    "mtime": 1794263038.5972571,
+    "seen": 1794263344.779149,
+    "ast_hash": "f3ed1da1d760252e4b5fd4491dbc9305",
     "semantic_hash": ""
   },
   "nakama-affiliates/readme.txt": {
-    "mtime": 1794251873.4896865,
-    "seen": 1794252036.3593733,
-    "ast_hash": "f69292ee86d73d89685f89a6c731ff94",
+    "mtime": 1794262363.5642958,
+    "seen": 1794263344.7791667,
+    "ast_hash": "6c8dd8c1b73ac70719f298083051baf4",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-permissions.php": {
@@ -2340,9 +2340,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-rest.php": {
-    "mtime": 1791256774.6626863,
-    "seen": 1791257148.3049536,
-    "ast_hash": "865301045296cd4792c6043cc521a0d6",
+    "mtime": 1794262531.8242211,
+    "seen": 1794263344.7782283,
+    "ast_hash": "d3d8ed64b8c99487d2fb06f0c27d6113",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-codes-test.php": {
@@ -2478,15 +2478,15 @@
     "semantic_hash": ""
   },
   "src/app/afiliados/AffiliateDashboard.test.tsx": {
-    "mtime": 1791257041.7796974,
-    "seen": 1791257148.3050525,
-    "ast_hash": "2b3373b3f9350400c4b4b6d5645b9b25",
+    "mtime": 1794263076.560654,
+    "seen": 1794263344.7783735,
+    "ast_hash": "a69ed2ce88e3dd50816c80ad874455d5",
     "semantic_hash": ""
   },
   "src/app/afiliados/AffiliateDashboard.tsx": {
-    "mtime": 1794251943.668841,
-    "seen": 1794252036.358803,
-    "ast_hash": "36776ee0cfebd59911627daf0a3295b9",
+    "mtime": 1794262924.3833776,
+    "seen": 1794263344.7783773,
+    "ast_hash": "07f0a2794b6034c841b24fe385739c1e",
     "semantic_hash": ""
   },
   "src/app/afiliados/page.tsx": {
@@ -2502,9 +2502,9 @@
     "semantic_hash": ""
   },
   "src/lib/affiliates-api.ts": {
-    "mtime": 1790015520.5861266,
-    "seen": 1790264072.693576,
-    "ast_hash": "dde322b00af242a108b7297d4d4b0f4f",
+    "mtime": 1794262532.550256,
+    "seen": 1794263344.7787955,
+    "ast_hash": "95a366a8b0c9ae6c4cb04ede37d493a4",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-closures.php": {
@@ -2526,9 +2526,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-admin.php": {
-    "mtime": 1794251916.7989807,
-    "seen": 1794252036.3586276,
-    "ast_hash": "33ab0b3c6e7376991f5bc06739135f8f",
+    "mtime": 1794263345.6806278,
+    "seen": 1794263450.821366,
+    "ast_hash": "f9a303350d18a36f8847b8b9360b5eb6",
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-admin-test.php": {
@@ -2538,9 +2538,9 @@
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-admin-ui-test.php": {
-    "mtime": 1790015520.290709,
-    "seen": 1790264072.693654,
-    "ast_hash": "0f044034e0badcf852f467b4d985a180",
+    "mtime": 1794262766.370342,
+    "seen": 1794263344.7789156,
+    "ast_hash": "1e0fa76abc45e7c944674641a834cd34",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-payments.php": {
@@ -2580,9 +2580,9 @@
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-requests-test.php": {
-    "mtime": 1790015520.1486435,
-    "seen": 1790264072.6936922,
-    "ast_hash": "e53937a61821ddfba1a398920259d084",
+    "mtime": 1794262765.534022,
+    "seen": 1794263344.7789762,
+    "ast_hash": "e4a2eebaee68cc8d9ab24e6f86feada6",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-products.php": {
@@ -2592,9 +2592,9 @@
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-requests.php": {
-    "mtime": 1790015520.1365216,
-    "seen": 1790264072.6932223,
-    "ast_hash": "5f6a847b91e2fe18a693fe14bec463d7",
+    "mtime": 1794263347.2497506,
+    "seen": 1794263450.8214169,
+    "ast_hash": "6a8b2461a4a384edd9673aad1c60d65d",
     "semantic_hash": ""
   },
   "nakama-affiliates/includes/class-affiliates-evidence.php": {
@@ -2622,15 +2622,15 @@
     "semantic_hash": ""
   },
   "src/app/afiliados/AffiliateProductRequest.test.tsx": {
-    "mtime": 1794251943.3686988,
-    "seen": 1794252036.3588097,
-    "ast_hash": "d6b3c2d69f18c37478abc540c11c32c4",
+    "mtime": 1794262924.7142913,
+    "seen": 1794263344.7783875,
+    "ast_hash": "5d9ea428153bcd88b1ee807d7d4f4877",
     "semantic_hash": ""
   },
   "src/app/afiliados/AffiliateProductRequest.tsx": {
-    "mtime": 1794251872.0681791,
-    "seen": 1794252036.3588111,
-    "ast_hash": "3549b110cf66561ef5c768c8bc0acb8d",
+    "mtime": 1794263381.1338239,
+    "seen": 1794263450.8215067,
+    "ast_hash": "103c888ec76db0531df95199e0ca736d",
     "semantic_hash": ""
   },
   "src/app/afiliados/AffiliateProgress.test.tsx": {
@@ -2670,15 +2670,15 @@
     "semantic_hash": ""
   },
   "tests/nakama-affiliates-privacy-test.php": {
-    "mtime": 1790015520.5916636,
-    "seen": 1790264072.693686,
-    "ast_hash": "06bac23671b1ac314cf838349facb4d9",
+    "mtime": 1794262923.749019,
+    "seen": 1794263344.7789671,
+    "ast_hash": "c9445707b1767a12cb624a65da72a8d8",
     "semantic_hash": ""
   },
   "docs/operations/nakama-affiliates-runbook.md": {
-    "mtime": 1794251944.0488434,
-    "seen": 1794252036.3593295,
-    "ast_hash": "d4c4e24fbf3d8c3712e870695664d4b2",
+    "mtime": 1794263038.0879767,
+    "seen": 1794263344.7791185,
+    "ast_hash": "03864d30fda6da0b5f4d2ed1092df486",
     "semantic_hash": ""
   },
   "src/app/components/AbandonedCartCoupon.test.tsx": {
@@ -2703,6 +2703,18 @@
     "mtime": 1790017282.7666454,
     "seen": 1790264072.6944797,
     "ast_hash": "60be2a85737ce2ab7375d5f49c6ba813",
+    "semantic_hash": ""
+  },
+  "nakama-affiliates/includes/class-affiliates-benefit-orders.php": {
+    "mtime": 1794263344.4143958,
+    "seen": 1794263450.8213701,
+    "ast_hash": "2518af5527a7884482864c2477c070db",
+    "semantic_hash": ""
+  },
+  "tests/nakama-affiliates-benefit-orders-test.php": {
+    "mtime": 1794263258.3334997,
+    "seen": 1794263344.7789197,
+    "ast_hash": "e359658d2a48a1e5d8a5dd0a4fcc0609",
     "semantic_hash": ""
   }
 }

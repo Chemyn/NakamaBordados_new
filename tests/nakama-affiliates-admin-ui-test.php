@@ -23,7 +23,7 @@ affiliates_admin_ui_assert( false === stripos( $php, 'password' ), 'The affiliat
 affiliates_admin_ui_assert( false !== strpos( $php, 'Vista previa del cierre' ), 'Closure preview is visible before confirmation.' );
 affiliates_admin_ui_assert( false !== strpos( $php, 'name="confirmed"' ), 'Closing and approval retain a server-verifiable confirmation.' );
 affiliates_admin_ui_assert( false !== strpos( $php, 'name="reason"' ) && false !== strpos( $php, 'required' ), 'Rejections and manual adjustments request a reason.' );
-affiliates_admin_ui_assert( false !== strpos( $php, 'Solicitudes de prendas' ) && false !== strpos( $php, 'Registrar envío' ), 'Garment requests expose their operational workflow.' );
+affiliates_admin_ui_assert( false !== strpos( $php, 'Solicitudes de prendas' ) && false !== strpos( $php, 'Seguimiento automático desde Producción' ), 'Garment requests expose their production order rather than manual approval forms.' );
 affiliates_admin_ui_assert( false !== strpos( $php, 'Evidencias sociales' ) && false !== strpos( $php, 'noopener noreferrer' ), 'Evidence review exposes safe external links.' );
 affiliates_admin_ui_assert( false !== strpos( $php, 'Antes de aprobar:' ) && false !== strpos( $php, 'El sistema no descarga ni copia el contenido.' ), 'Reviewers receive the manual tagging reminder.' );
 affiliates_admin_ui_assert( false !== strpos( $php, 'IDs de categorías restringidas' ) && false !== strpos( $php, 'Cuentas oficiales de Nakama' ), 'Program settings identify restricted catalog categories and social accounts.' );

@@ -1,7 +1,8 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import AffiliateProductRequest from './AffiliateProductRequest';
+import AffiliateProductRequest, { AffiliateRequestTracking } from './AffiliateProductRequest';
+import type { AffiliateProductRequestRecord } from '@/lib/affiliates-api';
 
 const { fetchProducts } = vi.hoisted(() => ({ fetchProducts: vi.fn() }));
 vi.mock('@/lib/affiliates-api', () => ({ fetchAffiliateProducts: (page: number) => fetchProducts(page) }));
@@ -11,7 +12,7 @@ vi.mock('../context/LanguageContext', () => ({ useLanguage: () => ({ t: (key: st
   'affiliates.mission.productTitle': 'Elige tu prenda',
   'affiliates.mission.unit': 'unidad disponible',
   'affiliates.mission.units': 'unidades disponibles',
-  'affiliates.mission.vipCatalog': 'Tu acceso VIP incluye Drops y Edición especial cuando estén disponibles; no garantiza aprobación.',
+  'affiliates.mission.vipCatalog': 'Tu acceso VIP incluye Drops y Edición especial cuando estén disponibles.',
   'affiliates.mission.standardCatalog': 'Drops y Edición especial están excluidos de esta selección.',
   'affiliates.mission.noPriceLimit': 'Sin límite de precio dentro del catálogo elegible.',
   'affiliates.mission.selected': 'seleccionadas',
@@ -19,7 +20,12 @@ vi.mock('../context/LanguageContext', () => ({ useLanguage: () => ({ t: (key: st
   'affiliates.mission.addressTitle': 'Dirección confirmada',
   'affiliates.mission.shippingCovered': 'Nakama cubre el costo del envío.',
   'affiliates.mission.addressConfirm': 'Confirmo que esta dirección es correcta.',
-  'affiliates.mission.sendRequest': 'Enviar solicitud',
+  'affiliates.mission.sendRequest': 'Confirmar y solicitar',
+  'affiliates.mission.productionLabel': 'Proceso de tu prenda',
+  'affiliates.mission.production.created': 'Pedido creado',
+  'affiliates.mission.production.production': 'En producción',
+  'affiliates.mission.production.quality': 'Control de calidad',
+  'affiliates.mission.production.shipping_registered': 'Envío registrado',
   'affiliates.mission.sending': 'Enviando…',
   'affiliates.mission.productsMore': 'Ver más',
   'affiliates.mission.productsLoading': 'Cargando productos…',
@@ -59,7 +65,7 @@ describe('AffiliateProductRequest', () => {
     expect(screen.getByRole('checkbox', { name: /Sudadera Akatsuki/i })).toBeChecked();
     fireEvent.click(screen.getByRole('checkbox', { name: /Playera Sombrero de Paja/i }));
     fireEvent.click(screen.getByRole('checkbox', { name: /Confirmo que esta dirección/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Enviar solicitud/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Confirmar y solicitar/i }));
     await waitFor(() => expect(submit).toHaveBeenCalledWith({ items: [{ product_id: 1, variation_id: 0 }, { product_id: 2, variation_id: 21 }], address }));
   });
 
@@ -74,22 +80,37 @@ describe('AffiliateProductRequest', () => {
     expect(screen.getByRole('checkbox', { name: /Hoodie Shinigami/i })).toBeDisabled();
 
     fireEvent.click(screen.getByRole('checkbox', { name: /Confirmo que esta dirección/i }));
-    fireEvent.click(screen.getByRole('button', { name: /Enviar solicitud/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Confirmar y solicitar/i }));
     await waitFor(() => expect(submit).toHaveBeenCalledWith({
       items: [{ product_id: 1, variation_id: 0 }, { product_id: 2, variation_id: 21 }],
       address,
     }));
   });
 
-  it('explains VIP access without promising approval', () => {
+  it('explains VIP category access without an approval step', () => {
     render(<AffiliateProductRequest period="2026-10" quota={1} vip products={products} request={null} address={address} onSubmit={vi.fn()} />);
-    expect(screen.getByText(/VIP.*no garantiza aprobación/i)).toBeVisible();
+    expect(screen.getByText(/VIP incluye Drops y Edición especial/i)).toBeVisible();
   });
 
   it('restores a recoverable selection draft but still requires confirmation', () => {
     localStorage.setItem('nakama-affiliate-products-2026-10', JSON.stringify([{ product_id: 1, variation_id: 0 }]));
     render(<AffiliateProductRequest period="2026-10" quota={2} vip={false} products={products} request={null} address={address} onSubmit={vi.fn()} />);
     expect(screen.getByRole('checkbox', { name: /Sudadera Akatsuki/i })).toBeChecked();
-    expect(screen.getByRole('button', { name: /Enviar solicitud/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Confirmar y solicitar/i })).toBeDisabled();
+  });
+
+  it('shows the production stage and tracking without claiming delivery', () => {
+    const request: AffiliateProductRequestRecord = {
+      id: 9, period: '2026-11', status: 'preparing', shippingCovered: true, carrier: '', trackingCode: '', rejectionReason: '',
+      submittedAt: '2026-11-01', completedAt: null, address, items: [],
+      production: { stage: 'quality', folio: 'CHEMYN10-2026-11', carrier: '', trackingCode: '' },
+    };
+    const { rerender } = render(<AffiliateRequestTracking request={request} />);
+    expect(screen.getByText('CHEMYN10-2026-11')).toBeVisible();
+    expect(screen.getByRole('list', { name: 'Proceso de tu prenda' }).querySelector('[aria-current="step"]')).toHaveTextContent('Control de calidad');
+    rerender(<AffiliateRequestTracking request={{ ...request, status: 'shipped', production: { ...request.production!, stage: 'shipping_registered', carrier: 'DHL', trackingCode: 'GUIA-9' } }} />);
+    expect(screen.getByText('DHL · GUIA-9')).toBeVisible();
+    expect(screen.queryByText(/Entrega completada/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button')).not.toBeInTheDocument();
   });
 });

@@ -2,8 +2,8 @@
 /**
  * Operational monthly product requests for affiliates.
  *
- * These records are free program benefits. They do not create WooCommerce
- * orders, sales attribution, commission or goal movements.
+ * Each confirmed request creates a free WooCommerce production order,
+ * excluded from sales attribution, commissions and goals.
  *
  * @package NakamaAffiliates
  */
@@ -19,7 +19,11 @@ final class Nakama_Affiliates_Requests {
 		$affiliate_id = (int) $affiliate_id;
 		$period_key   = (string) $period_key;
 		if ( $affiliate_id <= 0 || ! self::valid_period( $period_key ) ) return self::failure( 'invalid_request' );
-		if ( Nakama_Affiliates_Repository::request_by_affiliate_period( $affiliate_id, $period_key ) ) return self::failure( 'already_requested' );
+		$existing = Nakama_Affiliates_Repository::request_by_affiliate_period( $affiliate_id, $period_key );
+		if ( $existing ) {
+			Nakama_Affiliates_Benefit_Orders::ensure( (int) $existing['id'] );
+			return self::success( self::hydrate( Nakama_Affiliates_Repository::request_by_id( (int) $existing['id'] ) ) );
+		}
 
 		$prior = Nakama_Affiliates_Repository::latest_prior_request( $affiliate_id, $period_key );
 		if ( $prior && ! Nakama_Affiliates_Repository::request_has_approved_required_evidence( (int) $prior['id'] ) ) {
@@ -73,6 +77,7 @@ final class Nakama_Affiliates_Requests {
 			self::encode( array( 'period_key' => $period_key, 'units' => count( $items ), 'shipping_covered' => true, 'commercial_order' => false ) ),
 			(int) $actor_user_id
 		);
+		Nakama_Affiliates_Benefit_Orders::ensure( $request_id );
 		return self::success( self::hydrate( Nakama_Affiliates_Repository::request_by_id( $request_id ) ) );
 	}
 
@@ -81,54 +86,21 @@ final class Nakama_Affiliates_Requests {
 		return $request ? self::hydrate( $request ) : null;
 	}
 
+	public static function previous( $affiliate_id, $period_key ) {
+		$request = Nakama_Affiliates_Repository::latest_prior_request( (int) $affiliate_id, (string) $period_key );
+		return $request ? self::hydrate( $request ) : null;
+	}
+
+	/** Manual approval, rejection and cancellation were retired in favor of Production. */
 	public static function transition( $request_id, $next_status, array $data, $actor_user_id ) {
-		$request = Nakama_Affiliates_Repository::request_by_id( (int) $request_id );
-		if ( ! $request ) return self::failure( 'not_found' );
-		if ( (int) $actor_user_id <= 0 ) return self::failure( 'actor_required' );
-		$next_status = (string) $next_status;
-		$allowed = array(
-			'draft'     => array( 'submitted', 'cancelled' ),
-			'submitted' => array( 'approved', 'rejected', 'cancelled' ),
-			'approved'  => array( 'preparing', 'rejected', 'cancelled' ),
-			'preparing' => array( 'shipped', 'cancelled' ),
-			'shipped'   => array( 'completed' ),
-			'completed' => array(),
-			'rejected'  => array(),
-			'cancelled' => array(),
-		);
-		$current = (string) ( $request['status'] ?? '' );
-		if ( ! isset( $allowed[ $current ] ) || ! in_array( $next_status, $allowed[ $current ], true ) ) return self::failure( 'invalid_transition' );
-
-		$update = array( 'status' => $next_status, 'updated_at_gmt' => Nakama_Affiliates_Repository::now_gmt() );
-		if ( 'rejected' === $next_status ) {
-			$reason = self::clean_text( $data['reason'] ?? '' );
-			if ( '' === $reason ) return self::failure( 'reason_required' );
-			$update['rejection_reason'] = $reason;
-		}
-		if ( 'shipped' === $next_status ) {
-			$carrier = self::clean_text( $data['carrier'] ?? '' );
-			$tracking = self::clean_text( $data['tracking_code'] ?? '' );
-			if ( '' === $carrier || '' === $tracking ) return self::failure( 'tracking_required' );
-			$update['carrier'] = $carrier;
-			$update['tracking_code'] = $tracking;
-		}
-		if ( 'completed' === $next_status ) $update['completed_at_gmt'] = Nakama_Affiliates_Repository::now_gmt();
-
-		if ( ! Nakama_Affiliates_Repository::update_request( (int) $request_id, $update ) ) return self::failure( 'update_failed' );
-		Nakama_Affiliates_Repository::audit(
-			'affiliate_product_request_' . $next_status,
-			'affiliate_request',
-			(int) $request_id,
-			self::encode( array( 'from' => $current, 'to' => $next_status, 'carrier' => $update['carrier'] ?? '', 'tracking_code' => $update['tracking_code'] ?? '', 'reason' => $update['rejection_reason'] ?? '' ) ),
-			(int) $actor_user_id
-		);
-		return self::success( self::hydrate( Nakama_Affiliates_Repository::request_by_id( (int) $request_id ) ) );
+		return self::failure( 'automatic_order_workflow' );
 	}
 
 	private static function hydrate( array $request ) {
 		$address = json_decode( (string) ( $request['address_json'] ?? '' ), true );
 		$request['address'] = is_array( $address ) ? $address : array();
 		$request['items']   = Nakama_Affiliates_Repository::request_items( (int) $request['id'] );
+		$request['production'] = Nakama_Affiliates_Benefit_Orders::progress( $request );
 		unset( $request['address_json'] );
 		return $request;
 	}

@@ -132,6 +132,12 @@ export interface AffiliateProductRequestRecord {
   id: number;
   period: string;
   status: 'draft' | 'submitted' | 'approved' | 'preparing' | 'shipped' | 'completed' | 'rejected' | 'cancelled';
+  production?: {
+    stage: 'creating' | 'created' | 'production' | 'quality' | 'ready_to_ship' | 'shipping_registered' | 'incident';
+    folio: string;
+    carrier: string;
+    trackingCode: string;
+  } | null;
   shippingCovered: boolean;
   carrier: string;
   trackingCode: string;
@@ -147,6 +153,7 @@ export interface AffiliateProductRequestData {
   period: string;
   benefit: AffiliateBenefit;
   request: AffiliateProductRequestRecord | null;
+  previousRequest?: AffiliateProductRequestRecord | null;
   shippingCovered: boolean;
   officialAccounts: string[];
 }

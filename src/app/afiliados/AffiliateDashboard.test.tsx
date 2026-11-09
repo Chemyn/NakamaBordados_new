@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import AffiliateDashboard from './AffiliateDashboard';
 
@@ -105,6 +105,11 @@ vi.mock('../context/LanguageContext', () => ({
       'affiliates.mission.addressConfirm': 'Confirmo que esta dirección es correcta.',
       'affiliates.mission.sendRequest': 'Enviar solicitud',
       'affiliates.mission.sending': 'Enviando…',
+      'affiliates.mission.productionLabel': 'Proceso de tu prenda',
+      'affiliates.mission.production.created': 'Pedido creado',
+      'affiliates.mission.production.production': 'En producción',
+      'affiliates.mission.production.quality': 'Control de calidad',
+      'affiliates.mission.production.shipping_registered': 'Envío registrado',
     }[key] || key),
   }),
 }));
@@ -187,6 +192,24 @@ describe('AffiliateDashboard', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent('Tu cuenta no tiene acceso al programa de afiliados.');
     expect(mocks.fetchDashboard).not.toHaveBeenCalled();
     expect(mocks.fetchSales).not.toHaveBeenCalled();
+  });
+
+  it('refreshes the owner production progress automatically', async () => {
+    mocks.user = { id: 'affiliate-7' };
+    mocks.fetchMe.mockResolvedValue({ can: true, financialAccess: true, profile: { code: 'CHEMYN10', status: 'active' } });
+    mocks.fetchDashboard.mockResolvedValue({ success: true, period: '2026-11', code: 'CHEMYN10', summary: { salesCount: 0, refundCount: 0, salesMxn: 0, commissionMxn: 0 } });
+    mocks.fetchSales.mockResolvedValue({ success: true, items: [] });
+    const request = { id: 9, period: '2026-11', status: 'submitted', items: [], production: { stage: 'created', folio: 'CHEMYN10-2026-11', carrier: '', trackingCode: '' } };
+    const mission = { success: true, period: '2026-11', request, benefit: { quota: 1 }, officialAccounts: ['@nakamabordados'] };
+    mocks.fetchProductRequest.mockResolvedValueOnce(mission).mockResolvedValue({ ...mission, request: { ...request, production: { ...request.production, stage: 'production' } } });
+    const timer = vi.spyOn(window, 'setInterval');
+    render(<AffiliateDashboard />);
+    expect(await screen.findByText('CHEMYN10-2026-11')).toBeVisible();
+    const callback = timer.mock.calls.find(call => call[1] === 30000)?.[0];
+    expect(callback).toBeTypeOf('function');
+    await act(async () => { (callback as () => void)(); });
+    await waitFor(() => expect(screen.getByRole('list', { name: 'Proceso de tu prenda' }).querySelector('[aria-current="step"]')).toHaveTextContent('En producción'));
+    timer.mockRestore();
   });
 
   it('shows server-ledger sales and commission after fiscal approval without buyer PII', async () => {

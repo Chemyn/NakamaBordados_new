@@ -303,6 +303,26 @@ final class Nakama_Affiliates_Repository {
 		);
 	}
 
+	/** Bound each recovery batch; old requests and interrupted creations use the same path. */
+	public static function requests_without_ready_order( $limit = 10 ) {
+		global $wpdb;
+		$rows = $wpdb->get_results( $wpdb->prepare(
+			'SELECT id FROM ' . self::table( 'requests' ) . " WHERE order_ready = 0 AND status IN ('submitted','approved','preparing','shipped','completed') ORDER BY updated_at_gmt ASC,id ASC LIMIT %d",
+			(int) $limit
+		), ARRAY_A );
+		return is_array( $rows ) ? array_map( 'intval', array_column( $rows, 'id' ) ) : array();
+	}
+
+	public static function acquire_request_order_lock( $request_id ) {
+		global $wpdb;
+		return 1 === (int) $wpdb->get_var( $wpdb->prepare( 'SELECT GET_LOCK(%s, 0)', 'nk-benefit-' . md5( self::table( 'requests' ) . ':' . (int) $request_id ) ) );
+	}
+
+	public static function release_request_order_lock( $request_id ) {
+		global $wpdb;
+		$wpdb->get_var( $wpdb->prepare( 'SELECT RELEASE_LOCK(%s)', 'nk-benefit-' . md5( self::table( 'requests' ) . ':' . (int) $request_id ) ) );
+	}
+
 	public static function evidence_for_request( $request_id ) {
 		global $wpdb;
 		$rows = $wpdb->get_results( $wpdb->prepare(

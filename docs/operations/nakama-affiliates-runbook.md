@@ -22,6 +22,14 @@ El archivo se genera por defecto en `build/nakama-affiliates.zip`.
 
 La activación crea o actualiza nueve tablas propias. Reemplazar el ZIP por una versión posterior también ejecuta la migración de esquema pendiente al iniciar WordPress.
 
+Desde la versión 0.2.0, confirmar la selección crea un pedido gratuito de WooCommerce directamente en Producción. No hay aprobación, rechazo ni cancelación de solicitudes desde Afiliados. El panel administrativo conserva la consulta y el enlace al pedido; el taller trabaja con sus controles habituales.
+
+Al instalar esta versión también se convierten automáticamente las solicitudes existentes, en lotes de hasta diez. Se conserva un vínculo único solicitud-pedido y se reintentan creaciones incompletas mediante WP-Cron. Las solicitudes preparadas quedan en control de calidad/pendiente de guía; las enviadas o completadas no regresan a fabricación ni descuentan existencias otra vez. Las solicitudes rechazadas, canceladas o en borrador permanecen históricas.
+
+El folio es `CUPON-AÑO-MES`, usando la fecha original de solicitud en la zona horaria de WordPress, por ejemplo `CHEMYN10-2026-11`. El beneficio tiene total cero, envío cubierto y marcas que lo excluyen de atribución, comisiones y metas. No se aplica el cupón como descuento a este pedido.
+
+El afiliado ve pedido creado, producción, control de calidad y envío registrado; este último no significa entrega confirmada. La pantalla se actualiza cada 30 segundos mientras esté visible y muestra también su solicitud anterior. Si una creación se interrumpe, conserva la selección y muestra que se está creando el pedido; los reintentos reutilizan el mismo pedido sin duplicarlo. Confirmar estos puntos en un entorno WooCommerce de pruebas antes de instalarlo en producción, incluida la disponibilidad de WP-Cron y reserva/reducción de stock.
+
 ## Configuración inicial
 
 En **WordPress → Afiliados → Configuración**:
@@ -48,10 +56,12 @@ En el perfil del usuario:
 7. Probar devolución parcial, total, solo envío y devolución posterior al cierre.
 8. Verificar los límites mensuales de 9,999.99, 10,000, 29,999.99 y 30,000 MXN.
 9. Solicitar una, dos o tres prendas según el cupo; confirmar que Nakama cubre el envío y que no existe límite de precio.
-10. Como afiliado normal, comprobar la exclusión de Drops y Edición especial; como VIP, comprobar que aparecen sin promesa de aprobación.
+10. Como afiliado normal, comprobar la exclusión de Drops y Edición especial; como VIP, comprobar que aparecen y su selección crea el pedido sin revisión administrativa.
     Recorrer el catálogo con **Ver más**, comprobar el total de productos elegibles y confirmar que la selección se conserva al cargar otra página o reintentar una carga fallida.
 11. Registrar dos Reels y una Historia, todos con etiqueta a las cuentas oficiales, y una evidencia bonus opcional.
 12. Aprobar o rechazar manualmente las URLs y verificar que el afiliado ve el estado y, si aplica, el motivo para corregir.
+13. Confirmar una solicitud y repetir el envío: debe existir un solo pedido con el folio del afiliado y todas las prendas elegidas, visible para los trabajadores de Producción.
+14. Tomar, finalizar, revisar calidad y registrar guía desde el flujo habitual de Producción; verificar cada etapa en la cuenta del afiliado sin revelar nombres de operarios ni notas internas.
 
 También se debe recorrer la interfaz con teclado, zoom al 200%, lector de pantalla, movimiento reducido y anchos de 320, 375, tableta y escritorio.
 

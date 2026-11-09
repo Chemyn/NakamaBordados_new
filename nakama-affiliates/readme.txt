@@ -2,7 +2,7 @@
 Contributors: nakamabordados
 Requires at least: 6.0
 Requires PHP: 7.4
-Stable tag: 0.1.3
+Stable tag: 0.2.0
 License: Proprietary
 
 Programa de afiliados de Nakama Bordados: perfiles, códigos exclusivos,

@@ -617,6 +617,27 @@
   gap: 16px;
 }
 
+.productionSteps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
+  gap: 12px;
+  margin: 24px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.productionSteps li {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  border: 2px solid var(--affiliate-ink);
+}
+
+.productionSteps li[data-reached='true'] { background: var(--affiliate-yellow, #ffe600); }
+.productionSteps li[aria-current='step'] { font-weight: 900; box-shadow: 3px 3px 0 var(--affiliate-ink); }
+.productionSteps li span { font-weight: 900; }
+
 .catalogPagination {
   display: grid;
   justify-items: center;

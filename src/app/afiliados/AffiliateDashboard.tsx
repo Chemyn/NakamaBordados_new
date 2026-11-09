@@ -26,7 +26,7 @@ import {
   type AffiliateSaleEvent,
 } from '@/lib/affiliates-api';
 import AffiliateProgress from './AffiliateProgress';
-import AffiliateProductRequest from './AffiliateProductRequest';
+import AffiliateProductRequest, { AffiliateRequestTracking } from './AffiliateProductRequest';
 import AffiliateEvidence from './AffiliateEvidence';
 import styles from './affiliate.module.css';
 
@@ -122,8 +122,9 @@ export default function AffiliateDashboard() {
           if (!productData.success) throw new Error('catalog_unavailable');
           setMission(missionData);
           setProducts(productData);
-          if (missionData.request?.id) {
-            const evidenceData = await fetchAffiliateEvidence(missionData.request.id);
+          const evidenceRequest = missionData.request || missionData.previousRequest;
+          if (evidenceRequest?.id) {
+            const evidenceData = await fetchAffiliateEvidence(evidenceRequest.id);
             if (active) setEvidence(evidenceData);
           } else {
             setEvidence(null);
@@ -134,6 +135,27 @@ export default function AffiliateDashboard() {
     });
     return () => { active = false; };
   }, [me, missionLoadErrorMessage]);
+
+  // Refresh the owner's safe production summary while this dashboard is visible.
+  const requestId = mission?.request?.id || mission?.previousRequest?.id;
+  useEffect(() => {
+    if (!me?.can || !requestId) return;
+    let active = true;
+    let pending = false;
+    const refresh = async () => {
+      if (pending || document.visibilityState === 'hidden') return;
+      pending = true;
+      try {
+        const data = await fetchAffiliateProductRequest();
+        if (active && data.success) setMission(data);
+      } catch { /* Retain the last known progress until the next refresh. */ }
+      finally { pending = false; }
+    };
+    const timer = window.setInterval(() => void refresh(), 30000);
+    const onVisible = () => { if (document.visibilityState === 'visible') void refresh(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => { active = false; window.clearInterval(timer); document.removeEventListener('visibilitychange', onVisible); };
+  }, [me, requestId]);
 
   const downloadReceipt = async (receiptId: number) => {
     setDownloadingReceipt(receiptId);
@@ -162,6 +184,7 @@ export default function AffiliateDashboard() {
     if (result.success) setEvidence(result);
     return result;
   };
+  const evidenceRequest = mission?.request || mission?.previousRequest;
 
   if (authLoading) return <StatusShell title={t('affiliates.title')} text={t('affiliates.loading')} />;
   if (!user) {
@@ -257,15 +280,16 @@ export default function AffiliateDashboard() {
             onSubmit={submitProductRequest}
           />
         )}
-        {mission?.request && (
+        {mission && evidenceRequest && (
           <AffiliateEvidence
-            requestId={mission.request.id}
-            requestStatus={mission.request.status}
+            requestId={evidenceRequest.id}
+            requestStatus={evidenceRequest.status}
             items={evidence?.items || []}
             officialAccounts={mission.officialAccounts}
             onSubmit={submitEvidence}
           />
         )}
+        {mission?.previousRequest && <AffiliateRequestTracking request={mission.previousRequest} />}
       </section>
       <section className={styles.metricGrid} aria-label={t('affiliates.summary.label')}>
         <article>

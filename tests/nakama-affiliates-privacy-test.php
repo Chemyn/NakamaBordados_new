@@ -91,6 +91,7 @@ final class Nakama_Affiliates_Benefits {
 	public static function for_period( $affiliate_id, $period ) { return array( 'id' => 6, 'period_key' => $period, 'source_period_key' => '2026-08', 'source_closure_id' => 2, 'valid_sales_mxn' => 1000, 'tier' => 1, 'quota' => 1, 'manual_reason' => 'nota-interna', 'is_default' => 0 ); }
 }
 final class Nakama_Affiliates_Requests {
+	public static function previous( $affiliate_id, $period ) { return self::for_period( $affiliate_id, '2026-08' ); }
 	public static function for_period( $affiliate_id, $period ) {
 		return array(
 			'id' => 8, 'affiliate_id' => $affiliate_id, 'period_key' => $period, 'status' => 'submitted',

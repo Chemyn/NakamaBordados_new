@@ -354,6 +354,7 @@ final class Nakama_Affiliates_REST {
 			'period'           => $period,
 			'benefit'          => self::public_benefit( Nakama_Affiliates_Benefits::for_period( $affiliate_id, $period ) ),
 			'request'          => self::public_request( Nakama_Affiliates_Requests::for_period( $affiliate_id, $period ) ),
+			'previousRequest'  => self::public_request( Nakama_Affiliates_Requests::previous( $affiliate_id, $period ) ),
 			'shippingCovered'  => true,
 			'officialAccounts' => Nakama_Affiliates_Products::official_accounts(),
 		) );
@@ -453,6 +454,7 @@ final class Nakama_Affiliates_REST {
 			'id'               => (int) $request['id'],
 			'period'           => (string) $request['period_key'],
 			'status'           => (string) $request['status'],
+			'production'       => $request['production'] ?? null,
 			'shippingCovered'  => ! empty( $request['shipping_covered'] ),
 			'carrier'          => (string) ( $request['carrier'] ?? '' ),
 			'trackingCode'     => (string) ( $request['tracking_code'] ?? '' ),

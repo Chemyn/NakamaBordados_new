@@ -101,20 +101,7 @@ export default function AffiliateProductRequest({ period, quota, vip, products, 
     }
   };
 
-  if (request) {
-    return (
-      <section className={styles.missionCard} aria-labelledby="affiliate-product-title">
-        <MissionHeading id="affiliate-product-title" kicker={t('affiliates.mission.productKicker')} title={t('affiliates.mission.productTitle')} step="02" />
-        <div className={styles.requestState} role="status">
-          <strong>{t(`affiliates.mission.requestStatus.${request.status}`)}</strong>
-          <p>{request.items.map(item => item.productName + (item.variationLabel ? ` · ${item.variationLabel}` : '')).join(', ')}</p>
-          {request.trackingCode && <p>{request.carrier} · {request.trackingCode}</p>}
-          {request.rejectionReason && <p className={styles.inlineError}>{request.rejectionReason}</p>}
-        </div>
-      </section>
-    );
-  }
-
+  if (request) return <AffiliateRequestTracking request={request} />;
   return (
     <section className={styles.missionCard} aria-labelledby="affiliate-product-title">
       <MissionHeading id="affiliate-product-title" kicker={t('affiliates.mission.productKicker')} title={t('affiliates.mission.productTitle')} step="02" />
@@ -124,6 +111,7 @@ export default function AffiliateProductRequest({ period, quota, vip, products, 
           ? t('affiliates.mission.vipCatalog')
           : t('affiliates.mission.standardCatalog')}</p>
         <p>{t('affiliates.mission.noPriceLimit')}</p>
+        <p>{t('affiliates.mission.automaticOrder')}</p>
       </div>
       <p className={styles.selectionCount} aria-live="polite">{selected.length} / {quota} {t('affiliates.mission.selected')}</p>
       <div className={styles.productGrid}>
@@ -172,6 +160,32 @@ export default function AffiliateProductRequest({ period, quota, vip, products, 
         {submitting ? t('affiliates.mission.sending') : t('affiliates.mission.sendRequest')}
       </button>
       {message && <p className={failed ? styles.inlineError : styles.inlineSuccess} role={failed ? 'alert' : 'status'}>{message}</p>}
+    </section>
+  );
+}
+
+export function AffiliateRequestTracking({ request }: { request: AffiliateProductRequestRecord }) {
+  const { t } = useLanguage();
+  const progress = request.production;
+  const stages = ['created', 'production', 'quality', 'shipping_registered'];
+  const step = progress?.stage === 'ready_to_ship' ? 2 : stages.indexOf(progress?.stage || '');
+  const tracking = progress?.trackingCode || request.trackingCode;
+  const carrier = progress?.carrier || request.carrier;
+  return (
+    <section className={styles.missionCard} aria-labelledby={`affiliate-product-title-${request.id}`}>
+      <MissionHeading id={`affiliate-product-title-${request.id}`} kicker={t('affiliates.mission.productKicker')} title={`${t('affiliates.mission.productTitle')} · ${request.period}`} step="02" />
+      <div className={styles.requestState} role="status">
+        {progress?.folio && <p>{t('affiliates.mission.orderFolio')}: <strong>{progress.folio}</strong></p>}
+        <strong>{t(progress ? `affiliates.mission.production.${progress.stage}` : `affiliates.mission.requestStatus.${request.status}`)}</strong>
+        <p>{request.items.map(item => item.productName + (item.variationLabel ? ` · ${item.variationLabel}` : '')).join(', ')}</p>
+        {tracking && <p>{carrier} · {tracking}</p>}
+        {request.rejectionReason && <p className={styles.inlineError}>{request.rejectionReason}</p>}
+      </div>
+      {progress && <ol className={styles.productionSteps} aria-label={t('affiliates.mission.productionLabel')}>
+        {stages.map((stage, index) => <li key={stage} aria-current={index === step ? 'step' : undefined} data-reached={index <= step}>
+          <span aria-hidden="true">{index + 1}</span>{t(`affiliates.mission.production.${stage}`)}
+        </li>)}
+      </ol>}
     </section>
   );
 }

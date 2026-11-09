@@ -353,7 +353,9 @@ La primera solicitud se habilitará cuando el afiliado tenga acceso y un perfil 
 
 Cada unidad podrá ser cualquier producto o variación disponible, sin límite de precio. Para afiliados ordinarios se excluirán productos pertenecientes a las categorías configuradas como Drops y Edición especial. Los VIP podrán elegirlas cuando estén disponibles, pero administración conservará la decisión operativa final y el stock de WooCommerce seguirá siendo obligatorio.
 
-La solicitud permitirá confirmar la dirección de envío. Nakama cubrirá el producto y el costo del envío. Se generará un registro operativo separado de las ventas comerciales para que una prenda gratuita nunca genere comisión, ventas atribuibles ni progreso de metas.
+La solicitud permitirá confirmar talla y dirección de envío. Al confirmar, se creará automáticamente un único pedido gratuito de WooCommerce con todas las prendas del cupo elegido y el folio `CUPON-AÑO-MES` de la fecha de solicitud. No habrá aprobación, rechazo ni cancelación desde el módulo de Afiliados. Nakama cubrirá el producto y el envío. El pedido entrará en Producción y quedará excluido de comisiones, ventas atribuibles y metas.
+
+Las solicitudes existentes se convertirán conservando su avance. Las enviadas/completadas no volverán a fabricación. El afiliado verá el avance real del pedido (creado, producción, calidad y envío registrado con guía); registrar una guía no equivaldrá a entrega confirmada. La creación deberá ser recuperable e idempotente ante peticiones simultáneas, interrupciones y reintentos.
 
 ## Evidencias y motivación
 

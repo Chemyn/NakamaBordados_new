@@ -37,6 +37,14 @@ final class Nakama_Affiliates_Products {
 	}
 }
 
+final class Nakama_Affiliates_Benefit_Orders {
+	public static function ensure( $id ) {
+		Nakama_Affiliates_Repository::update_request( $id, array( 'order_id' => 100 + $id, 'order_ready' => 1 ) );
+		return true;
+	}
+	public static function progress( $request ) { return array( 'stage' => 'created', 'folio' => 'CODE-' . $request['period_key'], 'carrier' => '', 'trackingCode' => '' ); }
+}
+
 final class Nakama_Affiliates_Repository {
 	public static array $requests = array();
 	public static array $items = array();
@@ -113,7 +121,9 @@ affiliate_requests_assert_same( 2, count( $submitted['request']['items'] ), 'Eac
 affiliate_requests_assert_same( 0, Nakama_Affiliates_Repository::$ledger_writes, 'A free benefit never creates a sale, commission or goal movement.' );
 
 $duplicate = Nakama_Affiliates_Requests::submit( 7, '2026-10', array( array( 'product_id' => 1 ) ), $address, false, 7 );
-affiliate_requests_assert_same( 'already_requested', $duplicate['reason'], 'Only one request is accepted per affiliate and month.' );
+affiliate_requests_assert_same( true, $duplicate['success'], 'A repeated submission returns the original monthly request.' );
+affiliate_requests_assert_same( $submitted['request']['id'], $duplicate['request']['id'], 'A repeated submission cannot change the selected garments.' );
+affiliate_requests_assert_same( 101, $submitted['request']['order_id'], 'Confirmation immediately links a production order.' );
 
 $blocked = Nakama_Affiliates_Requests::submit( 7, '2026-11', array( array( 'product_id' => 1 ) ), $address, false, 7 );
 affiliate_requests_assert_same( 'evidence_required', $blocked['reason'], 'Missing mandatory evidence blocks the following monthly request.' );
@@ -122,21 +132,9 @@ $next = Nakama_Affiliates_Requests::submit( 7, '2026-11', array( array( 'product
 affiliate_requests_assert_same( true, $next['success'], 'Approved mandatory evidence unlocks the next period.' );
 affiliate_requests_assert_same( 1, count( $next['request']['items'] ), 'Unused October quota does not carry into November selections.' );
 
-$approved = Nakama_Affiliates_Requests::transition( $submitted['request']['id'], 'approved', array(), 42 );
-affiliate_requests_assert_same( 'approved', $approved['request']['status'], 'Administration can approve a submitted request.' );
-$preparing = Nakama_Affiliates_Requests::transition( $submitted['request']['id'], 'preparing', array(), 42 );
-affiliate_requests_assert_same( 'preparing', $preparing['request']['status'], 'Approved requests move to preparation.' );
-$without_tracking = Nakama_Affiliates_Requests::transition( $submitted['request']['id'], 'shipped', array(), 42 );
-affiliate_requests_assert_same( 'tracking_required', $without_tracking['reason'], 'Shipment requires carrier and tracking code.' );
-$shipped = Nakama_Affiliates_Requests::transition( $submitted['request']['id'], 'shipped', array( 'carrier' => 'DHL', 'tracking_code' => 'NK123' ), 42 );
-affiliate_requests_assert_same( 'NK123', $shipped['request']['tracking_code'], 'Operations can register the shipment without a commercial order.' );
-$completed = Nakama_Affiliates_Requests::transition( $submitted['request']['id'], 'completed', array(), 42 );
-affiliate_requests_assert_same( 'completed', $completed['request']['status'], 'A shipped benefit can be completed.' );
-
-Nakama_Affiliates_Repository::$requests[99] = array( 'id' => 99, 'affiliate_id' => 8, 'period_key' => '2026-10', 'status' => 'submitted' );
-$rejected_without_reason = Nakama_Affiliates_Requests::transition( 99, 'rejected', array(), 42 );
-affiliate_requests_assert_same( 'reason_required', $rejected_without_reason['reason'], 'Rejecting a request requires an operational reason.' );
-$rejected = Nakama_Affiliates_Requests::transition( 99, 'rejected', array( 'reason' => 'Producto no disponible para esta entrega.' ), 42 );
-affiliate_requests_assert_same( 'rejected', $rejected['request']['status'], 'A reasoned rejection is preserved.' );
+foreach ( array( 'approved', 'rejected', 'cancelled', 'preparing', 'shipped' ) as $status ) {
+	$result = Nakama_Affiliates_Requests::transition( $submitted['request']['id'], $status, array(), 42 );
+	affiliate_requests_assert_same( 'automatic_order_workflow', $result['reason'], 'Old administrative forms cannot modify automatic requests.' );
+}
 
 echo "PHP Nakama Affiliates monthly request tests passed.\n";
