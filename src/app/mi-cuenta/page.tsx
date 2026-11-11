@@ -6,11 +6,10 @@ import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/AuthContext';
 import { useCart } from '../context/CartContext';
-import { useCurrency } from '../context/CurrencyContext';
 import { useLanguage } from '../context/LanguageContext';
 import MaintenanceToggle from '../components/MaintenanceToggle';
 import SocialLoginButtons from '../components/SocialLoginButtons';
-import { openWpAdmin, seedWpSession, WP_ADMIN_URL, WP_PASSWORD_RESET_URL } from '@/lib/wp-sso';
+import { openWpAdmin, WP_ADMIN_URL, WP_PASSWORD_RESET_URL } from '@/lib/wp-sso';
 import { apiOrigin } from '@/lib/api-host';
 import { fetchProductionAccess } from '@/lib/production-api';
 import { fetchWarehouseAccess } from '@/lib/warehouse-api';
@@ -127,7 +126,6 @@ const formatEventTime = (iso: string): string => {
 export default function MiCuentaPage() {
   const { user, login, register, logout, updateProfile, refreshUser, isLoading, isAdmin } = useAuth();
   const { addQuoteToCart, isQuoteInCart } = useCart();
-  const { currencyInfo } = useCurrency();
   const { t } = useLanguage();
 
   const [activeTab, setActiveTab] = useState<AccountSectionId>('dashboard');
@@ -997,19 +995,15 @@ export default function MiCuentaPage() {
             currency={selectedQuote.currency || 'MXN'}
             isInCart={isQuoteInCart(selectedQuote.databaseId!)}
             onClose={closeQuotePaymentDialog}
-            onPayNow={async () => {
-              // pay-quote usa el checkout normal (envío, paquetería y cupones),
-              // pero necesita primero la cookie de sesión de WordPress.
-              const seeded = await seedWpSession();
-              if (!seeded) throw new Error('No se pudo sembrar la sesión de WordPress.');
-              window.location.href = `https://nakamabordados.com/index.php?nk_bridge=pay-quote&order=${selectedQuote.databaseId}&key=${selectedQuote.orderKey}&currency=${currencyInfo.currency}`;
+            onAddToCart={() => {
+              addQuoteToCart({
+                orderId: selectedQuote.databaseId!,
+                orderKey: selectedQuote.orderKey!,
+                folio: String(selectedQuote.orderNumber),
+                totalMXN: parseFloat(String(selectedQuote.total || '0').replace(/[^0-9.-]/g, '')) || 0,
+              });
+              router.push('/cart/');
             }}
-            onAddToCart={() => addQuoteToCart({
-              orderId: selectedQuote.databaseId!,
-              orderKey: selectedQuote.orderKey!,
-              folio: String(selectedQuote.orderNumber),
-              totalMXN: parseFloat(String(selectedQuote.total || '0').replace(/[^0-9.-]/g, '')) || 0,
-            })}
           />
         )}
       </div>

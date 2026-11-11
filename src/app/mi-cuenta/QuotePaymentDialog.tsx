@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useId, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef } from 'react';
 
 interface QuotePaymentDialogProps {
   folio: string;
@@ -8,7 +8,6 @@ interface QuotePaymentDialogProps {
   currency: string;
   isInCart: boolean;
   onClose: () => void;
-  onPayNow: () => Promise<void>;
   onAddToCart: () => void;
 }
 
@@ -18,15 +17,12 @@ export default function QuotePaymentDialog({
   currency,
   isInCart,
   onClose,
-  onPayNow,
   onAddToCart,
 }: QuotePaymentDialogProps) {
   const dialogRef = useRef<HTMLDialogElement>(null);
-  const payButtonRef = useRef<HTMLButtonElement>(null);
+  const addToCartButtonRef = useRef<HTMLButtonElement>(null);
   const titleId = useId();
   const descriptionId = useId();
-  const [isStartingPayment, setIsStartingPayment] = useState(false);
-  const [paymentError, setPaymentError] = useState('');
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -43,7 +39,7 @@ export default function QuotePaymentDialog({
         dialog.setAttribute('open', '');
       }
     }
-    payButtonRef.current?.focus();
+    addToCartButtonRef.current?.focus();
 
     return () => {
       document.body.style.overflow = previousOverflow;
@@ -53,17 +49,6 @@ export default function QuotePaymentDialog({
       returnFocus?.focus();
     };
   }, []);
-
-  const handlePayNow = async () => {
-    setPaymentError('');
-    setIsStartingPayment(true);
-    try {
-      await onPayNow();
-    } catch {
-      setPaymentError('No pudimos iniciar el pago. Verifica tu sesión e inténtalo de nuevo.');
-      setIsStartingPayment(false);
-    }
-  };
 
   const handleAddToCart = () => {
     onAddToCart();
@@ -76,7 +61,6 @@ export default function QuotePaymentDialog({
       className="nk-quote-payment-dialog"
       aria-labelledby={titleId}
       aria-describedby={descriptionId}
-      aria-busy={isStartingPayment}
       onCancel={(event) => {
         event.preventDefault();
         onClose();
@@ -89,12 +73,12 @@ export default function QuotePaymentDialog({
         <header className="nk-quote-payment-header">
           <div>
             <span className="nk-quote-payment-kicker">COTIZACIÓN LISTA</span>
-            <h2 id={titleId}>Elige cómo pagar</h2>
+            <h2 id={titleId}>Agrega tu cotización</h2>
           </div>
           <button
             type="button"
             className="nk-quote-payment-close"
-            aria-label="Cerrar opciones de pago"
+            aria-label="Cerrar cotización"
             onClick={onClose}
           >
             <span className="material-icons-outlined" aria-hidden="true">close</span>
@@ -109,28 +93,15 @@ export default function QuotePaymentDialog({
         </div>
 
         <p id={descriptionId} className="nk-quote-payment-intro">
-          Puedes pagar únicamente este folio o guardarlo en tu carrito para combinarlo con otros artículos.
+          Agrégala al carrito para combinarla con otros productos o cotizaciones antes de finalizar tu compra.
         </p>
 
         <div className="nk-quote-payment-options">
           <button
-            ref={payButtonRef}
+            ref={addToCartButtonRef}
             type="button"
             className="nk-quote-payment-option nk-quote-payment-option-primary"
-            disabled={isStartingPayment}
-            onClick={handlePayNow}
-          >
-            <span className="material-icons-outlined" aria-hidden="true">payments</span>
-            <span>
-              <strong>{isStartingPayment ? 'PREPARANDO PAGO…' : 'PAGAR SOLO ESTA COTIZACIÓN'}</strong>
-              <small>Continúa al checkout únicamente con este folio.</small>
-            </span>
-          </button>
-
-          <button
-            type="button"
-            className="nk-quote-payment-option nk-quote-payment-option-secondary"
-            disabled={isInCart || isStartingPayment}
+            disabled={isInCart}
             onClick={handleAddToCart}
           >
             <span className="material-icons-outlined" aria-hidden="true">
@@ -138,12 +109,10 @@ export default function QuotePaymentDialog({
             </span>
             <span>
               <strong>{isInCart ? 'YA ESTÁ EN EL CARRITO' : 'AGREGAR AL CARRITO'}</strong>
-              <small>{isInCart ? 'Puedes cerrar y continuar desde tu carrito.' : 'Combínala con productos u otras cotizaciones.'}</small>
+              <small>{isInCart ? 'Puedes cerrar y continuar desde tu carrito.' : 'Después podrás sumar otros productos.'}</small>
             </span>
           </button>
         </div>
-
-        {paymentError && <p className="nk-quote-payment-error" role="alert">{paymentError}</p>}
 
         <button type="button" className="nk-quote-payment-cancel" onClick={onClose}>
           Volver a mis pedidos
@@ -291,29 +260,9 @@ export default function QuotePaymentDialog({
           background: var(--nk-text-main);
         }
 
-        .nk-quote-payment-option-secondary {
-          background: var(--nk-bg-card);
-          color: var(--nk-text-main);
-        }
-
-        .nk-quote-payment-option-secondary:hover:not(:disabled) {
-          border-color: var(--nk-primary);
-          color: var(--nk-primary);
-        }
-
         .nk-quote-payment-option:disabled {
           opacity: 0.62;
           cursor: not-allowed;
-        }
-
-        .nk-quote-payment-error {
-          margin: 12px 0 0;
-          padding: 10px 12px;
-          border: 2px solid var(--nk-danger);
-          background: var(--nk-bg-wrapper);
-          color: var(--nk-text-main);
-          font-weight: 750;
-          line-height: 1.4;
         }
 
         .nk-quote-payment-cancel {

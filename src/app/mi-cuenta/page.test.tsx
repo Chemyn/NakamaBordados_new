@@ -58,6 +58,7 @@ const mocks = vi.hoisted(() => ({
   },
   router: {
     replace: vi.fn(),
+    push: vi.fn(),
   },
   fetchProductionAccess: vi.fn(),
   fetchWarehouseAccess: vi.fn(),
@@ -188,6 +189,7 @@ beforeEach(() => {
   mocks.cart.addQuoteToCart.mockReset();
   mocks.cart.isQuoteInCart.mockReset().mockReturnValue(false);
   mocks.router.replace.mockReset();
+  mocks.router.push.mockReset();
   mocks.fetchProductionAccess.mockReset().mockResolvedValue({ can: false });
   mocks.fetchWarehouseAccess.mockReset().mockResolvedValue(false);
   mocks.fetchAffiliateAccess.mockReset().mockResolvedValue({ can: false });
@@ -454,7 +456,7 @@ describe('MiCuentaPage accessibility and account navigation', () => {
     await act(async () => { resolveSecond(trackingResponse('TRACK-B')); });
   });
 
-  it('offers the payment chooser only for a server-eligible quote', () => {
+  it('adds an eligible quote to the cart and takes the customer there', () => {
     mocks.auth.user = createUser([
       createOrder({
         id: 'quote-order',
@@ -497,9 +499,9 @@ describe('MiCuentaPage accessibility and account navigation', () => {
     expect(within(convertedCard as HTMLElement).queryByRole('button', { name: /pagar/i })).not.toBeInTheDocument();
 
     fireEvent.click(chooserButton);
-    const dialog = screen.getByRole('dialog', { name: /elige cómo pagar/i });
+    const dialog = screen.getByRole('dialog', { name: /agrega tu cotización/i });
     expect(within(dialog).getByText('NK-2048')).toBeVisible();
-    expect(within(dialog).getByRole('button', { name: /pagar solo esta cotización/i })).toBeVisible();
+    expect(within(dialog).queryByRole('button', { name: /pagar solo esta cotización/i })).not.toBeInTheDocument();
 
     fireEvent.click(within(dialog).getByRole('button', { name: /agregar al carrito/i }));
     expect(mocks.cart.addQuoteToCart).toHaveBeenCalledWith({
@@ -508,6 +510,7 @@ describe('MiCuentaPage accessibility and account navigation', () => {
       folio: 'NK-2048',
       totalMXN: 1200,
     });
+    expect(mocks.router.push).toHaveBeenCalledWith('/cart/');
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 

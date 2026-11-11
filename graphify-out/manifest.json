@@ -792,9 +792,9 @@
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/QuotePaymentDialog.tsx": {
-    "mtime": 1788806043.6067908,
-    "seen": 1790264072.6935222,
-    "ast_hash": "be18aefd697fb5f9754a297eb0db355c",
+    "mtime": 1794432266.6406164,
+    "seen": 1794432597.639987,
+    "ast_hash": "6c5f68e3f6322484262fc48909fb0d60",
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/TrackingFeedback.test.tsx": {
@@ -810,15 +810,15 @@
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/page.test.tsx": {
-    "mtime": 1794252949.7281747,
-    "seen": 1794253295.6554773,
-    "ast_hash": "59697a8c0f0ae4044a1483d87032eedc",
+    "mtime": 1794432187.048915,
+    "seen": 1794432597.6399977,
+    "ast_hash": "a8cc0b264d012864be230e4d43888c82",
     "semantic_hash": ""
   },
   "src/app/mi-cuenta/page.tsx": {
-    "mtime": 1790015491.4480343,
-    "seen": 1790264072.6935306,
-    "ast_hash": "4043706ad108ca6926eafba3df362839",
+    "mtime": 1794432267.2099397,
+    "seen": 1794432597.6400008,
+    "ast_hash": "0c4115cee0b924d132870c501471f0ea",
     "semantic_hash": ""
   },
   "src/app/page.tsx": {
