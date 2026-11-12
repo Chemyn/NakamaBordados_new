@@ -136,6 +136,10 @@ class Nakama_Admin {
 							<?php foreach ( $codes as $id => $code ) :
 								$status = Nakama_Discount_Codes::status( $code );
 								$entry_mode = Nakama_Discount_Codes::entry_mode( $code );
+								$usage_limited = 'yes' === ( isset( $code['usage_limit_enabled'] ) ? $code['usage_limit_enabled'] : 'no' );
+								$usage_stats = class_exists( 'Nakama_Discount_Code_Usage' )
+									? Nakama_Discount_Code_Usage::stats( $code )
+									: array( 'used' => 0, 'reserved' => 0, 'committed' => 0, 'remaining' => null );
 								$status_labels = array(
 									'active'    => 'Activo ahora',
 									'scheduled' => 'Programado',
@@ -171,6 +175,33 @@ class Nakama_Admin {
 										<label><input type="checkbox" name="<?php echo esc_attr( $field ); ?>[enabled]" <?php checked( 'yes', $code['enabled'] ); ?>> Activo</label>
 										<label><input type="checkbox" name="<?php echo esc_attr( $field ); ?>[allow_modifiers]" <?php checked( 'yes', $code['allow_modifiers'] ); ?>> Permitir transferencia, envío gratis y MSI</label>
 									</div>
+									<fieldset class="nakama-code-usage" data-nakama-usage-limit>
+										<legend>Límites de uso</legend>
+										<label class="nakama-code-usage__toggle">
+											<input type="checkbox" name="<?php echo esc_attr( $field ); ?>[usage_limit_enabled]" <?php checked( true, $usage_limited ); ?> data-nakama-usage-toggle>
+											Limitar la cantidad total de usos
+										</label>
+										<div class="nakama-code-usage__quantity" data-nakama-usage-quantity <?php echo $usage_limited ? '' : 'hidden'; ?>>
+											<label>Cantidad máxima de usos
+												<input type="number" name="<?php echo esc_attr( $field ); ?>[usage_limit]" value="<?php echo esc_attr( $usage_limited ? (int) $code['usage_limit'] : '' ); ?>" min="<?php echo esc_attr( max( 1, (int) $usage_stats['committed'] ) ); ?>" step="1" inputmode="numeric" <?php echo $usage_limited ? '' : 'disabled'; ?>>
+											</label>
+										</div>
+										<label class="nakama-code-usage__toggle">
+											<input type="checkbox" name="<?php echo esc_attr( $field ); ?>[limit_per_customer]" <?php checked( 'yes', isset( $code['limit_per_customer'] ) ? $code['limit_per_customer'] : 'no' ); ?>>
+											Permitir solo un uso por cliente
+										</label>
+										<?php if ( $usage_limited ) : ?>
+											<p class="nakama-code-usage__status"><?php echo esc_html( sprintf(
+												'%d usados · %d reservados · %d restantes de %d',
+												(int) $usage_stats['used'],
+												(int) $usage_stats['reserved'],
+												(int) $usage_stats['remaining'],
+												(int) $code['usage_limit']
+											) ); ?></p>
+										<?php else : ?>
+											<p class="nakama-code-usage__status">Uso ilimitado hasta agotar existencias o hasta que expire el código.</p>
+										<?php endif; ?>
+									</fieldset>
 									<fieldset class="nakama-code-mode-fieldset">
 										<legend>¿Cómo podrá usarlo el cliente? <span aria-hidden="true">*</span></legend>
 										<label><input type="radio" name="<?php echo esc_attr( $field ); ?>[entry_mode]" value="automatic" <?php checked( Nakama_Discount_Codes::ENTRY_AUTOMATIC, $entry_mode ); ?> required> Mostrar automáticamente</label>
@@ -223,6 +254,24 @@ class Nakama_Admin {
 								<label><input type="checkbox" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][enabled]" checked data-nakama-new-enabled> Activo</label>
 								<label><input type="checkbox" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][allow_modifiers]" checked> Permitir transferencia, envío gratis y MSI</label>
 							</div>
+							<fieldset class="nakama-code-usage" data-nakama-usage-limit>
+								<legend>Límites de uso</legend>
+								<label class="nakama-code-usage__toggle">
+									<input type="checkbox" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][usage_limit_enabled]" data-nakama-usage-toggle>
+									Limitar la cantidad total de usos
+								</label>
+								<div class="nakama-code-usage__quantity" data-nakama-usage-quantity hidden>
+									<label for="nakama-new-usage-limit">Cantidad máxima de usos <span aria-hidden="true">*</span></label>
+									<input id="nakama-new-usage-limit" type="number" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][usage_limit]" min="1" step="1" inputmode="numeric" aria-describedby="nakama-new-usage-limit-help nakama-new-usage-limit-error" data-nakama-required="usage_limit" disabled>
+									<p id="nakama-new-usage-limit-help" class="description">Indica un número entero mayor que cero.</p>
+									<p id="nakama-new-usage-limit-error" class="nakama-field-error" role="alert" data-nakama-field-error="usage_limit" hidden></p>
+								</div>
+								<label class="nakama-code-usage__toggle">
+									<input type="checkbox" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][limit_per_customer]">
+									Permitir solo un uso por cliente
+								</label>
+								<p class="nakama-code-usage__status">Si no habilitas el límite total, será de uso ilimitado hasta agotar existencias o hasta que expire el código.</p>
+							</fieldset>
 							<fieldset class="nakama-code-mode-fieldset" data-nakama-entry-mode aria-describedby="nakama-new-entry-mode-help nakama-new-entry-mode-error">
 								<legend>¿Cómo podrá usarlo el cliente? <span aria-hidden="true">*</span></legend>
 								<label><input type="radio" name="<?php echo esc_attr( $codes_opt ); ?>[items][new][entry_mode]" value="automatic" required> Mostrar automáticamente</label>
@@ -347,6 +396,14 @@ class Nakama_Admin {
 				.nakama-code-field input[aria-invalid="true"] { border-color:#b32d2e; box-shadow:0 0 0 1px #b32d2e; }
 				.nakama-code-toggles { display:flex; flex-wrap:wrap; gap:12px 22px; margin-top:14px; }
 				.nakama-code-toggles label { display:inline-flex; align-items:center; min-height:44px; }
+				.nakama-code-usage { display:grid; grid-template-columns:minmax(220px, 1fr) minmax(180px, 260px); gap:10px 22px; margin:14px 0 0; padding:12px; border:1px solid #dcdcde; border-radius:6px; }
+				.nakama-code-usage legend { padding:0 6px; font-weight:700; }
+				.nakama-code-usage__toggle { display:inline-flex; align-items:center; min-height:44px; }
+				.nakama-code-usage__quantity { display:grid; gap:6px; }
+				.nakama-code-usage__quantity label { display:grid; gap:6px; font-weight:600; }
+				.nakama-code-usage__quantity input { width:100%; min-height:40px; }
+				.nakama-code-usage__quantity[hidden] { display:none; }
+				.nakama-code-usage__status { grid-column:1 / -1; margin:0; padding:9px 11px; border-left:3px solid #2271b1; background:#f0f6fc; color:#0a4b78; }
 				.nakama-code-mode-fieldset { display:flex; flex-wrap:wrap; gap:8px 22px; margin:14px 0 0; padding:12px; border:1px solid #dcdcde; border-radius:6px; }
 				.nakama-code-mode-fieldset legend { padding:0 6px; font-weight:700; }
 				.nakama-code-mode-fieldset label { display:inline-flex; align-items:center; min-height:44px; }
@@ -359,7 +416,7 @@ class Nakama_Admin {
 				.nakama-code-create summary { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:0 16px; border:1px solid #2271b1; border-radius:4px; color:#2271b1; font-weight:600; cursor:pointer; }
 				.nakama-code-create summary:focus-visible, .nakama-code-admin input:focus-visible, .nakama-code-admin button:focus-visible { outline:3px solid #72aee6; outline-offset:2px; }
 				@media (max-width:900px) { .nakama-code-fields { grid-template-columns:1fr 1fr; } }
-				@media (max-width:600px) { .nakama-code-fields { grid-template-columns:1fr; } }
+				@media (max-width:600px) { .nakama-code-fields, .nakama-code-usage { grid-template-columns:1fr; } }
 			</style>
 			<script>
 				(function () {
@@ -372,6 +429,21 @@ class Nakama_Admin {
 					var modeGroup = panel.querySelector('[data-nakama-entry-mode]');
 					var modeRadios = modeGroup.querySelectorAll('input[type="radio"]');
 					var modeError = modeGroup.querySelector('[data-nakama-entry-mode-error]');
+					var usageGroups = root.querySelectorAll('[data-nakama-usage-limit]');
+					var newUsageGroup = panel.querySelector('[data-nakama-usage-limit]');
+					var newUsageToggle = newUsageGroup.querySelector('[data-nakama-usage-toggle]');
+					var newUsageInput = newUsageGroup.querySelector('[data-nakama-required="usage_limit"]');
+
+					function syncUsageLimit(group) {
+						var toggle = group.querySelector('[data-nakama-usage-toggle]');
+						var quantity = group.querySelector('[data-nakama-usage-quantity]');
+						var input = quantity.querySelector('input[type="number"]');
+						quantity.hidden = !toggle.checked;
+						input.disabled = !toggle.checked;
+						if (!toggle.checked && input.getAttribute('aria-invalid') === 'true' && group === newUsageGroup) {
+							clearFieldError(input);
+						}
+					}
 
 					function showFieldError(field, message) {
 						var error = panel.querySelector('[data-nakama-field-error="' + field.dataset.nakamaRequired + '"]');
@@ -407,9 +479,12 @@ class Nakama_Admin {
 						var percentageValue = percentage.value.trim();
 						var numericPercentage = Number(percentageValue);
 						var selectedMode = panel.querySelector('[data-nakama-entry-mode] input[type="radio"]:checked');
+						var usageLimitValue = newUsageInput.value.trim();
+						var numericUsageLimit = Number(usageLimitValue);
 
 						clearFieldError(code);
 						clearFieldError(percentage);
+						clearFieldError(newUsageInput);
 						clearModeError();
 						if (!codeValue) {
 							showFieldError(code, 'Escribe el código que verá el cliente.');
@@ -428,6 +503,10 @@ class Nakama_Admin {
 						if (!selectedMode) {
 							showModeError('Elige si el código se mostrará automáticamente o se ingresará manualmente.');
 							firstInvalid = firstInvalid || modeRadios[0];
+						}
+						if (newUsageToggle.checked && (!usageLimitValue || !Number.isInteger(numericUsageLimit) || numericUsageLimit <= 0)) {
+							showFieldError(newUsageInput, 'Indica una cantidad de usos mayor que cero.');
+							firstInvalid = firstInvalid || newUsageInput;
 						}
 
 						if (firstInvalid) {
@@ -468,6 +547,11 @@ class Nakama_Admin {
 					modeRadios.forEach(function (field) {
 						field.addEventListener('change', clearModeError);
 					});
+					usageGroups.forEach(function (group) {
+						var toggle = group.querySelector('[data-nakama-usage-toggle]');
+						toggle.addEventListener('change', function () { syncUsageLimit(group); });
+						syncUsageLimit(group);
+					});
 
 					cancelButton.addEventListener('click', function () {
 						panel.querySelectorAll('input').forEach(function (field) {
@@ -481,6 +565,7 @@ class Nakama_Admin {
 							}
 						});
 						clearModeError();
+						usageGroups.forEach(syncUsageLimit);
 						updateCreateLabel();
 						panel.open = false;
 						panel.querySelector('summary').focus();

@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Nakama Discounts Engine
  * Description: Motor de descuentos para WooCommerce con códigos públicos, fidelidad, campañas, 3x2, envío gratis topado, transferencia y MSI.
- * Version:     1.2.0
+ * Version:     1.3.0
  * Author:      Nakama Bordados
  * Requires PHP: 7.4
  * Text Domain: nakama-discounts
@@ -33,17 +33,19 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'NAKAMA_DISC_VERSION', '1.2.0' );
+define( 'NAKAMA_DISC_VERSION', '1.3.0' );
 define( 'NAKAMA_DISC_FILE', __FILE__ );
 define( 'NAKAMA_DISC_PATH', plugin_dir_path( __FILE__ ) );
 define( 'NAKAMA_DISC_URL', plugin_dir_url( __FILE__ ) );
 define( 'NAKAMA_DISC_OPTION', 'nakama_discounts_settings' );
 define( 'NAKAMA_DISC_CODES_OPTION', 'nakama_discount_codes' );
+define( 'NAKAMA_DISC_USAGE_OPTION', 'nakama_discount_code_usage' );
 
 // Carga de clases (loader simple, sin PSR-4 para máxima portabilidad).
 $nakama_disc_includes = array(
 	'includes/class-settings.php',
 	'includes/class-discount-codes.php',
+	'includes/class-discount-code-usage.php',
 	'includes/class-campaigns.php',
 	'includes/class-customer-history.php',
 	'includes/class-context.php',
@@ -72,6 +74,7 @@ add_action( 'plugins_loaded', function () {
 
 	Nakama_Discount_Codes::maybe_upgrade();
 	Nakama_Discount_Codes::init();
+	Nakama_Discount_Code_Usage::init();
 	Nakama_Cart::init();      // aplica fees, botones de promo, badges
 	Nakama_Shipping::init();  // envío gratis topado
 	Nakama_MSI::init();       // flags de meses sin intereses
@@ -82,3 +85,4 @@ add_action( 'plugins_loaded', function () {
 // Ajustes por defecto al activar.
 register_activation_hook( __FILE__, array( 'Nakama_Settings', 'set_defaults' ) );
 register_activation_hook( __FILE__, array( 'Nakama_Discount_Codes', 'set_defaults' ) );
+register_activation_hook( __FILE__, array( 'Nakama_Discount_Code_Usage', 'set_defaults' ) );

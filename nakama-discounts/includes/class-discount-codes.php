@@ -8,7 +8,7 @@ if ( ! defined( 'ABSPATH' ) ) { exit; }
  * motor los convierte en candidatos de promoción primaria.
  */
 class Nakama_Discount_Codes {
-	const SCHEMA_VERSION = 2;
+	const SCHEMA_VERSION = 3;
 	const SELECTION_PREFIX = 'public_code:';
 	const SESSION_UNLOCKED_ID = 'nakama_unlocked_public_code_id';
 	const ENTRY_AUTOMATIC = 'automatic';
@@ -77,6 +77,11 @@ class Nakama_Discount_Codes {
 				continue;
 			}
 			$record['entry_mode'] = self::entry_mode( $record );
+			$record['usage_limit_enabled'] = 'yes' === ( isset( $record['usage_limit_enabled'] ) ? $record['usage_limit_enabled'] : 'no' ) ? 'yes' : 'no';
+			$record['usage_limit'] = 'yes' === $record['usage_limit_enabled']
+				? max( 1, (int) ( isset( $record['usage_limit'] ) ? $record['usage_limit'] : 1 ) )
+				: 0;
+			$record['limit_per_customer'] = 'yes' === ( isset( $record['limit_per_customer'] ) ? $record['limit_per_customer'] : 'no' ) ? 'yes' : 'no';
 			$items[ $id ] = $record;
 		}
 
@@ -126,6 +131,8 @@ class Nakama_Discount_Codes {
 			$start = isset( $row['start'] ) ? sanitize_text_field( $row['start'] ) : '';
 			$end   = isset( $row['end'] ) ? sanitize_text_field( $row['end'] ) : '';
 			$entry_mode = isset( $row['entry_mode'] ) ? sanitize_key( $row['entry_mode'] ) : '';
+			$usage_limit_enabled = isset( $row['usage_limit_enabled'] );
+			$raw_usage_limit = isset( $row['usage_limit'] ) ? trim( (string) $row['usage_limit'] ) : '';
 			$has_creation_values = '' !== $code || '' !== $raw_percentage || '' !== $start || '' !== $end || '' !== $entry_mode;
 
 			// Una eliminación explícita no debe quedar bloqueada por un borrador
@@ -155,6 +162,26 @@ class Nakama_Discount_Codes {
 
 			if ( ! in_array( $entry_mode, array( self::ENTRY_AUTOMATIC, self::ENTRY_MANUAL ), true ) ) {
 				$row_errors[] = __( 'Elige cómo podrá usar el cliente este código.', 'nakama-discounts' );
+			}
+			if ( $usage_limit_enabled && ! preg_match( '/^[1-9][0-9]*$/', $raw_usage_limit ) ) {
+				$row_errors[] = __( 'Indica una cantidad de usos mayor que cero.', 'nakama-discounts' );
+			}
+			$existing_id = $is_new ? '' : sanitize_key( isset( $row['id'] ) ? $row['id'] : $row_key );
+			if (
+				$usage_limit_enabled
+				&& preg_match( '/^[1-9][0-9]*$/', $raw_usage_limit )
+				&& '' !== $existing_id
+				&& isset( $previous['items'][ $existing_id ] )
+				&& class_exists( 'Nakama_Discount_Code_Usage' )
+			) {
+				$usage_stats = Nakama_Discount_Code_Usage::stats( $previous['items'][ $existing_id ] );
+				$committed = isset( $usage_stats['committed'] ) ? (int) $usage_stats['committed'] : 0;
+				if ( (int) $raw_usage_limit < $committed ) {
+					$row_errors[] = sprintf(
+						__( 'El límite no puede ser menor que los %d usos ya pagados o reservados.', 'nakama-discounts' ),
+						$committed
+					);
+				}
 			}
 
 			if ( ( $start && ! self::valid_date( $start ) ) || ( $end && ! self::valid_date( $end ) ) ) {
@@ -207,6 +234,9 @@ class Nakama_Discount_Codes {
 				'end'             => $end,
 				'allow_modifiers' => isset( $row['allow_modifiers'] ) ? 'yes' : 'no',
 				'entry_mode'      => $entry_mode,
+				'usage_limit_enabled' => $usage_limit_enabled ? 'yes' : 'no',
+				'usage_limit'      => $usage_limit_enabled ? (int) $raw_usage_limit : 0,
+				'limit_per_customer' => isset( $row['limit_per_customer'] ) ? 'yes' : 'no',
 				'created_at'      => isset( $old['created_at'] ) ? $old['created_at'] : $now,
 				'updated_at'      => $now,
 			);
@@ -246,8 +276,16 @@ class Nakama_Discount_Codes {
 	}
 
 	public static function active( $now = null ) {
-		return array_filter( self::all(), function ( $record ) use ( $now ) {
-			return is_array( $record ) && 'active' === self::status( $record, $now );
+		$customer_key = self::current_customer_key();
+		return array_filter( self::all(), function ( $record ) use ( $now, $customer_key ) {
+			if ( ! is_array( $record ) || 'active' !== self::status( $record, $now ) ) {
+				return false;
+			}
+			if ( ! class_exists( 'Nakama_Discount_Code_Usage' ) ) {
+				return true;
+			}
+			$availability = Nakama_Discount_Code_Usage::availability( $record, $customer_key );
+			return ! empty( $availability['available'] );
 		} );
 	}
 
@@ -274,6 +312,12 @@ class Nakama_Discount_Codes {
 		return null;
 	}
 
+	public static function find_by_id( $id ) {
+		$id = sanitize_key( $id );
+		$items = self::all();
+		return '' !== $id && isset( $items[ $id ] ) && is_array( $items[ $id ] ) ? $items[ $id ] : null;
+	}
+
 	/** Resolve a typed manual code without exposing any other stored code. */
 	public static function resolve_manual_code( $result, $raw_code ) {
 		$record = self::find_by_code( $raw_code );
@@ -293,6 +337,13 @@ class Nakama_Discount_Codes {
 		}
 		if ( 'active' !== self::status( $record ) ) {
 			return $invalid;
+		}
+		if ( class_exists( 'Nakama_Discount_Code_Usage' ) ) {
+			$availability = Nakama_Discount_Code_Usage::availability( $record, self::current_customer_key() );
+			if ( empty( $availability['available'] ) ) {
+				$invalid['message'] = isset( $availability['message'] ) ? $availability['message'] : $invalid['message'];
+				return $invalid;
+			}
 		}
 
 		$id = isset( $record['id'] ) ? sanitize_key( $record['id'] ) : '';
@@ -405,6 +456,21 @@ class Nakama_Discount_Codes {
 			return '';
 		}
 		return sanitize_key( substr( (string) $selection, strlen( self::SELECTION_PREFIX ) ) );
+	}
+
+	/** Identidad del comprador disponible durante carrito/checkout. */
+	public static function current_customer_key() {
+		if ( ! class_exists( 'Nakama_Discount_Code_Usage' ) || ! function_exists( 'WC' ) ) {
+			return '';
+		}
+		$woocommerce = WC();
+		$customer = $woocommerce && isset( $woocommerce->customer ) ? $woocommerce->customer : null;
+		if ( ! $customer ) {
+			return '';
+		}
+		$user_id = method_exists( $customer, 'get_id' ) ? (int) $customer->get_id() : 0;
+		$email = method_exists( $customer, 'get_billing_email' ) ? (string) $customer->get_billing_email() : '';
+		return Nakama_Discount_Code_Usage::customer_key( $user_id, $email );
 	}
 
 	private static function valid_date( $date ) {

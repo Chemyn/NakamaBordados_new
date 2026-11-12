@@ -312,9 +312,9 @@
     "semantic_hash": ""
   },
   "nakama-discounts/includes/class-admin.php": {
-    "mtime": 1790215375.12945,
-    "seen": 1790255798.0405555,
-    "ast_hash": "dceaa9be36946399ffa23bd7cf95b8f3",
+    "mtime": 1794499784.6653616,
+    "seen": 1794500334.0649192,
+    "ast_hash": "d55487491e82458a8cbfe015d238cd42",
     "semantic_hash": ""
   },
   "nakama-discounts/includes/class-campaigns.php": {
@@ -366,9 +366,9 @@
     "semantic_hash": ""
   },
   "nakama-discounts/nakama-discounts.php": {
-    "mtime": 1790255470.129831,
-    "seen": 1790255798.040592,
-    "ast_hash": "a38b2e5623983679a09c9250ee437200",
+    "mtime": 1794499852.884073,
+    "seen": 1794500334.064951,
+    "ast_hash": "ad018e9b194523371dc1f28d59108d39",
     "semantic_hash": ""
   },
   "nakama-envia-tracking.php": {
@@ -2058,9 +2058,9 @@
     "semantic_hash": ""
   },
   "nakama-discounts/includes/class-discount-codes.php": {
-    "mtime": 1790215656.58451,
-    "seen": 1790255798.0405765,
-    "ast_hash": "1b62f82805c1a2f8afbcbb6ee637694e",
+    "mtime": 1794499624.0298266,
+    "seen": 1794500334.0649385,
+    "ast_hash": "786d6287253f553b8ca1c0128a6458db",
     "semantic_hash": ""
   },
   "src/app/checkout/page.test.tsx": {
@@ -2094,9 +2094,9 @@
     "semantic_hash": ""
   },
   "tests/nakama-discounts-test.php": {
-    "mtime": 1790215545.9732366,
-    "seen": 1790255798.0412102,
-    "ast_hash": "31bdff03092faa6ffce945a886614d60",
+    "mtime": 1794499864.5268562,
+    "seen": 1794500334.0654361,
+    "ast_hash": "3076d5c7bb81137ad3be5a3c374ae07c",
     "semantic_hash": ""
   },
   "docs/superpowers/specs/2026-09-18-codigos-descuento-nakama-design.md": {
@@ -2106,9 +2106,9 @@
     "semantic_hash": ""
   },
   "tests/nakama-discounts-admin-ui-test.php": {
-    "mtime": 1790215400.7960012,
-    "seen": 1790255798.041205,
-    "ast_hash": "7f16748ef0b1b71961890bd097555309",
+    "mtime": 1794499693.5074494,
+    "seen": 1794500334.0654306,
+    "ast_hash": "82f0f6ea821a0cfd3b02afee74f74961",
     "semantic_hash": ""
   },
   "nakama-drops/assets/admin.js": {
@@ -2697,6 +2697,18 @@
     "mtime": 1790214554.4820266,
     "seen": 1790255798.0413678,
     "ast_hash": "20f0d7919d0e011a843df9ff194ceb84",
+    "semantic_hash": ""
+  },
+  "nakama-discounts/includes/class-discount-code-usage.php": {
+    "mtime": 1794500170.18372,
+    "seen": 1794500334.0649352,
+    "ast_hash": "8c73953e3d432178b3063f195daf4d9a",
+    "semantic_hash": ""
+  },
+  "tests/nakama-discount-code-usage-test.php": {
+    "mtime": 1794500170.779207,
+    "seen": 1794500334.0654244,
+    "ast_hash": "19ac5f46c6a6fa347872186ec0f50353",
     "semantic_hash": ""
   }
 }

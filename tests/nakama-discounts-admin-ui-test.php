@@ -61,11 +61,25 @@ class Nakama_Discount_Codes {
 			'saved' => array(
 				'id' => 'saved', 'code' => 'PUBLICO15', 'rate' => 0.15,
 				'enabled' => 'yes', 'start' => '', 'end' => '', 'allow_modifiers' => 'yes',
+				'usage_limit_enabled' => 'no', 'usage_limit' => 0, 'limit_per_customer' => 'no',
+			),
+			'limited' => array(
+				'id' => 'limited', 'code' => 'LIMITADO25', 'rate' => 0.25,
+				'enabled' => 'yes', 'start' => '', 'end' => '', 'allow_modifiers' => 'no',
+				'usage_limit_enabled' => 'yes', 'usage_limit' => 25, 'limit_per_customer' => 'yes',
 			),
 		);
 	}
 	public static function status( $code ) { return 'active'; }
 	public static function entry_mode( $code ) { return $code['entry_mode'] ?? 'automatic'; }
+}
+
+class Nakama_Discount_Code_Usage {
+	public static function stats( $code ) {
+		return 'limited' === $code['id']
+			? array( 'used' => 3, 'reserved' => 2, 'committed' => 5, 'remaining' => 20 )
+			: array( 'used' => 0, 'reserved' => 0, 'committed' => 0, 'remaining' => null );
+	}
 }
 
 class Nakama_Campaigns {
@@ -89,5 +103,11 @@ assert_same( true, false !== strpos( $html, 'value="automatic"' ), 'The entry-mo
 assert_same( true, false !== strpos( $html, 'value="manual"' ), 'The entry-mode group offers manual entry.' );
 assert_same( true, false !== strpos( $html, 'Automático' ), 'Legacy saved codes are presented as automatic.' );
 assert_same( true, false !== strpos( $html, 'data-nakama-entry-mode' ), 'Creation reserves inline validation for the entry-mode group.' );
+assert_same( true, false !== strpos( $html, '[usage_limit_enabled]' ), 'Saved and new code cards expose the total-limit toggle.' );
+assert_same( true, false !== strpos( $html, '[usage_limit]' ), 'The administrator can enter the maximum number of uses.' );
+assert_same( true, false !== strpos( $html, '[limit_per_customer]' ), 'The administrator can enforce one use per customer independently.' );
+assert_same( true, false !== strpos( $html, 'Uso ilimitado hasta agotar existencias o hasta que expire el código.' ), 'Unlimited codes explain their stock-or-expiration behavior.' );
+assert_same( true, false !== strpos( $html, '3 usados · 2 reservados · 20 restantes de 25' ), 'Limited codes show used, reserved and remaining quantities only to administrators.' );
+assert_same( true, false !== strpos( $html, 'data-nakama-usage-limit' ), 'Usage-limit controls expose the progressive-disclosure behavior.' );
 
 echo "PHP Nakama Discounts admin UI tests passed.\n";

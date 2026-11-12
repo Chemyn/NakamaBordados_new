@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 define( 'ABSPATH', __DIR__ . '/' );
 define( 'NAKAMA_DISC_CODES_OPTION', 'nakama_discount_codes' );
+define( 'NAKAMA_DISC_USAGE_OPTION', 'nakama_discount_code_usage' );
 
 $test_options = array();
 $test_settings_errors = array();
@@ -22,6 +23,21 @@ function update_option( $key, $value ) {
 	return true;
 }
 
+function add_option( $key, $value, $deprecated = '', $autoload = 'yes' ) {
+	global $test_options;
+	if ( array_key_exists( $key, $test_options ) ) {
+		return false;
+	}
+	$test_options[ $key ] = $value;
+	return true;
+}
+
+function delete_option( $key ) {
+	global $test_options;
+	unset( $test_options[ $key ] );
+	return true;
+}
+
 function sanitize_text_field( $value ) {
 	return trim( strip_tags( (string) $value ) );
 }
@@ -29,6 +45,8 @@ function sanitize_text_field( $value ) {
 function sanitize_key( $value ) {
 	return preg_replace( '/[^a-z0-9_\-]/', '', strtolower( (string) $value ) );
 }
+
+function sanitize_email( $value ) { return strtolower( trim( (string) $value ) ); }
 
 function __( $text, $domain = null ) {
 	return $text;
@@ -90,6 +108,7 @@ function assert_same( $expected, $actual, $message ) {
 
 $codes_file = dirname( __DIR__ ) . '/nakama-discounts/includes/class-discount-codes.php';
 assert_same( true, file_exists( $codes_file ), 'The public discount-code repository exists.' );
+require dirname( __DIR__ ) . '/nakama-discounts/includes/class-discount-code-usage.php';
 require $codes_file;
 
 $test_options[ NAKAMA_DISC_CODES_OPTION ] = array(
@@ -108,9 +127,13 @@ $test_options[ NAKAMA_DISC_CODES_OPTION ] = array(
 );
 Nakama_Discount_Codes::maybe_upgrade();
 $legacy = Nakama_Discount_Codes::collection();
-assert_same( 2, $legacy['version'] ?? null, 'Legacy collections migrate to schema 2.' );
+assert_same( 3, $legacy['version'] ?? null, 'Legacy collections migrate to schema 3.' );
 assert_same( 'automatic', $legacy['items']['legacy']['entry_mode'] ?? null, 'Legacy codes stay automatic.' );
-assert_same( 2, $test_options[ NAKAMA_DISC_CODES_OPTION ]['version'] ?? null, 'The schema upgrade is persisted.' );
+assert_same( 'no', $legacy['items']['legacy']['usage_limit_enabled'] ?? null, 'Legacy codes remain unlimited after migration.' );
+assert_same( 0, $legacy['items']['legacy']['usage_limit'] ?? null, 'Legacy codes do not gain a synthetic usage limit.' );
+assert_same( 'no', $legacy['items']['legacy']['limit_per_customer'] ?? null, 'Legacy codes remain reusable by the same customer.' );
+assert_same( 3, $test_options[ NAKAMA_DISC_CODES_OPTION ]['version'] ?? null, 'The schema upgrade is persisted.' );
+assert_same( 'LEGACY10', Nakama_Discount_Codes::find_by_id( 'legacy' )['code'] ?? null, 'Order lifecycle hooks can resolve the current code by its stable ID.' );
 
 $sanitized = Nakama_Discount_Codes::sanitize( array(
 	'items' => array(
@@ -122,18 +145,44 @@ $sanitized = Nakama_Discount_Codes::sanitize( array(
 			'end'             => '2026-09-30',
 			'allow_modifiers' => 'yes',
 			'entry_mode'      => 'manual',
+			'usage_limit_enabled' => 'yes',
+			'usage_limit'      => '25',
+			'limit_per_customer' => 'yes',
 		),
 	),
 ) );
 
 $created = array_values( $sanitized['items'] ?? array() )[0] ?? array();
-assert_same( 2, $sanitized['version'] ?? null, 'The stored collection carries its schema version.' );
+assert_same( 3, $sanitized['version'] ?? null, 'The stored collection carries its schema version.' );
 assert_same( 'VERANO-15', $created['code'] ?? null, 'Codes are normalized for display and comparison.' );
 assert_same( 0.15, $created['rate'] ?? null, 'Admin percentages are stored as decimal rates.' );
 assert_same( 'yes', $created['allow_modifiers'] ?? null, 'Combination preference survives sanitization.' );
 assert_same( 'manual', $created['entry_mode'] ?? null, 'The selected entry mode survives sanitization.' );
+assert_same( 'yes', $created['usage_limit_enabled'] ?? null, 'The total usage-limit toggle survives sanitization.' );
+assert_same( 25, $created['usage_limit'] ?? null, 'The maximum usage quantity is stored as an integer.' );
+assert_same( 'yes', $created['limit_per_customer'] ?? null, 'The per-customer restriction can be combined with the global limit.' );
 
 $test_options[ NAKAMA_DISC_CODES_OPTION ] = $sanitized;
+$test_settings_errors = array();
+$missing_usage_limit = Nakama_Discount_Codes::sanitize( array(
+	'items' => array(
+		'new' => array(
+			'create'              => 'yes',
+			'code'                => 'LIMITADO',
+			'percentage'          => '10',
+			'entry_mode'          => 'manual',
+			'usage_limit_enabled' => 'yes',
+			'usage_limit'         => '',
+		),
+	),
+) );
+assert_same( $sanitized, $missing_usage_limit, 'Enabling a total limit without a quantity preserves the published collection.' );
+assert_same(
+	true,
+	in_array( 'Indica una cantidad de usos mayor que cero.', array_column( $test_settings_errors, 'message' ), true ),
+	'An enabled total limit requires a clear positive quantity.'
+);
+
 $test_settings_errors = array();
 $rejected = Nakama_Discount_Codes::sanitize( array(
 	'items' => array(
@@ -213,6 +262,52 @@ $active_record = array(
 assert_same( 'active', Nakama_Discount_Codes::status( $active_record, $test_now ), 'Both date limits include the full configured day.' );
 assert_same( 'scheduled', Nakama_Discount_Codes::status( $active_record, new DateTimeImmutable( '2026-09-17 23:59:59', wp_timezone() ) ), 'A future code is scheduled.' );
 assert_same( 'expired', Nakama_Discount_Codes::status( $active_record, new DateTimeImmutable( '2026-09-19 00:00:00', wp_timezone() ) ), 'A code expires after the final configured day.' );
+
+$test_options[ NAKAMA_DISC_CODES_OPTION ] = array(
+	'version' => 3,
+	'items' => array(
+		'exhausted' => array(
+			'id' => 'exhausted', 'code' => 'AGOTADO', 'rate' => 0.10,
+			'enabled' => 'yes', 'start' => '', 'end' => '',
+			'allow_modifiers' => 'yes', 'entry_mode' => 'manual',
+			'usage_limit_enabled' => 'yes', 'usage_limit' => 1, 'limit_per_customer' => 'no',
+		),
+	),
+);
+$test_options[ NAKAMA_DISC_USAGE_OPTION ] = array(
+	'version' => 1,
+	'codes' => array(
+		'exhausted' => array(
+			'reservations' => array(),
+			'uses' => array( '900' => array( 'customer_key' => 'user:9', 'token' => 'paid-900' ) ),
+		),
+	),
+);
+$exhausted_result = Nakama_Discount_Codes::resolve_manual_code( array( 'handled' => false ), 'AGOTADO' );
+assert_same( false, $exhausted_result['valid'] ?? true, 'A manual code cannot be unlocked after its uses are exhausted.' );
+assert_same( array(), Nakama_Discount_Codes::active(), 'An exhausted code is not offered among checkout promotions.' );
+
+$test_options[ NAKAMA_DISC_CODES_OPTION ]['items']['exhausted']['usage_limit'] = 3;
+$test_options[ NAKAMA_DISC_USAGE_OPTION ]['codes']['exhausted']['reservations']['pending-901'] = array(
+	'customer_key' => 'user:10', 'order_id' => 901, 'created_at' => $test_now->getTimestamp(),
+);
+$committed_previous = Nakama_Discount_Codes::collection();
+$test_settings_errors = array();
+$lowered_below_committed = Nakama_Discount_Codes::sanitize( array(
+	'items' => array(
+		'exhausted' => array(
+			'id' => 'exhausted', 'code' => 'AGOTADO', 'percentage' => '10',
+			'enabled' => 'yes', 'entry_mode' => 'manual', 'allow_modifiers' => 'yes',
+			'usage_limit_enabled' => 'yes', 'usage_limit' => '1',
+		),
+	),
+) );
+assert_same( $committed_previous, $lowered_below_committed, 'Administrators cannot save a limit below paid uses and active reservations.' );
+assert_same(
+	true,
+	in_array( 'El límite no puede ser menor que los 2 usos ya pagados o reservados.', array_column( $test_settings_errors, 'message' ), true ),
+	'The invalid lower limit explains the committed minimum.'
+);
 
 $test_options[ NAKAMA_DISC_CODES_OPTION ] = array(
 	'version' => 2,
